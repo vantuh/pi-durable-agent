@@ -201,6 +201,7 @@ export function App() {
                 connected={state.connected}
                 model={model}
                 cwd={active?.cwd ?? health?.cwd ?? ""}
+                home={health?.home ?? ""}
                 branch={active === undefined ? (health?.branch ?? null) : active.branch}
                 usage={state.live.usage}
                 status={state.live.status ?? []}
