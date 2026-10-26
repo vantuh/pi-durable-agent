@@ -4,10 +4,11 @@
  * the core is a folder here.
  */
 
-import { type FSWatcher, watch } from "node:fs";
+import { type FSWatcher, realpathSync, watch } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { registerHooks } from "node:module";
+import { join, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
@@ -55,6 +56,63 @@ const RESERVED = new Set(["coding-tools"]);
 /** How long a burst of saves is collected before loading again. */
 const SETTLE_MS = 150;
 
+/** The `extensions/` directories of every `Extensions` in this process, as paths ending in a separator. */
+const roots = new Set<string>();
+let hooked = false;
+
+/**
+ * Gives a helper the version query of the module that imports it, so a reload runs new helper code.
+ * Only files inside the same extension folder get it: packages and core files stay single instances.
+ */
+function versionHelpers(): void {
+    if (hooked) {
+        return;
+    }
+
+    hooked = true;
+    registerHooks({
+        resolve(specifier, context, nextResolve) {
+            const resolved = nextResolve(specifier, context);
+            const parent = context.parentURL;
+
+            if (
+                parent === undefined ||
+                !parent.startsWith("file:") ||
+                !resolved.url.startsWith("file:")
+            ) {
+                return resolved;
+            }
+
+            const version = new URL(parent).searchParams.get("v");
+
+            if (version === null) {
+                return resolved;
+            }
+
+            const from = fileURLToPath(parent);
+            const to = fileURLToPath(resolved.url);
+
+            for (const root of roots) {
+                if (!from.startsWith(root)) {
+                    continue;
+                }
+
+                const folder = `${root}${from.slice(root.length).split(sep)[0] ?? ""}${sep}`;
+
+                if (to.startsWith(folder) && !to.includes(`${sep}node_modules${sep}`)) {
+                    const url = new URL(resolved.url);
+
+                    url.searchParams.set("v", version);
+
+                    return { ...resolved, url: url.href };
+                }
+            }
+
+            return resolved;
+        },
+    });
+}
+
 function reasonOf(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
@@ -99,6 +157,9 @@ export class Extensions {
         this.#cwd = options.cwd;
         this.#dataDir = options.dataDir;
         this.#log = options.log;
+        // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
+        roots.add(join(realpathSync(options.dir), sep));
+        versionHelpers();
     }
 
     /** The folders installed now, sorted. */

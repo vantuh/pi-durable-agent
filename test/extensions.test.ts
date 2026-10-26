@@ -205,4 +205,49 @@ void describe("Extensions disposers", () => {
 
         assert.deepEqual(extensions.names, ["alpha"]);
     });
+
+    void it("a reload runs a changed helper, also in a subfolder", async () => {
+        const helper = (tag: string): string =>
+            `import { deep } from "./lib/deep.ts";\nexport const value = "${tag}:" + deep;`;
+        const main = `
+import { value } from "./helper.ts";
+export default function (host) {
+    globalThis.${CALLS}.push(value);
+    return { name: host.name };
+}
+`;
+
+        await write("alpha", main);
+        await mkdir(join(dir, "alpha", "lib"));
+        await writeFile(join(dir, "alpha", "helper.ts"), helper("h1"));
+        await writeFile(join(dir, "alpha", "lib", "deep.ts"), 'export const deep = "d1";');
+        await extensions.load();
+
+        await writeFile(join(dir, "alpha", "helper.ts"), helper("h2"));
+        await writeFile(join(dir, "alpha", "lib", "deep.ts"), 'export const deep = "d2";');
+        await extensions.load();
+
+        assert.deepEqual(calls(), ["h1:d1", "h2:d2"]);
+    });
+
+    void it("a package import stays one instance across reloads", async () => {
+        const text = `
+import { defineExtension } from ${JSON.stringify(import.meta.resolve("@earendil-works/pi-durable"))};
+export default function (host) {
+    globalThis.${CALLS}.push(String(defineExtension.name) + ":" + (globalThis.__seen ??= new Set()).size);
+    (globalThis.__seen).add(defineExtension);
+    return { name: host.name };
+}
+`;
+
+        await write("alpha", text);
+        await extensions.load();
+        await write("alpha", `${text}\n// changed`);
+        await extensions.load();
+
+        const seen: unknown = Reflect.get(globalThis, "__seen");
+
+        assert.ok(seen instanceof Set);
+        assert.equal(seen.size, 1);
+    });
 });

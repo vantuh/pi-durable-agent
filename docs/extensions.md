@@ -105,8 +105,12 @@ A failure looks like this, and the server keeps serving:
 }
 ```
 
-A reload imports the folder again under a new URL, so a module's top-level state is not kept. Keep
-state in documents or in `data/`, never in a module.
+A reload imports `server.ts` again under a new `?v=` URL. A resolve hook gives the same query to every
+file that `server.ts` imports from inside its own folder, also in subfolders, so a changed helper runs
+its new code. Packages, `node_modules`, and files outside the folder (such as `server/extensions.ts`)
+get no query and stay single instances. Each reload keeps the old module graph (`server.ts` and its
+helpers) in memory until the process restarts. A module's top-level state is not kept across a reload. Keep
+state in documents or in `data/`, never in a module. Cleanup goes in `host.onDispose`.
 
 ## What an extension may not do
 
