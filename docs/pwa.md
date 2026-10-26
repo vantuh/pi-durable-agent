@@ -1,7 +1,7 @@
 # PWA
 
-The app installs from a browser and opens its shell offline. Nothing else works offline: the
-server is API-only, so a conversation needs it.
+The app installs from a browser and opens its shell offline. Nothing else works offline: a
+conversation needs the server and its API.
 
 ## Why it is core
 

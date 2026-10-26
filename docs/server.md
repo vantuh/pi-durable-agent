@@ -71,6 +71,17 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
 The default model is the `app.settings` session document. It survives a restart; `MODEL` is used
 until one is chosen. `live.queued` is `pi.inbox`'s messages; `live.status` is what extensions add.
 
+## The web shell
+
+A path outside `/api/` is a file of `dist/` (`pnpm build`), served by `server/static.ts` on the same
+origin as the API. `GET` and `HEAD` only (others get 405); `/` is `index.html`.
+
+- `/assets/*` has hashed names: `immutable`, one year. Everything else is `no-cache`, so the HTML
+  and `sw.js` are never stale.
+- A path that leaves `dist/` or has bad escapes is refused (404, 400).
+- No fallback to `index.html`: the app routes by query string, so a missing file is a 404.
+- Without a build, every such path is a 404; the API is not affected.
+
 ## Not here yet
 
-Auth and static file serving.
+Auth.

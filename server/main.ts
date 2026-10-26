@@ -27,6 +27,7 @@ import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./exte
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
+import { serveStatic } from "./static.ts";
 
 async function readFavourites(): Promise<string[]> {
     try {
@@ -69,6 +70,7 @@ const IMAGE_TYPES: Record<string, string> = {
 };
 
 const context = BACKGROUND_CONTEXT;
+const DIST = resolve(import.meta.dirname, "../dist");
 const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = join(process.cwd(), "data");
 const UPLOAD_DIR = join(DATA_DIR, "uploads");
@@ -727,6 +729,12 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
             home: homedir(),
             session: rootId,
         });
+
+        return;
+    }
+
+    if (!url.pathname.startsWith("/api/")) {
+        await serveStatic(DIST, request, response);
 
         return;
     }
