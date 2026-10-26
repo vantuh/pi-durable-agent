@@ -311,35 +311,34 @@ export function Sessions({
                 </button>
 
                 {open ? (
-                    <ScrollArea
-                        className="rounded-card border-edge-soft bg-panel absolute inset-x-1.5 top-full z-10 mt-1 border shadow-lg"
-                        viewportProps={{ className: "max-h-72 p-1" }}
-                    >
-                        {[...folders].map(([cwd, count]) => (
-                            <button
-                                key={cwd}
-                                type="button"
-                                title={cwd}
-                                onClick={() => {
-                                    const [first] = latest(cwd);
+                    <div className="rounded-card border-edge-soft bg-panel absolute inset-x-1.5 top-full z-10 mt-1 border shadow-lg">
+                        <ScrollArea viewportProps={{ className: "max-h-72 p-1" }}>
+                            {[...folders].map(([cwd, count]) => (
+                                <button
+                                    key={cwd}
+                                    type="button"
+                                    title={cwd}
+                                    onClick={() => {
+                                        const [first] = latest(cwd);
 
-                                    if (first !== undefined) {
-                                        onFolder(first.id);
-                                    }
+                                        if (first !== undefined) {
+                                            onFolder(first.id);
+                                        }
 
-                                    setOpen(false);
-                                }}
-                                className={`rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-left ${
-                                    cwd === folder ? "bg-raised" : "hover:bg-raised/50"
-                                }`}
-                            >
-                                <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
-                                    {folderName(cwd)}
-                                </span>
-                                <span className="text-faint text-meta">{count}</span>
-                            </button>
-                        ))}
-                    </ScrollArea>
+                                        setOpen(false);
+                                    }}
+                                    className={`rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-left ${
+                                        cwd === folder ? "bg-raised" : "hover:bg-raised/50"
+                                    }`}
+                                >
+                                    <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
+                                        {folderName(cwd)}
+                                    </span>
+                                    <span className="text-faint text-meta">{count}</span>
+                                </button>
+                            ))}
+                        </ScrollArea>
+                    </div>
                 ) : null}
             </div>
 
