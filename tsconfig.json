@@ -4,17 +4,32 @@
         "lib": ["ES2023", "DOM", "DOM.Iterable"],
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "moduleDetection": "force",
         "jsx": "react-jsx",
+        "types": ["node"],
+        "resolveJsonModule": true,
         "strict": true,
-        "noEmit": true,
-        "allowImportingTsExtensions": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noUncheckedSideEffectImports": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
         "isolatedModules": true,
+        "forceConsistentCasingInFileNames": true,
+        "noEmit": true,
+        "allowImportingTsExtensions": true,
         "skipLibCheck": true,
-        "types": ["node"],
         "paths": {
             "@/*": ["./web/src/*"]
         }
     },
-    "include": ["web/src", "server", "vite.config.ts"]
+    "include": ["web/src", "server", "test", "*.ts", "*.tsx"]
 }

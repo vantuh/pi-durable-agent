@@ -7,10 +7,8 @@
         "dev": "vite",
         "build": "vite build",
         "preview": "vite preview",
-        "check": "tsc --noEmit",
-        "lint": "oxlint",
-        "fmt": "oxfmt",
-        "fmt:check": "oxfmt --check"
+        "check": "oxfmt --check && oxlint --type-aware && tsc --noEmit",
+        "fix": "oxfmt && oxlint --type-aware --fix"
     },
     "dependencies": {
         "@earendil-works/pi-durable": "^1.4.0",
@@ -28,6 +26,7 @@
         "lucide-react": "^1.61.0",
         "oxfmt": "^0.74.0",
         "oxlint": "^1.89.0",
+        "oxlint-tsgolint": "^7.0.2005",
         "tailwind-merge": "^3.7.0",
         "tailwindcss": "^4.3.3",
         "typescript": "^7.0.2",

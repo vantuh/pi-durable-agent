@@ -5,7 +5,13 @@
     "useTabs": false,
     "semi": true,
     "singleQuote": false,
+    "jsxSingleQuote": false,
+    "trailingComma": "all",
+    "arrowParens": "always",
+    "endOfLine": "lf",
+    "insertFinalNewline": true,
+    "sortImports": true,
     "sortPackageJson": true,
     "sortTailwindcss": true,
-    "ignorePatterns": ["dist", "node_modules"]
+    "ignorePatterns": ["dist", "node_modules", "pnpm-lock.yaml"]
 }

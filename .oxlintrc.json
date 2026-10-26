@@ -1,20 +1,65 @@
 {
     "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "react", "import", "promise", "node", "jsx-a11y"],
     "categories": {
         "correctness": "error",
-        "suspicious": "warn"
+        "suspicious": "error",
+        "perf": "warn"
     },
-    "plugins": ["typescript", "react", "import"],
     "env": {
         "browser": true,
         "node": true,
         "es2024": true
     },
-    "rules": {
-        "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-        "typescript/no-explicit-any": "off",
-        "react/react-in-jsx-scope": "off",
-        "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }]
+    "options": {
+        "denyWarnings": true,
+        "reportUnusedDisableDirectives": "error"
     },
+    "rules": {
+        "eqeqeq": "error",
+        "curly": "error",
+        "no-var": "error",
+        "prefer-const": "error",
+        "no-else-return": "error",
+        "no-implicit-coercion": "error",
+        "no-param-reassign": "error",
+        "no-shadow": "error",
+        "no-await-in-loop": "off",
+        "no-console": "off",
+
+        "typescript/no-explicit-any": "error",
+        "typescript/no-non-null-assertion": "error",
+        "typescript/no-unsafe-type-assertion": "error",
+        "typescript/consistent-type-imports": "error",
+        "typescript/switch-exhaustiveness-check": "error",
+        "typescript/no-floating-promises": "error",
+        "typescript/no-misused-promises": "error",
+        "typescript/await-thenable": "error",
+        "typescript/require-await": "error",
+        "typescript/no-unnecessary-condition": "off",
+        "typescript/prefer-nullish-coalescing": "error",
+
+        "import/no-cycle": "error",
+        "import/no-duplicates": "error",
+        "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+        "unicorn/prefer-node-protocol": "error",
+
+        "react/rules-of-hooks": "error",
+        "react/exhaustive-deps": "error",
+        "react/jsx-key": "error",
+        "react/no-array-index-key": "error",
+        "react/react-in-jsx-scope": "off",
+        "react/jsx-no-useless-fragment": "error"
+    },
+    "overrides": [
+        {
+            "files": ["server/**/*.ts"],
+            "env": { "browser": false, "node": true }
+        },
+        {
+            "files": ["**/*.test.ts", "**/*.test.tsx", "test/**"],
+            "rules": { "typescript/no-non-null-assertion": "off" }
+        }
+    ],
     "ignorePatterns": ["dist", "node_modules"]
 }
