@@ -68,7 +68,8 @@ One bar across the bottom, always visible:
 | ------------------ | ---------------------------- | ---------------------------------- |
 | state              | `pi.live.run` and the stream | always                             |
 | `↑in ↓out · $cost` | `pi.usage` document          | always                             |
-| folder, branch     | `/api/health`                | `sm` and wider                     |
+| folder             | `/api/health`                | `sm` and wider                     |
+| branch             | `extensions/git-branch`      | `sm` and wider, in a git folder    |
 | extension fields   | `status` export of a folder  | only with that extension on        |
 | context meter      | `extensions/context-meter`   | centre slot, once an answer exists |
 | cache hit          | `extensions/cache-hit`       | start slot, once an answer exists  |

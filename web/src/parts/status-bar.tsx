@@ -1,12 +1,14 @@
-import { GitBranch } from "lucide-react";
+import { Component, type ReactNode } from "react";
 
 import type { ClientStatus, ClientUsage } from "../../../shared/protocol.ts";
+import { useStatusItems } from "../extensions.ts";
+import type { StatusProps } from "../sdk/types.ts";
 
 type Props = {
     connected: boolean;
     cwd: string;
     home: string;
-    branch: string | null;
+    session: StatusProps["session"];
     usage: ClientUsage;
     status: ClientStatus[];
     busy: boolean;
@@ -35,6 +37,35 @@ function shortPath(cwd: string, home: string): string {
     }
 
     return cwd === `${home}/${name}` ? `~/${name}` : `../${name}`;
+}
+
+/** One item that throws hides only itself, and logs once. */
+class ItemBoundary extends Component<{ name: string; children: ReactNode }, { failed: boolean }> {
+    override state = { failed: false };
+
+    static getDerivedStateFromError(): { failed: boolean } {
+        return { failed: true };
+    }
+
+    override componentDidCatch(error: unknown): void {
+        console.error(`extension ${this.props.name}: status item failed:`, error);
+    }
+
+    override render(): ReactNode {
+        return this.state.failed ? null : this.props.children;
+    }
+}
+
+function Items({ slot, session }: { slot: ClientStatus["slot"]; session: StatusProps["session"] }) {
+    const statusItems = useStatusItems();
+
+    return statusItems
+        .filter((item) => item.slot === slot)
+        .map(({ folder, id, component: Item }) => (
+            <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+                <Item session={session} />
+            </ItemBoundary>
+        ));
 }
 
 const FILL_TONE = { warn: "bg-warn", danger: "bg-danger" };
@@ -86,7 +117,7 @@ function money(cost: number): string {
     return cost === 0 ? "$0" : `$${cost.toFixed(3)}`;
 }
 
-export function StatusBar({ connected, cwd, home, branch, usage, status, busy, issue }: Props) {
+export function StatusBar({ connected, cwd, home, session, usage, status, busy, issue }: Props) {
     const tone = issue === null ? (busy ? "warn" : connected ? "ok" : "danger") : "danger";
     const label = issue ?? (busy ? "working" : connected ? "ready" : "offline");
     const at = (slot: ClientStatus["slot"]) => status.filter((field) => field.slot === slot);
@@ -106,12 +137,7 @@ export function StatusBar({ connected, cwd, home, branch, usage, status, busy, i
                     {shortPath(cwd, home)}
                 </span>
 
-                {branch === null ? null : (
-                    <span className="text-faint hidden shrink-0 items-center gap-1 font-mono sm:flex">
-                        <GitBranch className="size-3" />
-                        {branch}
-                    </span>
-                )}
+                <Items slot="start" session={session} />
 
                 {at("start").map((field) => (
                     <Field key={field.source} field={field} />
@@ -119,12 +145,14 @@ export function StatusBar({ connected, cwd, home, branch, usage, status, busy, i
             </div>
 
             <div className="flex items-center gap-3">
+                <Items slot="center" session={session} />
                 {at("center").map((field) => (
                     <Field key={field.source} field={field} />
                 ))}
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-3">
+                <Items slot="end" session={session} />
                 {at("end").map((field) => (
                     <Field key={field.source} field={field} />
                 ))}

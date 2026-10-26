@@ -6,7 +6,17 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
     root: "web",
-    plugins: [react(), tailwindcss()],
+    plugins: [
+        react(),
+        tailwindcss(),
+        {
+            // Vite's root is web/, so a new extensions/<folder>/web.tsx would not reach the glob.
+            name: "watch-extensions",
+            configureServer(server) {
+                server.watcher.add(fileURLToPath(new URL("./extensions", import.meta.url)));
+            },
+        },
+    ],
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./web/src", import.meta.url)),

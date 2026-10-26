@@ -1,0 +1,52 @@
+import { GitBranch } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { callAction } from "@/sdk/actions.ts";
+import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+
+import { branch } from "./refs.ts";
+
+function Branch({ session }: StatusProps) {
+    const [name, setName] = useState<string | null>(null);
+    const id = session?.id ?? null;
+    const cwd = session?.cwd ?? null;
+    const busy = session?.busy ?? false;
+
+    useEffect(() => {
+        let alive = true;
+
+        void (async () => {
+            let found: string | null = null;
+
+            try {
+                found = await callAction(branch, undefined, id);
+            } catch {
+                found = null;
+            }
+
+            if (alive) {
+                setName(found);
+            }
+        })();
+
+        return () => {
+            alive = false;
+        };
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new folder, or a run ending (busy going false), can change the branch
+    }, [id, cwd, busy]);
+
+    if (name === null) {
+        return null;
+    }
+
+    return (
+        <span className="text-faint hidden shrink-0 items-center gap-1 font-mono sm:flex">
+            <GitBranch className="size-3" />
+            {name}
+        </span>
+    );
+}
+
+export default {
+    status: [{ id: "branch", slot: "start", component: Branch }],
+} satisfies WebExtension;

@@ -88,6 +88,38 @@ export const actions: Record<string, Action> = {
   folder, or one that installs nothing, drops them. A bad `actions` export (not a plain object, or a
   value that is not a function) fails the build with that reason.
 
+## The browser half
+
+A folder may also hold `web.tsx`. Vite bundles every `extensions/*/web.tsx` (a folder name starting
+with `_` or `.` is skipped) as a lazy module, and the core reads the folder name from the path. The default export is a
+`WebExtension` (`web/src/sdk/types.ts`):
+
+```tsx
+import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+
+function Item({ session }: StatusProps) {
+    return <span className="text-faint font-mono">{session?.cwd}</span>;
+}
+
+export default { status: [{ id: "cwd", slot: "start", component: Item }] } satisfies WebExtension;
+```
+
+- **Status items** fill the status bar's `start`, `center`, or `end` slot, before the fields that
+  `status` providers send. `session` is `{ id, cwd, busy }`, or `null` before one is open. The item
+  draws its own markup (`hidden sm:flex` and so on) and uses theme roles for colour.
+- `component` must be a plain function component; a `memo` or `forwardRef` object is rejected.
+- Modules load after the first render, each on its own: the app renders while they load. A module that
+  throws at top level, fails to import, or has a bad shape is skipped with a `console.error` that
+  names the folder; the others still load. A second item with the same `id` in one folder is skipped
+  the same way. Each item sits in an error boundary: an item that throws while rendering hides only
+  itself and logs once.
+- **Calling the server half:** `callAction(ref, args, sessionId)` from `@/sdk/actions.ts` posts to
+  the action route. A non-OK answer throws an `Error` with the server's message. `ref` comes from
+  `actionRef<Args, Result>(extension, name, parse)` in `shared/extension-api.ts`; put it in a browser-safe
+  `refs.ts` in the folder. `parse(value: unknown): Result` returns the result or throws; `callAction`
+  returns what it returns, and a throw becomes the error of the call. The server never uses the ref.
+- `extensions/git-branch` is the example: a `branch` action on the server, a `start` item in the browser.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
@@ -140,6 +172,16 @@ its new code. Packages, `node_modules`, and files outside the folder (such as `s
 get no query and stay single instances. Each reload keeps the old module graph (`server.ts` and its
 helpers) in memory until the process restarts. A module's top-level state is not kept across a reload. Keep
 state in documents or in `data/`, never in a module. Cleanup goes in `host.onDispose`.
+
+`web.tsx` goes live through Vite HMR. Vite's root is `web/`, so `vite.config.ts` adds `extensions/`
+to the watcher. Checked on a Vite dev server, by its HMR socket and by fetching `/src/extensions.ts`:
+
+- **changed** → an `update` for that module;
+- **syntax error** → the same `update`; the browser then gets the transform error, until the file
+  is fixed;
+- **removed file** → `update` for the module and for `status-bar.tsx`, which re-reads the item list;
+- **new folder** → the transformed `/src/extensions.ts` lists its `web.tsx` without a restart, and
+  stops listing it when the folder is deleted. Without the watcher entry a new folder was not seen.
 
 ## What an extension may not do
 

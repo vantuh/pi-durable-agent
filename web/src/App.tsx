@@ -200,7 +200,15 @@ export function App() {
                 connected={state.connected}
                 cwd={active?.cwd ?? health?.cwd ?? ""}
                 home={health?.home ?? ""}
-                branch={active === undefined ? (health?.branch ?? null) : active.branch}
+                session={
+                    current === null
+                        ? null
+                        : {
+                              id: current,
+                              cwd: active?.cwd ?? health?.cwd ?? null,
+                              busy: state.live.busy,
+                          }
+                }
                 usage={state.live.usage}
                 status={state.live.status ?? []}
                 busy={state.live.busy}
