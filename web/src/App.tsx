@@ -97,6 +97,10 @@ export function App() {
 
     const active = sessions.find((session) => session.id === current);
     const model = shortName(active?.model ?? null);
+    const activeSession =
+        current === null
+            ? null
+            : { id: current, cwd: active?.cwd ?? health?.cwd ?? null, busy: state.live.busy };
 
     return (
         <div className="bg-sunken flex h-full flex-col gap-2 p-2">
@@ -199,6 +203,7 @@ export function App() {
                         model={active?.model ?? ""}
                         cwd={active?.cwd ?? ""}
                         branch={active?.branch ?? null}
+                        session={activeSession}
                         onFlavour={setFlavour}
                         onClose={() => {
                             setSettings(false);
@@ -211,15 +216,7 @@ export function App() {
                 connected={state.connected}
                 cwd={active?.cwd ?? health?.cwd ?? ""}
                 home={health?.home ?? ""}
-                session={
-                    current === null
-                        ? null
-                        : {
-                              id: current,
-                              cwd: active?.cwd ?? health?.cwd ?? null,
-                              busy: state.live.busy,
-                          }
-                }
+                session={activeSession}
                 usage={state.live.usage}
                 status={state.live.status ?? []}
                 busy={state.live.busy}

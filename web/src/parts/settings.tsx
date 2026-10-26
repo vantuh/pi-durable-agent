@@ -1,18 +1,24 @@
 import { X } from "lucide-react";
 
+import { useSettingsSections } from "../extensions.ts";
 import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour } from "../lib/flavour.ts";
+import type { SettingsProps } from "../sdk/types.ts";
+import { ItemBoundary } from "./item-boundary.tsx";
 
 type Props = {
     flavour: Flavour;
     model: string;
     cwd: string;
     branch: string | null;
+    session: SettingsProps["session"];
     onFlavour: (flavour: Flavour) => void;
     onClose: () => void;
 };
 
-export function Settings({ flavour, model, cwd, branch, onFlavour, onClose }: Props) {
+export function Settings({ flavour, model, cwd, branch, session, onFlavour, onClose }: Props) {
+    const sections = useSettingsSections();
+
     return (
         <aside className="rounded-card border-edge-soft bg-canvas flex w-[360px] shrink-0 flex-col border">
             <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
@@ -57,6 +63,15 @@ export function Settings({ flavour, model, cwd, branch, onFlavour, onClose }: Pr
                     <Row label="folder" value={cwd} />
                     <Row label="branch" value={branch ?? "none"} />
                 </section>
+
+                {sections.map(({ folder, id, title, component: Section }) => (
+                    <section key={`${folder}:${id}`} className="flex flex-col gap-1.5">
+                        <h3 className="text-meta text-faint">{title}</h3>
+                        <ItemBoundary name={`${folder}:${id}`}>
+                            <Section session={session} />
+                        </ItemBoundary>
+                    </section>
+                ))}
             </div>
         </aside>
     );

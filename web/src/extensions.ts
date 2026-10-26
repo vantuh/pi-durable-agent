@@ -1,14 +1,16 @@
 /**
- * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items.
+ * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items
+ * and settings sections.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders.
  */
 
 import { useEffect, useState } from "react";
 
-import type { StatusItem } from "./sdk/types.ts";
+import type { SettingsSection, StatusItem } from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
+export type FolderSettingsSection = SettingsSection & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end"]);
 
@@ -28,7 +30,18 @@ function isStatusItem(value: unknown): value is StatusItem {
     );
 }
 
-function statusOf(module: unknown): StatusItem[] {
+function isSection(value: unknown): value is SettingsSection {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "string" &&
+        typeof Reflect.get(value, "title") === "string" &&
+        typeof Reflect.get(value, "component") === "function"
+    );
+}
+
+/** One list of a module's default export; absent is empty, a bad list throws. */
+function listOf<T>(module: unknown, key: string, check: (value: unknown) => value is T): T[] {
     const extension: unknown =
         typeof module === "object" && module !== null ? Reflect.get(module, "default") : undefined;
 
@@ -36,22 +49,52 @@ function statusOf(module: unknown): StatusItem[] {
         throw new Error("the default export must be an object");
     }
 
-    const status: unknown = Reflect.get(extension, "status");
+    const list: unknown = Reflect.get(extension, key);
 
-    if (status === undefined) {
+    if (list === undefined) {
         return [];
     }
 
-    if (!Array.isArray(status) || !status.every(isStatusItem)) {
+    if (!Array.isArray(list) || !list.every(check)) {
         throw new Error(
-            "`status` must be a list of { id, slot, component } with function components",
+            `\`${key}\` is not a list of the right shape (components must be functions)`,
         );
     }
 
-    return status;
+    return list;
 }
 
-async function load(): Promise<FolderStatusItem[]> {
+/** Adds the folder's items; a bad list or a repeated id is skipped and logged by folder. */
+function collect<T extends { id: string }>(
+    folder: string,
+    key: string,
+    module: unknown,
+    check: (value: unknown) => value is T,
+    into: (T & { folder: string })[],
+): void {
+    try {
+        const ids = new Set<string>();
+
+        for (const item of listOf(module, key, check)) {
+            if (ids.has(item.id)) {
+                console.error(
+                    `extension ${folder}: ${key} item "${item.id}" skipped: duplicate id`,
+                );
+
+                continue;
+            }
+
+            ids.add(item.id);
+            into.push({ ...item, folder });
+        }
+    } catch (error) {
+        console.error(`extension ${folder}: ${key} skipped:`, error);
+    }
+}
+
+type Loaded = { status: FolderStatusItem[]; settings: FolderSettingsSection[] };
+
+async function load(): Promise<Loaded> {
     const modules = import.meta.glob("../../extensions/*/web.tsx");
     const entries = Object.entries(modules)
         .map(([path, importModule]) => ({
@@ -60,7 +103,7 @@ async function load(): Promise<FolderStatusItem[]> {
         }))
         .filter(({ folder }) => !folder.startsWith("_") && !folder.startsWith("."));
     const settled = await Promise.allSettled(entries.map(({ importModule }) => importModule()));
-    const items: FolderStatusItem[] = [];
+    const loaded: Loaded = { status: [], settings: [] };
 
     settled.forEach((result, index) => {
         const folder = entries[index]?.folder ?? "";
@@ -71,34 +114,17 @@ async function load(): Promise<FolderStatusItem[]> {
             return;
         }
 
-        try {
-            const ids = new Set<string>();
-
-            for (const item of statusOf(result.value)) {
-                if (ids.has(item.id)) {
-                    console.error(
-                        `extension ${folder}: status item "${item.id}" skipped: duplicate id`,
-                    );
-
-                    continue;
-                }
-
-                ids.add(item.id);
-                items.push({ ...item, folder });
-            }
-        } catch (error) {
-            console.error(`extension ${folder}: web.tsx skipped:`, error);
-        }
+        collect(folder, "status", result.value, isStatusItem, loaded.status);
+        collect(folder, "settings", result.value, isSection, loaded.settings);
     });
 
-    return items;
+    return loaded;
 }
 
-const loaded: Promise<FolderStatusItem[]> = load();
+const loaded: Promise<Loaded> = load();
 
-/** The status items of every folder that loaded; empty until the modules are in. */
-export function useStatusItems(): readonly FolderStatusItem[] {
-    const [items, setItems] = useState<readonly FolderStatusItem[]>([]);
+function useLoaded<K extends keyof Loaded>(key: K): readonly Loaded[K][number][] {
+    const [items, setItems] = useState<readonly Loaded[K][number][]>([]);
 
     useEffect(() => {
         let alive = true;
@@ -107,14 +133,24 @@ export function useStatusItems(): readonly FolderStatusItem[] {
             const found = await loaded;
 
             if (alive) {
-                setItems(found);
+                setItems(found[key]);
             }
         })();
 
         return () => {
             alive = false;
         };
-    }, []);
+    }, [key]);
 
     return items;
+}
+
+/** The status items of every folder that loaded; empty until the modules are in. */
+export function useStatusItems(): readonly FolderStatusItem[] {
+    return useLoaded("status");
+}
+
+/** The settings sections of every folder that loaded; empty until the modules are in. */
+export function useSettingsSections(): readonly FolderSettingsSection[] {
+    return useLoaded("settings");
 }

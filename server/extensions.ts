@@ -58,6 +58,9 @@ export type ActionCall = {
 /** A folder's entry in its `actions` export. Its return value must be JSON-serialisable. */
 export type Action = (call: ActionCall) => unknown;
 
+/** The `actions` export: the record itself, or a function of the host when actions need its paths. */
+export type ActionsExport = Record<string, Action> | ((host: Host) => Record<string, Action>);
+
 /** Thrown by an action for bad input from the caller; the route answers 400 with the message. */
 export class ActionError extends Error {}
 
@@ -413,14 +416,14 @@ export class Extensions {
         const module: {
             default?: (host: Host) => unknown;
             status?: StatusProvider;
-            actions?: unknown;
+            actions?: ActionsExport;
         } = await import(`${pathToFileURL(file).href}?v=${this.#generation}`);
 
         if (typeof module.default !== "function") {
             throw new Error("server.ts has no default function export");
         }
 
-        const result: unknown = await module.default({
+        const host: Host = {
             name: folder,
             cwd: this.#cwd,
             dataDir: this.#dataDir,
@@ -428,7 +431,8 @@ export class Extensions {
             onDispose: (dispose) => {
                 attempt.push(dispose);
             },
-        });
+        };
+        const result: unknown = await module.default(host);
 
         if (result === undefined) {
             return undefined;
@@ -446,7 +450,9 @@ export class Extensions {
 
         return {
             extension: result,
-            actions: actionsOf(module.actions),
+            actions: actionsOf(
+                typeof module.actions === "function" ? module.actions(host) : module.actions,
+            ),
             status: typeof module.status === "function" ? module.status : undefined,
         };
     }

@@ -398,4 +398,27 @@ export const status = () => ({ text: "v${value}" });`;
         assert.equal(await extensions.call("alpha", "value", call), 1);
         assert.equal(extensions.statuses(view)[0]?.text, "v1");
     });
+
+    void it("actions may be a function of the host", async () => {
+        await write(
+            "alpha",
+            withActions("(host) => ({ where: () => host.name + ':' + host.dataDir })"),
+        );
+        await extensions.load();
+
+        assert.equal(await extensions.call("alpha", "where", call), `alpha:${root}`);
+    });
+
+    void it("an actions function that throws or returns junk fails the build and keeps the old version", async () => {
+        await write("alpha", withActions("{ value: () => 1 }"));
+        await extensions.load();
+
+        for (const bad of ["() => { throw new Error('nope'); }", "() => 5", "() => ({ x: 1 })"]) {
+            await write("alpha", withActions(bad));
+            await extensions.load();
+
+            assert.equal(extensions.failed[0]?.folder, "alpha");
+            assert.equal(await extensions.call("alpha", "value", call), 1);
+        }
+    });
 });

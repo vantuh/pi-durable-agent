@@ -11,5 +11,14 @@ export type StatusItem = {
     component: ComponentType<StatusProps>;
 };
 
+export type SettingsProps = StatusProps;
+
+export type SettingsSection = {
+    id: string;
+    title: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<SettingsProps>;
+};
+
 /** What a folder's `web.tsx` default-exports. */
-export type WebExtension = { status?: StatusItem[] };
+export type WebExtension = { status?: StatusItem[]; settings?: SettingsSection[] };

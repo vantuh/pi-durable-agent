@@ -61,7 +61,10 @@ field by name: install the folder and it appears, remove the folder and the next
 
 ## Actions
 
-A folder may export `actions` next to its default export: a plain object of functions. The browser
+A folder may export `actions` next to its default export: a plain object of functions, or a function
+`(host) => Record<string, Action>` when the actions need the host (for example `host.dataDir`) and the
+module must keep no state. The function runs when the version is built: if it throws, the build fails
+and the old version stays. The browser
 calls one through the single route `POST /api/extensions/:extension/actions/:action`, so a new
 action needs no new route in the core.
 
@@ -118,7 +121,16 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   `actionRef<Args, Result>(extension, name, parse)` in `shared/extension-api.ts`; put it in a browser-safe
   `refs.ts` in the folder. `parse(value: unknown): Result` returns the result or throws; `callAction`
   returns what it returns, and a throw becomes the error of the call. The server never uses the ref.
-- `extensions/git-branch` is the example: a `branch` action on the server, a `start` item in the browser.
+- **Settings sections** (`settings: [{ id, title, component }]`) are drawn in the Settings panel after
+  the core sections, under an `h3` with the title. They get the same `session` as status items. Each
+  sits in an error boundary; the loading, skipping, duplicate-`id` and function-component rules are
+  those of status items.
+- **An extension owns its settings:** its defaults, validation, storage and the effect of a change.
+  The core only draws the section. Store the value through the folder's own actions (a broken or
+  missing file gives the defaults), validate `args` there, and apply the change in the browser at once
+  (a small store in `web.tsx` can share it between an item and a section).
+- `extensions/git-branch` is the example: a `branch` action on the server, a `start` status item, and
+  a "Git" settings section with `showInStatusBar` (stored in `git-branch.json` in `host.dataDir`).
 
 ## The host
 

@@ -1,8 +1,7 @@
-import { Component, type ReactNode } from "react";
-
 import type { ClientStatus, ClientUsage } from "../../../shared/protocol.ts";
 import { useStatusItems } from "../extensions.ts";
 import type { StatusProps } from "../sdk/types.ts";
+import { ItemBoundary } from "./item-boundary.tsx";
 
 type Props = {
     connected: boolean;
@@ -37,23 +36,6 @@ function shortPath(cwd: string, home: string): string {
     }
 
     return cwd === `${home}/${name}` ? `~/${name}` : `../${name}`;
-}
-
-/** One item that throws hides only itself, and logs once. */
-class ItemBoundary extends Component<{ name: string; children: ReactNode }, { failed: boolean }> {
-    override state = { failed: false };
-
-    static getDerivedStateFromError(): { failed: boolean } {
-        return { failed: true };
-    }
-
-    override componentDidCatch(error: unknown): void {
-        console.error(`extension ${this.props.name}: status item failed:`, error);
-    }
-
-    override render(): ReactNode {
-        return this.state.failed ? null : this.props.children;
-    }
 }
 
 function Items({ slot, session }: { slot: ClientStatus["slot"]; session: StatusProps["session"] }) {
