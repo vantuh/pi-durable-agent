@@ -138,6 +138,7 @@ export function App() {
 
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]">
                     <Transcript
+                        key={current}
                         title={active?.title ?? null}
                         entries={state.entries}
                         live={state.live}
