@@ -4,9 +4,8 @@ import { useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
-import type { UploadedFile } from "../lib/api.ts";
 import { uploadFile } from "../lib/api.ts";
-import { Attachments } from "./attachments.tsx";
+import { Attachments, type Pending } from "./attachments.tsx";
 
 const MODES: { mode: SendMode; label: string; hint: string }[] = [
     { mode: "steer", label: "Steer", hint: "read after the current step" },
@@ -36,8 +35,7 @@ export function Composer({
     onStop,
 }: Props) {
     const [text, setText] = useState("");
-    const [files, setFiles] = useState<UploadedFile[]>([]);
-    const [busyUpload, setBusyUpload] = useState(false);
+    const [files, setFiles] = useState<Pending[]>([]);
     const [mode, setMode] = useState<SendMode>("steer");
     const picker = useRef<HTMLInputElement>(null);
 
@@ -47,18 +45,71 @@ export function Composer({
     }
 
     const how = MODES.find((option) => option.mode === mode);
+    const uploading = files.some((file) => file.state === "uploading");
     const empty = text.trim() === "" && files.length === 0;
+
+    const forget = (gone: Pending[]): void => {
+        for (const file of gone) {
+            if (file.preview !== undefined) {
+                URL.revokeObjectURL(file.preview);
+            }
+        }
+    };
+
+    // Each file shows at once as uploading and settles on its own: done with a path, or failed.
+    const addFiles = (chosen: File[]): void => {
+        const fresh = chosen.map((file): [File, Pending] => {
+            const image = /^image\/(png|jpe?g|gif|webp)$/.test(file.type);
+
+            return [
+                file,
+                {
+                    key: crypto.randomUUID(),
+                    name: file.name,
+                    size: file.size,
+                    image,
+                    state: "uploading",
+                    ...(image ? { preview: URL.createObjectURL(file) } : {}),
+                },
+            ];
+        });
+
+        setFiles((current) => [...current, ...fresh.map(([, pending]) => pending)]);
+
+        for (const [file, pending] of fresh) {
+            void (async () => {
+                const saved = await uploadFile(file);
+
+                setFiles((current) =>
+                    current.map((each) =>
+                        each.key === pending.key
+                            ? saved === undefined
+                                ? { ...each, state: "error" }
+                                : { ...each, state: "done", path: saved.path, size: saved.size }
+                            : each,
+                    ),
+                );
+            })();
+        }
+    };
 
     const submit = (): void => {
         const body = text.trim();
 
-        if (empty) {
+        if (empty || uploading) {
             return;
         }
 
-        const paths = files.map((file) => file.path);
+        const paths = files.flatMap((file) =>
+            file.state === "done" && file.path !== undefined ? [file.path] : [],
+        );
+
+        if (body === "" && paths.length === 0) {
+            return;
+        }
 
         setText("");
+        forget(files);
         setFiles([]);
         setMode((current) => (current === "interrupt" ? "steer" : current));
         void onSend(body, paths, busy ? mode : undefined);
@@ -82,11 +133,29 @@ export function Composer({
                 </ul>
             )}
 
-            <div className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2">
+            <div
+                className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2"
+                onDragOver={(event) => {
+                    event.preventDefault();
+                }}
+                onDrop={(event) => {
+                    event.preventDefault();
+                    addFiles([...event.dataTransfer.files]);
+                }}
+                onPaste={(event) => {
+                    const pasted = [...event.clipboardData.files];
+
+                    if (pasted.length > 0) {
+                        event.preventDefault();
+                        addFiles(pasted);
+                    }
+                }}
+            >
                 <Attachments
                     files={files}
-                    onRemove={(path) => {
-                        setFiles((current) => current.filter((file) => file.path !== path));
+                    onRemove={(key) => {
+                        forget(files.filter((file) => file.key === key));
+                        setFiles((current) => current.filter((file) => file.key !== key));
                     }}
                 />
 
@@ -158,20 +227,7 @@ export function Composer({
                                 return;
                             }
 
-                            setBusyUpload(true);
-                            void (async () => {
-                                const uploaded = await Promise.all(
-                                    chosen.map((file) => uploadFile(file)),
-                                );
-
-                                setBusyUpload(false);
-                                setFiles((current) => [
-                                    ...current,
-                                    ...uploaded.filter(
-                                        (file): file is UploadedFile => file !== undefined,
-                                    ),
-                                ]);
-                            })();
+                            addFiles(chosen);
                         }}
                     />
 
@@ -187,8 +243,6 @@ export function Composer({
                         {level === null ? null : <span className="text-faint">{level}</span>}
                         <ChevronDown className="size-3.5" />
                     </button>
-
-                    {busyUpload ? <span className="text-faint text-meta">uploading…</span> : null}
 
                     <div className="ml-auto flex items-center gap-1.5">
                         {busy ? (
@@ -206,7 +260,7 @@ export function Composer({
                             onClick={submit}
                             title={busy ? (how?.label ?? "Send") : "Send"}
                             className="rounded-control bg-accent text-on-accent flex size-7 items-center justify-center disabled:opacity-40"
-                            disabled={empty}
+                            disabled={empty || uploading}
                         >
                             <ArrowUp className="size-4" />
                         </button>
