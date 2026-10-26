@@ -1,5 +1,6 @@
 import type { ModelFetch, RequestModel } from "../../server/model-requests.ts";
 import type { Diagnostics } from "./refs.ts";
+import { hintedResponse, readVersionRejection, recoveryHint } from "./version-rejection.ts";
 import { cliVersion, higherVersion } from "./version.ts";
 
 export function isOAuth(request: Request): boolean {
@@ -77,9 +78,19 @@ export function oauthTransport(
                             : "no-user-text"
                         : "applied";
                 state.last = { outcome, provider: model.provider, at: Date.now() };
-                return shaped === undefined
+                state.versionError = null;
+                const response = await (shaped === undefined
                     ? next(input, init)
-                    : next(withPayload(request, shaped));
+                    : next(withPayload(request, shaped)));
+                const rejection = await readVersionRejection(response);
+                return rejection === undefined
+                    ? response
+                    : hintedResponse(
+                          response,
+                          rejection,
+                          recoveryHint(rejection.requiredVersion, configured.override, version),
+                          state,
+                      );
             }
         }
         state.last = { outcome, provider: model.provider, at: Date.now() };

@@ -90,6 +90,11 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                             )}
                         </dl>
                     )}
+                    {state?.versionError === undefined || state.versionError === null ? null : (
+                        <p role="alert" className="text-warn break-words">
+                            {state.versionError.hint}
+                        </p>
+                    )}
                     {error !== null && state !== null ? (
                         <p className="text-faint">
                             Values above are from the last successful refresh.

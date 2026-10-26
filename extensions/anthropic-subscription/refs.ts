@@ -7,10 +7,12 @@ export type ShapeOutcome =
     | "not-oauth"
     | "already-shaped"
     | "no-user-text";
+export type VersionError = { requiredVersion: string | null; hint: string; at: number };
 export type Diagnostics = {
     version: string;
     source: "default" | "environment" | "transport";
     transportVersion: string | null;
+    versionError: VersionError | null;
     last: { outcome: ShapeOutcome; provider: string; at: number } | null;
 };
 
@@ -22,6 +24,27 @@ export const outcomes: Record<ShapeOutcome, string> = {
     "no-user-text": "Skipped: no first-user text",
 };
 
+function parseVersionError(value: unknown): VersionError | null {
+    if (value === undefined || value === null) {
+        return null;
+    }
+    if (typeof value !== "object") {
+        throw new Error("Invalid version error");
+    }
+    const requiredVersion: unknown = Reflect.get(value, "requiredVersion");
+    const hint: unknown = Reflect.get(value, "hint");
+    const at: unknown = Reflect.get(value, "at");
+    if (
+        (requiredVersion !== null && typeof requiredVersion !== "string") ||
+        typeof hint !== "string" ||
+        typeof at !== "number" ||
+        !Number.isFinite(at)
+    ) {
+        throw new Error("Invalid version error");
+    }
+    return { requiredVersion, hint, at };
+}
+
 export const diagnostics = actionRef<undefined, Diagnostics>(
     "anthropic-subscription",
     "diagnostics",
@@ -32,6 +55,7 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         const version: unknown = Reflect.get(value, "version");
         const source: unknown = Reflect.get(value, "source");
         const last: unknown = Reflect.get(value, "last");
+        const versionError = parseVersionError(Reflect.get(value, "versionError"));
         const transportVersion: unknown = Reflect.get(value, "transportVersion") ?? null;
         if (transportVersion !== null && typeof transportVersion !== "string") {
             throw new Error("Invalid transport version");
@@ -43,7 +67,7 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
             throw new Error("Invalid diagnostics version");
         }
         if (last === null) {
-            return { version, source, transportVersion, last };
+            return { version, source, transportVersion, versionError, last };
         }
         if (typeof last !== "object") {
             throw new Error("Invalid last request");
@@ -65,6 +89,12 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         if (checked === undefined) {
             throw new Error("Unknown outcome");
         }
-        return { version, source, transportVersion, last: { outcome: checked, provider, at } };
+        return {
+            version,
+            source,
+            transportVersion,
+            versionError,
+            last: { outcome: checked, provider, at },
+        };
     },
 );

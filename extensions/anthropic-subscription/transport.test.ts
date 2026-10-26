@@ -13,7 +13,13 @@ const payload = {
 };
 
 function state(): Diagnostics {
-    return { version: "2.1.280", source: "default", transportVersion: null, last: null };
+    return {
+        version: "2.1.280",
+        source: "default",
+        transportVersion: null,
+        versionError: null,
+        last: null,
+    };
 }
 
 void test("billing version follows the newer Pi User-Agent without altering HTTP identity", async () => {

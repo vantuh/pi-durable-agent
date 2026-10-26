@@ -391,3 +391,13 @@ is not rewritten. An explicit environment override is absolute, even when lower.
 Details show both billing and observed Pi versions and distinguish a transport-derived
 version. Unknown User-Agents fall back to the bundled version; no package registry or
 local Claude installation is queried. Existing billing blocks are not replaced.
+
+### Version rejection hints
+
+Only a structured HTTP 400 with `error.details.error_code=claude_code_version_too_old`
+is interpreted as a version rejection. A named required floor and recovery hint appear
+in extension details and are appended to the original SDK error message. The error code,
+status and request ID remain intact. Unknown wording produces a hint without inventing a
+floor. Successful streams, other HTTP errors and non-JSON responses are not consumed or
+rewritten. Diagnostic state keeps only the generated hint, floor and timestamp, not the
+raw upstream error. Explicit version overrides get a specific explanation.
