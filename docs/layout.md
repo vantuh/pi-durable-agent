@@ -65,7 +65,9 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       to its arguments and output. The grouping is `web/src/lib/turns.ts`, after Pi Pocket's `turns.js`.
       An opened `edit` is a diff card (`details.diff` of its result, line numbers, the changed words
       marked); an opened `write` is its file as a highlighted code block.
-- **Composer**: `sunken` card, textarea, `Enter` sends, `Shift+Enter` breaks the line. While a run is
+- **Composer**: `sunken` card, textarea grows with its content from 2 to 10 lines (including wrapped
+  lines), then scrolls internally. Native CSS `field-sizing: content` also shrinks it when text is
+  removed or sent. `Enter` sends, `Shift+Enter` breaks the line. While a run is
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
   after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,
   then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are listed above the

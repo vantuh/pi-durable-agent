@@ -170,7 +170,7 @@ export function Composer({
                             ? `${how.label}: ${how.hint}…`
                             : "Ask the agent to change something…"
                     }
-                    className="text-prose text-ink placeholder:text-faint block w-full resize-none bg-transparent outline-none"
+                    className="text-prose text-ink placeholder:text-faint block [field-sizing:content] max-h-[10lh] min-h-[2lh] w-full resize-none overflow-y-auto bg-transparent outline-none"
                     onChange={(event) => {
                         setText(event.target.value);
                     }}
