@@ -67,13 +67,23 @@ function Lightbox({ file, onClose }: { file: Pending; onClose: () => void }) {
                 onClick={onClose}
                 className="bg-sunken/90 absolute inset-0 cursor-zoom-out"
             />
-            <div className="relative flex max-h-full max-w-full flex-col items-center gap-2">
+            <div className="rounded-card border-edge bg-panel relative flex max-h-full max-w-full flex-col gap-1.5 border p-1.5 shadow-lg">
+                <button
+                    type="button"
+                    title="Close"
+                    onClick={onClose}
+                    className="border-edge bg-raised text-muted hover:text-ink absolute -top-2.5 -right-2.5 flex size-6 items-center justify-center rounded-full border"
+                >
+                    <X className="size-3.5" />
+                </button>
                 <img
                     src={srcOf(file)}
                     alt={file.name}
-                    className="rounded-card max-h-[calc(100dvh-6rem)] max-w-full object-contain"
+                    className="rounded-control max-h-[calc(100dvh-8rem)] max-w-full object-contain"
                 />
-                <p className="text-meta text-muted max-w-full truncate font-mono">{file.name}</p>
+                <p className="text-meta text-muted max-w-full truncate px-1 font-mono">
+                    {file.name}
+                </p>
             </div>
         </div>
     );
