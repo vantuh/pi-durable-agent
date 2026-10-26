@@ -8,6 +8,7 @@ import type { Context } from "@earendil-works/chord/context";
 import {
     type Conversation,
     type ConversationId,
+    type Cursor,
     defineDoc,
     type Harness,
 } from "@earendil-works/pi-durable";
@@ -153,6 +154,25 @@ export class Sessions {
         this.#open.set(id, opened);
 
         return opened;
+    }
+
+    /** The id of every conversation, read page by page. Nothing else about them is loaded. */
+    async ids(): Promise<ConversationId[]> {
+        const ids: ConversationId[] = [];
+        let cursor: Cursor | undefined;
+
+        do {
+            const next: Cursor | undefined = cursor;
+            const page = await this.#harness.commit(
+                (tx) => tx.scanConversations({}, 100, next),
+                this.#context,
+            );
+
+            ids.push(...page.items.map((record) => record.id));
+            cursor = page.next;
+        } while (cursor !== undefined);
+
+        return ids;
     }
 
     async list(busy: (id: ConversationId) => boolean): Promise<SessionSummary[]> {

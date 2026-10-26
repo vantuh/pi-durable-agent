@@ -37,3 +37,9 @@ pnpm build && pnpm preview
 
 A worker needs HTTPS or `localhost`. `pnpm dev` does not register a worker, so Vite's HMR is never
 cached. Tests: `test/pwa.test.ts` runs the real `web/sw.js` against a fake Cache Storage.
+
+## Push
+
+The worker also carries the `sw.js` of each extension folder; today that is `extensions/push/sw.js`,
+which shows push notifications and opens the conversation on a click ([push.md](push.md)). The
+core worker has no push code.

@@ -566,4 +566,94 @@ export const status = () => ({ text: "v${value}" });`;
             assert.deepEqual(extensions.names, ["alpha"], text);
         }
     });
+
+    const VIEW = { session: { id: 1, cwd: null }, entries: [], busy: false };
+    const listening = (tag: string, body = ""): string =>
+        source({
+            tags: [],
+            body: `host.onCommit(async (view) => { globalThis.${CALLS}.push(${JSON.stringify(tag)} + view.session.id); ${body} }); return { name: host.name };`,
+        });
+
+    void it("calls commit listeners, and only the live version after a reload", async () => {
+        await write("alpha", listening("v1:"));
+        await extensions.load();
+        extensions.publish(VIEW);
+        await write("alpha", listening("v2:"));
+        await extensions.load();
+        extensions.publish(VIEW);
+
+        // The second v2 call is the baseline replay of the newest view when v2 loaded.
+        assert.deepEqual(calls(), ["v1:1", "v2:1", "v2:1"]);
+    });
+
+    void it("keeps the old listener when the replacement fails", async () => {
+        await write("alpha", listening("v1:"));
+        await extensions.load();
+        await write(
+            "alpha",
+            source({
+                tags: [],
+                throwAfter: true,
+                body: "host.onCommit(() => { globalThis." + CALLS + ".push('bad'); });",
+            }),
+        );
+        await extensions.load();
+        extensions.publish(VIEW);
+
+        assert.deepEqual(calls(), ["v1:1"]);
+    });
+
+    void it("stops listeners when the folder is disabled or removed", async () => {
+        await write("alpha", listening("a:"));
+        await write("beta", listening("b:"));
+        await extensions.load();
+        await extensions.setEnabled("alpha", false);
+        await rm(join(dir, "beta"), { recursive: true });
+        await extensions.load();
+        extensions.publish(VIEW);
+
+        assert.deepEqual(calls(), []);
+    });
+
+    void it("isolates a throw and a rejection, and logs no data", async () => {
+        await write(
+            "alpha",
+            source({
+                tags: [],
+                body: 'host.onCommit(() => { throw new Error("secret"); }); return { name: host.name };',
+            }),
+        );
+        await write(
+            "beta",
+            source({
+                tags: [],
+                body: 'host.onCommit(async () => { throw new Error("secret"); }); return { name: host.name };',
+            }),
+        );
+        await write("gamma", listening("g:"));
+        await extensions.load();
+        extensions.publish(VIEW);
+        await new Promise((done) => setImmediate(done));
+
+        assert.deepEqual(calls(), ["g:1"]);
+        assert.equal(
+            logs.some((line) => line.includes("secret")),
+            false,
+        );
+        assert.equal(logs.filter((line) => line.includes("commit listener")).length, 2);
+    });
+
+    void it("gives a version that loads later the newest view of each session first", async () => {
+        const seen = (tag: string): string => listening(tag);
+
+        await write("alpha", seen("a1:"));
+        await extensions.load();
+        extensions.publish({ ...VIEW, session: { id: 1, cwd: null } });
+        extensions.publish({ ...VIEW, session: { id: 2, cwd: null } });
+        await write("alpha", seen("a2:"));
+        await extensions.load();
+        await new Promise((done) => setImmediate(done));
+
+        assert.deepEqual(calls(), ["a1:1", "a1:2", "a2:1", "a2:2"]);
+    });
 });

@@ -25,7 +25,23 @@ export type Host = {
      * newer version replaced this one, when the folder goes, or when the server stops.
      */
     readonly onDispose: (dispose: Disposer) => void;
+    /**
+     * Calls `listener` after every commit of every conversation in this process. It is removed when
+     * a newer version replaces this one, when the folder goes or is turned off, and when the server
+     * stops. A throw or rejection is logged without data and stops nothing else. A listener of a
+     * version that loads later is first called with the newest view of each session, as a baseline.
+     */
+    readonly onCommit: (listener: CommitListener) => void;
 };
+
+/** One conversation after a commit: what a commit listener may read. */
+export type CommitView = {
+    readonly session: { readonly id: number; readonly cwd: string | null };
+    readonly entries: readonly EntryRecord[];
+    readonly busy: boolean;
+};
+
+export type CommitListener = (view: CommitView) => void | Promise<void>;
 
 export type Disposer = () => void | Promise<void>;
 
@@ -247,6 +263,10 @@ export class Extensions {
     readonly #listeners = new Set<() => void>();
     /** Per folder, the disposers of the version that is live now. */
     readonly #disposers = new Map<string, Disposer[]>();
+    /** The newest view of each session: a listener that arrives later starts from it. */
+    readonly #lastViews = new Map<number, CommitView>();
+    /** Per folder, the commit listeners of the version that is live now. */
+    readonly #commits = new Map<string, CommitListener[]>();
 
     #watcher: FSWatcher | undefined;
     #generation = 0;
@@ -369,6 +389,30 @@ export class Extensions {
         return await run(call);
     }
 
+    /**
+     * Hands a commit to the listeners of every installed version. One that fails is logged. A version
+     * that loads later first gets the newest view of each session, as a baseline.
+     */
+    publish(view: CommitView): void {
+        this.#lastViews.set(view.session.id, view);
+
+        for (const [folder, listeners] of [...this.#commits]) {
+            this.#deliver(folder, listeners, view);
+        }
+    }
+
+    #deliver(folder: string, listeners: readonly CommitListener[], view: CommitView): void {
+        for (const listener of listeners) {
+            try {
+                void Promise.resolve(listener(view)).catch(() => {
+                    this.#log(`extensions: ${folder}: commit listener rejected`);
+                });
+            } catch {
+                this.#log(`extensions: ${folder}: commit listener threw`);
+            }
+        }
+    }
+
     /** Calls `listener` after every load, so the page can drop a field whose folder went away. */
     onChange(listener: () => void): void {
         this.#listeners.add(listener);
@@ -412,6 +456,9 @@ export class Extensions {
 
         await this.#queue;
 
+        this.#commits.clear();
+        this.#lastViews.clear();
+
         for (const folder of [...this.#disposers.keys()]) {
             await this.#release(folder);
         }
@@ -429,9 +476,10 @@ export class Extensions {
             present.add(folder);
 
             const attempt: Disposer[] = [];
+            const commits: CommitListener[] = [];
 
             try {
-                const built = await this.#build(folder, attempt);
+                const built = await this.#build(folder, attempt, commits);
 
                 if (built === "disabled") {
                     this.#drop(folder, "disabled");
@@ -445,6 +493,16 @@ export class Extensions {
                     this.#setOrDelete(this.#status, folder, built.status);
                 }
 
+                this.#setOrDelete(
+                    this.#commits,
+                    folder,
+                    commits.length === 0 ? undefined : commits,
+                );
+
+                for (const view of this.#lastViews.values()) {
+                    this.#deliver(folder, commits, view);
+                }
+
                 await this.#swap(folder, attempt);
             } catch (error) {
                 failed.push({ folder, reason: reasonOf(error) });
@@ -452,6 +510,7 @@ export class Extensions {
 
                 if (this.#disabled.has(folder)) {
                     this.#drop(folder, "disabled");
+                    this.#commits.delete(folder);
                     await this.#release(folder);
                 }
             }
@@ -460,6 +519,7 @@ export class Extensions {
         for (const folder of new Set([...this.#installed.keys(), ...this.#disposers.keys()])) {
             if (!present.has(folder)) {
                 this.#drop(folder, "removed");
+                this.#commits.delete(folder);
                 await this.#release(folder);
             }
         }
@@ -548,6 +608,7 @@ export class Extensions {
     async #build(
         folder: string,
         attempt: Disposer[],
+        commits: CommitListener[],
     ): Promise<
         | {
               extension: Extension;
@@ -589,6 +650,9 @@ export class Extensions {
             log: this.#log,
             onDispose: (dispose) => {
                 attempt.push(dispose);
+            },
+            onCommit: (listener) => {
+                commits.push(listener);
             },
         };
         const result: unknown = await module.default(host);

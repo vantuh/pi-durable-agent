@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import vm from "node:vm";
 
-import { precacheUrls, renderWorker, roleColor, shellVersion } from "../pwa.ts";
+import { precacheUrls, renderWorker, roleColor, shellVersion, workerFacets } from "../pwa.ts";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const template = read("../web/sw.js");
@@ -209,5 +211,43 @@ void describe("pwa build helpers", () => {
         );
         assert.ok(!urls.some((url) => url.includes("shiki")));
         assert.ok(urls.includes("/") && urls.includes("/icons/apple-touch-icon.png"));
+    });
+});
+
+void describe("worker facets", () => {
+    const root = mkdtempSync(join(tmpdir(), "pwa-facets-"));
+    const put = (folder: string, file: string, text: string): void => {
+        mkdirSync(join(root, folder), { recursive: true });
+        writeFileSync(join(root, folder, file), text);
+    };
+
+    void it("reads sw.js of normal folders in order and skips . and _ folders", () => {
+        put("b", "sw.js", "const x = 2;");
+        put("a", "sw.js", "const x = 1;");
+        put("_c", "sw.js", "skip");
+        put(".d", "sw.js", "skip");
+        put("e", "server.ts", "no worker");
+
+        assert.deepEqual(workerFacets(root), ["const x = 1;", "const x = 2;"]);
+    });
+
+    void it("a removed folder is absent on the next read", () => {
+        rmSync(join(root, "b"), { recursive: true });
+        assert.deepEqual(workerFacets(root), ["const x = 1;"]);
+        rmSync(root, { recursive: true });
+    });
+
+    void it("wraps each facet so names do not clash, and the hash sees facet text", () => {
+        const text = renderWorker(template, "v", ["/"], ["const x = 1;", "const x = 2;"]);
+
+        vm.runInNewContext(text, {
+            self: { addEventListener: () => undefined },
+            caches: {},
+            URL,
+        });
+        assert.notEqual(
+            shellVersion([template, "const x = 1;"]),
+            shellVersion([template, "const x = 2;"]),
+        );
     });
 });

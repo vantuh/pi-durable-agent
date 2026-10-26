@@ -13,6 +13,7 @@ import {
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
+import { sessionFromSearch } from "./lib/deep-link.ts";
 import { Composer } from "./parts/composer.tsx";
 import { FolderPicker } from "./parts/folder-picker.tsx";
 import { ModelMenu } from "./parts/model-menu.tsx";
@@ -60,9 +61,10 @@ export function App() {
 
             setHealth(info);
             setSessions(rows);
+            const linked = rows.find((row) => row.id === sessionFromSearch(location.search));
             const saved = rows.find((row) => String(row.id) === localStorage.getItem(SESSION_KEY));
 
-            setCurrent(saved?.id ?? rows[0]?.id ?? info?.session ?? null);
+            setCurrent(linked?.id ?? saved?.id ?? rows[0]?.id ?? info?.session ?? null);
         })();
 
         return () => {

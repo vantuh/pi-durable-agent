@@ -21,6 +21,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
+import { commitAnnouncer } from "./commit-announcer.ts";
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
@@ -141,6 +142,23 @@ function publish(opened: Opened, view: View): void {
     broadcast({ type: "live", session: opened.id, live });
 }
 
+const announce = commitAnnouncer({
+    cwdOf: async (id) => {
+        const agent = await latest.get(id)?.opened.conversation.agent(context);
+
+        return agent?.cwd ?? null;
+    },
+    publish: (view) => {
+        extensions.publish(view);
+    },
+});
+
+/** Sends a state to the browsers and, with its busy value as it is now, to the extensions. */
+function observe(opened: Opened, state: View): void {
+    publish(opened, state);
+    void announce(opened.id, state.entries, busy.get(opened.id) === true);
+}
+
 /** Opens a conversation and starts forwarding its commits. */
 async function attach(id: number): Promise<Opened | undefined> {
     // Session ids come from the browser as plain numbers; the harness brands its own.
@@ -160,8 +178,9 @@ async function attach(id: number): Promise<Opened | undefined> {
 
     opened.watched = true;
     opened.sent = view.value.entries.map((entry) => Number(entry.id));
+    observe(opened, view.value);
     view.subscribe((state) => {
-        publish(opened, state);
+        observe(opened, state);
     });
 
     return opened;
@@ -763,6 +782,15 @@ async function main(): Promise<void> {
             publish(opened, view);
         }
     });
+
+    // The harness dispatches nothing until `resume()`. Every conversation gets its observer, and the
+    // extensions get their baseline views, first; so work that was cut off by a restart and finishes
+    // at once is seen as a change, with no browser attached.
+    for (const id of await sessions.ids()) {
+        await attach(Number(id));
+    }
+
+    harness.resume();
 
     const server = createServer((request, response) => {
         handle(request, response).catch((error: unknown) => {

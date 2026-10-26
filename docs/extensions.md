@@ -11,6 +11,7 @@ extensions/git-branch/
   server.test.ts  its tests, run by `pnpm test`; never loaded
   refs.ts         action refs and types shared with `web.tsx`
   web.tsx         status-bar items and settings sections (the browser loads it)
+  sw.js           optional: plain script the build appends to the production service worker
 ```
 
 Only `server.ts` is required for the server, and only `web.tsx` for the browser. `api.ts` (typed
@@ -168,8 +169,17 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   The core only draws the section. Store the value through the folder's own actions (a broken or
   missing file gives the defaults), validate `args` there, and apply the change in the browser at once
   (a small store in `web.tsx` can share it between an item and a section).
-- No extension uses a settings section now. `extensions/git-branch` is an example of a `branch` action on
+- `extensions/push` is an example of a settings section with buttons, actions and a commit
+  listener ([push.md](push.md)). `extensions/git-branch` is an example of a `branch` action on
   the server and a `start` status item.
+
+### The service worker facet
+
+A folder may hold `sw.js`: a plain script with no imports. The build appends it, wrapped in an
+IIFE, to the production worker, so a feature can handle `push` or `notificationclick` without a
+change to `web/sw.js`. It does not run in `pnpm dev` (no worker is registered there), and it is
+never turned off with the folder's switch: the worker is built from the files present. Check any
+data it receives, because it runs outside the page.
 
 ### Panels
 
@@ -183,13 +193,14 @@ routes of their own.
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
 
-| Member      | Is                                                                                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`      | The folder's name; use it as the extension's name                                                                                                                                                                                     |
-| `cwd`       | The folder the app was started in                                                                                                                                                                                                     |
-| `dataDir`   | Where the app keeps its state                                                                                                                                                                                                         |
-| `log`       | One line to the server's output                                                                                                                                                                                                       |
-| `onDispose` | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run |
+| Member      | Is                                                                                                                                                                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`      | The folder's name; use it as the extension's name                                                                                                                                                                                                                      |
+| `cwd`       | The folder the app was started in                                                                                                                                                                                                                                      |
+| `dataDir`   | Where the app keeps its state                                                                                                                                                                                                                                          |
+| `log`       | One line to the server's output                                                                                                                                                                                                                                        |
+| `onDispose` | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                  |
+| `onCommit`  | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd }, entries, busy }`. It is removed when this version is replaced, turned off or deleted; a throw is logged without data |
 
 ## Live, without a restart
 

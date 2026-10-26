@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { Plugin } from "vite";
 
@@ -87,10 +89,45 @@ export function shellVersion(parts: (string | Uint8Array)[]): string {
     return hash.digest("hex").slice(0, 12);
 }
 
-export function renderWorker(template: string, version: string, urls: string[]): string {
-    return template
+export function renderWorker(
+    template: string,
+    version: string,
+    urls: string[],
+    facets: readonly string[] = [],
+): string {
+    const worker = template
         .replace('"__VERSION__"', JSON.stringify(version))
         .replace('["__PRECACHE__"]', JSON.stringify(urls));
+
+    return [worker, ...facets.map((facet) => `;(() => {\n${facet}\n})();`)].join("\n");
+}
+
+/**
+ * The text of every `<dir>/<folder>/sw.js`, in folder order. Folders that start with `.` or `_` are
+ * skipped, as the loader skips them. A facet is plain JS without imports.
+ */
+export function workerFacets(dir: string): string[] {
+    const facets: string[] = [];
+
+    for (const entry of readdirSync(dir, { withFileTypes: true }).toSorted((a, b) =>
+        a.name.localeCompare(b.name, "en"),
+    )) {
+        if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name.startsWith("_")) {
+            continue;
+        }
+
+        try {
+            facets.push(readFileSync(join(dir, entry.name, "sw.js"), "utf8"));
+        } catch (error) {
+            if (error instanceof Error && Reflect.get(error, "code") === "ENOENT") {
+                continue;
+            }
+
+            throw error;
+        }
+    }
+
+    return facets;
 }
 
 export function pwa(): Plugin {
@@ -129,8 +166,10 @@ export function pwa(): Plugin {
             });
             const template = read("./web/sw.js");
             const urls = precacheUrls(chunks);
+            const facets = workerFacets(fileURLToPath(new URL("./extensions", import.meta.url)));
             const version = shellVersion([
                 template,
+                ...facets,
                 manifest,
                 urls.join(),
                 ...Object.values(bundle).flatMap((output) =>
@@ -147,7 +186,7 @@ export function pwa(): Plugin {
             this.emitFile({
                 type: "asset",
                 fileName: "sw.js",
-                source: renderWorker(template, version, urls),
+                source: renderWorker(template, version, urls, facets),
             });
         },
     };
