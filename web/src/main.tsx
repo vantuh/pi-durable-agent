@@ -2,10 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App.tsx";
+import { applyFlavour, currentFlavour } from "./lib/flavour.ts";
 
 import "./styles.css";
 
-document.documentElement.dataset["flavour"] = localStorage.getItem("flavour") ?? "mocha";
+applyFlavour(currentFlavour());
 
 const root = document.getElementById("root");
 

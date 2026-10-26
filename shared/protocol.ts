@@ -29,11 +29,19 @@ export type ClientTool = {
     output?: string;
 };
 
+/** The conversation's spend so far, summed over every model and tool bucket. */
+export type ClientUsage = {
+    input: number;
+    output: number;
+    cost: number;
+};
+
 export type ClientLive = {
     busy: boolean;
     /** The answer being streamed now, before it is committed as an entry. */
     blocks?: ClientBlock[];
     tools?: ClientTool[];
+    usage: ClientUsage;
 };
 
 export type ServerEvent =

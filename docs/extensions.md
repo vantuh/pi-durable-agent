@@ -78,6 +78,18 @@ state in documents or in `data/`, never in a module.
 - Read or write the core's SQLite directly.
 - Add a name to `RESERVED`.
 
+## Planned, with where each comes from
+
+| Folder      | What it is                                                                         | Source                                  |
+| ----------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| `files`     | File browser in the drawer                                                         | Pi Pocket's file browser, rewritten     |
+| `web`       | The page the agent is working on, beside the conversation                          | Pi Pocket core, adapted                 |
+| `subagents` | Agents the conversation can hand work to, and the `agents` count in the status bar | Ultimate, rewritten                     |
+| `dictation` | Local speech to text in the composer                                               | Pi Pocket's dictation extension, ported |
+| `warm`      | The session warm-up toggle from Ultimate's drawer                                  | Ultimate, rewritten                     |
+
+None of these exist yet. A folder is added when its feature is built, never as a placeholder.
+
 ## Adding one
 
 1. Make the folder, write `server.ts`, export one extension named `host.name`.

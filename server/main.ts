@@ -3,9 +3,11 @@
  * extensions, and the core grows only when it must.
  */
 
+import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
+import { promisify } from "node:util";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -16,10 +18,11 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { Extensions } from "./extensions.ts";
-import { projectEntry, projectLive } from "./projection.ts";
+import { projectEntry, projectLive, projectUsage } from "./projection.ts";
 
 type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
 
+const run = promisify(execFile);
 const context = BACKGROUND_CONTEXT;
 const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = join(process.cwd(), "data");
@@ -29,6 +32,7 @@ const IDLE_HEARTBEAT_MS = 20_000;
 
 const clients = new Set<ServerResponse>();
 
+let branch: string | null = null;
 let sent: number[] = [];
 let extensions: Extensions;
 let root: Conversation;
@@ -51,7 +55,30 @@ function entriesOf(view: View): ClientEntry[] {
 }
 
 function liveOf(view: View): ClientLive {
-    return projectLive(view.docs["pi.live"]);
+    return projectLive(view.docs["pi.live"], view.docs["pi.usage"]);
+}
+
+/** A session is named after what it was first asked, until titles exist as documents. */
+function titleOf(view: View): string | null {
+    for (const entry of view.entries) {
+        const projected = projectEntry(entry);
+
+        if (projected?.kind === "user" && projected.text.trim() !== "") {
+            return projected.text.trim().slice(0, 80);
+        }
+    }
+
+    return null;
+}
+
+async function readBranch(cwd: string): Promise<string | null> {
+    try {
+        const { stdout } = await run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd });
+
+        return stdout.trim() === "" ? null : stdout.trim();
+    } catch {
+        return null;
+    }
 }
 
 /** Sends what changed since the last commit: only new entries when nothing was rewritten. */
@@ -164,13 +191,29 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
+    if (request.method === "POST" && url.pathname === "/api/abort") {
+        await root.abort(context);
+        answer(response, 202, { ok: true });
+        return;
+    }
+
     if (request.method === "GET" && url.pathname === "/api/extensions") {
         answer(response, 200, { installed: extensions.names, failed: extensions.failed });
         return;
     }
 
     if (request.method === "GET" && url.pathname === "/api/health") {
-        answer(response, 200, { ok: true, model: MODEL, busy: liveOf(viewState.value).busy });
+        const view = viewState.value;
+
+        answer(response, 200, {
+            ok: true,
+            model: MODEL,
+            busy: liveOf(view).busy,
+            cwd: process.cwd(),
+            branch,
+            title: titleOf(view),
+            usage: projectUsage(view.docs["pi.usage"]),
+        });
         return;
     }
 
@@ -215,6 +258,7 @@ async function main(): Promise<void> {
         context,
     );
 
+    branch = await readBranch(cwd);
     root = await harness.root(context, { agent: { model: { provider, modelId }, cwd } });
     viewState = await root.viewState(context);
     viewState.subscribe((view) => {

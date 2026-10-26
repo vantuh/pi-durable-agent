@@ -1,33 +1,81 @@
-const CHECKED = [
-    "react 19 + vite 8 + typescript 7",
-    "tailwind 4 through @tailwindcss/vite",
-    "oxlint and oxfmt",
-    "@earendil-works/pi-durable 1.4.0 installed",
-];
+import { useState } from "react";
+
+import { useConversation } from "./lib/conversation.ts";
+import { type Flavour, currentFlavour } from "./lib/flavour.ts";
+import { Composer } from "./parts/composer.tsx";
+import { Sessions } from "./parts/sessions.tsx";
+import { Settings } from "./parts/settings.tsx";
+import { StatusBar } from "./parts/status-bar.tsx";
+import { Transcript } from "./parts/transcript.tsx";
+
+function titleOf(entries: ReturnType<typeof useConversation>["state"]["entries"]): string | null {
+    for (const entry of entries) {
+        if (entry.kind === "user" && entry.text.trim() !== "") {
+            return entry.text.trim().slice(0, 80);
+        }
+    }
+
+    return null;
+}
 
 export function App() {
+    const { state, health, send, stop } = useConversation();
+    const [flavour, setFlavour] = useState<Flavour>(currentFlavour);
+    const [open, setOpen] = useState(false);
+
+    const cwd = health?.cwd ?? "";
+    const branch = health?.branch ?? null;
+    const model = state.model === "" ? (health?.model ?? "") : state.model;
+    const title = titleOf(state.entries) ?? health?.title ?? null;
+
     return (
-        <main className="grid h-full place-items-center bg-neutral-950 p-6 text-neutral-200">
-            <div className="w-full max-w-md space-y-4">
-                <div>
-                    <h1 className="font-mono text-lg font-medium text-neutral-100">
-                        pi-durable-agent
-                    </h1>
-                    <p className="text-sm text-neutral-400">
-                        Toolchain is up. Nothing is built yet.
-                    </p>
-                </div>
+        <div className="bg-sunken flex h-full flex-col gap-2 p-2">
+            <div className="flex min-h-0 flex-1 items-stretch gap-2">
+                <Sessions cwd={cwd} title={title} busy={state.live.busy} />
 
-                <ul className="space-y-1.5 font-mono text-xs text-neutral-500">
-                    {CHECKED.map((line) => (
-                        <li key={line}>✓ {line}</li>
-                    ))}
-                </ul>
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+                    <Transcript
+                        title={title}
+                        branch={branch}
+                        entries={state.entries}
+                        live={state.live}
+                        onSettings={() => {
+                            setOpen(true);
+                        }}
+                    />
+                    <Composer
+                        busy={state.live.busy}
+                        model={model}
+                        onSend={send}
+                        onStop={() => {
+                            void stop();
+                        }}
+                    />
+                </main>
 
-                <p className="text-xs text-neutral-500">
-                    Next: <code className="text-neutral-300">docs/layout.md</code>.
-                </p>
+                {open ? (
+                    <Settings
+                        flavour={flavour}
+                        model={model}
+                        cwd={cwd}
+                        branch={branch}
+                        onFlavour={setFlavour}
+                        onClose={() => {
+                            setOpen(false);
+                        }}
+                    />
+                ) : null}
             </div>
-        </main>
+
+            <StatusBar
+                connected={state.connected}
+                model={model}
+                cwd={cwd}
+                branch={branch}
+                usage={state.live.usage}
+                busy={state.live.busy}
+                issue={state.issue}
+            />
+        </div>
     );
 }

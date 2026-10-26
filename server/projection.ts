@@ -6,7 +6,13 @@
 
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
-import type { ClientBlock, ClientEntry, ClientLive, ClientTool } from "../shared/protocol.ts";
+import type {
+    ClientBlock,
+    ClientEntry,
+    ClientLive,
+    ClientTool,
+    ClientUsage,
+} from "../shared/protocol.ts";
 
 /** Tool output reaches the browser cut; a tool that prints a megabyte must not close a socket. */
 const OUTPUT_LIMIT = 4000;
@@ -28,6 +34,12 @@ function stringOf(record: Record<string, unknown> | undefined, key: string): str
     const value = record?.[key];
 
     return typeof value === "string" ? value : undefined;
+}
+
+function numberAt(record: Record<string, unknown> | undefined, key: string): number {
+    const value = record?.[key];
+
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function labelOf(value: unknown, fallback: string): string {
@@ -176,14 +188,39 @@ function toolsOf(value: unknown): ClientTool[] {
     return tools;
 }
 
-export function projectLive(value: unknown): ClientLive {
+/** Spend so far: every model and tool bucket of `pi.usage`, added up. */
+export function projectUsage(value: unknown): ClientUsage {
+    const usage = recordOf(value);
+    const total: ClientUsage = { input: 0, output: 0, cost: 0 };
+
+    for (const bucket of ["models", "tools"]) {
+        const group = recordOf(usage?.[bucket]);
+
+        if (group === undefined) {
+            continue;
+        }
+
+        for (const raw of Object.values(group)) {
+            const entry = recordOf(raw);
+            const cost = recordOf(entry?.["cost"]);
+
+            total.input += numberAt(entry, "input");
+            total.output += numberAt(entry, "output");
+            total.cost += numberAt(cost, "total");
+        }
+    }
+
+    return total;
+}
+
+export function projectLive(value: unknown, usage: unknown): ClientLive {
     const live = recordOf(value);
 
     if (live === undefined) {
-        return { busy: false };
+        return { busy: false, usage: projectUsage(usage) };
     }
 
-    const out: ClientLive = { busy: live["run"] !== undefined };
+    const out: ClientLive = { busy: live["run"] !== undefined, usage: projectUsage(usage) };
     const generation = recordOf(live["generation"]);
     const message = recordOf(generation?.["message"]);
 

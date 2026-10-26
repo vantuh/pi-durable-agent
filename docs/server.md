@@ -7,8 +7,9 @@ POST /api/messages  ──▶ root.submit()  ──▶ durable generation task
                                               │ commits
                                               ▼
 GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
-GET /api/health         { ok, model, busy }
+GET /api/health         { ok, model, busy, cwd, branch, title, usage }
 GET /api/extensions     { installed, failed }
+POST /api/abort         stops the current run
 ```
 
 - `server/main.ts` — the HTTP surface, the harness, the subscription.

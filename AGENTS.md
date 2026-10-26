@@ -130,11 +130,14 @@ second mechanism.
 3. ~~**The theme.**~~ **Done**: Catppuccin in `web/src/styles/catppuccin.css`, four flavours
    behind `data-flavour`, roles in `styles.css`, Tailwind's palette deleted
    ([docs/theme.md](docs/theme.md)).
-4. **The shell** — [docs/layout.md](docs/layout.md), step 1. Three regions, no data.
-5. **The transcript** from the event stream.
-6. **The composer** with streaming and Stop.
-7. **Tool calls** folded into one line per group.
-8. **Features**, each a new `extensions/<name>/` folder: files, changes, subagents, memory.
+4. ~~**The shell, transcript and composer.**~~ **Done**: three panels with gaps, a status bar,
+   the stream rendered, `Enter` sends, Stop aborts ([docs/layout.md](docs/layout.md)).
+   Still open in it: a sessions button below `lg`, and the answer's statistics line.
+5. **Tool calls** folded into one line per group, with the answer statistics.
+6. **Sessions**: more than one conversation, titles and times stored, a real list, a folder
+   picker. The core API grows a conversation id here.
+7. **Features**, each a new `extensions/<name>/` folder; the planned ones and their sources are in
+   [docs/extensions.md](docs/extensions.md).
 
 ## Before saying "done"
 
