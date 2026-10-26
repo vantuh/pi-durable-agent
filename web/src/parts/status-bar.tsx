@@ -4,7 +4,6 @@ import type { ClientStatus, ClientUsage } from "../../../shared/protocol.ts";
 
 type Props = {
     connected: boolean;
-    model: string;
     cwd: string;
     home: string;
     branch: string | null;
@@ -42,17 +41,7 @@ function money(cost: number): string {
     return cost === 0 ? "$0" : `$${cost.toFixed(3)}`;
 }
 
-export function StatusBar({
-    connected,
-    model,
-    cwd,
-    home,
-    branch,
-    usage,
-    status,
-    busy,
-    issue,
-}: Props) {
+export function StatusBar({ connected, cwd, home, branch, usage, status, busy, issue }: Props) {
     const tone = issue === null ? (busy ? "warn" : connected ? "ok" : "danger") : "danger";
     const label = issue ?? (busy ? "working" : connected ? "ready" : "offline");
 
@@ -74,17 +63,18 @@ export function StatusBar({
                 </span>
             )}
 
-            <span className="text-faint ml-auto min-w-0 truncate font-mono">{model}</span>
-            {status.map((field) => (
+            {status.map((field, at) => (
                 <span
                     key={field.source}
                     title={field.title}
-                    className="text-faint shrink-0 font-mono"
+                    className={`text-faint shrink-0 font-mono ${at === 0 ? "ml-auto" : ""}`}
                 >
                     {field.text}
                 </span>
             ))}
-            <span className="text-faint shrink-0 font-mono">
+            <span
+                className={`text-faint shrink-0 font-mono ${status.length === 0 ? "ml-auto" : ""}`}
+            >
                 ↑{usage.input} ↓{usage.output} · {money(usage.cost)}
             </span>
         </footer>

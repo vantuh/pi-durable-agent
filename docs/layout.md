@@ -65,7 +65,6 @@ One bar across the bottom, always visible:
 | ------------------ | ---------------------------- | --------------------------- |
 | state              | `pi.live.run` and the stream | always                      |
 | `↑in ↓out · $cost` | `pi.usage` document          | always                      |
-| model              | the conversation             | always                      |
 | folder, branch     | `/api/health`                | `sm` and wider              |
 | extension fields   | `status` export of a folder  | only with that extension on |
 | agents             | the subagents extension      | only with that extension on |
