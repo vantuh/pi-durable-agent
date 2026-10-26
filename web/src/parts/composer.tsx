@@ -285,7 +285,11 @@ export function Composer({
                             }
                         }
 
-                        if (event.key === "Enter" && !event.shiftKey) {
+                        if (
+                            event.key === "Enter" &&
+                            !event.shiftKey &&
+                            !window.matchMedia("(pointer: coarse)").matches
+                        ) {
                             event.preventDefault();
                             submit();
                         }
