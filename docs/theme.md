@@ -3,6 +3,12 @@
 Catppuccin, all four flavours, in one file: `web/src/styles/catppuccin.css`. Nothing else in the
 app holds a colour.
 
+**No colour is invented, ever.** Not a hex, not `rgb()`, not `oklch()`, not a Tailwind palette
+class, not an inline `style`. If a surface needs a colour the theme does not have, the answer is to
+add it to the theme — a palette name in `catppuccin.css` and a role in `styles.css` — and then use
+the role. Painting around the theme is the one shortcut that is never taken, including in a
+throwaway page, a debug border, or a hover state.
+
 ## Three layers, three jobs
 
 | Layer       | Lives in                      | Who names it                                          |
@@ -82,3 +88,8 @@ The palette page that produced the screenshots for this file was temporary and i
 theme change, render the swatches again or look at the shell: every surface in it uses a role, so a
 wrong mapping is visible at once. `pnpm build` must stay free of `neutral`, `gray`, `zinc`, and
 `slate`.
+
+```bash
+grep -rnE "#[0-9a-fA-F]{3,8}\b|rgba?\(|oklch\(" web/src --include=*.tsx --include=*.ts
+# must print nothing: the palette lives in catppuccin.css and nowhere else
+```

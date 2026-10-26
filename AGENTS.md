@@ -152,8 +152,11 @@ pnpm fix       # repairs formatting and anything auto-fixable
 - [ ] No `any`, no `!`, no `as` without a check that justifies it.
 - [ ] Every promise is awaited or explicitly ignored with `void`.
 - [ ] `web/` never imports from `server/`; extensions never import each other's files.
-- [ ] Colours come from the `--role-*` names in `src/styles.css`; no palette colour and no
-      literal in a component.
+- [ ] **No colour is ever invented.** Every colour is a `--role-*` name from the theme. No hex,
+      no `rgb()`, no `oklch()`, no Tailwind palette class, no inline `style={{ color }}`, not
+      even once and not even in dev. A colour that is missing gets a role added to
+      `web/src/styles.css` and a palette name in `styles/catppuccin.css` first, then the
+      component uses it.
 - [ ] No new dependency without the reason in the commit message.
 - [ ] `@earendil-works/*` packages are pinned exactly: Pi Durable is experimental.
 
@@ -167,4 +170,5 @@ Every rule, and the mistake it prevents: [docs/conventions.md](docs/conventions.
 - `@earendil-works/chord` is a direct dependency for `BACKGROUND_CONTEXT`, nothing else.
 - One user, one process, `127.0.0.1`. No auth, roles, or sharing until something needs them.
 - Personal behaviour belongs in extensions, not in the core.
-- The theme is Catppuccin, in its own file, defined once as CSS variables.
+- The theme is Catppuccin, in its own file, defined once as CSS variables. A colour that does not
+  exist there does not exist; the fix is to extend the theme, never to paint around it.
