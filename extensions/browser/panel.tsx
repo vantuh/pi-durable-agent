@@ -434,6 +434,11 @@ export function BrowserPanel({ session }: PanelProps) {
                 >
                     <input
                         value={address}
+                        title={
+                            page?.open === true
+                                ? `${page.viewport.width}×${page.viewport.height} · ${page.title}`
+                                : undefined
+                        }
                         placeholder="localhost:5173, example.com or a file path"
                         onChange={(event) => {
                             setDraft(event.target.value);
@@ -444,9 +449,6 @@ export function BrowserPanel({ session }: PanelProps) {
                         className="rounded-control bg-sunken text-interface text-ink placeholder:text-faint w-full min-w-0 px-2.5 py-1 font-mono outline-none"
                     />
                 </form>
-            </div>
-
-            <div className="border-edge-soft flex items-center gap-1 border-b px-2 py-1">
                 {PRESETS.map(({ name, icon: Icon }) => (
                     <IconButton
                         key={name}
@@ -457,11 +459,6 @@ export function BrowserPanel({ session }: PanelProps) {
                         <Icon className="size-4" />
                     </IconButton>
                 ))}
-                <span className="text-meta text-faint min-w-0 flex-1 truncate px-1 text-right">
-                    {page?.open === true
-                        ? `${page.viewport.width}×${page.viewport.height} · ${page.title}`
-                        : ""}
-                </span>
                 <IconButton
                     title="Console"
                     active={showConsole}
