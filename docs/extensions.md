@@ -63,6 +63,14 @@ export const meta = {
 - To show the title of a disabled folder, the loader still imports `server.ts` to read `meta`. So the
   module's top level must have no side effects: no timers, no subscriptions, no file writes. Start
   those in the default export and register their cleanup with `host.onDispose`.
+- **The modal:** the Settings panel has a footer with a puzzle icon ("Extensions"). It opens a modal
+  with one row per folder: title, description, an error if there is one, and a switch. A switch
+  calls `PUT /api/extensions/:name`; if the server refuses, the switch goes back and the error shows
+  in the row.
+- **The browser half follows the switch.** `web/src/extensions.ts` reads `GET /api/extensions` at
+  start and after each toggle. It imports the `web.tsx` of a folder only when the folder is on, and
+  only once. Status items and settings sections of a folder that is off go away at once, with no
+  page reload. A folder the server does not list (web code only) stays on.
 - `PUT /api/extensions/:name` with `{ "enabled": boolean }` changes the choice
   ([server.md](server.md)).
 

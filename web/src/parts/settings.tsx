@@ -4,6 +4,7 @@ import { useSettingsSections } from "../extensions.ts";
 import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour } from "../lib/flavour.ts";
 import type { SettingsProps } from "../sdk/types.ts";
+import { ExtensionsButton } from "./extensions-dialog.tsx";
 import { ItemBoundary } from "./item-boundary.tsx";
 
 type Props = {
@@ -71,6 +72,10 @@ export function Settings({ flavour, model, cwd, session, onFlavour, onClose }: P
                     </section>
                 ))}
             </div>
+
+            <footer className="border-edge-soft flex items-center border-t px-3 py-2">
+                <ExtensionsButton />
+            </footer>
         </aside>
     );
 }

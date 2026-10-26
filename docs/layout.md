@@ -69,6 +69,12 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
   level. Picking one calls `POST /api/agent` for the open session; "make default" calls
   `POST /api/default` for new sessions.
 
+## Settings
+
+A panel on the right. Under its sections is a footer row with an icon button (puzzle,
+"Extensions"). It opens a modal to turn extensions on and off ([extensions.md](extensions.md)). The
+modal is full screen below `sm` and a centred card from `sm` up; its list scrolls.
+
 ## Status bar
 
 One bar across the bottom, always visible:

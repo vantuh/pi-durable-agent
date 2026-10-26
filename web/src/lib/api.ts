@@ -280,3 +280,60 @@ export async function listFolders(path: string, hidden: boolean): Promise<Folder
 }
 
 export type { ClientUsage };
+
+export type ExtensionInfo = {
+    name: string;
+    title: string;
+    description: string;
+    enabled: boolean;
+    installed: boolean;
+    error?: string;
+};
+
+function extensionInfo(value: unknown): ExtensionInfo | undefined {
+    const row = record(value);
+    const name = str(row?.["name"], "");
+
+    if (row === undefined || name === "" || typeof row["enabled"] !== "boolean") {
+        return undefined;
+    }
+
+    const error = row["error"];
+
+    return {
+        name,
+        title: str(row["title"], name),
+        description: str(row["description"], ""),
+        enabled: row["enabled"],
+        installed: row["installed"] === true,
+        ...(typeof error === "string" ? { error } : {}),
+    };
+}
+
+export async function listExtensions(): Promise<ExtensionInfo[]> {
+    const body = record(await json("/api/extensions"));
+
+    return list(body?.["extensions"]).flatMap((raw) => extensionInfo(raw) ?? []);
+}
+
+/** Throws an `Error` with the server's message when the change is refused. */
+export async function setExtensionEnabled(name: string, enabled: boolean): Promise<ExtensionInfo> {
+    const response = await fetch(`/api/extensions/${encodeURIComponent(name)}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled }),
+    });
+    const body = record(await response.json().catch(() => undefined));
+
+    if (!response.ok) {
+        throw new Error(str(body?.["error"], String(response.status)));
+    }
+
+    const info = extensionInfo(body);
+
+    if (info === undefined) {
+        throw new Error("the server sent an answer that is not an extension");
+    }
+
+    return info;
+}

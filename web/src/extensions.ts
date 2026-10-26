@@ -2,11 +2,13 @@
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items
  * and settings sections.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
- * throws or fails to import is skipped and the app still renders.
+ * throws or fails to import is skipped and the app still renders. A folder the server turned off
+ * is not imported, and its items go away when it is turned off.
  */
 
 import { useEffect, useState } from "react";
 
+import { listExtensions } from "./lib/api.ts";
 import type { SettingsSection, StatusItem } from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
@@ -94,63 +96,117 @@ function collect<T extends { id: string }>(
 
 type Loaded = { status: FolderStatusItem[]; settings: FolderSettingsSection[] };
 
-async function load(): Promise<Loaded> {
-    const modules = import.meta.glob("../../extensions/*/web.tsx");
-    const entries = Object.entries(modules)
-        .map(([path, importModule]) => ({
-            folder: path.split("/").slice(-2)[0] ?? path,
-            importModule,
-        }))
-        .filter(({ folder }) => !folder.startsWith("_") && !folder.startsWith("."));
-    const settled = await Promise.allSettled(entries.map(({ importModule }) => importModule()));
+const folders = Object.entries(import.meta.glob("../../extensions/*/web.tsx"))
+    .map(([path, importModule]) => ({
+        folder: path.split("/").slice(-2)[0] ?? path,
+        importModule,
+    }))
+    .filter(({ folder }) => !folder.startsWith("_") && !folder.startsWith("."));
+
+/** Folders the server says are off. A folder it does not list (web only) is on. */
+let disabled: ReadonlySet<string> = new Set();
+/** False until one answer came: before that nothing is imported, as the browser cannot know what is off. */
+let known = false;
+const RETRY_MS = 2000;
+let retry: ReturnType<typeof setTimeout> | undefined;
+const listeners = new Set<() => void>();
+const modules = new Map<string, Promise<Loaded>>();
+
+async function loadFolder(folder: string, importModule: () => Promise<unknown>): Promise<Loaded> {
     const loaded: Loaded = { status: [], settings: [] };
 
-    settled.forEach((result, index) => {
-        const folder = entries[index]?.folder ?? "";
+    try {
+        const module = await importModule();
 
-        if (result.status === "rejected") {
-            console.error(`extension ${folder}: web.tsx skipped:`, result.reason);
-
-            return;
-        }
-
-        collect(folder, "status", result.value, isStatusItem, loaded.status);
-        collect(folder, "settings", result.value, isSection, loaded.settings);
-    });
+        collect(folder, "status", module, isStatusItem, loaded.status);
+        collect(folder, "settings", module, isSection, loaded.settings);
+    } catch (error) {
+        console.error(`extension ${folder}: web.tsx skipped:`, error);
+    }
 
     return loaded;
 }
 
-const loaded: Promise<Loaded> = load();
+/** Reads which folders are on, then tells every hook. Call it after a folder was turned on or off. */
+export async function refreshExtensions(): Promise<void> {
+    try {
+        disabled = new Set(
+            (await listExtensions()).filter((info) => !info.enabled).map((info) => info.name),
+        );
+        known = true;
+    } catch (error) {
+        console.error("extensions: could not read which are on:", error);
 
-function useLoaded<K extends keyof Loaded>(key: K): readonly Loaded[K][number][] {
-    const [items, setItems] = useState<readonly Loaded[K][number][]>([]);
+        if (!known && retry === undefined) {
+            retry = setTimeout(() => {
+                retry = undefined;
+                void refreshExtensions();
+            }, RETRY_MS);
+        }
+    }
+
+    for (const listener of listeners) {
+        listener();
+    }
+}
+
+const first = refreshExtensions();
+
+const pickStatus = (loaded: Loaded): FolderStatusItem[] => loaded.status;
+const pickSettings = (loaded: Loaded): FolderSettingsSection[] => loaded.settings;
+
+function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
+    const [items, setItems] = useState<readonly T[]>([]);
 
     useEffect(() => {
         let alive = true;
+        let latest = 0;
 
-        void (async () => {
-            const found = await loaded;
+        const update = async (): Promise<void> => {
+            latest += 1;
 
-            if (alive) {
-                setItems(found[key]);
+            const mine = latest;
+
+            await first;
+
+            // Only a folder that is on is imported, and only once.
+            const wanted = known ? folders.filter(({ folder }) => !disabled.has(folder)) : [];
+            const found = await Promise.all(
+                wanted.map(({ folder, importModule }) => {
+                    const cached = modules.get(folder) ?? loadFolder(folder, importModule);
+
+                    modules.set(folder, cached);
+
+                    return cached;
+                }),
+            );
+
+            if (alive && mine === latest) {
+                setItems(found.flatMap(pick));
             }
-        })();
+        };
+        const listener = (): void => {
+            void update();
+        };
+
+        listener();
+        listeners.add(listener);
 
         return () => {
             alive = false;
+            listeners.delete(listener);
         };
-    }, [key]);
+    }, [pick]);
 
     return items;
 }
 
-/** The status items of every folder that loaded; empty until the modules are in. */
+/** The status items of every folder that is on and loaded; empty until the modules are in. */
 export function useStatusItems(): readonly FolderStatusItem[] {
-    return useLoaded("status");
+    return useLoaded(pickStatus);
 }
 
-/** The settings sections of every folder that loaded; empty until the modules are in. */
+/** The settings sections of every folder that is on and loaded; empty until the modules are in. */
 export function useSettingsSections(): readonly FolderSettingsSection[] {
-    return useLoaded("settings");
+    return useLoaded(pickSettings);
 }
