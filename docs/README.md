@@ -2,10 +2,11 @@
 
 Decisions written down before code, so that code can be read against them.
 
-| Document               | Holds                                                    |
-| ---------------------- | -------------------------------------------------------- |
-| [stack.md](stack.md)   | What we build with, why, what it costs, what stays open. |
-| [layout.md](layout.md) | The shell: sidebar, conversation, right drawer.          |
+| Document                         | Holds                                                    |
+| -------------------------------- | -------------------------------------------------------- |
+| [stack.md](stack.md)             | What we build with, why, what it costs, what stays open. |
+| [layout.md](layout.md)           | The shell: sidebar, conversation, right drawer.          |
+| [conventions.md](conventions.md) | Every rule, and the mistake it prevents.                 |
 
 Planned, not written yet: `server.md` (HTTP and event transport), `theme.md` (Catppuccin),
 `agent.md` (tools, prompt, permissions).

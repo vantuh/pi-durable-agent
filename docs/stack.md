@@ -44,6 +44,8 @@ The first choice, recorded so later decisions can be read against it. Versions a
 3. Client files never import from `server/`. The only contract is HTTP and the event stream.
 4. The browser learns state from the server's event stream. No polling loops.
 5. The server binds `127.0.0.1`. With no sign-in, that binding **is** the security model.
+6. One gate and one repair: `pnpm check` and `pnpm fix`. The strict flags and rules, and the
+   mistake each one catches, are in [conventions.md](conventions.md).
 
 ## Open
 
