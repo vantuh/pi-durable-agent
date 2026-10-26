@@ -1,5 +1,5 @@
 import { PanelLeft, Settings as SettingsIcon } from "lucide-react";
-import { type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Spinner } from "@/components/ui/spinner";
 
@@ -112,22 +112,56 @@ function TurnView({ turn }: { turn: Turn }) {
 }
 
 export function Transcript({ title, entries, live, tools, onSettings, onSessions }: Props) {
-    const bottom = useRef<HTMLDivElement>(null);
+    const scroller = useRef<HTMLDivElement>(null);
+    const content = useRef<HTMLDivElement>(null);
+    const following = useRef(true);
+    const lastTop = useRef(0);
     const turns = useMemo(() => turnsOf(entries, live), [entries, live]);
     const grown = (live.blocks ?? []).reduce(
         (size, block) => size + (block.type === "toolCall" ? 0 : block.text.length),
         0,
     );
+    const sent = entries.at(-1)?.kind === "user";
+    const counted = useRef(entries.length);
     const signature = `${String(entries.length)}:${String(grown)}`;
 
     useLayoutEffect(() => {
-        const target = bottom.current;
+        const target = scroller.current;
 
-        if (target !== null) {
-            target.scrollIntoView({ block: "end" });
+        // A message just sent: go down to it from wherever the reader was.
+        if (sent && entries.length > counted.current) {
+            following.current = true;
+        }
+
+        counted.current = entries.length;
+
+        if (target !== null && following.current) {
+            target.scrollTop = target.scrollHeight;
         }
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- entries and streamed text are the trigger: follow the answer as it grows
-    }, [signature]);
+    }, [signature, sent, entries.length]);
+
+    // Rows that grow between renders (code highlighting, images) keep the bottom in view while following.
+    useEffect(() => {
+        const target = scroller.current;
+        const inner = content.current;
+
+        if (target === null || inner === null) {
+            return undefined;
+        }
+
+        const sizes = new ResizeObserver(() => {
+            if (following.current) {
+                target.scrollTop = target.scrollHeight;
+            }
+        });
+
+        sizes.observe(inner);
+
+        return () => {
+            sizes.disconnect();
+        };
+    }, []);
 
     return (
         <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
@@ -158,8 +192,39 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                 </div>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                <div className="mx-auto flex max-w-[46rem] flex-col gap-4">
+            <div
+                ref={scroller}
+                // Leaving is decided by what the reader does, not by where the scroll lands: a chunk of
+                // text arriving before the scroll event must not pull them back down.
+                onWheel={(event) => {
+                    if (event.deltaY < 0 && event.currentTarget.scrollTop > 0) {
+                        following.current = false;
+                    }
+                }}
+                onTouchMove={() => {
+                    following.current = false;
+                }}
+                onPointerDown={(event) => {
+                    if (event.target === event.currentTarget) {
+                        following.current = false;
+                    }
+                }}
+                onScroll={(event) => {
+                    const el = event.currentTarget;
+                    const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+
+                    // Any move up is the reader leaving; only getting back to the bottom follows again.
+                    if (el.scrollTop < lastTop.current) {
+                        following.current = false;
+                    } else if (gap < 24) {
+                        following.current = true;
+                    }
+
+                    lastTop.current = el.scrollTop;
+                }}
+                className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+            >
+                <div ref={content} className="mx-auto flex max-w-[46rem] flex-col gap-4">
                     {turns.map((turn) => (
                         <TurnView key={turn.key} turn={turn} />
                     ))}
@@ -167,8 +232,6 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                     {entries.length === 0 && live.blocks === undefined ? (
                         <p className="text-prose text-faint">Nothing here yet. Ask something.</p>
                     ) : null}
-
-                    <div ref={bottom} />
                 </div>
             </div>
         </section>
