@@ -1,4 +1,4 @@
-import { GitBranch, Settings as SettingsIcon } from "lucide-react";
+import { GitBranch, PanelLeft, Settings as SettingsIcon } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
 import type { ClientBlock, ClientEntry, ClientLive, ClientTool } from "../../../shared/protocol.ts";
@@ -9,6 +9,7 @@ type Props = {
     entries: ClientEntry[];
     live: ClientLive;
     onSettings: () => void;
+    onSessions: () => void;
 };
 
 function Blocks({ blocks }: { blocks: ClientBlock[] }) {
@@ -74,7 +75,7 @@ function Entry({ entry }: { entry: ClientEntry }) {
     return null;
 }
 
-export function Transcript({ title, branch, entries, live, onSettings }: Props) {
+export function Transcript({ title, branch, entries, live, onSettings, onSessions }: Props) {
     const bottom = useRef<HTMLDivElement>(null);
     const grown = (live.blocks ?? []).reduce(
         (size, block) => size + (block.type === "toolCall" ? 0 : block.text.length),
@@ -94,9 +95,19 @@ export function Transcript({ title, branch, entries, live, onSettings }: Props) 
     return (
         <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
             <header className="border-edge-soft flex items-center justify-between gap-3 border-b px-3 py-2.5">
-                <h1 className="text-interface text-ink truncate font-medium">
-                    {title ?? "New session"}
-                </h1>
+                <div className="flex min-w-0 items-center gap-2">
+                    <button
+                        type="button"
+                        title="Sessions"
+                        onClick={onSessions}
+                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center lg:hidden"
+                    >
+                        <PanelLeft className="size-4" />
+                    </button>
+                    <h1 className="text-interface text-ink truncate font-medium">
+                        {title ?? "New session"}
+                    </h1>
+                </div>
                 <div className="flex shrink-0 items-center gap-2">
                     {branch === null ? null : (
                         <span className="text-meta text-faint flex items-center gap-1 font-mono">

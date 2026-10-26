@@ -35,6 +35,22 @@ Rules the loader enforces, and why:
 | Names starting with `_` or `.` are skipped | A place to park a folder under construction                       |
 | A failed folder keeps its last version     | A typo must not take a working feature away                       |
 
+## Status fields
+
+A folder may also export `status` next to its default export. It receives the conversation's active
+entries on every commit and returns one field for the status bar, or nothing:
+
+```ts
+import type { StatusProvider } from "../../server/extensions.ts";
+
+export const status: StatusProvider = ({ entries }) => ({ text: "13 tok/s", title: "…" });
+```
+
+The field travels in `live.status` of the event stream, keyed by the folder's name. The core knows no
+field by name: install the folder and it appears, remove the folder and the next event drops it.
+`extensions/tokens-per-second` is the example. A folder that only adds a field still returns
+`defineExtension({ name: host.name })`, so it is listed as installed.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:

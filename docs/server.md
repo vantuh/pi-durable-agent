@@ -53,6 +53,20 @@ pnpm dev       # vite on 5190, proxying /api → 8788
 - `PORT` — default 8788. Not 8787: Pi Pocket runs there on this machine.
 - `data/state.sqlite` — the only state, gitignored. Delete it for a clean conversation.
 
+## Beyond the first conversation
+
+```text
+GET  /api/sessions           the list: title, folder, model, thinking level, branch, busy, activeAt
+POST /api/sessions           { cwd } → a new conversation with the default model
+POST /api/messages           { session, text, files, mode? }  mode: steer | followUp | interrupt
+POST /api/agent              { session, model?, thinkingLevel? }
+GET  /api/models             { scoped, all, default }
+POST /api/default            { model: { provider, modelId }, thinkingLevel }  → "Make default"
+```
+
+The default model is the `app.settings` session document. It survives a restart; `MODEL` is used
+until one is chosen. `live.queued` is `pi.inbox`'s messages; `live.status` is what extensions add.
+
 ## Not here yet
 
-Several conversations, titles, a model picker, auth, and static file serving.
+Auth and static file serving.

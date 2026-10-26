@@ -3,18 +3,29 @@ import { useState } from "react";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import type { ModelChoice } from "../../../shared/protocol.ts";
+import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
 
 type Props = {
     scoped: ModelChoice[];
     all: ModelChoice[];
     current: string | null;
     level: string | null;
+    defaultModel: DefaultModel | null;
     onPick: (choice: ModelChoice, level: string) => void;
+    onMakeDefault: (choice: ModelChoice, level: string) => void;
     onClose: () => void;
 };
 
-export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Props) {
+export function ModelMenu({
+    scoped,
+    all,
+    current,
+    level,
+    defaultModel,
+    onPick,
+    onMakeDefault,
+    onClose,
+}: Props) {
     const [tab, setTab] = useState<"scoped" | "all">("scoped");
     const [query, setQuery] = useState("");
 
@@ -29,6 +40,11 @@ export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Prop
     );
     const active = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === current);
     const levels = active?.levels ?? ["off"];
+    const isDefault =
+        active !== undefined &&
+        defaultModel?.provider === active.provider &&
+        defaultModel.modelId === active.id &&
+        defaultModel.thinkingLevel === (level ?? "off");
 
     return (
         <div className="fixed inset-0 z-30 flex items-center justify-center p-4">
@@ -106,6 +122,10 @@ export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Prop
                                     </span>
                                     <span className="text-faint text-meta block truncate">
                                         {model.provider} · {Math.round(model.contextWindow / 1000)}k
+                                        {defaultModel?.provider === model.provider &&
+                                        defaultModel.modelId === model.id
+                                            ? " · default"
+                                            : ""}
                                     </span>
                                 </span>
                                 {key === current ? (
@@ -117,7 +137,22 @@ export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Prop
                 </div>
 
                 <div className="border-edge-soft border-t px-3 py-2">
-                    <div className="text-faint text-meta mb-1">Thinking</div>
+                    <div className="mb-1 flex items-center justify-between">
+                        <span className="text-faint text-meta">Thinking</span>
+                        <button
+                            type="button"
+                            disabled={active === undefined || isDefault}
+                            title="New sessions start with this model and thinking level"
+                            onClick={() => {
+                                if (active !== undefined) {
+                                    onMakeDefault(active, level ?? "off");
+                                }
+                            }}
+                            className="rounded-control text-meta text-accent hover:bg-raised disabled:text-faint px-2 py-0.5 disabled:hover:bg-transparent"
+                        >
+                            {isDefault ? "Default for new sessions" : "Make default"}
+                        </button>
+                    </div>
                     <Tabs
                         value={level ?? "off"}
                         onValueChange={(option) => {

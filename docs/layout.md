@@ -29,12 +29,16 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 
 - **Top**: `Sessions`, and a pill with the folder the conversation works in. The pill is a label
   today; it becomes the folder picker when sessions can be created.
-- **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and when it
-  last changed. The title is the first thing that was asked, cut at 80 characters.
-- **Grouping** (`Today`, `Yesterday`, `This week`) and the search field need timestamps we do not
-  store yet. Not drawn until they are real.
-- Hidden below `lg`, where the conversation takes the screen. A sessions button for small screens
-  comes with the session list work.
+- **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and how long ago
+  a person last wrote to it (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
+  was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each
+  with its count; a session with no known time is under `Older` and shows no time.
+- **Where the time comes from**: the `app.clock` document of each conversation (`activeAt`), set when
+  the session is created and on every message sent. A session older than the document takes the start
+  time of its newest message once, then keeps it.
+- The search field is not drawn yet.
+- Hidden below `lg`, where the conversation takes the screen. There, the panel icon in the
+  conversation header opens the list as a full-screen sheet; choosing a session closes it.
 
 ## Conversation
 
@@ -46,8 +50,11 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       mockup (`model · ctx · cost · time`) comes with tool folding.
     - A tool call: one dim mono line, `⌘ name`, until folding lands.
     - Thinking: dim italic metadata.
-- **Composer**: `sunken` card, textarea, `Enter` sends, `Shift+Enter` breaks the line. The send
-  button becomes Stop while a run is live. Model reads as a label; the selectors become live when
+- **Composer**: `sunken` card, textarea, `Enter` sends, `Shift+Enter` breaks the line. While a run is
+  live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
+  after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,
+  then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are listed above the
+  card. Model reads as a label; the selectors become live when
   the agent state is editable from the page.
 
 ## Status bar
@@ -60,9 +67,11 @@ One bar across the bottom, always visible:
 | `↑in ↓out · $cost` | `pi.usage` document          | always                      |
 | model              | the conversation             | always                      |
 | folder, branch     | `/api/health`                | `sm` and wider              |
+| extension fields   | `status` export of a folder  | only with that extension on |
 | agents             | the subagents extension      | only with that extension on |
 
-`tok/s` from Ultimate is not here: nothing in the server measures it.
+`tok/s` is the first extension field: `extensions/tokens-per-second`. Below `sm` the path and branch
+are dropped and the model name truncates, so the bar never widens the page.
 
 ## Stacking
 

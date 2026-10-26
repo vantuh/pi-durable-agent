@@ -132,7 +132,7 @@ second mechanism.
    ([docs/theme.md](docs/theme.md)).
 4. ~~**The shell, transcript and composer.**~~ **Done**: three panels with gaps, a status bar,
    the stream rendered, `Enter` sends, Stop aborts ([docs/layout.md](docs/layout.md)).
-   Still open in it: a sessions button below `lg`, and the answer's statistics line.
+   Still open in it: the answer's statistics line.
 5. **Tool calls** folded into one line per group, with the answer statistics.
 6. **Sessions**: more than one conversation, titles and times stored, a real list, a folder
    picker. The core API grows a conversation id here.
