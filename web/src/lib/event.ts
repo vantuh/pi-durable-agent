@@ -125,9 +125,28 @@ function statusFields(value: unknown): ClientStatus[] {
         const source = str(field?.["source"]);
         const text = str(field?.["text"]);
         const title = str(field?.["title"]);
+        const label = str(field?.["label"]);
+        const slot = field?.["slot"];
+        const meter = record(field?.["meter"]);
+        const fill = num(meter?.["fill"]);
+        const tone = meter?.["tone"];
 
         if (source !== undefined && text !== undefined) {
-            out.push({ source, text, ...(title === undefined ? {} : { title }) });
+            out.push({
+                source,
+                slot: slot === "start" || slot === "center" ? slot : "end",
+                text,
+                ...(label === undefined ? {} : { label }),
+                ...(fill === undefined
+                    ? {}
+                    : {
+                          meter: {
+                              fill,
+                              ...(tone === "warn" || tone === "danger" ? { tone } : {}),
+                          },
+                      }),
+                ...(title === undefined ? {} : { title }),
+            });
         }
     }
 

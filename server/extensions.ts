@@ -26,13 +26,19 @@ export type ServerModule = (
 ) => Extension | undefined | void | Promise<Extension | undefined | void>;
 
 /** What a status provider reads: the conversation's active entries. */
-export type StatusView = { readonly entries: readonly EntryRecord[] };
+export type StatusView = {
+    readonly entries: readonly EntryRecord[];
+    /** The context window of a model in the catalog, in tokens. */
+    readonly contextWindow: (provider: string, modelId: string) => number | undefined;
+};
 
 /**
  * A folder's optional named export `status`. It runs on every commit and returns one field for the
- * status bar, or nothing when it has no honest number to show.
+ * status bar (slot `end` unless it names one), or nothing when it has no honest number to show.
  */
-export type StatusProvider = (view: StatusView) => { text: string; title?: string } | undefined;
+export type StatusLine = Omit<ClientStatus, "source" | "slot"> & { slot?: ClientStatus["slot"] };
+
+export type StatusProvider = (view: StatusView) => StatusLine | undefined;
 
 export type LoadFailure = { folder: string; reason: string };
 
@@ -104,7 +110,7 @@ export class Extensions {
                 const field = this.#status.get(folder)?.(view);
 
                 if (field !== undefined) {
-                    fields.push({ source: folder, ...field });
+                    fields.push({ source: folder, slot: "end", ...field });
                 }
             } catch {
                 // A provider that throws shows nothing; it must not stop a commit from being published.

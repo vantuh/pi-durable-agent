@@ -61,15 +61,16 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 
 One bar across the bottom, always visible:
 
-| Field              | Source                       | Shown when                  |
-| ------------------ | ---------------------------- | --------------------------- |
-| state              | `pi.live.run` and the stream | always                      |
-| `↑in ↓out · $cost` | `pi.usage` document          | always                      |
-| folder, branch     | `/api/health`                | `sm` and wider              |
-| extension fields   | `status` export of a folder  | only with that extension on |
-| agents             | the subagents extension      | only with that extension on |
+| Field              | Source                       | Shown when                         |
+| ------------------ | ---------------------------- | ---------------------------------- |
+| state              | `pi.live.run` and the stream | always                             |
+| `↑in ↓out · $cost` | `pi.usage` document          | always                             |
+| folder, branch     | `/api/health`                | `sm` and wider                     |
+| extension fields   | `status` export of a folder  | only with that extension on        |
+| context meter      | `extensions/context-meter`   | centre slot, once an answer exists |
+| agents             | the subagents extension      | only with that extension on        |
 
-`tok/s` is the first extension field: `extensions/tokens-per-second`. Below `sm` the path and branch
+The bar has three slots (`start`, `center`, `end`) that extensions fill. `tok/s` is an `end` field: `extensions/tokens-per-second`. Below `sm` the path and branch
 are dropped and the model name truncates, so the bar never widens the page.
 
 ## Stacking

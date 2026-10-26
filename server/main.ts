@@ -106,7 +106,12 @@ function entriesOf(view: View): ClientEntry[] {
 
 function liveOf(view: View): ClientLive {
     const live = projectLive(view.docs["pi.live"], view.docs["pi.usage"], view.docs["pi.inbox"]);
-    const status = extensions.statuses({ entries: view.entries });
+    const status = extensions.statuses({
+        entries: view.entries,
+        contextWindow: (provider, modelId) =>
+            models.getModels().find((model) => model.provider === provider && model.id === modelId)
+                ?.contextWindow,
+    });
 
     return status.length === 0 ? live : { ...live, status };
 }

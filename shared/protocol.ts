@@ -40,7 +40,13 @@ export type ClientUsage = {
 export type ClientStatus = {
     /** The folder name of the extension that wrote it. */
     source: string;
+    /** Where in the bar it sits: after the folder and branch, in the middle, or at the right end. */
+    slot: "start" | "center" | "end";
     text: string;
+    /** A word before the meter and the text. */
+    label?: string;
+    /** A bar between the label and the text: `fill` is 0 to 1. */
+    meter?: { fill: number; tone?: "warn" | "danger" };
     title?: string;
 };
 

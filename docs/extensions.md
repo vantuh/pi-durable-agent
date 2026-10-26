@@ -43,8 +43,16 @@ entries on every commit and returns one field for the status bar, or nothing:
 ```ts
 import type { StatusProvider } from "../../server/extensions.ts";
 
-export const status: StatusProvider = ({ entries }) => ({ text: "13 tok/s", title: "…" });
+export const status: StatusProvider = ({ entries, contextWindow }) => ({
+    text: "13 tok/s",
+    title: "…",
+});
 ```
+
+The field may name a `slot` (`start`: after folder and branch, `center`, or `end`, the default), a
+`label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
+model's window from the catalog. Below `sm` only `center` fields are drawn.
+`extensions/context-meter` is the example for `center` with a meter.
 
 The field travels in `live.status` of the event stream, keyed by the folder's name. The core knows no
 field by name: install the folder and it appears, remove the folder and the next event drops it.
