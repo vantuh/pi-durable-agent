@@ -301,8 +301,23 @@ The browser has no panel or drawer that an extension can fill, and no composer a
 extension can add. Only status items and settings sections exist. They wait for a real user: the
 first extension that needs one (such as `files`) defines it.
 
-## Header items
+## Header items and Git statistics
 
 `web.tsx` may export `header: [{ id, component }]`. A header item gets the same `StatusProps`
 as a status item, renders before the panel buttons, follows the extension's enabled switch and
 has its own error boundary. The shell knows no feature by name.
+
+`extensions/git-stats` uses this slot for a rounded `+added −deleted ↑ahead ↓behind` badge:
+
+- Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
+  untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
+  not report a separate “modified lines” count. Binary files contribute no line counts.
+- An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
+- Commit counts compare against the configured upstream as of the **last fetch**. The extension
+  does not fetch or pull automatically. Without an upstream, the counters show `?` and Push is disabled.
+- Counts refresh every ten seconds, after agent activity and after a push.
+- Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
+  configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
+  upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
+- Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
+  beforehand. Failures are shown in the header popover and can be dismissed.
