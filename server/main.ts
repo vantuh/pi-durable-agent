@@ -22,6 +22,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
+import { extensionHttpAllowed } from "./extension-http.ts";
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
@@ -664,9 +665,38 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
+    const httpRoute = /^\/api\/extensions\/([^/]+)\/http(\/.*)$/.exec(url.pathname);
+    if (httpRoute !== null) {
+        // A raw handler must not become a cross-site proxy to a local process.
+        if (!extensionHttpAllowed(request.headers)) {
+            answer(response, 403, { error: "cross-origin extension HTTP is not allowed" });
+            return;
+        }
+        try {
+            await extensions.serveHttp(decodeURIComponent(httpRoute[1] ?? ""), {
+                request,
+                response,
+                path: (httpRoute[2] ?? "/") + url.search,
+            });
+        } catch (error) {
+            if (response.headersSent) {
+                response.destroy();
+            } else {
+                answer(response, error instanceof ActionNotFound ? 404 : 500, {
+                    error: error instanceof Error ? error.message : "extension HTTP failed",
+                });
+            }
+        }
+        return;
+    }
+
     const actionRoute = /^\/api\/extensions\/([^/]+)\/actions\/([^/]+)$/.exec(url.pathname);
 
     if (request.method === "POST" && actionRoute !== null) {
+        if (!extensionHttpAllowed(request.headers)) {
+            answer(response, 403, { error: "cross-origin extension actions are not allowed" });
+            return;
+        }
         await runAction(request, response, actionRoute[1] ?? "", actionRoute[2] ?? "");
 
         return;

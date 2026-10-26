@@ -47,7 +47,7 @@ export default defineConfig({
         port: 5190,
         strictPort: true,
         proxy: {
-            "/api": "http://127.0.0.1:8788",
+            "/api": { target: "http://127.0.0.1:8788", changeOrigin: false },
         },
     },
     build: {

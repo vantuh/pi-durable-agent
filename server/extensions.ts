@@ -6,6 +6,7 @@
 
 import { type FSWatcher, realpathSync, watch } from "node:fs";
 import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -83,6 +84,14 @@ export type Action = (call: ActionCall) => unknown;
 
 /** The `actions` export: the record itself, or a function of the host when actions need its paths. */
 export type ActionsExport = Record<string, Action> | ((host: Host) => Record<string, Action>);
+
+/** Raw HTTP under /api/extensions/:name/http/*; needed for HTML, binary bodies and SSE. */
+export type HttpHandler = (call: {
+    request: IncomingMessage;
+    response: ServerResponse;
+    /** The namespace-relative path, including its query string. */
+    path: string;
+}) => void | Promise<void>;
 
 /** Thrown by an action for bad input from the caller; the route answers 400 with the message. */
 export class ActionError extends Error {}
@@ -267,6 +276,7 @@ export class Extensions {
     readonly #installed = new Map<string, Extension>();
     readonly #status = new Map<string, StatusProvider>();
     readonly #actions = new Map<string, ReadonlyMap<string, Action>>();
+    readonly #http = new Map<string, HttpHandler>();
     readonly #listeners = new Set<() => void>();
     /** Per folder, the disposers of the version that is live now. */
     readonly #disposers = new Map<string, Disposer[]>();
@@ -410,6 +420,14 @@ export class Extensions {
         return await run(call);
     }
 
+    async serveHttp(extension: string, call: Parameters<HttpHandler>[0]): Promise<void> {
+        const handler = this.#http.get(extension);
+        if (handler === undefined) {
+            throw new ActionNotFound(`extension "${extension}" has no HTTP handler`);
+        }
+        await handler(call);
+    }
+
     /**
      * Hands a commit to the listeners of every installed version. One that fails is logged. A version
      * that loads later first gets the newest view of each session, as a baseline.
@@ -477,6 +495,7 @@ export class Extensions {
 
         await this.#queue;
 
+        this.#http.clear();
         this.#commits.clear();
         this.#lastViews.clear();
 
@@ -511,6 +530,7 @@ export class Extensions {
                     this.#registry.install(built.extension);
                     this.#installed.set(folder, built.extension);
                     this.#setOrDelete(this.#actions, folder, built.actions);
+                    this.#setOrDelete(this.#http, folder, built.http);
                     this.#setOrDelete(this.#status, folder, built.status);
                 }
 
@@ -635,6 +655,7 @@ export class Extensions {
               extension: Extension;
               actions: ReadonlyMap<string, Action> | undefined;
               status: StatusProvider | undefined;
+              http: HttpHandler | undefined;
           }
         | undefined
         | "disabled"
@@ -652,6 +673,7 @@ export class Extensions {
             status?: StatusProvider;
             actions?: ActionsExport;
             meta?: unknown;
+            http?: (host: Host) => HttpHandler;
         } = await import(`${pathToFileURL(file).href}?v=${this.#generation}`);
 
         this.#known.set(folder, metaOf(folder, module.meta));
@@ -705,8 +727,16 @@ export class Extensions {
             );
         }
 
+        if (module.http !== undefined && typeof module.http !== "function") {
+            throw new Error("the http export must be a factory function");
+        }
+        const http = module.http?.(host);
+        if (module.http !== undefined && typeof http !== "function") {
+            throw new Error("the http factory must return a function");
+        }
         return {
             extension: result,
+            http,
             actions: actionsOf(
                 typeof module.actions === "function" ? module.actions(host) : module.actions,
             ),
@@ -725,6 +755,7 @@ export class Extensions {
     #drop(folder: string, why: string): void {
         this.#status.delete(folder);
         this.#actions.delete(folder);
+        this.#http.delete(folder);
 
         const extension = this.#installed.get(folder);
 

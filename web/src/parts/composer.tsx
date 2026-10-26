@@ -1,9 +1,10 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { uploadFile } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
+import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
 import { Attachments, type Pending } from "./attachments.tsx";
 
 const MODES: { mode: SendMode; label: string; hint: string }[] = [
@@ -11,9 +12,6 @@ const MODES: { mode: SendMode; label: string; hint: string }[] = [
     { mode: "followUp", label: "Queue", hint: "read when this run ends" },
     { mode: "interrupt", label: "Interrupt", hint: "stop the run now, then send" },
 ];
-
-// Unsent text per session, kept while the page lives.
-const drafts = new Map<string, string>();
 
 const HISTORY_KEY = "composer-history";
 const HISTORY_MAX = 100;
@@ -81,7 +79,14 @@ export function Composer({
     onSend,
     onStop,
 }: Props) {
-    const [text, setText] = useState(() => drafts.get(sessionId) ?? "");
+    const [text, setText] = useState(() => composerDraft(sessionId));
+    useEffect(
+        () =>
+            subscribeComposerDraft(() => {
+                setText(composerDraft(sessionId));
+            }),
+        [sessionId],
+    );
     const [files, setFiles] = useState<Pending[]>([]);
     // Position in history while browsing with the arrows (null: not browsing) and the draft to come back to.
     const browse = useRef<{ at: number; draft: string } | null>(null);
@@ -155,7 +160,7 @@ export function Composer({
         }
 
         remember(sessionId, body);
-        drafts.delete(sessionId);
+        setComposerDraft(sessionId, "");
         browse.current = null;
         setText("");
         forget(files);
@@ -221,7 +226,7 @@ export function Composer({
                         const value = event.target.value;
 
                         browse.current = null;
-                        drafts.set(sessionId, value);
+                        setComposerDraft(sessionId, value);
                         setText(value);
                     }}
                     onKeyDown={(event) => {
@@ -268,6 +273,7 @@ export function Composer({
 
                                 if (next !== undefined) {
                                     event.preventDefault();
+                                    setComposerDraft(sessionId, next);
                                     setText(next);
                                     // Put the caret at the end once React has applied the text.
                                     requestAnimationFrame(() => {
