@@ -65,7 +65,7 @@ function Lightbox({ file, onClose }: { file: Pending; onClose: () => void }) {
                 type="button"
                 aria-label="Close preview"
                 onClick={onClose}
-                className="bg-sunken/90 absolute inset-0 cursor-zoom-out"
+                className="bg-sunken/90 absolute inset-0 cursor-default"
             />
             <div className="rounded-card border-edge bg-panel relative flex max-h-full max-w-full flex-col gap-1.5 border p-1.5 shadow-lg">
                 <button
