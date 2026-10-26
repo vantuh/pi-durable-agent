@@ -8,7 +8,8 @@ POST /api/messages  ──▶ conversation.submit()  ──▶ durable generatio
                                               ▼
 GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
 GET /api/health         { ok, model, cwd, home, session }
-GET /api/extensions     { installed, failed }
+GET /api/extensions     { installed, failed, extensions: [{ name, title, description, enabled, installed, error? }] }
+PUT /api/extensions/:name   { enabled: boolean } → the new list entry (400 bad body, 404 unknown folder)
 POST /api/abort         stops the current run
 ```
 

@@ -14,6 +14,11 @@ import type { Host, StatusProvider } from "../../server/extensions.ts";
 const MIN_WINDOW_MS = 250;
 const MIN_OUTPUT_TOKENS = 20;
 
+export const meta = {
+    title: "Tokens per second",
+    description: "Shows the output speed of the last answer.",
+};
+
 export default function tokensPerSecond(host: Host) {
     return defineExtension({ name: host.name });
 }

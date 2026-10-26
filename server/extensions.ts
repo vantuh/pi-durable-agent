@@ -5,7 +5,7 @@
  */
 
 import { type FSWatcher, realpathSync, watch } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -90,6 +90,22 @@ export function parseActionBody(body: unknown): { session: number | undefined; a
 }
 
 export type LoadFailure = { folder: string; reason: string };
+
+/** A folder's optional named export `meta`: what the owner sees in the list of extensions. */
+export type ExtensionMeta = { title: string; description: string };
+
+/** One folder as the owner sees it. `error` is why the last load failed, if it did. */
+export type ExtensionInfo = {
+    name: string;
+    title: string;
+    description: string;
+    enabled: boolean;
+    installed: boolean;
+    error?: string;
+};
+
+/** Where the owner's choice is kept, in the data directory. */
+const STATE_FILE = "extensions.json";
 
 /** Installed by the core, so no folder may take the name. */
 const RESERVED = new Set(["coding-tools"]);
@@ -184,6 +200,31 @@ function actionsOf(value: unknown): ReadonlyMap<string, Action> | undefined {
     return actions;
 }
 
+/** The `meta` export, or the folder's name with no description when absent. Throws when it is bad. */
+function isRecord(value: unknown): value is object {
+    return typeof value === "object" && value !== null;
+}
+
+function metaOf(folder: string, value: unknown): ExtensionMeta {
+    if (value === undefined) {
+        return { title: folder, description: "" };
+    }
+
+    const title: unknown = isRecord(value) ? Reflect.get(value, "title") : undefined;
+    const description: unknown = isRecord(value) ? Reflect.get(value, "description") : undefined;
+
+    if (
+        typeof title !== "string" ||
+        title === "" ||
+        typeof description !== "string" ||
+        description === ""
+    ) {
+        throw new Error("the `meta` export must be { title, description }, both non-empty strings");
+    }
+
+    return { title, description };
+}
+
 function isExtension(value: unknown): value is Extension {
     if (typeof value !== "object" || value === null) {
         return false;
@@ -210,6 +251,9 @@ export class Extensions {
     #watcher: FSWatcher | undefined;
     #generation = 0;
     #failed: LoadFailure[] = [];
+    #disabled = new Set<string>();
+    /** Every folder the last load saw, with the meta it could read. */
+    #known = new Map<string, ExtensionMeta>();
     #queue: Promise<void> = Promise.resolve();
     #timer: NodeJS.Timeout | undefined;
 
@@ -238,6 +282,55 @@ export class Extensions {
     /** Folders that failed to load, and why. The extension they had before is still installed. */
     get failed(): readonly LoadFailure[] {
         return this.#failed;
+    }
+
+    /** Every folder the last load saw, sorted by name. */
+    get list(): ExtensionInfo[] {
+        return [...this.#known.keys()].sort().flatMap((name) => this.#info(name) ?? []);
+    }
+
+    /**
+     * Turns a folder on or off, stores the choice, and loads again. Throws `ActionNotFound` for a
+     * folder the last load did not see.
+     */
+    setEnabled(name: string, enabled: boolean): Promise<ExtensionInfo> {
+        const run = this.#queue.then(async () => {
+            if (!this.#known.has(name)) {
+                throw new ActionNotFound(`no extension "${name}"`);
+            }
+
+            const disabled = await this.#readDisabled();
+
+            if (enabled) {
+                disabled.delete(name);
+            } else {
+                disabled.add(name);
+            }
+
+            await mkdir(this.#dataDir, { recursive: true });
+
+            const file = join(this.#dataDir, STATE_FILE);
+            const temp = `${file}.tmp`;
+
+            await writeFile(temp, JSON.stringify({ disabled: [...disabled].sort() }));
+            await rename(temp, file);
+            await this.#load();
+
+            const info = this.#info(name);
+
+            if (info === undefined) {
+                throw new ActionNotFound(`no extension "${name}"`);
+            }
+
+            return info;
+        });
+
+        this.#queue = run.then(
+            () => undefined,
+            () => undefined,
+        );
+
+        return run;
     }
 
     /** The status fields of every installed folder that has a provider, in folder order. */
@@ -330,6 +423,8 @@ export class Extensions {
         const present = new Set<string>();
         const failed: LoadFailure[] = [];
 
+        this.#disabled = await this.#readDisabled();
+
         for (const folder of await this.#folders()) {
             present.add(folder);
 
@@ -338,7 +433,9 @@ export class Extensions {
             try {
                 const built = await this.#build(folder, attempt);
 
-                if (built === undefined) {
+                if (built === "disabled") {
+                    this.#drop(folder, "disabled");
+                } else if (built === undefined) {
                     // The module ran, so what it registered is live: it replaces the old version's.
                     this.#drop(folder, "installs nothing");
                 } else {
@@ -352,6 +449,11 @@ export class Extensions {
             } catch (error) {
                 failed.push({ folder, reason: reasonOf(error) });
                 await this.#run(folder, attempt);
+
+                if (this.#disabled.has(folder)) {
+                    this.#drop(folder, "disabled");
+                    await this.#release(folder);
+                }
             }
         }
 
@@ -364,12 +466,55 @@ export class Extensions {
 
         this.#failed = failed;
 
+        for (const folder of [...this.#known.keys()]) {
+            if (!present.has(folder)) {
+                this.#known.delete(folder);
+            }
+        }
+
         for (const failure of failed) {
             this.#log(`extensions: ${failure.folder}: ${failure.reason}`);
         }
 
         for (const listener of this.#listeners) {
             listener();
+        }
+    }
+
+    #info(name: string): ExtensionInfo | undefined {
+        const meta = this.#known.get(name);
+
+        if (meta === undefined) {
+            return undefined;
+        }
+
+        const error = this.#failed.find((failure) => failure.folder === name)?.reason;
+
+        return {
+            name,
+            ...meta,
+            enabled: !this.#disabled.has(name),
+            installed: this.#installed.has(name),
+            ...(error === undefined ? {} : { error }),
+        };
+    }
+
+    /** A missing or broken file means every folder is on. */
+    async #readDisabled(): Promise<Set<string>> {
+        try {
+            const state: unknown = JSON.parse(
+                await readFile(join(this.#dataDir, STATE_FILE), "utf8"),
+            );
+            const list: unknown =
+                typeof state === "object" && state !== null
+                    ? Reflect.get(state, "disabled")
+                    : undefined;
+
+            return new Set(
+                Array.isArray(list) ? list.filter((item) => typeof item === "string") : [],
+            );
+        } catch {
+            return new Set();
         }
     }
 
@@ -396,7 +541,10 @@ export class Extensions {
         return folders.sort();
     }
 
-    /** Imports one folder and builds its extension, checking the name the whole design relies on. */
+    /**
+     * Imports one folder and builds its extension, checking the name the whole design relies on. A
+     * disabled folder is imported only to read `meta`; its default export is not called.
+     */
     async #build(
         folder: string,
         attempt: Disposer[],
@@ -407,7 +555,11 @@ export class Extensions {
               status: StatusProvider | undefined;
           }
         | undefined
+        | "disabled"
     > {
+        // Listed even when the import fails; a good `meta` below replaces the name.
+        this.#known.set(folder, this.#known.get(folder) ?? { title: folder, description: "" });
+
         if (RESERVED.has(folder)) {
             throw new Error("the name is reserved by the core");
         }
@@ -417,7 +569,14 @@ export class Extensions {
             default?: (host: Host) => unknown;
             status?: StatusProvider;
             actions?: ActionsExport;
+            meta?: unknown;
         } = await import(`${pathToFileURL(file).href}?v=${this.#generation}`);
+
+        this.#known.set(folder, metaOf(folder, module.meta));
+
+        if (this.#disabled.has(folder)) {
+            return "disabled";
+        }
 
         if (typeof module.default !== "function") {
             throw new Error("server.ts has no default function export");

@@ -14,6 +14,11 @@ function tokens(count: number): string {
     return count >= 1000 ? `${String(Math.round(count / 1000))}k` : String(count);
 }
 
+export const meta = {
+    title: "Context meter",
+    description: "Shows how full the context window is.",
+};
+
 export default function contextMeter(host: Host) {
     return defineExtension({ name: host.name });
 }

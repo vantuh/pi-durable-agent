@@ -14,6 +14,11 @@ const RULES = [
     "Ask before anything irreversible. Never claim a result you did not see.",
 ].join("\n");
 
+export const meta = {
+    title: "Rules prompt",
+    description: "Gives the agent its working rules as a system prompt section.",
+};
+
 export default function prompt(host: Host) {
     return defineExtension({
         name: host.name,

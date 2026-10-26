@@ -7,6 +7,11 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import type { Host, StatusProvider } from "../../server/extensions.ts";
 
+export const meta = {
+    title: "Cache hit",
+    description: "Shows how much of the input came from the provider's cache.",
+};
+
 export default function cacheHit(host: Host) {
     return defineExtension({ name: host.name });
 }

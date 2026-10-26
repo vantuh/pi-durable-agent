@@ -41,6 +41,31 @@ Rules the loader enforces, and why:
 | Names starting with `_` or `.` are skipped | A place to park a folder under construction                                                                           |
 | A failed folder keeps its last version     | A typo must not take a working feature away                                                                           |
 
+## Name, description, on and off
+
+A folder may export `meta` next to its default export. The owner sees it in the list of extensions:
+
+```ts
+export const meta = {
+    title: "Cache hit",
+    description: "Shows how much input came from the cache.",
+};
+```
+
+- Both fields must be non-empty strings. Otherwise the folder fails with a reason that names `meta`.
+- Without `meta` the title is the folder's name and the description is empty.
+- The owner can turn each folder on or off. The choice is stored on the server in
+  `extensions.json` in the data directory: `{ "disabled": ["folder"] }`. A missing or broken file
+  means every folder is on.
+- A disabled folder is not installed: its default export is not called, and it has no actions or
+  status field. Turning a folder off drops the installed version and runs its disposers. Turning it
+  on installs it again. Both work live, with no restart.
+- To show the title of a disabled folder, the loader still imports `server.ts` to read `meta`. So the
+  module's top level must have no side effects: no timers, no subscriptions, no file writes. Start
+  those in the default export and register their cleanup with `host.onDispose`.
+- `PUT /api/extensions/:name` with `{ "enabled": boolean }` changes the choice
+  ([server.md](server.md)).
+
 ## Status fields
 
 A folder may also export `status` next to its default export. It receives the conversation's active
@@ -172,15 +197,25 @@ Disposers follow the version that registered them:
 
 ```bash
 curl -s http://127.0.0.1:8788/api/extensions
-{"installed":["cache-hit","context-meter","git-branch","prompt","tokens-per-second"],"failed":[]}
+{"installed":["cache-hit","prompt"],"failed":[],"extensions":[{"name":"cache-hit","title":"Cache hit","description":"…","enabled":true,"installed":true}, …]}
 ```
 
-A failure looks like this, and the server keeps serving:
+A failure looks like this, and the server keeps serving. `extensions` has an `error` on that folder:
 
 ```json
 {
-    "installed": ["cache-hit", "context-meter", "git-branch", "prompt", "tokens-per-second"],
-    "failed": [{ "folder": "probe", "reason": "server.ts has no default function export" }]
+    "installed": ["cache-hit", "prompt"],
+    "failed": [{ "folder": "probe", "reason": "server.ts has no default function export" }],
+    "extensions": [
+        {
+            "name": "probe",
+            "title": "probe",
+            "description": "",
+            "enabled": true,
+            "installed": false,
+            "error": "server.ts has no default function export"
+        }
+    ]
 }
 ```
 

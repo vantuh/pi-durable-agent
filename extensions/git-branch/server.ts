@@ -12,6 +12,11 @@ import { DEFAULT_SETTINGS, parseSettings, type Settings } from "./refs.ts";
 
 const run = promisify(execFile);
 
+export const meta = {
+    title: "Git branch",
+    description: "Shows the git branch of the session's folder in the status bar.",
+};
+
 export default function gitBranch(host: Host) {
     return defineExtension({ name: host.name });
 }

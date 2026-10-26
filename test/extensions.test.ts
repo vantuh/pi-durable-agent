@@ -421,4 +421,149 @@ export const status = () => ({ text: "v${value}" });`;
             assert.equal(await extensions.call("alpha", "value", call), 1);
         }
     });
+
+    const withMeta = (meta: string): string =>
+        `export const meta = ${meta};\n${withActions("{ value: () => 1 }")}`;
+    const named = (tag: string): string =>
+        `export const meta = { title: "T", description: "D" };\n${source({ tags: [tag], body: `globalThis.${CALLS}.push("default"); return { name: host.name };` })}\nexport const actions = { value: () => 1 };`;
+    const make = (): Extensions =>
+        new Extensions({
+            registry: createRegistry(),
+            dir,
+            cwd: root,
+            dataDir: root,
+            log: () => undefined,
+        });
+
+    void it("reads meta and falls back to the folder name", async () => {
+        await write("alpha", withMeta('{ title: "Alpha", description: "Does alpha." }'));
+        await write("beta", withActions("{ value: () => 1 }"));
+        await extensions.load();
+
+        assert.deepEqual(
+            extensions.list.map((entry) => [entry.name, entry.title, entry.description]),
+            [
+                ["alpha", "Alpha", "Does alpha."],
+                ["beta", "beta", ""],
+            ],
+        );
+    });
+
+    void it("fails a folder whose meta is bad", async () => {
+        for (const bad of [
+            "{ title: 'T' }",
+            "{ title: '', description: 'D' }",
+            "'text'",
+            "{ title: 1, description: 'D' }",
+        ]) {
+            await write("alpha", withMeta(bad));
+            await extensions.load();
+
+            assert.equal(extensions.failed[0]?.folder, "alpha");
+            assert.match(extensions.failed[0]?.reason ?? "", /meta/);
+            assert.equal(extensions.list[0]?.installed, false);
+            assert.match(extensions.list[0]?.error ?? "", /meta/);
+        }
+    });
+
+    void it("does not call or install a disabled folder", async () => {
+        await write("alpha", named("v1"));
+        await writeFile(join(root, "extensions.json"), JSON.stringify({ disabled: ["alpha"] }));
+        await extensions.load();
+
+        assert.deepEqual(extensions.names, []);
+        assert.deepEqual(calls(), []);
+        assert.equal(extensions.list[0]?.enabled, false);
+        assert.equal(extensions.list[0]?.title, "T");
+        await assert.rejects(
+            extensions.call("alpha", "value", call),
+            (error) => error instanceof ActionNotFound,
+        );
+    });
+
+    void it("lists a disabled folder that fails to import, and drops its installed version", async () => {
+        await write("alpha", named("v1"));
+        await extensions.load();
+
+        await write("alpha", 'throw new Error("cannot import");');
+        await extensions.setEnabled("alpha", false);
+
+        const entry = extensions.list[0];
+
+        assert.equal(entry?.enabled, false);
+        assert.equal(entry?.installed, false);
+        assert.match(entry?.error ?? "", /cannot import/);
+        assert.deepEqual(extensions.names, []);
+        assert.deepEqual(calls(), ["default", "v1"]);
+
+        await extensions.dispose();
+        assert.deepEqual(calls(), ["default", "v1"]);
+    });
+
+    void it("disables live, runs the disposers, and enables again", async () => {
+        await write("alpha", named("v1"));
+        await extensions.load();
+        assert.equal(await extensions.call("alpha", "value", call), 1);
+
+        const off = await extensions.setEnabled("alpha", false);
+
+        assert.deepEqual([off.enabled, off.installed], [false, false]);
+        assert.deepEqual(calls(), ["default", "v1"]);
+        assert.deepEqual(extensions.names, []);
+        await assert.rejects(
+            extensions.call("alpha", "value", call),
+            (error) => error instanceof ActionNotFound,
+        );
+
+        const on = await extensions.setEnabled("alpha", true);
+
+        assert.deepEqual([on.enabled, on.installed], [true, true]);
+        assert.equal(await extensions.call("alpha", "value", call), 1);
+        assert.deepEqual(extensions.names, ["alpha"]);
+    });
+
+    void it("refuses to toggle an unknown folder", async () => {
+        await write("alpha", named("v1"));
+        await extensions.load();
+
+        await assert.rejects(
+            extensions.setEnabled("nope", false),
+            (error) => error instanceof ActionNotFound,
+        );
+    });
+
+    void it("keeps the choice in a file that a new instance reads", async () => {
+        await write("alpha", named("v1"));
+        await write("beta", named("b1"));
+        await extensions.load();
+        await extensions.setEnabled("alpha", false);
+
+        const next = make();
+
+        try {
+            await next.load();
+
+            assert.deepEqual(next.names, ["beta"]);
+            assert.deepEqual(
+                next.list.map((entry) => [entry.name, entry.enabled]),
+                [
+                    ["alpha", false],
+                    ["beta", true],
+                ],
+            );
+        } finally {
+            await next.dispose();
+        }
+    });
+
+    void it("treats a broken or odd state file as all enabled", async () => {
+        await write("alpha", named("v1"));
+
+        for (const text of ["{ not json", "[]", '{"disabled":"alpha"}', '{"disabled":[1]}']) {
+            await writeFile(join(root, "extensions.json"), text);
+            await extensions.load();
+
+            assert.deepEqual(extensions.names, ["alpha"], text);
+        }
+    });
 });

@@ -579,7 +579,19 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (request.method === "GET" && url.pathname === "/api/extensions") {
-        answer(response, 200, { installed: extensions.names, failed: extensions.failed });
+        answer(response, 200, {
+            installed: extensions.names,
+            failed: extensions.failed,
+            extensions: extensions.list,
+        });
+        return;
+    }
+
+    const toggleRoute = /^\/api\/extensions\/([^/]+)$/.exec(url.pathname);
+
+    if (request.method === "PUT" && toggleRoute !== null) {
+        await toggleExtension(request, response, toggleRoute[1] ?? "");
+
         return;
     }
 
@@ -596,6 +608,37 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     answer(response, 404, { error: "not found" });
+}
+
+/** 400 for a body that is not `{ enabled: boolean }`, 404 for an unknown folder. */
+async function toggleExtension(
+    request: IncomingMessage,
+    response: ServerResponse,
+    name: string,
+): Promise<void> {
+    try {
+        const parsed: unknown = await body(request).catch(badBody);
+        const enabled: unknown =
+            typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+                ? Reflect.get(parsed, "enabled")
+                : undefined;
+
+        if (typeof enabled !== "boolean") {
+            throw new ActionError("the body must be { enabled: boolean }");
+        }
+
+        answer(response, 200, await extensions.setEnabled(decodeURIComponent(name), enabled));
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "the change failed";
+
+        if (error instanceof ActionNotFound) {
+            answer(response, 404, { error: message });
+        } else if (error instanceof ActionError || error instanceof URIError) {
+            answer(response, 400, { error: message });
+        } else {
+            answer(response, 500, { error: message });
+        }
+    }
 }
 
 /** 400 for bad input, 404 for an unknown extension, action or session, 500 for any other failure. */
