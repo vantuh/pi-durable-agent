@@ -3,10 +3,12 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App.tsx";
 import { applyFlavour, currentFlavour } from "./lib/flavour.ts";
+import { registerWorker } from "./lib/register-worker.ts";
 
 import "./styles.css";
 
 applyFlavour(currentFlavour());
+registerWorker();
 
 const root = document.getElementById("root");
 

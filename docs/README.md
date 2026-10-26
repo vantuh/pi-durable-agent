@@ -10,6 +10,7 @@ The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 | [server.md](server.md)           | The HTTP and SSE API, and how a conversation runs.         |
 | [extensions.md](extensions.md)   | The extension folder: contract, actions, web, live reload. |
 | [theme.md](theme.md)             | The Catppuccin theme and its roles.                        |
+| [pwa.md](pwa.md)                 | Manifest, icons, and the offline shell worker.             |
 | [conventions.md](conventions.md) | Every rule, and the mistake it prevents.                   |
 
 Planned, not written yet: `agent.md` (tools, prompt, permissions).

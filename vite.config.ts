@@ -4,6 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, normalizePath } from "vite";
 
+import { pwa } from "./pwa.ts";
+
 const extensionsDir = normalizePath(fileURLToPath(new URL("./extensions", import.meta.url)));
 
 export default defineConfig({
@@ -11,6 +13,7 @@ export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
+        pwa(),
         {
             // Vite's root is web/, so a new extensions/<folder>/web.tsx would not reach the glob.
             name: "watch-extensions",
