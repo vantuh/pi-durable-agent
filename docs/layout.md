@@ -9,7 +9,7 @@ tell a panel from the page.
 │ page: bg-sunken, 8px padding, 8px gaps                                       │
 │ ┌────────────────┐ ┌───────────────────────────────────────┐ ┌────────────┐  │
 │ │ Sessions       │ │ Session name            ⎇ branch  ⚙   │ │ Settings   │  │
-│ │ 264px          │ ├───────────────────────────────────────┤ │ 360px      │  │
+│ │ 264px, drag    │ ├───────────────────────────────────────┤ │ 360px      │  │
 │ │ folder pill    │ │ transcript  (the only scroller)        │ │ closed by  │  │
 │ │ list of rows   │ │                                        │ │ default    │  │
 │ │                │ ├───────────────────────────────────────┤ │            │  │
@@ -36,6 +36,9 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 - **Where the time comes from**: the `app.clock` document of each conversation (`activeAt`), set when
   the session is created and on every message sent. A session older than the document takes the start
   time of its newest message once, then keeps it.
+- **Width**: 264px to start. Drag the right edge, or focus it and press `←` / `→` (16px a step),
+  to set it between 204px and 464px, never past 40% of the screen. The width is kept in
+  `localStorage` (`sidebarWidth`); a double click on the edge puts it back to 264px.
 - The search field is not drawn yet.
 - Hidden below `lg`, where the conversation takes the screen. There, the panel icon in the
   conversation header opens the list as a full-screen sheet; choosing a session closes it.
