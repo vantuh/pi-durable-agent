@@ -5,12 +5,15 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
+        "serve": "node --watch server/main.ts",
         "build": "vite build",
         "preview": "vite preview",
         "check": "oxfmt --check && oxlint --type-aware && tsc --noEmit",
         "fix": "oxfmt && oxlint --type-aware --fix"
     },
     "dependencies": {
+        "@earendil-works/chord": "1.4.0",
+        "@earendil-works/pi-coding-agent": "1.4.0",
         "@earendil-works/pi-durable": "^1.4.0",
         "react": "^19.3.1",
         "react-dom": "^19.3.1"

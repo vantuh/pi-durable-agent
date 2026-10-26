@@ -29,8 +29,6 @@ The first choice, recorded so later decisions can be read against it. Versions a
 
 ## What we did not take
 
-- **`pi-coding-agent`**: needed only to read Pi's own folder (`~/.pi/agent`: logins, models,
-  skills, `AGENTS.md`). Add it when provider login appears, as its own decision.
 - **Access control**: no accounts, roles, invites, sharing, take-turns.
 - **Infrastructure**: no worktrees, spend limits, gallery, push notifications, PR watches.
 - **Front-end libraries**: no state library, no router, no component framework. One hand-written
@@ -55,4 +53,3 @@ The first choice, recorded so later decisions can be read against it. Versions a
   file, `@earendil-works/pi-durable/storage/sqlite/node`.
 - **Theme**: Catppuccin in `web/src/styles/catppuccin.css`, imported once from `styles.css`, with
   one variable block per flavor behind `[data-flavor="…"]`. No colour literals in components.
-- **Model login**: whether we read `~/.pi/agent` as-is or keep our own settings file.
