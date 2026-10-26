@@ -1,7 +1,5 @@
-import { ArrowUp, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
 import { useRef, useState } from "react";
-
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { uploadFile } from "../lib/api.ts";
@@ -37,11 +35,16 @@ export function Composer({
     const [text, setText] = useState("");
     const [files, setFiles] = useState<Pending[]>([]);
     const [mode, setMode] = useState<SendMode>("steer");
+    const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
 
     // An Interrupt is for the run it was chosen in; the next run starts on Steer again.
     if (!busy && mode === "interrupt") {
         setMode("steer");
+    }
+
+    if (!busy && modesOpen) {
+        setModesOpen(false);
     }
 
     const how = MODES.find((option) => option.mode === mode);
@@ -179,28 +182,6 @@ export function Composer({
                     }}
                 />
 
-                {busy ? (
-                    <Tabs
-                        value={mode}
-                        onValueChange={(value) => {
-                            setMode(MODES.find((option) => option.mode === value)?.mode ?? "steer");
-                        }}
-                        className="mt-1.5"
-                    >
-                        <TabsList className="self-start">
-                            {MODES.map((option) => (
-                                <TabsTrigger
-                                    key={option.mode}
-                                    value={option.mode}
-                                    title={option.hint}
-                                >
-                                    {option.label}
-                                </TabsTrigger>
-                            ))}
-                        </TabsList>
-                    </Tabs>
-                ) : null}
-
                 <div className="mt-1.5 flex items-center gap-1.5">
                     <button
                         type="button"
@@ -250,20 +231,78 @@ export function Composer({
                                 type="button"
                                 onClick={onStop}
                                 title="Stop"
-                                className="rounded-control bg-raised text-danger flex size-7 items-center justify-center"
+                                className="rounded-control bg-danger/20 text-danger hover:bg-danger/30 flex size-7 items-center justify-center"
                             >
-                                <Square className="size-3.5" />
+                                <Square className="size-3 fill-current" />
                             </button>
                         ) : null}
-                        <button
-                            type="button"
-                            onClick={submit}
-                            title={busy ? (how?.label ?? "Send") : "Send"}
-                            className="rounded-control bg-accent text-on-accent flex size-7 items-center justify-center disabled:opacity-40"
-                            disabled={empty || uploading}
+                        <div
+                            className="relative flex items-center"
+                            onBlur={(event) => {
+                                if (!event.currentTarget.contains(event.relatedTarget)) {
+                                    setModesOpen(false);
+                                }
+                            }}
                         >
-                            <ArrowUp className="size-4" />
-                        </button>
+                            {modesOpen ? (
+                                <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full mb-1.5 flex w-64 flex-col border p-1 shadow-lg">
+                                    {MODES.map((option) => (
+                                        <li key={option.mode}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setMode(option.mode);
+                                                    setModesOpen(false);
+                                                }}
+                                                className="rounded-control hover:bg-raised flex w-full items-start gap-2 px-2 py-1.5 text-left"
+                                            >
+                                                <Check
+                                                    className={`text-accent mt-0.5 size-3.5 shrink-0 ${
+                                                        option.mode === mode ? "" : "invisible"
+                                                    }`}
+                                                />
+                                                <span className="flex flex-col">
+                                                    <span className="text-interface text-ink">
+                                                        {option.label}
+                                                    </span>
+                                                    <span className="text-meta text-faint">
+                                                        {option.hint}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={submit}
+                                title={busy ? (how?.label ?? "Send") : "Send"}
+                                className={`bg-accent text-on-accent flex h-7 items-center justify-center gap-1 disabled:opacity-40 ${
+                                    busy
+                                        ? "rounded-l-control text-interface pr-1.5 pl-2"
+                                        : "rounded-control w-7"
+                                }`}
+                                disabled={empty || uploading}
+                            >
+                                <ArrowUp className="size-4" />
+                                {busy ? <span>{how?.label}</span> : null}
+                            </button>
+                            {busy ? (
+                                <button
+                                    type="button"
+                                    title="How to send"
+                                    aria-haspopup="menu"
+                                    aria-expanded={modesOpen}
+                                    onClick={() => {
+                                        setModesOpen((open) => !open);
+                                    }}
+                                    className="rounded-r-control bg-accent text-on-accent border-on-accent/30 flex h-7 w-6 items-center justify-center border-l"
+                                >
+                                    <ChevronDown className="size-3.5" />
+                                </button>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
             </div>
