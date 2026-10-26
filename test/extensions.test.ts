@@ -194,4 +194,15 @@ void describe("Extensions disposers", () => {
 
         assert.deepEqual(calls(), ["v1"]);
     });
+
+    void it("a failed load does not stop later loads", async () => {
+        await rm(dir, { recursive: true });
+        await assert.rejects(extensions.load());
+
+        await mkdir(dir);
+        await write("alpha", source({ tags: ["v1"] }));
+        await extensions.load();
+
+        assert.deepEqual(extensions.names, ["alpha"]);
+    });
 });

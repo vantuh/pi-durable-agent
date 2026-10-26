@@ -137,9 +137,12 @@ export class Extensions {
 
     /** Loads every folder. A load already running is finished first, so two saves never interleave. */
     load(): Promise<void> {
-        this.#queue = this.#queue.then(() => this.#load());
+        const run = this.#queue.then(() => this.#load());
 
-        return this.#queue;
+        // The caller gets its own rejection; the queue itself must stay usable for later loads.
+        this.#queue = run.catch(() => undefined);
+
+        return run;
     }
 
     /** Loads again whenever anything under `extensions/` changes. */
@@ -168,8 +171,7 @@ export class Extensions {
             this.#timer = undefined;
         }
 
-        // A failed earlier load was reported to its caller; it must not stop the cleanup.
-        await this.#queue.catch(() => undefined);
+        await this.#queue;
 
         for (const folder of [...this.#disposers.keys()]) {
             await this.#release(folder);
