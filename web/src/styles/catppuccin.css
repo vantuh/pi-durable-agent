@@ -5,11 +5,14 @@
  * `color-scheme` rides along, which is what makes native scrollbars and form controls match.
  * The selectors are `html[data-flavour=...]`, not `[data-flavour=...]`: a bare attribute
  * selector ties with `:root`, and then the order of the built file picks the winner.
+ * `[data-preview=...]` sets the same names on one element, so the Appearance modal can draw a
+ * flavour that is not the active one. It is not `html`, so the rule above does not apply to it.
  * Components never read these directly: styles.css maps the roles they use onto them.
  */
 
 /* Latte */
-html[data-flavour="latte"] {
+html[data-flavour="latte"],
+[data-preview="latte"] {
     color-scheme: light;
     --ctp-rosewater: #dc8a78;
     --ctp-flamingo: #dd7878;
@@ -40,7 +43,8 @@ html[data-flavour="latte"] {
 }
 
 /* Frappé */
-html[data-flavour="frappe"] {
+html[data-flavour="frappe"],
+[data-preview="frappe"] {
     color-scheme: dark;
     --ctp-rosewater: #f2d5cf;
     --ctp-flamingo: #eebebe;
@@ -71,7 +75,8 @@ html[data-flavour="frappe"] {
 }
 
 /* Macchiato */
-html[data-flavour="macchiato"] {
+html[data-flavour="macchiato"],
+[data-preview="macchiato"] {
     color-scheme: dark;
     --ctp-rosewater: #f4dbd6;
     --ctp-flamingo: #f0c6c6;
@@ -103,7 +108,8 @@ html[data-flavour="macchiato"] {
 
 /* Mocha */
 :root,
-html[data-flavour="mocha"] {
+html[data-flavour="mocha"],
+[data-preview="mocha"] {
     color-scheme: dark;
     --ctp-rosewater: #f5e0dc;
     --ctp-flamingo: #f2cdcd;

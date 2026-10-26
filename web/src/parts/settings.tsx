@@ -1,22 +1,19 @@
 import { X } from "lucide-react";
 
 import { useSettingsSections } from "../extensions.ts";
-import type { Flavour } from "../lib/flavour.ts";
-import { FLAVOURS, applyFlavour } from "../lib/flavour.ts";
 import type { SettingsProps } from "../sdk/types.ts";
+import { AppearanceButton } from "./appearance-dialog.tsx";
 import { ExtensionsButton } from "./extensions-dialog.tsx";
 import { ItemBoundary } from "./item-boundary.tsx";
 
 type Props = {
-    flavour: Flavour;
     model: string;
     cwd: string;
     session: SettingsProps["session"];
-    onFlavour: (flavour: Flavour) => void;
     onClose: () => void;
 };
 
-export function Settings({ flavour, model, cwd, session, onFlavour, onClose }: Props) {
+export function Settings({ model, cwd, session, onClose }: Props) {
     const sections = useSettingsSections();
 
     return (
@@ -34,29 +31,6 @@ export function Settings({ flavour, model, cwd, session, onFlavour, onClose }: P
             </header>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
-                <section className="flex flex-col gap-2">
-                    <h3 className="text-meta text-faint">Flavour</h3>
-                    <div className="grid grid-cols-2 gap-1.5">
-                        {FLAVOURS.map((option) => (
-                            <button
-                                key={option}
-                                type="button"
-                                onClick={() => {
-                                    applyFlavour(option);
-                                    onFlavour(option);
-                                }}
-                                className={`rounded-control text-interface px-2 py-1.5 capitalize ${
-                                    option === flavour
-                                        ? "bg-accent text-on-accent"
-                                        : "bg-raised text-ink"
-                                }`}
-                            >
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-                </section>
-
                 <section className="flex flex-col gap-1.5">
                     <h3 className="text-meta text-faint">Session</h3>
                     <Row label="model" value={model} />
@@ -73,8 +47,9 @@ export function Settings({ flavour, model, cwd, session, onFlavour, onClose }: P
                 ))}
             </div>
 
-            <footer className="border-edge-soft flex items-center border-t px-3 py-2">
+            <footer className="border-edge-soft flex items-center gap-1 border-t px-3 py-2">
                 <ExtensionsButton />
+                <AppearanceButton />
             </footer>
         </aside>
     );

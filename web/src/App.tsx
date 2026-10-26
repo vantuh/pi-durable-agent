@@ -12,7 +12,6 @@ import {
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
-import { type Flavour, currentFlavour } from "./lib/flavour.ts";
 import { Composer } from "./parts/composer.tsx";
 import { FolderPicker } from "./parts/folder-picker.tsx";
 import { ModelMenu } from "./parts/model-menu.tsx";
@@ -41,7 +40,6 @@ export function App() {
     const [menu, setMenu] = useState(false);
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
     const [sheet, setSheet] = useState(false);
-    const [flavour, setFlavour] = useState<Flavour>(currentFlavour);
     const [settings, setSettings] = useState(false);
 
     const { state, send, stop } = useConversation(current);
@@ -199,11 +197,9 @@ export function App() {
 
                 {settings ? (
                     <Settings
-                        flavour={flavour}
                         model={active?.model ?? ""}
                         cwd={active?.cwd ?? ""}
                         session={activeSession}
-                        onFlavour={setFlavour}
                         onClose={() => {
                             setSettings(false);
                         }}

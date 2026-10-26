@@ -7,8 +7,11 @@
  *   --role-*  the jobs a colour has here. Components name these.
  *   --color-* Tailwind utilities over the roles, so `bg-canvas` and `var(--role-canvas)` agree.
  * Tailwind's own palette is wiped: `bg-neutral-900` is not a colour that exists.
+ * `[data-preview]` repeats the roles: a custom property is resolved where it is declared, so an
+ * element with its own --ctp-* needs its own --role-* to show them.
  */
-:root {
+:root,
+[data-preview] {
     --role-canvas: var(--ctp-base);
     --role-panel: var(--ctp-mantle);
     --role-sunken: var(--ctp-crust);

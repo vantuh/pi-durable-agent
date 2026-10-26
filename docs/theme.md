@@ -55,18 +55,21 @@ Latte and Frappé, which is unreadable at 12–13px; `text`, `subtext1`, and `su
 - `mocha` is the default and is also the `:root` block, so a missing or unknown value renders Mocha
   instead of an unstyled page.
 - Every block carries `color-scheme`, so scrollbars, form controls, and the window chrome follow.
-- `main.tsx` reads `localStorage.flavour` once, before render. The switch itself belongs to the
-  settings sheet, which is not built; until then, set the attribute or the key by hand:
-
-```js
-document.documentElement.dataset.flavour = "latte";
-localStorage.setItem("flavour", "latte");
-```
+- `main.tsx` reads `localStorage.flavour` once, before render.
+- The switch is the **Appearance** modal (`web/src/parts/appearance-dialog.tsx`), opened by the
+  palette icon in the Settings footer. It shows one card per flavour: a small preview, the name,
+  and six colour dots. A click calls `applyFlavour`, which sets the attribute and the key.
 
 **The selectors are `html[data-flavour="…"]`, not `[data-flavour="…"]`.** A bare attribute selector
 and `:root` have the same specificity, so with a bare selector the winner is decided by rule order
 in the built file — which Tailwind reorders. This was found by setting `data-flavour="latte"` and
 watching Mocha's colours stay. The `html` prefix settles it by specificity, not by order.
+
+**Previews.** An element with `data-preview="<flavour>"` gets that flavour's `--ctp-*` (the same
+blocks in `catppuccin.css`) and its own `--role-*` (the `:root` block in `styles.css`, which lists
+`[data-preview]` too). The roles must be repeated: a custom property is resolved where it is
+declared, so an element would otherwise show the roles of `<html>`. Inside it, use the normal
+classes (`bg-canvas`, `bg-accent`). The Appearance cards do this.
 
 ## Adding a flavour
 

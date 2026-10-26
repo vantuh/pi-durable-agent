@@ -71,9 +71,11 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 
 ## Settings
 
-A panel on the right. Under its sections is a footer row with an icon button (puzzle,
-"Extensions"). It opens a modal to turn extensions on and off ([extensions.md](extensions.md)). The
-modal is full screen below `sm` and a centred card from `sm` up; its list scrolls.
+A panel on the right. Under its sections is a footer row with two icon buttons: a puzzle
+("Extensions") that opens a modal to turn extensions on and off ([extensions.md](extensions.md)),
+and a palette ("Appearance: theme") that opens a modal with one card per flavour
+([theme.md](theme.md)). Both modals are full screen below `sm` and a centred card from `sm` up;
+their content scrolls.
 
 ## Status bar
 
