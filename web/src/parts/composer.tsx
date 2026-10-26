@@ -393,8 +393,12 @@ export function Composer({
                             <button
                                 type="button"
                                 onClick={submit}
+                                // Keep focus in the textarea so the phone keyboard stays put and the tap is not lost.
+                                onMouseDown={(event) => {
+                                    event.preventDefault();
+                                }}
                                 title={busy ? (how?.label ?? "Send") : "Send"}
-                                className={`bg-accent text-on-accent flex h-7 items-center justify-center gap-1 disabled:opacity-40 ${
+                                className={`bg-accent text-on-accent relative flex h-7 items-center justify-center gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
                                     busy
                                         ? "rounded-l-control text-interface pr-1.5 pl-2"
                                         : "rounded-control w-7"
