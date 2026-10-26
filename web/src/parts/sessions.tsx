@@ -338,7 +338,7 @@ export function Sessions({
                 <button
                     type="button"
                     onClick={onNew}
-                    className="rounded-control border-edge-soft text-ink hover:bg-raised flex w-full items-center justify-center gap-2 border py-2.5"
+                    className="rounded-control border-edge bg-sunken text-ink hover:bg-raised flex w-full items-center justify-center gap-2 border py-2.5"
                 >
                     <Plus className="size-4" />
                     <span className="text-sidebar">New session</span>
