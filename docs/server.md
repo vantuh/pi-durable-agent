@@ -1,13 +1,13 @@
 # Server
 
-The core server, as it is now: one conversation, one event stream, one way in.
+The core server, as it is now: several conversations, one event stream, one way in.
 
 ```text
-POST /api/messages  ──▶ root.submit()  ──▶ durable generation task
+POST /api/messages  ──▶ conversation.submit()  ──▶ durable generation task
                                               │ commits
                                               ▼
 GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
-GET /api/health         { ok, model, busy, cwd, title, usage }
+GET /api/health         { ok, model, cwd, home, session }
 GET /api/extensions     { installed, failed }
 POST /api/abort         stops the current run
 ```
@@ -38,8 +38,9 @@ commits, and becomes an `assistant` entry when it is final.
 ## One guarded door
 
 Every value taken from a document is `unknown` until narrowed. `recordOf()` in `projection.ts` is
-the only assertion in the server, and it is written down as such: a document that an older version
-of this file wrote must not crash the process. Anything else that needs an `as` is a design smell.
+the only assertion on stored data, and it is written down as such: a document that an older version
+of this file wrote must not crash the process. The other assertion is in `server/main.ts`: a session id from the browser (a plain number) becomes
+a `ConversationId`, with a disable comment that says why. Anything else that needs an `as` is a design smell.
 
 ## Running it
 

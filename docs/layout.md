@@ -27,8 +27,11 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 
 ## Sidebar
 
-- **Top**: `Sessions`, and a pill with the folder the conversation works in. The pill is a label
-  today; it becomes the folder picker when sessions can be created.
+- **Top**: `Sessions`, and a pill with the folder the conversation works in. The pill opens a list of the folders
+  that sessions use, with the session count of each; choosing one opens its latest session. The
+  `+` (new session) button opens `FolderPicker`: it browses the server's folders (hidden ones
+  optional), lists recent folders and favourites (kept through `/api/favourites`), and creates a
+  session in the folder you open.
 - **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and how long ago
   a person last wrote to it (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
   was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each
@@ -62,8 +65,9 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
   after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,
   then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are listed above the
-  card. Model reads as a label; the selectors become live when
-  the agent state is editable from the page.
+  card. The model chip opens `ModelMenu`: a search over the scoped or all models, with a thinking
+  level. Picking one calls `POST /api/agent` for the open session; "make default" calls
+  `POST /api/default` for new sessions.
 
 ## Status bar
 

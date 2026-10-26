@@ -6,9 +6,15 @@ extension by name; the loader only knows folders.
 ## The contract
 
 ```text
-extensions/prompt/
-  server.ts    default export (host) => Extension | undefined
+extensions/git-branch/
+  server.ts       default export (host) => Extension | undefined; may export `status` and `actions`
+  server.test.ts  its tests, run by `pnpm test`; never loaded
+  refs.ts         action refs and types shared with `web.tsx`
+  web.tsx         status-bar items and settings sections (the browser loads it)
 ```
+
+Only `server.ts` is required for the server, and only `web.tsx` for the browser. `api.ts` (typed
+dependencies between extensions) does not exist yet.
 
 ```ts
 import { defineExtension } from "@earendil-works/pi-durable";
@@ -27,13 +33,13 @@ export default function prompt(host: Host) {
 
 Rules the loader enforces, and why:
 
-| Rule                                       | Why                                                               |
-| ------------------------------------------ | ----------------------------------------------------------------- |
-| The extension's name is the folder's       | Reloading replaces by name; a name that drifts installs twice     |
-| `coding-tools` is reserved                 | The core's tools are installed there; a folder would replace them |
-| A folder without `server.ts` is skipped    | Web-only folders are legal later; they are not extensions yet     |
-| Names starting with `_` or `.` are skipped | A place to park a folder under construction                       |
-| A failed folder keeps its last version     | A typo must not take a working feature away                       |
+| Rule                                       | Why                                                                                                                   |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| The extension's name is the folder's       | Reloading replaces by name; a name that drifts installs twice                                                         |
+| `coding-tools` is reserved                 | The core's tools are installed there; a folder would replace them                                                     |
+| A folder without `server.ts` is skipped    | The server installs nothing for it, and `GET /api/extensions` does not list it. The browser still loads its `web.tsx` |
+| Names starting with `_` or `.` are skipped | A place to park a folder under construction                                                                           |
+| A failed folder keeps its last version     | A typo must not take a working feature away                                                                           |
 
 ## Status fields
 
@@ -166,14 +172,14 @@ Disposers follow the version that registered them:
 
 ```bash
 curl -s http://127.0.0.1:8788/api/extensions
-{"installed":["prompt"],"failed":[]}
+{"installed":["cache-hit","context-meter","git-branch","prompt","tokens-per-second"],"failed":[]}
 ```
 
 A failure looks like this, and the server keeps serving:
 
 ```json
 {
-    "installed": ["prompt"],
+    "installed": ["cache-hit", "context-meter", "git-branch", "prompt", "tokens-per-second"],
     "failed": [{ "folder": "probe", "reason": "server.ts has no default function export" }]
 }
 ```
@@ -222,8 +228,13 @@ None of these exist yet. A folder is added when its feature is built, never as a
 1. Make the folder, write `server.ts`, export one extension named `host.name`.
 2. Save. `GET /api/extensions` should list it.
 3. Use it: the section, tool, or hook appears on the next request.
-
 4. Put its tests in the folder, as `server.test.ts`. `pnpm test` runs `test/` and `extensions/`. The
    loader reads only `server.ts` and the browser only `web.tsx`, so a test file is never installed.
 
 Deleting the folder is the whole removal, tests included.
+
+## Not built
+
+The browser has no panel or drawer that an extension can fill, and no composer action that an
+extension can add. Only status items and settings sections exist. They wait for a real user: the
+first extension that needs one (such as `files`) defines it.

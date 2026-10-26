@@ -3,11 +3,14 @@
 Decisions written down before code, so that code can be read against them.
 The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 
-| Document                         | Holds                                                    |
-| -------------------------------- | -------------------------------------------------------- |
-| [stack.md](stack.md)             | What we build with, why, what it costs, what stays open. |
-| [layout.md](layout.md)           | The shell: sidebar, conversation, right drawer.          |
-| [conventions.md](conventions.md) | Every rule, and the mistake it prevents.                 |
+| Document                         | Holds                                                      |
+| -------------------------------- | ---------------------------------------------------------- |
+| [stack.md](stack.md)             | What we build with, why, what it costs, what stays open.   |
+| [layout.md](layout.md)           | The shell: sidebar, conversation, right drawer.            |
+| [server.md](server.md)           | The HTTP and SSE API, and how a conversation runs.         |
+| [extensions.md](extensions.md)   | The extension folder: contract, actions, web, live reload. |
+| [theme.md](theme.md)             | The Catppuccin theme and its roles.                        |
+| [conventions.md](conventions.md) | Every rule, and the mistake it prevents.                   |
 
 Planned, not written yet: `agent.md` (tools, prompt, permissions).
 

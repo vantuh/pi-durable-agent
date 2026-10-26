@@ -83,8 +83,12 @@ agents/            later     subagent definitions, Markdown with frontmatter
 docs/                        decisions, written before code
 ```
 
-Today `server/`, `shared/` and `web/src/` exist, and `server/` runs one conversation end to end.
-`extensions/` and `agents/` are planned; do not pretend otherwise in a commit message.
+The browser folders under `web/src/` are a target: today the code is in `parts/` (panels), `lib/`,
+`components/ui/`, `sdk/` and `styles/`.
+
+Today `server/`, `shared/`, `web/src/` and `extensions/` exist: `server/` runs several conversations,
+and `extensions/` holds `prompt`, `cache-hit`, `context-meter`, `tokens-per-second` and `git-branch`.
+`agents/` is planned; do not pretend otherwise in a commit message.
 
 ## The extension contract
 
@@ -92,9 +96,12 @@ One folder per feature:
 
 ```text
 extensions/files/
-  server.ts    default export (host) => the tools, prompt sections, and hooks it installs
-  web.tsx      what it adds to the browser: a rail button, a panel, a sheet  (not built yet)
-  api.ts       its typed contract: what other extensions may call, and its tier  (not built yet)
+  server.ts      default export (host) => the tools, prompt sections, and hooks it installs;
+                 may also export `status` and `actions`
+  server.test.ts its tests; `pnpm test` runs `test/` and `extensions/`
+  refs.ts        action refs and types shared by `server.ts` and `web.tsx`, safe for the browser
+  web.tsx        what it adds to the browser: status-bar items and settings sections
+  api.ts         its typed contract: what other extensions may call, and its tier  (not built yet)
 ```
 
 - **One folder, one extension, named after the folder.** The loader replaces by name, so a name
@@ -110,14 +117,15 @@ second mechanism.
 
 ## Layers and how they reload
 
-| Path                     | Holds                                | Goes live by                                              |
-| ------------------------ | ------------------------------------ | --------------------------------------------------------- |
-| `server/`, `shared/`     | HTTP, SSE, harness, loader, protocol | Restart the process (`node --watch`)                      |
-| `web/`                   | Shell, transcript, composer, store   | Vite HMR, instantly                                       |
-| `extensions/*/web.tsx`   | UI an extension adds                 | Vite HMR, instantly                                       |
-| `extensions/*/server.ts` | Tools, prompt sections, hooks        | Reinstalled on save; running calls finish on the old code |
-| `extensions/*/api.ts`    | Its typed contract                   | With the facets that import it                            |
-| `agents/`                | Subagent definitions                 | Read at each use                                          |
+| Path                          | Holds                                                                                           | Goes live by                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `server/`, `shared/`          | HTTP, SSE, harness, loader, protocol                                                            | Restart the process (`node --watch`)                      |
+| `web/`                        | Shell, transcript, composer, store                                                              | Vite HMR, instantly                                       |
+| `extensions/*/web.tsx`        | Status items, settings sections                                                                 | Vite HMR on change; a deleted file reloads the page       |
+| `extensions/*/server.ts`      | Tools, prompt sections, hooks, `status`, `actions`, and the helper files it imports (`refs.ts`) | Reinstalled on save; running calls finish on the old code |
+| `extensions/*/server.test.ts` | Its tests                                                                                       | Not loaded; run by `pnpm test`                            |
+| `extensions/*/api.ts`         | Its typed contract                                                                              | With the facets that import it                            |
+| `agents/`                     | Subagent definitions                                                                            | Read at each use                                          |
 
 ## How we build, in order
 
@@ -133,9 +141,10 @@ second mechanism.
 4. ~~**The shell, transcript and composer.**~~ **Done**: three panels with gaps, a status bar,
    the stream rendered, `Enter` sends, Stop aborts ([docs/layout.md](docs/layout.md)).
 5. ~~**Tool calls** folded into one line per group, with the answer statistics.~~ **Done**:
-   `web/src/lib/turns.ts` groups, `web/src/parts/activity.tsx` folds. Markdown in answers is next.
-6. **Sessions**: more than one conversation, titles and times stored, a real list, a folder
-   picker. The core API grows a conversation id here.
+   `web/src/lib/turns.ts` groups, `web/src/parts/activity.tsx` folds. Answers render as Markdown (`web/src/parts/markdown.tsx`).
+6. ~~**Sessions**: more than one conversation, titles and times stored, a real list, a folder
+   picker.~~ **Done**: `web/src/parts/sessions.tsx`, `web/src/parts/folder-picker.tsx`,
+   `GET`/`POST /api/sessions` ([docs/server.md](docs/server.md)).
 7. **Features**, each a new `extensions/<name>/` folder; the planned ones and their sources are in
    [docs/extensions.md](docs/extensions.md).
 
