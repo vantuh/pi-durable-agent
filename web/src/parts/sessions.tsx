@@ -260,7 +260,7 @@ export function Sessions({
                                     setOpen(false);
                                 }}
                                 className={`rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-left ${
-                                    cwd === folder ? "bg-raised" : "hover:bg-raised"
+                                    cwd === folder ? "bg-raised" : "hover:bg-raised/50"
                                 }`}
                             >
                                 <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
@@ -297,7 +297,7 @@ export function Sessions({
                                         onSelect(session.id);
                                     }}
                                     className={`rounded-control flex w-full items-center gap-2 px-2 py-2 text-left ${
-                                        session.id === current ? "bg-raised" : "hover:bg-raised"
+                                        session.id === current ? "bg-raised" : "hover:bg-raised/50"
                                     }`}
                                 >
                                     <span

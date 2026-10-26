@@ -107,7 +107,7 @@ export function ModelMenu({
                                     );
                                 }}
                                 className={`rounded-control flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${
-                                    key === current ? "bg-raised" : "hover:bg-raised"
+                                    key === current ? "bg-raised" : "hover:bg-raised/50"
                                 }`}
                             >
                                 <span className="min-w-0">
