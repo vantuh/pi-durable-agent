@@ -168,8 +168,8 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   The core only draws the section. Store the value through the folder's own actions (a broken or
   missing file gives the defaults), validate `args` there, and apply the change in the browser at once
   (a small store in `web.tsx` can share it between an item and a section).
-- `extensions/git-branch` is the example: a `branch` action on the server, a `start` status item, and
-  a "Git" settings section with `showInStatusBar` (stored in `git-branch.json` in `host.dataDir`).
+- No extension uses a settings section now. `extensions/git-branch` is an example of a `branch` action on
+  the server and a `start` status item.
 
 ## The host
 

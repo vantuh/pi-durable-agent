@@ -1,63 +1,10 @@
 import { GitBranch } from "lucide-react";
-import { useEffect, useId, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import { callAction } from "@/sdk/actions.ts";
-import type { SettingsProps, StatusProps, WebExtension } from "@/sdk/types.ts";
+import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { branch, DEFAULT_SETTINGS, setSettings, settings, type Settings } from "./refs.ts";
-
-// The setting is shared by the status item and the settings section through this small store.
-type Store = { settings: Settings; loaded: boolean };
-
-let store: Store = { settings: DEFAULT_SETTINGS, loaded: false };
-let fetching = false;
-let version = 0;
-const listeners = new Set<() => void>();
-
-function publish(next: Settings): void {
-    store = { settings: next, loaded: true };
-    version += 1;
-
-    for (const listener of listeners) {
-        listener();
-    }
-}
-
-// A failed fetch is retried by the next call; an answer older than a publish is dropped.
-async function ensureLoaded(): Promise<void> {
-    if (store.loaded || fetching) {
-        return;
-    }
-
-    fetching = true;
-
-    const seen = version;
-
-    try {
-        const fetched = await callAction(settings, undefined, null);
-
-        if (version === seen) {
-            publish(fetched);
-        }
-    } catch {
-        // The defaults stay; the next call tries again.
-    } finally {
-        fetching = false;
-    }
-}
-
-function subscribe(listener: () => void): () => void {
-    listeners.add(listener);
-    void ensureLoaded();
-
-    return () => {
-        listeners.delete(listener);
-    };
-}
-
-function useStore(): Store {
-    return useSyncExternalStore(subscribe, () => store);
-}
+import { branch } from "./refs.ts";
 
 function useBranch(session: StatusProps["session"]): string | null {
     const [name, setName] = useState<string | null>(null);
@@ -68,7 +15,6 @@ function useBranch(session: StatusProps["session"]): string | null {
     useEffect(() => {
         let alive = true;
 
-        void ensureLoaded();
         void (async () => {
             let found: string | null = null;
 
@@ -94,9 +40,8 @@ function useBranch(session: StatusProps["session"]): string | null {
 
 function Branch({ session }: StatusProps) {
     const name = useBranch(session);
-    const { settings: shown, loaded } = useStore();
 
-    if (name === null || !loaded || !shown.showInStatusBar) {
+    if (name === null) {
         return null;
     }
 
@@ -108,67 +53,6 @@ function Branch({ session }: StatusProps) {
     );
 }
 
-function Git({ session }: SettingsProps) {
-    const name = useBranch(session);
-    const { showInStatusBar } = useStore().settings;
-    const [error, setError] = useState<string | null>(null);
-    const control = useId();
-
-    const change = (shown: boolean): void => {
-        const before = store.settings;
-        const mine: Settings = { showInStatusBar: shown };
-
-        setError(null);
-        publish(mine);
-        void (async () => {
-            try {
-                const saved = await callAction(setSettings, mine, null);
-
-                if (store.settings === mine) {
-                    publish(saved);
-                }
-            } catch (failure) {
-                if (store.settings === mine) {
-                    publish(before);
-                }
-
-                setError(failure instanceof Error ? failure.message : "the setting was not saved");
-            }
-        })();
-    };
-
-    return (
-        <>
-            <div className="flex items-baseline justify-between gap-3">
-                <span className="text-meta text-faint shrink-0">branch</span>
-                <span className="text-meta text-muted min-w-0 truncate font-mono">
-                    {name ?? "none"}
-                </span>
-            </div>
-            <div className="flex items-center gap-2">
-                <input
-                    id={control}
-                    type="checkbox"
-                    checked={showInStatusBar}
-                    onChange={(event) => {
-                        change(event.target.checked);
-                    }}
-                    className="accent-accent size-3.5"
-                />
-                <label htmlFor={control} className="text-meta text-muted">
-                    Show in status bar
-                </label>
-            </div>
-            {error === null ? null : (
-                <p role="alert" className="text-meta text-danger">
-                    {error}
-                </p>
-            )}
-        </>
-    );
-}
-
 export default {
     status: [{ id: "branch", slot: "start", component: Branch }],
-    settings: [{ id: "git", title: "Git", component: Git }],
 } satisfies WebExtension;

@@ -1,67 +1,61 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { promisify } from "node:util";
 
-import { ActionError, type Action, type Host } from "../../server/extensions.ts";
-import { actions as makeActions } from "./server.ts";
+import { actions } from "./server.ts";
 
-void describe("git-branch settings", () => {
-    let dataDir: string;
-    let actions: Record<string, Action>;
+const run = promisify(execFile);
 
-    const call = (name: string, args?: unknown) => {
-        const action = actions[name];
+void describe("git-branch branch action", () => {
+    let dir: string;
+
+    const branch = (cwd: string | null) => {
+        const action = actions["branch"];
 
         assert.ok(action);
 
-        return action({ args, session: null });
+        return action({ args: undefined, session: { id: 1, cwd } });
     };
 
     beforeEach(async () => {
-        dataDir = await mkdtemp(join(tmpdir(), "git-branch-test-"));
-        const host: Host = {
-            name: "git-branch",
-            cwd: dataDir,
-            dataDir,
-            log: () => {},
-            onDispose: () => {},
-        };
-
-        actions = makeActions(host);
+        dir = await mkdtemp(join(tmpdir(), "git-branch-test-"));
     });
 
     afterEach(async () => {
-        await rm(dataDir, { recursive: true, force: true });
+        await rm(dir, { recursive: true, force: true });
     });
 
-    void it("defaults to showing the branch", async () => {
-        assert.deepEqual(await call("settings"), { showInStatusBar: true });
+    void it("gives the branch of a git folder", async () => {
+        await run("git", ["init", "-b", "topic"], { cwd: dir });
+        await run(
+            "git",
+            [
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "--allow-empty",
+                "-m",
+                "x",
+            ],
+            { cwd: dir },
+        );
+
+        assert.equal(await branch(dir), "topic");
     });
 
-    void it("stores what is set and reads it back", async () => {
-        assert.deepEqual(await call("setSettings", { showInStatusBar: false }), {
-            showInStatusBar: false,
-        });
-        assert.deepEqual(await call("settings"), { showInStatusBar: false });
+    void it("gives null for a folder without git", async () => {
+        assert.equal(await branch(dir), null);
     });
 
-    void it("rejects bad settings with an ActionError and stores nothing", async () => {
-        for (const bad of [undefined, null, "x", {}, { showInStatusBar: "yes" }]) {
-            await assert.rejects(async () => await call("setSettings", bad), ActionError);
-        }
-
-        assert.deepEqual(await call("settings"), { showInStatusBar: true });
-    });
-
-    void it("a broken file gives the defaults", async () => {
-        await writeFile(join(dataDir, "git-branch.json"), "{not json");
-
-        assert.deepEqual(await call("settings"), { showInStatusBar: true });
-    });
-
-    void it("the branch is null without a session folder", async () => {
-        assert.equal(await call("branch"), null);
+    void it("gives null without a session folder", async () => {
+        assert.equal(await branch(null), null);
     });
 });
