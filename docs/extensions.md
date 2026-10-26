@@ -330,3 +330,17 @@ Registrations follow the extension's disposal lifecycle. The harness wraps both 
 turns and non-streaming compaction requests, preserving any existing `onPayload` callback.
 The core seam requires a server restart on first installation; subsequent extension changes
 and toggles apply live to new requests.
+
+## Anthropic subscription request shaping
+
+`extensions/anthropic-subscription` adds the Claude Code billing system block to native
+Anthropic OAuth payloads, following Pi Pocket's `anthropic-subscription` feature and the
+billing recipe in `@gotgenes/pi-anthropic-auth`. It does not launch Claude Code, rewrite
+project prompts, suppress warnings, or guarantee subscription classification by Anthropic.
+API-key payloads and other providers are left unchanged. Existing billing blocks are not duplicated;
+messages, tools, and cache controls stay intact.
+
+It is enabled by default, like other folders; turn **Anthropic subscription** off in the
+Extensions dialog to send Pi's original payloads. The version defaults to `2.1.280` and can
+be overridden with `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION=X.Y.Z` before starting the server.
+A malformed override fails the extension load instead of silently sending a bad identity.
