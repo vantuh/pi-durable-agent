@@ -16,6 +16,7 @@ import { useConversation } from "./lib/conversation.ts";
 import { sessionFromSearch } from "./lib/deep-link.ts";
 import { Composer } from "./parts/composer.tsx";
 import { FolderPicker } from "./parts/folder-picker.tsx";
+import { HeaderItems } from "./parts/header-items.tsx";
 import { ModelMenu } from "./parts/model-menu.tsx";
 import { PanelButtons, PanelHost, panelKey } from "./parts/panels.tsx";
 import { Sessions } from "./parts/sessions.tsx";
@@ -134,13 +135,16 @@ export function App() {
                         entries={state.entries}
                         live={state.live}
                         tools={
-                            <PanelButtons
-                                panels={panels}
-                                open={panelOpen}
-                                onToggle={(key) => {
-                                    setPanelOpen((open) => (open === key ? null : key));
-                                }}
-                            />
+                            <>
+                                <HeaderItems session={activeSession} />
+                                <PanelButtons
+                                    panels={panels}
+                                    open={panelOpen}
+                                    onToggle={(key) => {
+                                        setPanelOpen((open) => (open === key ? null : key));
+                                    }}
+                                />
+                            </>
                         }
                         onSettings={() => {
                             setSettings(true);

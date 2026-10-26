@@ -31,9 +31,15 @@ export type PanelItem = {
     component: ComponentType<PanelProps>;
 };
 
+export type HeaderItem = {
+    id: string;
+    component: ComponentType<StatusProps>;
+};
+
 /** What a folder's `web.tsx` default-exports. */
 export type WebExtension = {
     status?: StatusItem[];
+    header?: HeaderItem[];
     settings?: SettingsSection[];
     panels?: PanelItem[];
 };

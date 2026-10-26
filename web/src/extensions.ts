@@ -9,11 +9,13 @@
 import { useEffect, useState } from "react";
 
 import { listExtensions } from "./lib/api.ts";
-import type { PanelItem, SettingsSection, StatusItem } from "./sdk/types.ts";
+import type { HeaderItem, PanelItem, SettingsSection, StatusItem } from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
 export type FolderSettingsSection = SettingsSection & { folder: string };
 export type FolderPanel = PanelItem & { folder: string };
+
+export type FolderHeaderItem = HeaderItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end"]);
 
@@ -29,6 +31,15 @@ function isStatusItem(value: unknown): value is StatusItem {
         typeof id === "string" &&
         typeof slot === "string" &&
         SLOTS.has(slot) &&
+        typeof Reflect.get(value, "component") === "function"
+    );
+}
+
+function isHeaderItem(value: unknown): value is HeaderItem {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "string" &&
         typeof Reflect.get(value, "component") === "function"
     );
 }
@@ -108,6 +119,7 @@ function collect<T extends { id: string }>(
 
 type Loaded = {
     status: FolderStatusItem[];
+    header: FolderHeaderItem[];
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
 };
@@ -129,11 +141,12 @@ const listeners = new Set<() => void>();
 const modules = new Map<string, Promise<Loaded>>();
 
 async function loadFolder(folder: string, importModule: () => Promise<unknown>): Promise<Loaded> {
-    const loaded: Loaded = { status: [], settings: [], panels: [] };
+    const loaded: Loaded = { status: [], header: [], settings: [], panels: [] };
 
     try {
         const module = await importModule();
 
+        collect(folder, "header", module, isHeaderItem, loaded.header);
         collect(folder, "status", module, isStatusItem, loaded.status);
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
@@ -232,4 +245,11 @@ export function useSettingsSections(): readonly FolderSettingsSection[] {
 /** The side panels of every folder that is on and loaded; empty until the modules are in. */
 export function usePanels(): readonly FolderPanel[] {
     return useLoaded(pickPanels);
+}
+
+const pickHeader = (loaded: Loaded): FolderHeaderItem[] => loaded.header;
+
+/** Arbitrary extension controls in the conversation header. */
+export function useHeaderItems(): readonly FolderHeaderItem[] {
+    return useLoaded(pickHeader);
 }

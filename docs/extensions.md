@@ -300,3 +300,9 @@ Deleting the folder is the whole removal, tests included.
 The browser has no panel or drawer that an extension can fill, and no composer action that an
 extension can add. Only status items and settings sections exist. They wait for a real user: the
 first extension that needs one (such as `files`) defines it.
+
+## Header items
+
+`web.tsx` may export `header: [{ id, component }]`. A header item gets the same `StatusProps`
+as a status item, renders before the panel buttons, follows the extension's enabled switch and
+has its own error boundary. The shell knows no feature by name.
