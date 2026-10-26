@@ -51,6 +51,32 @@ void describe("Extensions disposers", () => {
         await writeFile(join(dir, folder, "server.ts"), text);
     }
 
+    void it("request shapers follow reload, failure, disabling and removal", async () => {
+        const model = { provider: "test" };
+        const module = (value: string, fail = false) => `export default function(host) {
+            host.shapeModelRequests(() => ${JSON.stringify(value)});
+            ${fail ? 'throw new Error("broken");' : "return { name: host.name };"}
+        }`;
+        await write("shape", module("one"));
+        await extensions.load();
+        assert.equal(extensions.requestShapers[0]?.({}, model), "one");
+        await write("shape", module("failed", true));
+        await extensions.load();
+        assert.equal(extensions.requestShapers.length, 1);
+        assert.equal(extensions.requestShapers[0]?.({}, model), "one");
+        await write("shape", module("two"));
+        await extensions.load();
+        assert.equal(extensions.requestShapers.length, 1);
+        assert.equal(extensions.requestShapers[0]?.({}, model), "two");
+        await extensions.setEnabled("shape", false);
+        assert.equal(extensions.requestShapers.length, 0);
+        await extensions.setEnabled("shape", true);
+        assert.equal(extensions.requestShapers.length, 1);
+        await rm(join(dir, "shape"), { recursive: true });
+        await extensions.load();
+        assert.equal(extensions.requestShapers.length, 0);
+    });
+
     beforeEach(async () => {
         root = await mkdtemp(join(tmpdir(), "extensions-test-"));
         dir = join(root, "extensions");

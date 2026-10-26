@@ -23,6 +23,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
+import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
 
@@ -784,7 +785,7 @@ async function main(): Promise<void> {
     harness = await Harness.open(
         storage,
         {
-            models,
+            models: shapeModelRequests(models, () => extensions.requestShapers),
             registry,
             env: () => new NodeExecutionEnv({ cwd }),
         },

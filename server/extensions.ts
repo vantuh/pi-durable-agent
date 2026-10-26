@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
 import type { ClientStatus } from "../shared/protocol.ts";
+import type { RequestShaper } from "./model-requests.ts";
 
 /** What an extension's `server.ts` receives. It grows only when a feature needs more. */
 export type Host = {
@@ -32,6 +33,8 @@ export type Host = {
      * version that loads later is first called with the newest view of each session, as a baseline.
      */
     readonly onCommit: (listener: CommitListener) => void;
+    /** Shapes provider payloads; removed with this extension version. */
+    readonly shapeModelRequests: (shape: RequestShaper) => void;
 };
 
 /** One conversation after a commit: what a commit listener may read. */
@@ -267,6 +270,12 @@ export class Extensions {
     readonly #lastViews = new Map<number, CommitView>();
     /** Per folder, the commit listeners of the version that is live now. */
     readonly #commits = new Map<string, CommitListener[]>();
+
+    readonly #shapers = new Set<RequestShaper>();
+
+    get requestShapers(): readonly RequestShaper[] {
+        return [...this.#shapers];
+    }
 
     #watcher: FSWatcher | undefined;
     #generation = 0;
@@ -650,6 +659,12 @@ export class Extensions {
             log: this.#log,
             onDispose: (dispose) => {
                 attempt.push(dispose);
+            },
+            shapeModelRequests: (shape) => {
+                this.#shapers.add(shape);
+                attempt.push(() => {
+                    this.#shapers.delete(shape);
+                });
             },
             onCommit: (listener) => {
                 commits.push(listener);

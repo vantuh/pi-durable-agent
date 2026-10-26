@@ -321,3 +321,12 @@ has its own error boundary. The shell knows no feature by name.
   upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
 - Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
   beforehand. Failures are shown in the header popover and can be dismissed.
+
+## Provider request shaping
+
+The generic `host.shapeModelRequests(shape)` seam receives `(payload, model)` immediately
+before transmission. Return a replacement or `undefined` to leave the payload untouched.
+Registrations follow the extension's disposal lifecycle. The harness wraps both streaming
+turns and non-streaming compaction requests, preserving any existing `onPayload` callback.
+The core seam requires a server restart on first installation; subsequent extension changes
+and toggles apply live to new requests.
