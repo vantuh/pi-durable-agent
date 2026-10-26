@@ -42,7 +42,7 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 
 ## Conversation
 
-- **Header**: the session title, the branch, and the settings gear. The mockup's other three
+- **Header**: the session title and the settings gear. The branch lives in the status bar only. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - A person's message: a `raised` card on the right, at most 80% wide.

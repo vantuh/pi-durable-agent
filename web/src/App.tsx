@@ -110,7 +110,6 @@ export function App() {
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
                     <Transcript
                         title={active?.title ?? null}
-                        branch={active?.branch ?? null}
                         entries={state.entries}
                         live={state.live}
                         onSettings={() => {

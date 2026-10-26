@@ -1,11 +1,10 @@
-import { GitBranch, PanelLeft, Settings as SettingsIcon } from "lucide-react";
+import { PanelLeft, Settings as SettingsIcon } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
 import type { ClientBlock, ClientEntry, ClientLive, ClientTool } from "../../../shared/protocol.ts";
 
 type Props = {
     title: string | null;
-    branch: string | null;
     entries: ClientEntry[];
     live: ClientLive;
     onSettings: () => void;
@@ -75,7 +74,7 @@ function Entry({ entry }: { entry: ClientEntry }) {
     return null;
 }
 
-export function Transcript({ title, branch, entries, live, onSettings, onSessions }: Props) {
+export function Transcript({ title, entries, live, onSettings, onSessions }: Props) {
     const bottom = useRef<HTMLDivElement>(null);
     const grown = (live.blocks ?? []).reduce(
         (size, block) => size + (block.type === "toolCall" ? 0 : block.text.length),
@@ -109,12 +108,6 @@ export function Transcript({ title, branch, entries, live, onSettings, onSession
                     </h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    {branch === null ? null : (
-                        <span className="text-meta text-faint flex items-center gap-1 font-mono">
-                            <GitBranch className="size-3" />
-                            {branch}
-                        </span>
-                    )}
                     <button
                         type="button"
                         title="Settings"
