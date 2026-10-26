@@ -105,7 +105,6 @@ export function App() {
                                     setMenu(false);
                                 }}
                                 onPick={(choice, level) => {
-                                    setMenu(false);
                                     void (async () => {
                                         if (current !== null) {
                                             await setAgent(current, {
@@ -163,7 +162,7 @@ export function App() {
                 connected={state.connected}
                 model={model}
                 cwd={active?.cwd ?? health?.cwd ?? ""}
-                branch={active?.branch ?? health?.branch ?? null}
+                branch={active === undefined ? (health?.branch ?? null) : active.branch}
                 usage={state.live.usage}
                 busy={state.live.busy}
                 issue={state.issue}

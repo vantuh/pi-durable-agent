@@ -17,7 +17,6 @@ type Props = {
 export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Props) {
     const [tab, setTab] = useState<"scoped" | "all">("scoped");
     const [query, setQuery] = useState("");
-    const [chosen, setChosen] = useState<ModelChoice | undefined>(undefined);
 
     const list = tab === "scoped" ? scoped : all;
     const needle = query.trim().toLowerCase();
@@ -28,7 +27,7 @@ export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Prop
             model.id.toLowerCase().includes(needle) ||
             model.provider.toLowerCase().includes(needle),
     );
-    const active = chosen ?? shown.find((model) => `${model.provider}/${model.id}` === current);
+    const active = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === current);
     const levels = active?.levels ?? ["off"];
 
     return (
@@ -90,7 +89,12 @@ export function ModelMenu({ scoped, all, current, level, onPick, onClose }: Prop
                                 key={key}
                                 type="button"
                                 onClick={() => {
-                                    setChosen(model);
+                                    onPick(
+                                        model,
+                                        model.levels.includes(level ?? "")
+                                            ? (level ?? "off")
+                                            : "off",
+                                    );
                                 }}
                                 className={`rounded-control flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${
                                     key === current ? "bg-raised" : "hover:bg-raised"
