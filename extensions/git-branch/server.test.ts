@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { actions as makeActions } from "../extensions/git-branch/server.ts";
-import { ActionError, type Action, type Host } from "../server/extensions.ts";
+import { ActionError, type Action, type Host } from "../../server/extensions.ts";
+import { actions as makeActions } from "./server.ts";
 
 void describe("git-branch settings", () => {
     let dataDir: string;

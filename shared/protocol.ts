@@ -66,7 +66,7 @@ export type ClientUsage = {
 export type ClientStatus = {
     /** The folder name of the extension that wrote it. */
     source: string;
-    /** Where in the bar it sits: after the folder and branch, in the middle, or at the right end. */
+    /** Where in the bar it sits: after the folder, in the middle, or at the right end. */
     slot: "start" | "center" | "end";
     text: string;
     /** A word before the meter and the text. */
@@ -109,7 +109,6 @@ export type SessionSummary = {
     cwd: string | null;
     model: string | null;
     thinkingLevel: string | null;
-    branch: string | null;
     busy: boolean;
     /** When a person last wrote to the session, or created it; null while unknown. */
     activeAt: number | null;

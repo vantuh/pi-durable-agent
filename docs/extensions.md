@@ -49,7 +49,7 @@ export const status: StatusProvider = ({ entries, contextWindow }) => ({
 });
 ```
 
-The field may name a `slot` (`start`: after folder and branch, `center`, or `end`, the default), a
+The field may name a `slot` (`start`: after the folder, `center`, or `end`, the default), a
 `label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
 model's window from the catalog. Below `sm`, `end` fields are hidden and a `center` field loses its label.
 `extensions/context-meter` is the example for `center` with a meter.
@@ -219,4 +219,7 @@ None of these exist yet. A folder is added when its feature is built, never as a
 2. Save. `GET /api/extensions` should list it.
 3. Use it: the section, tool, or hook appears on the next request.
 
-Deleting the folder is the whole removal.
+4. Put its tests in the folder, as `server.test.ts`. `pnpm test` runs `test/` and `extensions/`. The
+   loader reads only `server.ts` and the browser only `web.tsx`, so a test file is never installed.
+
+Deleting the folder is the whole removal, tests included.

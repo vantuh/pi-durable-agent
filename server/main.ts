@@ -589,7 +589,6 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
             model: MODEL,
             cwd: process.cwd(),
             home: homedir(),
-            branch: await sessions.branchOf(process.cwd()),
             session: rootId,
         });
 

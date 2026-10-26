@@ -202,7 +202,6 @@ export function App() {
                         flavour={flavour}
                         model={active?.model ?? ""}
                         cwd={active?.cwd ?? ""}
-                        branch={active?.branch ?? null}
                         session={activeSession}
                         onFlavour={setFlavour}
                         onClose={() => {

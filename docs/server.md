@@ -7,7 +7,7 @@ POST /api/messages  ──▶ root.submit()  ──▶ durable generation task
                                               │ commits
                                               ▼
 GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
-GET /api/health         { ok, model, busy, cwd, branch, title, usage }
+GET /api/health         { ok, model, busy, cwd, title, usage }
 GET /api/extensions     { installed, failed }
 POST /api/abort         stops the current run
 ```
@@ -56,7 +56,7 @@ pnpm dev       # vite on 5190, proxying /api → 8788
 ## Beyond the first conversation
 
 ```text
-GET  /api/sessions           the list: title, folder, model, thinking level, branch, busy, activeAt
+GET  /api/sessions           the list: title, folder, model, thinking level, busy, activeAt
 POST /api/sessions           { cwd } → a new conversation with the default model
 POST /api/messages           { session, text, files, mode? }  mode: steer | followUp | interrupt
 POST /api/agent              { session, model?, thinkingLevel? }

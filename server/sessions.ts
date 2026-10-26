@@ -4,9 +4,6 @@
  * folder each one works in.
  */
 
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
 import type { Context } from "@earendil-works/chord/context";
 import {
     type Conversation,
@@ -16,9 +13,6 @@ import {
 } from "@earendil-works/pi-durable";
 
 import { projectEntry } from "./projection.ts";
-
-const run = promisify(execFile);
-const BRANCH_TTL_MS = 10_000;
 
 /** When a person last wrote to a session, or created it. 0 until something sets it. */
 const ClockDoc = defineDoc({
@@ -50,7 +44,6 @@ export type SessionSummary = {
     cwd: string | null;
     model: string | null;
     thinkingLevel: string | null;
-    branch: string | null;
     busy: boolean;
     activeAt: number | null;
 };
@@ -62,14 +55,11 @@ export type Opened = {
     watched: boolean;
 };
 
-type Branch = { name: string | null; at: number };
-
 export class Sessions {
     readonly #harness: Harness;
     readonly #model: { provider: string; modelId: string };
     readonly #cwd: string;
     readonly #context: Context;
-    readonly #branches = new Map<string, Branch>();
     readonly #open = new Map<ConversationId, Opened>();
 
     constructor(options: {
@@ -191,35 +181,12 @@ export class Sessions {
                         ? null
                         : `${agent.model.provider}/${agent.model.modelId}`,
                 thinkingLevel: agent.thinkingLevel,
-                branch: cwd === null ? null : await this.branchOf(cwd),
                 busy: busy(record.id),
                 activeAt: await this.#activeAt(record.id),
             });
         }
 
         return summaries;
-    }
-
-    async branchOf(cwd: string): Promise<string | null> {
-        const cached = this.#branches.get(cwd);
-
-        if (cached !== undefined && Date.now() - cached.at < BRANCH_TTL_MS) {
-            return cached.name;
-        }
-
-        let name: string | null = null;
-
-        try {
-            const { stdout } = await run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd });
-
-            name = stdout.trim() === "" ? null : stdout.trim();
-        } catch {
-            name = null;
-        }
-
-        this.#branches.set(cwd, { name, at: Date.now() });
-
-        return name;
     }
 
     /**

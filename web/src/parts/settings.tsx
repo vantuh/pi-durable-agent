@@ -10,13 +10,12 @@ type Props = {
     flavour: Flavour;
     model: string;
     cwd: string;
-    branch: string | null;
     session: SettingsProps["session"];
     onFlavour: (flavour: Flavour) => void;
     onClose: () => void;
 };
 
-export function Settings({ flavour, model, cwd, branch, session, onFlavour, onClose }: Props) {
+export function Settings({ flavour, model, cwd, session, onFlavour, onClose }: Props) {
     const sections = useSettingsSections();
 
     return (
@@ -61,7 +60,6 @@ export function Settings({ flavour, model, cwd, branch, session, onFlavour, onCl
                     <h3 className="text-meta text-faint">Session</h3>
                     <Row label="model" value={model} />
                     <Row label="folder" value={cwd} />
-                    <Row label="branch" value={branch ?? "none"} />
                 </section>
 
                 {sections.map(({ folder, id, title, component: Section }) => (

@@ -10,7 +10,6 @@ export type Health = {
     model: string;
     cwd: string;
     home: string;
-    branch: string | null;
     session: number;
 };
 
@@ -70,7 +69,6 @@ export async function getHealth(): Promise<Health | undefined> {
             model: str(body["model"], ""),
             cwd: str(body["cwd"], ""),
             home: str(body["home"], ""),
-            branch: typeof body["branch"] === "string" ? body["branch"] : null,
             session: num(body["session"], 0),
         };
     } catch {
@@ -96,7 +94,6 @@ export async function listSessions(): Promise<SessionSummary[]> {
             cwd: typeof row?.["cwd"] === "string" ? row["cwd"] : null,
             model: typeof row?.["model"] === "string" ? row["model"] : null,
             thinkingLevel: typeof row?.["thinkingLevel"] === "string" ? row["thinkingLevel"] : null,
-            branch: typeof row?.["branch"] === "string" ? row["branch"] : null,
             busy: row?.["busy"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
         });
