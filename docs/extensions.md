@@ -382,3 +382,12 @@ Anthropic subscription now checks the actual outgoing Bearer OAuth token on POST
 requests instead of trusting a system-prompt identity marker. API keys and other providers
 pass through untouched, even if their prompts contain a Claude Code identity. The helper
 that builds the billing block assumes its caller has already checked OAuth authorization.
+
+### Billing-version synchronization
+
+For OAuth messages requests, the billing version is the numeric maximum of the bundled
+version and the final `claude-cli/X.Y.Z` User-Agent version. The HTTP User-Agent itself
+is not rewritten. An explicit environment override is absolute, even when lower.
+Details show both billing and observed Pi versions and distinguish a transport-derived
+version. Unknown User-Agents fall back to the bundled version; no package registry or
+local Claude installation is queried. Existing billing blocks are not replaced.

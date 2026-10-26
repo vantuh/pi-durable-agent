@@ -60,7 +60,15 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                             <dd className="text-ink text-right font-mono">{state.version}</dd>
                             <dt className="text-faint">Version source</dt>
                             <dd className="text-muted text-right">
-                                {state.source === "default" ? "Default" : "Environment variable"}
+                                {state.source === "default"
+                                    ? "Default"
+                                    : state.source === "environment"
+                                      ? "Environment variable"
+                                      : "Pi transport"}
+                            </dd>
+                            <dt className="text-faint">Pi User-Agent version</dt>
+                            <dd className="text-muted text-right font-mono">
+                                {state.transportVersion ?? "Not observed yet"}
                             </dd>
                             <dt className="text-faint">Last request</dt>
                             <dd className="text-muted text-right">
@@ -101,8 +109,9 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 </>
             )}
             <p className="text-faint">
-                Billing-block version, not HTTP User-Agent. Diagnostics cover this server across all
-                sessions and reset on reload or disable.
+                Billing version follows the newer of the default and Pi's observed User-Agent
+                version, unless overridden. Diagnostics cover all sessions and reset on reload or
+                disable.
             </p>
             <p className="text-faint">
                 Shaping does not confirm that a request was charged to subscription limits.

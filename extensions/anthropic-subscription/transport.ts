@@ -1,5 +1,6 @@
 import type { ModelFetch, RequestModel } from "../../server/model-requests.ts";
 import type { Diagnostics } from "./refs.ts";
+import { cliVersion, higherVersion } from "./version.ts";
 
 export function isOAuth(request: Request): boolean {
     return /^Bearer sk-ant-oat[^\s]*$/i.test(request.headers.get("authorization") ?? "");
@@ -34,7 +35,8 @@ export function oauthTransport(
     next: ModelFetch,
     model: RequestModel,
     state: Diagnostics,
-    shape: (payload: unknown) => unknown,
+    shape: (payload: unknown, version: string) => unknown,
+    configured: { version: string; override: boolean },
 ): ModelFetch {
     return async (input, init) => {
         const request = requestFrom(input, init);
@@ -46,8 +48,19 @@ export function oauthTransport(
                 request.method === "POST" &&
                 /\/messages\/?$/.test(new URL(request.url).pathname)
             ) {
+                const transportVersion = cliVersion(request);
+                const version = configured.override
+                    ? configured.version
+                    : higherVersion(configured.version, transportVersion);
+                state.version = version;
+                state.source = configured.override
+                    ? "environment"
+                    : version === configured.version
+                      ? "default"
+                      : "transport";
+                state.transportVersion = transportVersion ?? null;
                 const payload = await payloadOf(request);
-                const shaped = shape(payload);
+                const shaped = shape(payload, version);
                 const system: unknown = record(payload) ? payload["system"] : undefined;
                 const already =
                     Array.isArray(system) &&

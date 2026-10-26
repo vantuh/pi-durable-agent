@@ -9,7 +9,8 @@ export type ShapeOutcome =
     | "no-user-text";
 export type Diagnostics = {
     version: string;
-    source: "default" | "environment";
+    source: "default" | "environment" | "transport";
+    transportVersion: string | null;
     last: { outcome: ShapeOutcome; provider: string; at: number } | null;
 };
 
@@ -31,11 +32,18 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         const version: unknown = Reflect.get(value, "version");
         const source: unknown = Reflect.get(value, "source");
         const last: unknown = Reflect.get(value, "last");
-        if (typeof version !== "string" || (source !== "default" && source !== "environment")) {
+        const transportVersion: unknown = Reflect.get(value, "transportVersion") ?? null;
+        if (transportVersion !== null && typeof transportVersion !== "string") {
+            throw new Error("Invalid transport version");
+        }
+        if (
+            typeof version !== "string" ||
+            (source !== "default" && source !== "environment" && source !== "transport")
+        ) {
             throw new Error("Invalid diagnostics version");
         }
         if (last === null) {
-            return { version, source, last };
+            return { version, source, transportVersion, last };
         }
         if (typeof last !== "object") {
             throw new Error("Invalid last request");
@@ -57,6 +65,6 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         if (checked === undefined) {
             throw new Error("Unknown outcome");
         }
-        return { version, source, last: { outcome: checked, provider, at } };
+        return { version, source, transportVersion, last: { outcome: checked, provider, at } };
     },
 );
