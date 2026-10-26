@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { ClientAnswerStats, ClientEntry, ClientLive } from "../shared/protocol.ts";
-import { outcomeOf, summarize, turnsOf } from "../web/src/lib/turns.ts";
+import { outcomeOf, summarize, testOutcome, turnsOf } from "../web/src/lib/turns.ts";
 
 const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
 
@@ -148,5 +148,47 @@ void describe("outcomeOf", () => {
             ),
             { text: "stopped", tone: "danger" },
         );
+    });
+});
+
+void describe("testOutcome", () => {
+    void it("reads node's, Jest's and mocha's summaries", () => {
+        assert.deepEqual(
+            testOutcome("ℹ tests 49\nℹ pass 48\nℹ fail 1\nℹ duration_ms 3112.5", "pnpm test"),
+            { text: "48 passed · 1 failed · 3.1s", passed: 48, failed: 1 },
+        );
+        assert.equal(
+            testOutcome(
+                "Tests:       2 failed, 47 passed, 49 total\nTime:        12.4 s",
+                "npx jest",
+            )?.text,
+            "47 passed · 2 failed · 12s",
+        );
+        assert.equal(testOutcome("  12 passing (40ms)", "npx mocha")?.text, "12 passed");
+    });
+
+    void it("says nothing for a command that is not a test run", () => {
+        assert.equal(testOutcome("3 passed the check", "ls"), undefined);
+    });
+
+    void it("shows a failed run's counts, not its exit code", () => {
+        const step = {
+            kind: "tool",
+            key: "k",
+            id: "c",
+            name: "bash",
+            args: { command: "node --test test/" },
+            status: "error",
+            result: {
+                id: 1,
+                kind: "toolResult",
+                callId: "c",
+                name: "bash",
+                text: "ℹ pass 46\nℹ fail 2\n\nCommand exited with code 1",
+                isError: true,
+            },
+        } as const;
+
+        assert.deepEqual(outcomeOf(step), { text: "46 passed · 2 failed", tone: "danger" });
     });
 });

@@ -214,7 +214,10 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
                 kind: "toolResult",
                 callId: labelOf(message?.["toolCallId"], ""),
                 name: labelOf(message?.["toolName"], "?"),
-                text: cut ? `${output.slice(0, OUTPUT_LIMIT)}\n…` : output,
+                // Start and end: a command's summary (a test run's counts, an exit code) is in its last lines.
+                text: cut
+                    ? `${output.slice(0, OUTPUT_LIMIT / 2)}\n…\n${output.slice(-OUTPUT_LIMIT / 2)}`
+                    : output,
                 isError: message?.["isError"] === true,
                 ...(cut ? { truncated: true } : {}),
                 ...(at === undefined ? {} : { at }),

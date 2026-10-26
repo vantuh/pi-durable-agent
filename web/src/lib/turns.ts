@@ -116,6 +116,56 @@ function editCounts(args: unknown): { added: number; removed: number } | undefin
     return { added, removed };
 }
 
+/** Commands that run tests, by the words in them. */
+const TESTS = /\b(?:test|tests|spec|jest|vitest|pytest|mocha|ava|tap|rspec|phpunit|ctest)\b/i;
+
+/**
+ * A test run's outcome from what it printed, as in "48 passed · 1 failed · 3.1s": for a command that runs tests, or
+ * output with a runner's own summary. After Pi Pocket's `testOutcome` (`web/turns.js`, MIT).
+ */
+export function testOutcome(
+    text: string,
+    command: string,
+): { text: string; passed: number; failed: number } | undefined {
+    if (!TESTS.test(command) && !/^(?:# pass|ℹ pass|Tests:) /m.test(text)) {
+        return undefined;
+    }
+
+    // Node's own count first ("ℹ pass 48"), then Jest's and Vitest's line for tests ("Tests: 1 failed, 47 passed"),
+    // then any "N passed" or "N passing".
+    const count = (node: string, word: string): number | undefined => {
+        const found =
+            new RegExp(`^(?:#|ℹ) ${node} (\\d+)`, "m").exec(text)?.[1] ??
+            new RegExp(`^\\s*Tests:?\\s+(?:[^\\n]*?\\D)?(\\d+) ${word}`, "m").exec(text)?.[1] ??
+            new RegExp(
+                `\\b(\\d+) (?:${word}|${word === "passed" ? "passing" : "failing"})\\b`,
+            ).exec(text)?.[1];
+
+        return found === undefined ? undefined : Number(found);
+    };
+    const passed = count("pass", "passed");
+
+    if (passed === undefined) {
+        return undefined;
+    }
+
+    const failed = count("fail", "failed") ?? 0;
+    const ms = /duration_ms ([\d.]+)/.exec(text)?.[1];
+    const seconds =
+        ms === undefined
+            ? Number(/\b(?:in|Duration|Time:)\s+([\d.]+)\s?s\b/.exec(text)?.[1] ?? Number.NaN)
+            : Number(ms) / 1000;
+    const parts = [
+        `${String(passed)} passed`,
+        ...(failed > 0 ? [`${String(failed)} failed`] : []),
+        ...(Number.isFinite(seconds)
+            ? [seconds < 10 ? `${seconds.toFixed(1)}s` : `${String(Math.round(seconds))}s`]
+            : []),
+    ];
+
+    return { text: parts.join(" · "), passed, failed };
+}
+
 /** What a finished call came to, on the right of its line: "89 lines", "+3 −1", "no output". */
 export function outcomeOf(
     step: Extract<Step, { kind: "tool" }>,
@@ -129,6 +179,13 @@ export function outcomeOf(
     }
 
     const text = result.text.trim();
+    const tests =
+        step.name === "bash" ? testOutcome(text, argOf(step.args, "command") ?? "") : undefined;
+
+    // Before the error: a run whose tests failed exits non-zero, and its counts say more than its exit code.
+    if (tests !== undefined) {
+        return { text: tests.text, tone: tests.failed > 0 || result.isError ? "danger" : "ok" };
+    }
 
     if (result.isError) {
         if (/\b(?:aborted|interrupted)\b/i.test(text)) {
