@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import type { Action, Host } from "../../server/extensions.ts";
-import { DEFAULT_VERSION, type Diagnostics, type ShapeOutcome } from "./refs.ts";
+import { DEFAULT_VERSION, type Diagnostics } from "./refs.ts";
+import { oauthTransport } from "./transport.ts";
 
 const states = new WeakMap<Host, Diagnostics>();
 
@@ -19,35 +20,6 @@ export const meta = {
 
 const MARKER = "x-anthropic-billing-header:";
 
-function outcomeFor(payload: unknown, provider: string): ShapeOutcome {
-    if (provider !== "anthropic") {
-        return "other-provider";
-    }
-    if (!record(payload) || !Array.isArray(payload["system"])) {
-        return "no-oauth-identity";
-    }
-    const system: unknown[] = payload["system"];
-    if (
-        system.some(
-            (block) =>
-                record(block) &&
-                typeof block["text"] === "string" &&
-                block["text"].startsWith(MARKER),
-        )
-    ) {
-        return "already-shaped";
-    }
-    const first = system[0];
-    if (
-        !record(first) ||
-        typeof first["text"] !== "string" ||
-        !first["text"].startsWith("You are Claude Code")
-    ) {
-        return "no-oauth-identity";
-    }
-    return "no-user-text";
-}
-
 function record(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -58,15 +30,6 @@ export function shapeRequest(payload: unknown, version: string): unknown {
         return undefined;
     }
     const system: unknown[] = payload["system"];
-    const identity = system[0];
-    // Pi's native transport emits this identity only on its OAuth path.
-    if (
-        !record(identity) ||
-        typeof identity["text"] !== "string" ||
-        !identity["text"].startsWith("You are Claude Code")
-    ) {
-        return undefined;
-    }
     if (
         system.some(
             (block) =>
@@ -129,14 +92,8 @@ export default function subscription(host: Host) {
     host.onDispose(() => {
         states.delete(host);
     });
-    host.shapeModelRequests((payload, model) => {
-        const shaped = model.provider === "anthropic" ? shapeRequest(payload, version) : undefined;
-        state.last = {
-            outcome: shaped === undefined ? outcomeFor(payload, model.provider) : "applied",
-            provider: model.provider,
-            at: Date.now(),
-        };
-        return shaped;
-    });
+    host.wrapModelFetch((next, model) =>
+        oauthTransport(next, model, state, (payload) => shapeRequest(payload, version)),
+    );
     return defineExtension({ name: host.name });
 }

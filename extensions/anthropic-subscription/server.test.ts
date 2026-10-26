@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Host } from "../../server/extensions.ts";
-import type { RequestShaper } from "../../server/model-requests.ts";
+import type { FetchWrapper, ModelFetch } from "../../server/model-requests.ts";
 import { diagnostics } from "./refs.ts";
 import subscription, { actions, shapeRequest } from "./server.ts";
 
@@ -71,7 +71,7 @@ void test("text content blocks seed the same billing identity as string content"
 });
 
 function setup() {
-    const shapers: RequestShaper[] = [];
+    const wrappers: FetchWrapper[] = [];
     const disposers: (() => void | Promise<void>)[] = [];
     const host: Host = {
         name: "anthropic-subscription",
@@ -82,33 +82,49 @@ function setup() {
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: (shape) => {
-            shapers.push(shape);
+        shapeModelRequests: () => undefined,
+        wrapModelFetch: (wrap) => {
+            wrappers.push(wrap);
         },
     };
     subscription(host);
     const read = () =>
         diagnostics.parse(actions(host)["diagnostics"]?.({ args: undefined, session: null }));
-    const shape = (payload: unknown, provider = "anthropic") => shapers[0]?.(payload, { provider });
+    const shape = async (payload: unknown, provider = "anthropic", oauth = true) => {
+        let sent: unknown;
+        const next: ModelFetch = async (input, init) => {
+            sent = await new Request(input, init).json();
+            return new Response("ok");
+        };
+        const fetch = wrappers[0]?.(next, { provider });
+        await fetch?.("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: oauth
+                ? { authorization: "Bearer sk-ant-oat-test" }
+                : { "x-api-key": "sk-ant-api-test" },
+            body: JSON.stringify(payload),
+        });
+        return sent;
+    };
     return { host, read, shape, disposers };
 }
 
-void test("diagnostics record only outcome, provider and time, never request content", () => {
+void test("diagnostics record only outcome, provider and time, never request content", async () => {
     const { read, shape } = setup();
     assert.equal(read().last, null);
     const payload = { system: [identity], messages: [{ role: "user", content: "private text" }] };
-    const shaped = shape(payload);
+    const shaped = await shape(payload);
     assert.equal(read().last?.outcome, "applied");
     assert.equal(read().last?.provider, "anthropic");
     assert.ok((read().last?.at ?? 0) > 0);
     assert.equal(JSON.stringify(read()).includes("private text"), false);
-    shape(shaped);
+    await shape(shaped);
     assert.equal(read().last?.outcome, "already-shaped");
-    shape(payload, "openai");
+    await shape(payload, "openai");
     assert.equal(read().last?.outcome, "other-provider");
-    shape({ system: [{ type: "text", text: "API key prompt" }] });
-    assert.equal(read().last?.outcome, "no-oauth-identity");
-    shape({ system: [identity], messages: [] });
+    await shape({ system: [{ type: "text", text: "API key prompt" }] }, "anthropic", false);
+    assert.equal(read().last?.outcome, "not-oauth");
+    await shape({ system: [identity], messages: [] });
     assert.equal(read().last?.outcome, "no-user-text");
 });
 
@@ -120,7 +136,7 @@ void test("version source, host isolation and reload reset", async () => {
         const first = setup();
         assert.equal(first.read().version, "2.1.280");
         assert.equal(first.read().source, "default");
-        first.shape({}, "openai");
+        await first.shape({}, "openai");
         assert.equal(setup().read().last, null);
         for (const dispose of first.disposers) {
             await dispose();
@@ -162,4 +178,17 @@ void test("diagnostics contract rejects malformed data", () => {
             assert.throws(() => diagnostics.parse(value));
         }
     }
+});
+
+void test("authorization, not prompt identity, gates OAuth shaping", async () => {
+    const { shape } = setup();
+    const payload = {
+        system: [{ type: "text", text: "Custom identity" }],
+        messages: [{ role: "user", content: "hello" }],
+    };
+    assert.notDeepEqual(await shape(payload), payload);
+    assert.deepEqual(await shape(payload, "anthropic", false), payload);
+    assert.deepEqual(await shape(payload, "openai"), payload);
+    const spoof = { ...payload, system: [identity] };
+    assert.deepEqual(await shape(spoof, "anthropic", false), spoof);
 });

@@ -4,7 +4,7 @@ export const DEFAULT_VERSION = "2.1.280";
 export type ShapeOutcome =
     | "applied"
     | "other-provider"
-    | "no-oauth-identity"
+    | "not-oauth"
     | "already-shaped"
     | "no-user-text";
 export type Diagnostics = {
@@ -16,7 +16,7 @@ export type Diagnostics = {
 export const outcomes: Record<ShapeOutcome, string> = {
     applied: "Shaping applied",
     "other-provider": "Skipped: other provider",
-    "no-oauth-identity": "Skipped: no Claude Code OAuth identity",
+    "not-oauth": "Skipped: not an OAuth request",
     "already-shaped": "Skipped: billing block already present",
     "no-user-text": "Skipped: no first-user text",
 };

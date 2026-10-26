@@ -55,11 +55,13 @@ void describe("Extensions disposers", () => {
         const model = { provider: "test" };
         const module = (value: string, fail = false) => `export default function(host) {
             host.shapeModelRequests(() => ${JSON.stringify(value)});
+            host.wrapModelFetch((next) => next);
             ${fail ? 'throw new Error("broken");' : "return { name: host.name };"}
         }`;
         await write("shape", module("one"));
         await extensions.load();
         assert.equal(extensions.requestShapers[0]?.({}, model), "one");
+        assert.equal(extensions.fetchWrappers.length, 1);
         await write("shape", module("failed", true));
         await extensions.load();
         assert.equal(extensions.requestShapers.length, 1);
@@ -68,8 +70,10 @@ void describe("Extensions disposers", () => {
         await extensions.load();
         assert.equal(extensions.requestShapers.length, 1);
         assert.equal(extensions.requestShapers[0]?.({}, model), "two");
+        assert.equal(extensions.fetchWrappers.length, 1);
         await extensions.setEnabled("shape", false);
         assert.equal(extensions.requestShapers.length, 0);
+        assert.equal(extensions.fetchWrappers.length, 0);
         await extensions.setEnabled("shape", true);
         assert.equal(extensions.requestShapers.length, 1);
         await rm(join(dir, "shape"), { recursive: true });

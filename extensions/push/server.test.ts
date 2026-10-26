@@ -390,6 +390,7 @@ void describe("push", () => {
                 onDispose: (dispose) => disposers.push(dispose),
                 onCommit: (listener) => listeners.push(listener),
                 shapeModelRequests: () => undefined,
+                wrapModelFetch: () => undefined,
             };
             const sends: string[] = [];
 

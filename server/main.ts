@@ -839,7 +839,11 @@ async function main(): Promise<void> {
     harness = await Harness.open(
         storage,
         {
-            models: shapeModelRequests(models, () => extensions.requestShapers),
+            models: shapeModelRequests(
+                models,
+                () => extensions.requestShapers,
+                () => extensions.fetchWrappers,
+            ),
             registry,
             env: () => new NodeExecutionEnv({ cwd }),
         },

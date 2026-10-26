@@ -369,3 +369,16 @@ The open details refresh every three seconds, with no polling while disabled or 
 A disabled folder shows only the bundled default, not a claim about the effective env override.
 The displayed version is not the transport's HTTP User-Agent, and an applied shape does
 not prove either a successful response or subscription billing.
+
+### Resolved transport and OAuth detection
+
+`host.wrapModelFetch((next, model) => fetch)` wraps the final model HTTP transport,
+including its resolved authorization and User-Agent headers. Registrations follow the
+same replacement/disposal lifecycle as payload shapers. Call the supplied `next` rather
+than global fetch, preserving caller transports, signals and streaming responses.
+Never log or retain credentials. Installing this new core capability requires a restart.
+
+Anthropic subscription now checks the actual outgoing Bearer OAuth token on POST messages
+requests instead of trusting a system-prompt identity marker. API keys and other providers
+pass through untouched, even if their prompts contain a Claude Code identity. The helper
+that builds the billing block assumes its caller has already checked OAuth authorization.
