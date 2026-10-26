@@ -246,7 +246,7 @@ function StepRow({ step }: { step: Step }) {
                     <span
                         {...(took === undefined ? {} : { title: `took ${formatDuration(took)}` })}
                         className={cn(
-                            "text-meta max-w-[40%] shrink-0 truncate font-mono tabular-nums",
+                            "max-w-[40%] shrink-0 truncate font-mono text-[11px] tabular-nums",
                             outcome.tone === "ok"
                                 ? "text-ok"
                                 : outcome.tone === "danger"
@@ -285,7 +285,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
 
     return (
         <Collapsible className="group/fold rounded-card border-edge-soft min-w-0 overflow-hidden border">
-            <CollapsibleTrigger className="text-interface text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
+            <CollapsibleTrigger className="text-tool text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
                 <Chevron />
                 <span className={cn("min-w-0 flex-1 truncate", item.live && "shimmer")}>
                     {summarize(item.steps, thinking)}

@@ -82,6 +82,7 @@ In `styles.css`, next to the roles, so no component invents its own:
 
 - `--radius-control: 6px`, `--radius-card: 10px` (`rounded-control`, `rounded-card`);
 - `--text-meta: 12px`, `--text-sidebar: 13px` (session titles and sidebar heading),
+  `--text-tool: 13px` (tool group headings),
   `--text-interface: 15px`, `--text-prose: 15px` (`text-meta`, `text-interface`,
   `text-prose`);
 - `--font-sans` and `--font-mono` (`font-sans`, `font-mono`). The body and interface use 15px
