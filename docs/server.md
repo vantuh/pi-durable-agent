@@ -50,6 +50,21 @@ pnpm serve     # node --watch server/main.ts, port 8788
 pnpm dev       # vite on 5190, proxying /api → 8788
 ```
 
+For production, run `pnpm start`: build the web into `dist/`, then run the server on
+`127.0.0.1:8788` without watch. One process serves both the web and API. Stop it with Ctrl+C.
+The command does not configure Tailscale or install an auto-start service.
+
+To expose it privately through Tailscale Serve, configure a free HTTPS port once:
+
+```bash
+tailscale serve --bg --https=8443 http://127.0.0.1:8788
+```
+
+Check `tailscale serve status` first: do not replace another app's proxy. Serve stays configured
+between app restarts; `pnpm start` starts only the app. Use Serve, not public Funnel. Anyone allowed
+to reach this endpoint through Tailscale can control the agent; restrict access with Tailscale rules.
+The proxy must preserve the public `Host` for extension origin checks.
+
 - `MODEL` — `provider/modelId`, default `openai/gpt-6.1-sol`. Signs in through `~/.pi/agent`
   (`ModelRuntime.create()`), the same logins the `pi` command uses.
 - `PORT` — default 8788. Not 8787: Pi Pocket runs there on this machine.
