@@ -278,14 +278,6 @@ export function Sessions({
                 <div className="flex items-center gap-1">
                     <button
                         type="button"
-                        onClick={onNew}
-                        title="New session"
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                    >
-                        <Plus className="size-4" />
-                    </button>
-                    <button
-                        type="button"
                         onClick={onClose}
                         title="Close"
                         className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center lg:hidden"
@@ -340,6 +332,17 @@ export function Sessions({
                         </ScrollArea>
                     </div>
                 ) : null}
+            </div>
+
+            <div className="px-3 pt-3">
+                <button
+                    type="button"
+                    onClick={onNew}
+                    className="rounded-control border-edge-soft text-ink hover:bg-raised flex w-full items-center justify-center gap-2 border py-2.5"
+                >
+                    <Plus className="size-4" />
+                    <span className="text-sidebar">New session</span>
+                </button>
             </div>
 
             <div className="flex items-center justify-between px-3 pt-2">
