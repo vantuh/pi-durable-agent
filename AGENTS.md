@@ -93,16 +93,17 @@ One folder per feature:
 ```text
 extensions/files/
   server.ts    default export (host) => the tools, prompt sections, and hooks it installs
-  web.tsx      what it adds to the browser: a rail button, a panel, a sheet
-  api.ts       its typed contract: what other extensions may call, and its tier
+  web.tsx      what it adds to the browser: a rail button, a panel, a sheet  (not built yet)
+  api.ts       its typed contract: what other extensions may call, and its tier  (not built yet)
 ```
 
-- **Dependencies are declared, not imported.** An extension reaches another through its `api.ts`
-  with `need` (required) or `want` (optional). A cycle is an error, not a style question.
-- **A core-tier extension is always on**, declares `export const tier = 'core'` in its `api.ts`,
-  and may depend only on other core-tier extensions. Everything else is optional and off-able.
-- **The loader is the first thing we build**, before any feature. An extension that cannot be
-  added and removed cleanly is a core change hiding in a folder.
+- **One folder, one extension, named after the folder.** The loader replaces by name, so a name
+  that drifts installs twice. `coding-tools` is reserved by the core.
+- **Dependencies will be declared, not imported** (`api.ts` with `need` / `want`) once there is a
+  second extension that needs the first. Until then: no extension imports another.
+- **The loader loads live.** A folder is installed on save, kept as it was when its file breaks,
+  and uninstalled when the folder goes. `GET /api/extensions` says what is installed and what
+  failed.
 
 Model it on `ultimate/shared/extension-api.ts` and `ultimate/server/extensions.ts`; do not invent a
 second mechanism.
@@ -123,8 +124,9 @@ second mechanism.
 1. ~~**`server/main.ts` + `shared/protocol.ts`.** One conversation, `GET /api/events` (SSE),
    `POST /api/messages`.~~ **Done**: `curl` shows streamed tokens and a tool call
    ([docs/server.md](docs/server.md)).
-2. **`server/extensions.ts`.** Load `extensions/*/server.ts`, hand each a host, install what it
-   returns. Done when one throwaway extension adds a prompt section and can be deleted.
+2. ~~**`server/extensions.ts`.** Load `extensions/*/server.ts`, hand each a host, install what it
+   returns.~~ **Done**, with `extensions/prompt` as the first extension: adding, breaking, and
+   removing a folder all work live ([docs/extensions.md](docs/extensions.md)).
 3. **The shell** — [docs/layout.md](docs/layout.md), step 1. Three regions, no data.
 4. **The transcript** from the event stream. 5. **The composer** with streaming and Stop.
 5. **Tool calls** folded into one line per group.

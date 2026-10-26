@@ -8,9 +8,11 @@ POST /api/messages  ──▶ root.submit()  ──▶ durable generation task
                                               ▼
 GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
 GET /api/health         { ok, model, busy }
+GET /api/extensions     { installed, failed }
 ```
 
 - `server/main.ts` — the HTTP surface, the harness, the subscription.
+- `server/extensions.ts` — the loader ([extensions.md](extensions.md)).
 - `server/projection.ts` — the harness's committed view → `shared/protocol.ts`.
 - `shared/protocol.ts` — the only contract the browser sees.
 
@@ -52,5 +54,4 @@ pnpm dev       # vite on 5173, proxying /api → 8788
 
 ## Not here yet
 
-Several conversations, titles, a model picker, auth, static file serving, and the extension loader
-(next: `docs` in `AGENTS.md`, "How we build, in order").
+Several conversations, titles, a model picker, auth, and static file serving.

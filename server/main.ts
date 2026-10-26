@@ -15,6 +15,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
+import { Extensions } from "./extensions.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 
 type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
@@ -29,6 +30,7 @@ const IDLE_HEARTBEAT_MS = 20_000;
 const clients = new Set<ServerResponse>();
 
 let sent: number[] = [];
+let extensions: Extensions;
 let root: Conversation;
 let viewState: Awaited<ReturnType<Conversation["viewState"]>>;
 
@@ -162,6 +164,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
+    if (request.method === "GET" && url.pathname === "/api/extensions") {
+        answer(response, 200, { installed: extensions.names, failed: extensions.failed });
+        return;
+    }
+
     if (request.method === "GET" && url.pathname === "/api/health") {
         answer(response, 200, { ok: true, model: MODEL, busy: liveOf(viewState.value).busy });
         return;
@@ -181,10 +188,22 @@ async function main(): Promise<void> {
 
     const models = await ModelRuntime.create();
     const registry = createRegistry();
+    const cwd = process.cwd();
 
     registry.install(CodingTools);
 
-    const cwd = process.cwd();
+    extensions = new Extensions({
+        registry,
+        dir: join(cwd, "extensions"),
+        cwd,
+        dataDir: DATA_DIR,
+        log: (message) => {
+            console.log(message);
+        },
+    });
+    await extensions.load();
+    extensions.watch();
+
     const storage = await openNodeSqliteStorage(join(DATA_DIR, "state.sqlite"));
     const harness = await Harness.open(
         storage,

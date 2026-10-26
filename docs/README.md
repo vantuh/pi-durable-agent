@@ -9,8 +9,7 @@ The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 | [layout.md](layout.md)           | The shell: sidebar, conversation, right drawer.          |
 | [conventions.md](conventions.md) | Every rule, and the mistake it prevents.                 |
 
-Planned, not written yet: `theme.md` (Catppuccin), `agent.md` (tools, prompt, permissions),
-`extensions.md` (the loader and the contract).
+Planned, not written yet: `theme.md` (Catppuccin), `agent.md` (tools, prompt, permissions).
 
 ## Ground rules
 
