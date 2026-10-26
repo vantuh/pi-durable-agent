@@ -65,7 +65,7 @@ export function Composer({
     };
 
     return (
-        <div className="p-2.5">
+        <div>
             {queued.length === 0 ? null : (
                 <ul className="mb-2 flex flex-col gap-1">
                     {queued.map((item) => (
@@ -82,7 +82,7 @@ export function Composer({
                 </ul>
             )}
 
-            <div className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2.5">
+            <div className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2">
                 <Attachments
                     files={files}
                     onRemove={(path) => {
