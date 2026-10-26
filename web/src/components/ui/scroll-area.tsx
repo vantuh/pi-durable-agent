@@ -43,9 +43,11 @@ export function ScrollBar({
         <ScrollAreaPrimitive.ScrollAreaScrollbar
             orientation={orientation}
             className={cn(
-                "flex touch-none p-px transition-colors select-none",
-                orientation === "vertical" && "h-full w-2 border-l border-l-transparent",
-                orientation === "horizontal" && "h-2 flex-col border-t border-t-transparent",
+                "flex touch-none p-px transition-[width,height,colors] duration-150 select-none",
+                orientation === "vertical" &&
+                    "hover:w-3.5 h-full w-2 border-l border-l-transparent",
+                orientation === "horizontal" &&
+                    "hover:h-3.5 h-2 flex-col border-t border-t-transparent",
                 className,
             )}
             {...props}
