@@ -119,6 +119,11 @@ function savedStore(file: string) {
 
 const instances = new WeakMap<Host, Browsers>();
 
+declare global {
+    // A reload builds a new version of this module; the running Chromium and its pages outlive it.
+    var piDurableBrowser: { browsers: Browsers; version: number } | undefined;
+}
+
 function browsersOf(host: Host): Browsers {
     const found = instances.get(host);
 
@@ -131,15 +136,26 @@ function browsersOf(host: Host): Browsers {
 
 export default function createBrowser(host: Host) {
     const store = savedStore(join(host.dataDir, "browser", "saved.json"));
-    const browsers = new Browsers({
-        dataDir: host.dataDir,
-        load: store.load,
-        save: store.save,
-        log: host.log,
-    });
+    const kept = globalThis.piDurableBrowser;
+    const version = (kept?.version ?? 0) + 1;
+    const browsers =
+        kept?.browsers ??
+        new Browsers({
+            dataDir: host.dataDir,
+            load: store.load,
+            save: store.save,
+            log: host.log,
+        });
 
+    globalThis.piDurableBrowser = { browsers, version };
     instances.set(host, browsers);
-    host.onDispose(() => browsers.closeAll({ final: true }));
+    // The old version is disposed after the new one was built: close only when nothing replaced it.
+    host.onDispose(async () => {
+        if (globalThis.piDurableBrowser?.version === version) {
+            globalThis.piDurableBrowser = undefined;
+            await browsers.closeAll({ final: true });
+        }
+    });
 
     const browser = defineTool({
         name: "browser",

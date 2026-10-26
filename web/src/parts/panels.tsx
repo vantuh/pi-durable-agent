@@ -64,7 +64,7 @@ export function PanelHost({
 
             <div className="flex min-h-0 flex-1 flex-col">
                 <ItemBoundary name={panelKey(panel)}>
-                    <Body session={session} onClose={onClose} />
+                    <Body key={session?.id ?? "none"} session={session} onClose={onClose} />
                 </ItemBoundary>
             </div>
         </aside>

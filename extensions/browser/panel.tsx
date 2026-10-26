@@ -57,6 +57,7 @@ function usePageState(id: number | null) {
 
                 if (alive) {
                     set(next);
+                    setError(null);
                 }
             } catch (failure) {
                 if (alive) {
@@ -87,7 +88,7 @@ function usePageState(id: number | null) {
         }
     };
 
-    return { page, error, run };
+    return { page, error, setError, run };
 }
 
 /** The newest screencast frame, by long-polling: each answer comes when a newer frame exists. */
@@ -135,7 +136,7 @@ function useFrame(id: number | null, open: boolean): (Frame & { src: string }) |
 }
 
 /** What the person does on the page, sent in order, a few at a time. */
-function useInput(id: number | null) {
+function useInput(id: number | null, onError: (message: string) => void) {
     const queue = useRef<unknown[]>([]);
     const flushing = useRef(false);
 
@@ -150,7 +151,11 @@ function useInput(id: number | null) {
             while (queue.current.length > 0) {
                 const events = queue.current.splice(0, 50);
 
-                await callAction(input, { events }, id).catch(() => true);
+                await callAction(input, { events }, id).catch((failure: unknown) => {
+                    onError(failure instanceof Error ? failure.message : String(failure));
+
+                    return true;
+                });
             }
         } finally {
             flushing.current = false;
@@ -163,8 +168,16 @@ function useInput(id: number | null) {
     };
 }
 
-function Stage({ id, shot }: { id: number | null; shot: (Frame & { src: string }) | undefined }) {
-    const send = useInput(id);
+function Stage({
+    id,
+    shot,
+    onError,
+}: {
+    id: number | null;
+    shot: (Frame & { src: string }) | undefined;
+    onError: (message: string) => void;
+}) {
+    const send = useInput(id, onError);
     const image = useRef<HTMLImageElement>(null);
     const drag = useRef<{ x: number; y: number } | null>(null);
     const moved = useRef(false);
@@ -356,7 +369,7 @@ function IconButton({
 
 export function BrowserPanel({ session }: PanelProps) {
     const id = session?.id ?? null;
-    const { page, error, run } = usePageState(id);
+    const { page, error, setError, run } = usePageState(id);
     const shot = useFrame(id, page?.open === true);
     const [draft, setDraft] = useState<string | null>(null);
     const [showConsole, setShowConsole] = useState(false);
@@ -468,7 +481,7 @@ export function BrowserPanel({ session }: PanelProps) {
             )}
 
             {page?.open === true ? (
-                <Stage id={id} shot={shot} />
+                <Stage id={id} shot={shot} onError={setError} />
             ) : (
                 <div className="text-faint text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
                     <p>{page?.loading === true ? "Starting the browser…" : "Nothing is open."}</p>
