@@ -1,0 +1,20 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn"
+    },
+    "plugins": ["typescript", "react", "import"],
+    "env": {
+        "browser": true,
+        "node": true,
+        "es2024": true
+    },
+    "rules": {
+        "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+        "typescript/no-explicit-any": "off",
+        "react/react-in-jsx-scope": "off",
+        "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }]
+    },
+    "ignorePatterns": ["dist", "node_modules"]
+}
