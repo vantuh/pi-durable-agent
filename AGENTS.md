@@ -127,10 +127,14 @@ second mechanism.
 2. ~~**`server/extensions.ts`.** Load `extensions/*/server.ts`, hand each a host, install what it
    returns.~~ **Done**, with `extensions/prompt` as the first extension: adding, breaking, and
    removing a folder all work live ([docs/extensions.md](docs/extensions.md)).
-3. **The shell** — [docs/layout.md](docs/layout.md), step 1. Three regions, no data.
-4. **The transcript** from the event stream. 5. **The composer** with streaming and Stop.
-5. **Tool calls** folded into one line per group.
-6. **Features**, each a new `extensions/<name>/` folder: files, changes, subagents, memory.
+3. ~~**The theme.**~~ **Done**: Catppuccin in `web/src/styles/catppuccin.css`, four flavours
+   behind `data-flavour`, roles in `styles.css`, Tailwind's palette deleted
+   ([docs/theme.md](docs/theme.md)).
+4. **The shell** — [docs/layout.md](docs/layout.md), step 1. Three regions, no data.
+5. **The transcript** from the event stream.
+6. **The composer** with streaming and Stop.
+7. **Tool calls** folded into one line per group.
+8. **Features**, each a new `extensions/<name>/` folder: files, changes, subagents, memory.
 
 ## Before saying "done"
 
@@ -148,7 +152,8 @@ pnpm fix       # repairs formatting and anything auto-fixable
 - [ ] No `any`, no `!`, no `as` without a check that justifies it.
 - [ ] Every promise is awaited or explicitly ignored with `void`.
 - [ ] `web/` never imports from `server/`; extensions never import each other's files.
-- [ ] Colours come from `src/styles/catppuccin.css`; no colour literals in components.
+- [ ] Colours come from the `--role-*` names in `src/styles.css`; no palette colour and no
+      literal in a component.
 - [ ] No new dependency without the reason in the commit message.
 - [ ] `@earendil-works/*` packages are pinned exactly: Pi Durable is experimental.
 

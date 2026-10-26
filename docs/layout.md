@@ -85,8 +85,9 @@ Radii, spacing, and type sizes are decided here once so components do not invent
 - **Radius**: 6px controls, 10px cards, full for pills and avatars.
 - **Spacing**: 4px base; the shell uses 8, 12, 16, 24.
 - **Type**: 13px interface, 15px conversation prose, 12px metadata, mono for code and paths.
-- **Colour**: only from `web/src/styles/catppuccin.css`. A component that names a colour directly
-  is a bug.
+- **Colour**: only through the `--role-*` names in `web/src/styles.css`, which map onto
+  `catppuccin.css`. A component that names a palette colour directly is a bug
+  ([theme.md](theme.md)).
 
 ## Build order
 

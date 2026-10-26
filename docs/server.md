@@ -44,7 +44,7 @@ of this file wrote must not crash the process. Anything else that needs an `as` 
 
 ```bash
 pnpm serve     # node --watch server/main.ts, port 8788
-pnpm dev       # vite on 5173, proxying /api → 8788
+pnpm dev       # vite on 5190, proxying /api → 8788
 ```
 
 - `MODEL` — `provider/modelId`, default `openai/gpt-6.1-sol`. Signs in through `~/.pi/agent`

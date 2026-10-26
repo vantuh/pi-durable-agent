@@ -5,6 +5,8 @@ import { App } from "./App.tsx";
 
 import "./styles.css";
 
+document.documentElement.dataset["flavour"] = localStorage.getItem("flavour") ?? "mocha";
+
 const root = document.getElementById("root");
 
 if (!root) {

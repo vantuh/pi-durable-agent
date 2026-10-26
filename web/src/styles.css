@@ -1,4 +1,61 @@
 @import "tailwindcss";
+@import "./styles/catppuccin.css";
+
+/*
+ * Three names for the same colour, on purpose:
+ *   --ctp-*   the palette, one block per flavour, in catppuccin.css.
+ *   --role-*  the jobs a colour has here. Components name these.
+ *   --color-* Tailwind utilities over the roles, so `bg-canvas` and `var(--role-canvas)` agree.
+ * Tailwind's own palette is wiped: `bg-neutral-900` is not a colour that exists.
+ */
+:root {
+    --role-canvas: var(--ctp-base);
+    --role-panel: var(--ctp-mantle);
+    --role-sunken: var(--ctp-crust);
+    --role-raised: var(--ctp-surface0);
+    --role-edge: var(--ctp-surface1);
+    --role-edge-soft: var(--ctp-surface0);
+
+    --role-ink: var(--ctp-text);
+    --role-muted: var(--ctp-subtext1);
+    --role-faint: var(--ctp-subtext0);
+
+    --role-accent: var(--ctp-mauve);
+    --role-on-accent: var(--ctp-crust);
+    --role-ok: var(--ctp-green);
+    --role-warn: var(--ctp-yellow);
+    --role-danger: var(--ctp-red);
+    --role-info: var(--ctp-blue);
+}
+
+@theme inline {
+    --color-*: initial;
+
+    --color-canvas: var(--role-canvas);
+    --color-panel: var(--role-panel);
+    --color-sunken: var(--role-sunken);
+    --color-raised: var(--role-raised);
+    --color-edge: var(--role-edge);
+    --color-edge-soft: var(--role-edge-soft);
+
+    --color-ink: var(--role-ink);
+    --color-muted: var(--role-muted);
+    --color-faint: var(--role-faint);
+
+    --color-accent: var(--role-accent);
+    --color-on-accent: var(--role-on-accent);
+    --color-ok: var(--role-ok);
+    --color-warn: var(--role-warn);
+    --color-danger: var(--role-danger);
+    --color-info: var(--role-info);
+
+    --radius-control: 6px;
+    --radius-card: 10px;
+
+    --text-meta: 12px;
+    --text-interface: 13px;
+    --text-prose: 15px;
+}
 
 @theme {
     --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -9,4 +66,12 @@ html,
 body,
 #root {
     height: 100%;
+}
+
+body {
+    background-color: var(--role-canvas);
+    color: var(--role-ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
 }
