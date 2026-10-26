@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { useState } from "react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
@@ -86,49 +87,52 @@ export function ModelMenu({
                     />
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
-                    {shown.length === 0 ? (
-                        <p className="text-faint text-meta p-2">No model matches.</p>
-                    ) : null}
+                <ScrollArea className="min-h-0 flex-1">
+                    <div className="px-1.5 pb-1.5">
+                        {shown.length === 0 ? (
+                            <p className="text-faint text-meta p-2">No model matches.</p>
+                        ) : null}
 
-                    {shown.map((model) => {
-                        const key = `${model.provider}/${model.id}`;
+                        {shown.map((model) => {
+                            const key = `${model.provider}/${model.id}`;
 
-                        return (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => {
-                                    onPick(
-                                        model,
-                                        model.levels.includes(level ?? "")
-                                            ? (level ?? "off")
-                                            : "off",
-                                    );
-                                }}
-                                className={`rounded-control flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${
-                                    key === current ? "bg-raised" : "hover:bg-raised/50"
-                                }`}
-                            >
-                                <span className="min-w-0">
-                                    <span className="text-ink text-interface block truncate">
-                                        {model.name}
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => {
+                                        onPick(
+                                            model,
+                                            model.levels.includes(level ?? "")
+                                                ? (level ?? "off")
+                                                : "off",
+                                        );
+                                    }}
+                                    className={`rounded-control flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${
+                                        key === current ? "bg-raised" : "hover:bg-raised/50"
+                                    }`}
+                                >
+                                    <span className="min-w-0">
+                                        <span className="text-ink text-interface block truncate">
+                                            {model.name}
+                                        </span>
+                                        <span className="text-faint text-meta block truncate">
+                                            {model.provider} ·{" "}
+                                            {Math.round(model.contextWindow / 1000)}k
+                                            {defaultModel?.provider === model.provider &&
+                                            defaultModel.modelId === model.id
+                                                ? " · default"
+                                                : ""}
+                                        </span>
                                     </span>
-                                    <span className="text-faint text-meta block truncate">
-                                        {model.provider} · {Math.round(model.contextWindow / 1000)}k
-                                        {defaultModel?.provider === model.provider &&
-                                        defaultModel.modelId === model.id
-                                            ? " · default"
-                                            : ""}
-                                    </span>
-                                </span>
-                                {key === current ? (
-                                    <Check className="text-accent size-4 shrink-0" />
-                                ) : null}
-                            </button>
-                        );
-                    })}
-                </div>
+                                    {key === current ? (
+                                        <Check className="text-accent size-4 shrink-0" />
+                                    ) : null}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </ScrollArea>
 
                 <div className="border-edge-soft border-t px-3 py-2">
                     <div className="mb-1 flex items-center justify-between">

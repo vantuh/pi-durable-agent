@@ -9,6 +9,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour, currentFlavour } from "../lib/flavour.ts";
@@ -52,31 +53,36 @@ function FlavourGrid() {
     const [active, setActive] = useState<Flavour>(currentFlavour);
 
     return (
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto p-3 sm:grid-cols-4">
-            {FLAVOURS.map((flavour) => (
-                <button
-                    key={flavour}
-                    type="button"
-                    aria-pressed={flavour === active}
-                    aria-label={flavour}
-                    onClick={() => {
-                        applyFlavour(flavour);
-                        setActive(flavour);
-                    }}
-                    className={`rounded-card border-edge-soft bg-raised focus-visible:outline-ink flex flex-col gap-2 border p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                        flavour === active ? "ring-accent ring-2" : ""
-                    }`}
-                >
-                    <Preview flavour={flavour} />
-                    <span className="text-interface text-ink capitalize">{flavour}</span>
-                    <span data-preview={flavour} className="flex gap-1" aria-hidden="true">
-                        {DOTS.map((dot) => (
-                            <span key={dot} className={`size-3 rounded-full ${DOT_CLASS[dot]}`} />
-                        ))}
-                    </span>
-                </button>
-            ))}
-        </div>
+        <ScrollArea className="min-h-0 flex-1">
+            <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-4">
+                {FLAVOURS.map((flavour) => (
+                    <button
+                        key={flavour}
+                        type="button"
+                        aria-pressed={flavour === active}
+                        aria-label={flavour}
+                        onClick={() => {
+                            applyFlavour(flavour);
+                            setActive(flavour);
+                        }}
+                        className={`rounded-card border-edge-soft bg-raised focus-visible:outline-ink flex flex-col gap-2 border p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            flavour === active ? "ring-accent ring-2" : ""
+                        }`}
+                    >
+                        <Preview flavour={flavour} />
+                        <span className="text-interface text-ink capitalize">{flavour}</span>
+                        <span data-preview={flavour} className="flex gap-1" aria-hidden="true">
+                            {DOTS.map((dot) => (
+                                <span
+                                    key={dot}
+                                    className={`size-3 rounded-full ${DOT_CLASS[dot]}`}
+                                />
+                            ))}
+                        </span>
+                    </button>
+                ))}
+            </div>
+        </ScrollArea>
     );
 }
 

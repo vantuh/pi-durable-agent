@@ -1,6 +1,7 @@
 import { PanelLeft, Settings as SettingsIcon } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
@@ -192,37 +193,40 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                 </div>
             </header>
 
-            <div
-                ref={scroller}
-                // Leaving is decided by what the reader does, not by where the scroll lands: a chunk of
-                // text arriving before the scroll event must not pull them back down.
-                onWheel={(event) => {
-                    if (event.deltaY < 0 && event.currentTarget.scrollTop > 0) {
+            <ScrollArea
+                className="min-h-0 flex-1"
+                viewportRef={scroller}
+                viewportProps={{
+                    className: "px-4 py-4",
+                    // Leaving is decided by what the reader does, not by where the scroll lands: a chunk of
+                    // text arriving before the scroll event must not pull them back down.
+                    onWheel: (event) => {
+                        if (event.deltaY < 0 && event.currentTarget.scrollTop > 0) {
+                            following.current = false;
+                        }
+                    },
+                    onTouchMove: () => {
                         following.current = false;
-                    }
-                }}
-                onTouchMove={() => {
-                    following.current = false;
-                }}
-                onPointerDown={(event) => {
-                    if (event.target === event.currentTarget) {
-                        following.current = false;
-                    }
-                }}
-                onScroll={(event) => {
-                    const el = event.currentTarget;
-                    const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+                    },
+                    onPointerDown: (event) => {
+                        if (event.target === event.currentTarget) {
+                            following.current = false;
+                        }
+                    },
+                    onScroll: (event) => {
+                        const el = event.currentTarget;
+                        const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
 
-                    // Any move up is the reader leaving; only getting back to the bottom follows again.
-                    if (el.scrollTop < lastTop.current) {
-                        following.current = false;
-                    } else if (gap < 24) {
-                        following.current = true;
-                    }
+                        // Any move up is the reader leaving; only getting back to the bottom follows again.
+                        if (el.scrollTop < lastTop.current) {
+                            following.current = false;
+                        } else if (gap < 24) {
+                            following.current = true;
+                        }
 
-                    lastTop.current = el.scrollTop;
+                        lastTop.current = el.scrollTop;
+                    },
                 }}
-                className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
             >
                 <div ref={content} className="mx-auto flex max-w-[46rem] flex-col gap-4">
                     {turns.map((turn) => (
@@ -233,7 +237,7 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                         <p className="text-prose text-faint">Nothing here yet. Ask something.</p>
                     ) : null}
                 </div>
-            </div>
+            </ScrollArea>
         </section>
     );
 }

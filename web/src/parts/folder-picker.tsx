@@ -2,6 +2,7 @@ import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import {
     type FolderPage,
@@ -170,28 +171,32 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         {section("Recent", recents)}
                     </nav>
 
-                    <div className="rounded-control border-edge-soft min-h-[16rem] flex-1 overflow-y-auto border p-1">
-                        {error ? (
-                            <p className="text-danger text-meta p-2">Cannot read that folder.</p>
-                        ) : (
-                            (page?.dirs ?? []).map((dir) => (
-                                <button
-                                    key={dir.path}
-                                    type="button"
-                                    onDoubleClick={() => {
-                                        go(dir.path);
-                                    }}
-                                    onClick={() => {
-                                        go(dir.path);
-                                    }}
-                                    className="rounded-control text-ink hover:bg-raised text-interface flex w-full items-center gap-2 px-2 py-1.5 text-left"
-                                >
-                                    <Folder className="text-info size-4 shrink-0" />
-                                    <span className="truncate">{dir.name}</span>
-                                </button>
-                            ))
-                        )}
-                    </div>
+                    <ScrollArea className="rounded-control border-edge-soft min-h-[16rem] flex-1 border">
+                        <div className="p-1">
+                            {error ? (
+                                <p className="text-danger text-meta p-2">
+                                    Cannot read that folder.
+                                </p>
+                            ) : (
+                                (page?.dirs ?? []).map((dir) => (
+                                    <button
+                                        key={dir.path}
+                                        type="button"
+                                        onDoubleClick={() => {
+                                            go(dir.path);
+                                        }}
+                                        onClick={() => {
+                                            go(dir.path);
+                                        }}
+                                        className="rounded-control text-ink hover:bg-raised text-interface flex w-full items-center gap-2 px-2 py-1.5 text-left"
+                                    >
+                                        <Folder className="text-info size-4 shrink-0" />
+                                        <span className="truncate">{dir.name}</span>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </ScrollArea>
                 </div>
 
                 <footer className="border-edge-soft mt-3 flex items-center justify-between gap-3 border-t px-4 py-3">

@@ -9,6 +9,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 
 import { refreshExtensions } from "../extensions.ts";
@@ -103,91 +104,95 @@ function ExtensionList() {
     }
 
     return (
-        <ul className="divide-edge-soft flex min-h-0 flex-1 flex-col divide-y overflow-y-auto">
-            {rows.map((row) => {
-                const problem = failure?.name === row.name ? failure.message : row.error;
+        <ScrollArea className="min-h-0 flex-1">
+            <ul className="divide-edge-soft flex flex-col divide-y">
+                {rows.map((row) => {
+                    const problem = failure?.name === row.name ? failure.message : row.error;
 
-                return (
-                    <li key={row.name} className="px-3 py-2.5">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 flex-col gap-0.5">
-                                {hasExtensionDetails(row.name) ? (
-                                    <button
-                                        type="button"
-                                        aria-expanded={expanded.has(row.name)}
-                                        aria-controls={`${row.name}-details`}
-                                        className="text-interface text-ink focus-visible:ring-accent flex items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2"
-                                        onClick={() =>
-                                            setExpanded((current) => {
-                                                const next = new Set(current);
-                                                if (next.has(row.name)) {
-                                                    next.delete(row.name);
-                                                } else {
-                                                    next.add(row.name);
-                                                }
-                                                return next;
-                                            })
-                                        }
-                                    >
-                                        <ChevronDown
-                                            className={`size-3 shrink-0 transition-transform ${expanded.has(row.name) ? "" : "-rotate-90"}`}
-                                        />
-                                        {row.title}
-                                    </button>
-                                ) : (
-                                    <span className="text-interface text-ink">{row.title}</span>
-                                )}
-                                {row.description === "" ? null : (
-                                    <span
-                                        id={`${row.name}-description`}
-                                        className="text-meta text-muted"
-                                    >
-                                        {row.description}
-                                    </span>
-                                )}
-                                {problem === undefined ? null : (
-                                    <span
-                                        id={`${row.name}-problem`}
-                                        role="alert"
-                                        className="text-meta text-danger break-words"
-                                    >
-                                        {problem}
-                                    </span>
-                                )}
-                            </div>
-                            <Switch
-                                checked={row.enabled}
-                                aria-label={`Enable ${row.title}`}
-                                aria-describedby={
-                                    [
-                                        row.description === ""
-                                            ? undefined
-                                            : `${row.name}-description`,
-                                        problem === undefined ? undefined : `${row.name}-problem`,
-                                    ]
-                                        .filter((id) => id !== undefined)
-                                        .join(" ") || undefined
-                                }
-                                onCheckedChange={(enabled) => {
-                                    void toggle(row, enabled);
-                                }}
-                            />
-                        </div>
-                        {hasExtensionDetails(row.name) && expanded.has(row.name) ? (
-                            <div
-                                id={`${row.name}-details`}
-                                className="border-edge-soft mt-3 border-t pt-3"
-                            >
-                                <ExtensionDetails
-                                    folder={row.name}
-                                    enabled={row.enabled}
-                                    installed={row.installed}
+                    return (
+                        <li key={row.name} className="px-3 py-2.5">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 flex-col gap-0.5">
+                                    {hasExtensionDetails(row.name) ? (
+                                        <button
+                                            type="button"
+                                            aria-expanded={expanded.has(row.name)}
+                                            aria-controls={`${row.name}-details`}
+                                            className="text-interface text-ink focus-visible:ring-accent flex items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2"
+                                            onClick={() =>
+                                                setExpanded((current) => {
+                                                    const next = new Set(current);
+                                                    if (next.has(row.name)) {
+                                                        next.delete(row.name);
+                                                    } else {
+                                                        next.add(row.name);
+                                                    }
+                                                    return next;
+                                                })
+                                            }
+                                        >
+                                            <ChevronDown
+                                                className={`size-3 shrink-0 transition-transform ${expanded.has(row.name) ? "" : "-rotate-90"}`}
+                                            />
+                                            {row.title}
+                                        </button>
+                                    ) : (
+                                        <span className="text-interface text-ink">{row.title}</span>
+                                    )}
+                                    {row.description === "" ? null : (
+                                        <span
+                                            id={`${row.name}-description`}
+                                            className="text-meta text-muted"
+                                        >
+                                            {row.description}
+                                        </span>
+                                    )}
+                                    {problem === undefined ? null : (
+                                        <span
+                                            id={`${row.name}-problem`}
+                                            role="alert"
+                                            className="text-meta text-danger break-words"
+                                        >
+                                            {problem}
+                                        </span>
+                                    )}
+                                </div>
+                                <Switch
+                                    checked={row.enabled}
+                                    aria-label={`Enable ${row.title}`}
+                                    aria-describedby={
+                                        [
+                                            row.description === ""
+                                                ? undefined
+                                                : `${row.name}-description`,
+                                            problem === undefined
+                                                ? undefined
+                                                : `${row.name}-problem`,
+                                        ]
+                                            .filter((id) => id !== undefined)
+                                            .join(" ") || undefined
+                                    }
+                                    onCheckedChange={(enabled) => {
+                                        void toggle(row, enabled);
+                                    }}
                                 />
                             </div>
-                        ) : null}
-                    </li>
-                );
-            })}
-        </ul>
+                            {hasExtensionDetails(row.name) && expanded.has(row.name) ? (
+                                <div
+                                    id={`${row.name}-details`}
+                                    className="border-edge-soft mt-3 border-t pt-3"
+                                >
+                                    <ExtensionDetails
+                                        folder={row.name}
+                                        enabled={row.enabled}
+                                        installed={row.installed}
+                                    />
+                                </div>
+                            ) : null}
+                        </li>
+                    );
+                })}
+            </ul>
+        </ScrollArea>
     );
 }

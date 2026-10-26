@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
@@ -139,14 +140,16 @@ function Mark({ tone, tool }: { tone: StepStatus | "thought"; tool?: string }) {
 
 function Pre({ children, tone }: { children: string; tone?: "danger" }) {
     return (
-        <pre
-            className={cn(
-                "rounded-control bg-sunken text-meta max-h-72 overflow-auto px-2.5 py-2 font-mono whitespace-pre-wrap break-all",
-                tone === "danger" ? "text-danger" : "text-muted",
-            )}
-        >
-            {children}
-        </pre>
+        <ScrollArea className="rounded-control bg-sunken" viewportProps={{ className: "max-h-72" }}>
+            <pre
+                className={cn(
+                    "text-meta px-2.5 py-2 font-mono whitespace-pre-wrap break-all",
+                    tone === "danger" ? "text-danger" : "text-muted",
+                )}
+            >
+                {children}
+            </pre>
+        </ScrollArea>
     );
 }
 

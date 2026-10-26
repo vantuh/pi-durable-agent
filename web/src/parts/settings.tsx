@@ -1,5 +1,7 @@
 import { X } from "lucide-react";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { useSettingsSections } from "../extensions.ts";
 import type { SettingsProps } from "../sdk/types.ts";
 import { AppearanceButton } from "./appearance-dialog.tsx";
@@ -30,22 +32,24 @@ export function Settings({ model, cwd, session, onClose }: Props) {
                 </button>
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
-                <section className="flex flex-col gap-1.5">
-                    <h3 className="text-meta text-faint">Session</h3>
-                    <Row label="model" value={model} />
-                    <Row label="folder" value={cwd} />
-                </section>
-
-                {sections.map(({ folder, id, title, component: Section }) => (
-                    <section key={`${folder}:${id}`} className="flex flex-col gap-1.5">
-                        <h3 className="text-meta text-faint">{title}</h3>
-                        <ItemBoundary name={`${folder}:${id}`}>
-                            <Section session={session} />
-                        </ItemBoundary>
+            <ScrollArea className="min-h-0 flex-1">
+                <div className="flex flex-col gap-4 p-3">
+                    <section className="flex flex-col gap-1.5">
+                        <h3 className="text-meta text-faint">Session</h3>
+                        <Row label="model" value={model} />
+                        <Row label="folder" value={cwd} />
                     </section>
-                ))}
-            </div>
+
+                    {sections.map(({ folder, id, title, component: Section }) => (
+                        <section key={`${folder}:${id}`} className="flex flex-col gap-1.5">
+                            <h3 className="text-meta text-faint">{title}</h3>
+                            <ItemBoundary name={`${folder}:${id}`}>
+                                <Section session={session} />
+                            </ItemBoundary>
+                        </section>
+                    ))}
+                </div>
+            </ScrollArea>
 
             <footer className="border-edge-soft flex items-center gap-1 border-t px-3 py-2">
                 <ExtensionsButton />

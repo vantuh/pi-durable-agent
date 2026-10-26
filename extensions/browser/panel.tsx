@@ -17,6 +17,7 @@ import {
     useState,
 } from "react";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
 
@@ -321,23 +322,30 @@ function Console({ id, count }: { id: number | null; count: number }) {
     }, [id, count]);
 
     return (
-        <div className="border-edge-soft text-meta max-h-40 shrink-0 overflow-y-auto border-t p-2 font-mono">
-            {lines.length === 0 ? <span className="text-faint">The console is empty.</span> : null}
-            {lines.map((line) => (
-                <div
-                    key={line.seq}
-                    className={
-                        line.level === "error"
-                            ? "text-danger"
-                            : line.level === "warning"
-                              ? "text-warn"
-                              : "text-muted"
-                    }
-                >
-                    {line.level === "nav" ? `— ${line.text}` : line.text}
-                </div>
-            ))}
-        </div>
+        <ScrollArea
+            className="border-edge-soft shrink-0 border-t"
+            viewportProps={{ className: "max-h-40" }}
+        >
+            <div className="text-meta p-2 font-mono">
+                {lines.length === 0 ? (
+                    <span className="text-faint">The console is empty.</span>
+                ) : null}
+                {lines.map((line) => (
+                    <div
+                        key={line.seq}
+                        className={
+                            line.level === "error"
+                                ? "text-danger"
+                                : line.level === "warning"
+                                  ? "text-warn"
+                                  : "text-muted"
+                        }
+                    >
+                        {line.level === "nav" ? `— ${line.text}` : line.text}
+                    </div>
+                ))}
+            </div>
+        </ScrollArea>
     );
 }
 

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, useEffect, useState } from "react";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import {
     DropdownMenu,
@@ -309,7 +311,10 @@ export function Sessions({
                 </button>
 
                 {open ? (
-                    <div className="rounded-card border-edge-soft bg-panel absolute inset-x-1.5 top-full z-10 mt-1 max-h-72 overflow-y-auto border p-1 shadow-lg">
+                    <ScrollArea
+                        className="rounded-card border-edge-soft bg-panel absolute inset-x-1.5 top-full z-10 mt-1 border shadow-lg"
+                        viewportProps={{ className: "max-h-72 p-1" }}
+                    >
                         {[...folders].map(([cwd, count]) => (
                             <button
                                 key={cwd}
@@ -334,7 +339,7 @@ export function Sessions({
                                 <span className="text-faint text-meta">{count}</span>
                             </button>
                         ))}
-                    </div>
+                    </ScrollArea>
                 ) : null}
             </div>
 
@@ -353,105 +358,107 @@ export function Sessions({
                     {archived ? <ArrowLeft className="size-4" /> : <Archive className="size-4" />}
                 </button>
             </div>
-            <nav className="min-h-0 flex-1 overflow-y-auto p-1.5">
-                {shown.length === 0 ? (
-                    <p className="text-meta text-faint px-2 py-3">
-                        {archived ? "No archived sessions" : "No sessions"}
-                    </p>
-                ) : null}
-                {GROUPS.map((group) => {
-                    const rows = shown.filter(
-                        (session) => groupOf(session.activeAt, now) === group,
-                    );
+            <ScrollArea className="min-h-0 flex-1">
+                <nav className="p-1.5">
+                    {shown.length === 0 ? (
+                        <p className="text-meta text-faint px-2 py-3">
+                            {archived ? "No archived sessions" : "No sessions"}
+                        </p>
+                    ) : null}
+                    {GROUPS.map((group) => {
+                        const rows = shown.filter(
+                            (session) => groupOf(session.activeAt, now) === group,
+                        );
 
-                    if (rows.length === 0) {
-                        return null;
-                    }
+                        if (rows.length === 0) {
+                            return null;
+                        }
 
-                    return (
-                        <div key={group}>
-                            <div className="text-faint text-meta px-2 py-1.5">
-                                {group} {rows.length}
-                            </div>
-
-                            {rows.map((session) => (
-                                <div
-                                    key={session.id}
-                                    className={`session-row group rounded-control relative flex items-center ${session.id === current ? "bg-raised" : "hover:bg-raised/50"}`}
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            onSelect(session.id);
-                                        }}
-                                        className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
-                                    >
-                                        <span
-                                            role={session.busy ? "status" : undefined}
-                                            aria-label={session.busy ? "Working" : undefined}
-                                            className={`state-mark ${session.busy ? "working text-accent" : "idle text-faint"}`}
-                                        />
-                                        <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
-                                            {session.title ?? "New session"}
-                                        </span>
-                                        <span className="session-time text-faint text-meta min-w-7 shrink-0 text-right">
-                                            {session.activeAt === null
-                                                ? null
-                                                : ago(session.activeAt, now)}
-                                        </span>
-                                    </button>
-                                    <DropdownMenu modal={false}>
-                                        <DropdownMenuTrigger asChild>
-                                            <button
-                                                type="button"
-                                                aria-label={`Actions for ${session.title ?? "New session"}`}
-                                                title="Session actions"
-                                                className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center"
-                                            >
-                                                <MoreHorizontal className="size-4" />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align="end"
-                                            onCloseAutoFocus={(event) => {
-                                                event.preventDefault();
-                                            }}
-                                        >
-                                            <DropdownMenuItem
-                                                onSelect={() => {
-                                                    setRenaming({
-                                                        id: session.id,
-                                                        name: session.title ?? "",
-                                                    });
-                                                }}
-                                            >
-                                                <Pencil />
-                                                Rename
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                disabled={pending}
-                                                onSelect={() => {
-                                                    void changeArchive(
-                                                        session.id,
-                                                        !session.archived,
-                                                    );
-                                                }}
-                                            >
-                                                {session.archived ? (
-                                                    <ArchiveRestore />
-                                                ) : (
-                                                    <Archive />
-                                                )}
-                                                {session.archived ? "Restore" : "Archive"}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                        return (
+                            <div key={group}>
+                                <div className="text-faint text-meta px-2 py-1.5">
+                                    {group} {rows.length}
                                 </div>
-                            ))}
-                        </div>
-                    );
-                })}
-            </nav>
+
+                                {rows.map((session) => (
+                                    <div
+                                        key={session.id}
+                                        className={`session-row group rounded-control relative flex items-center ${session.id === current ? "bg-raised" : "hover:bg-raised/50"}`}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onSelect(session.id);
+                                            }}
+                                            className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
+                                        >
+                                            <span
+                                                role={session.busy ? "status" : undefined}
+                                                aria-label={session.busy ? "Working" : undefined}
+                                                className={`state-mark ${session.busy ? "working text-accent" : "idle text-faint"}`}
+                                            />
+                                            <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
+                                                {session.title ?? "New session"}
+                                            </span>
+                                            <span className="session-time text-faint text-meta min-w-7 shrink-0 text-right">
+                                                {session.activeAt === null
+                                                    ? null
+                                                    : ago(session.activeAt, now)}
+                                            </span>
+                                        </button>
+                                        <DropdownMenu modal={false}>
+                                            <DropdownMenuTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    aria-label={`Actions for ${session.title ?? "New session"}`}
+                                                    title="Session actions"
+                                                    className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center"
+                                                >
+                                                    <MoreHorizontal className="size-4" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                                align="end"
+                                                onCloseAutoFocus={(event) => {
+                                                    event.preventDefault();
+                                                }}
+                                            >
+                                                <DropdownMenuItem
+                                                    onSelect={() => {
+                                                        setRenaming({
+                                                            id: session.id,
+                                                            name: session.title ?? "",
+                                                        });
+                                                    }}
+                                                >
+                                                    <Pencil />
+                                                    Rename
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    disabled={pending}
+                                                    onSelect={() => {
+                                                        void changeArchive(
+                                                            session.id,
+                                                            !session.archived,
+                                                        );
+                                                    }}
+                                                >
+                                                    {session.archived ? (
+                                                        <ArchiveRestore />
+                                                    ) : (
+                                                        <Archive />
+                                                    )}
+                                                    {session.archived ? "Restore" : "Archive"}
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
+                </nav>
+            </ScrollArea>
 
             {renaming === null ? null : (
                 <form
