@@ -11,7 +11,40 @@ const MODES: { mode: SendMode; label: string; hint: string }[] = [
     { mode: "interrupt", label: "Interrupt", hint: "stop the run now, then send" },
 ];
 
+// Unsent text per session, kept while the page lives.
+const drafts = new Map<string, string>();
+
+const HISTORY_KEY = "composer-history";
+const HISTORY_MAX = 100;
+
+function loadHistory(): string[] {
+    try {
+        const parsed: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+
+        return Array.isArray(parsed)
+            ? parsed.filter((item): item is string => typeof item === "string")
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+function remember(text: string): void {
+    const past = loadHistory();
+
+    if (past.at(-1) === text) {
+        return;
+    }
+
+    try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify([...past, text].slice(-HISTORY_MAX)));
+    } catch {
+        // History is a convenience; storage may be full or blocked.
+    }
+}
+
 type Props = {
+    sessionId: string;
     busy: boolean;
     queued: ClientQueued[];
     model: string;
@@ -22,7 +55,16 @@ type Props = {
     onStop: () => void;
 };
 
+function forget(gone: Pending[]): void {
+    for (const file of gone) {
+        if (file.preview !== undefined) {
+            URL.revokeObjectURL(file.preview);
+        }
+    }
+}
+
 export function Composer({
+    sessionId,
     busy,
     queued,
     model,
@@ -32,8 +74,10 @@ export function Composer({
     onSend,
     onStop,
 }: Props) {
-    const [text, setText] = useState("");
+    const [text, setText] = useState(() => drafts.get(sessionId) ?? "");
     const [files, setFiles] = useState<Pending[]>([]);
+    // Position in history while browsing with the arrows (null: not browsing) and the draft to come back to.
+    const browse = useRef<{ at: number; draft: string } | null>(null);
     const [mode, setMode] = useState<SendMode>("steer");
     const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
@@ -50,14 +94,6 @@ export function Composer({
     const how = MODES.find((option) => option.mode === mode);
     const uploading = files.some((file) => file.state === "uploading");
     const empty = text.trim() === "" && files.length === 0;
-
-    const forget = (gone: Pending[]): void => {
-        for (const file of gone) {
-            if (file.preview !== undefined) {
-                URL.revokeObjectURL(file.preview);
-            }
-        }
-    };
 
     // Each file shows at once as uploading and settles on its own: done with a path, or failed.
     const addFiles = (chosen: File[]): void => {
@@ -111,6 +147,9 @@ export function Composer({
             return;
         }
 
+        remember(body);
+        drafts.delete(sessionId);
+        browse.current = null;
         setText("");
         forget(files);
         setFiles([]);
@@ -172,9 +211,67 @@ export function Composer({
                     }
                     className="text-prose text-ink placeholder:text-faint block [field-sizing:content] max-h-[10lh] min-h-[2lh] w-full resize-none overflow-y-auto bg-transparent outline-none"
                     onChange={(event) => {
-                        setText(event.target.value);
+                        const value = event.target.value;
+
+                        browse.current = null;
+                        drafts.set(sessionId, value);
+                        setText(value);
                     }}
                     onKeyDown={(event) => {
+                        const up = event.key === "ArrowUp";
+                        const down = event.key === "ArrowDown";
+
+                        if (
+                            (up || down) &&
+                            !event.shiftKey &&
+                            !event.altKey &&
+                            !event.ctrlKey &&
+                            !event.metaKey &&
+                            !event.nativeEvent.isComposing
+                        ) {
+                            const box = event.currentTarget;
+                            const { selectionStart, selectionEnd, value } = box;
+                            const collapsed = selectionStart === selectionEnd;
+                            // Only leave the text when the caret is on its first (up) or last (down) line.
+                            const edge = up
+                                ? !value.slice(0, selectionStart).includes("\n")
+                                : !value.slice(selectionEnd).includes("\n");
+
+                            if (collapsed && edge) {
+                                const past = loadHistory();
+                                const state = browse.current;
+                                let next: string | undefined;
+
+                                if (up && past.length > 0) {
+                                    const at = state === null ? past.length - 1 : state.at - 1;
+
+                                    if (at >= 0) {
+                                        browse.current = { at, draft: state?.draft ?? value };
+                                        next = past[at];
+                                    }
+                                } else if (down && state !== null) {
+                                    if (state.at + 1 < past.length) {
+                                        browse.current = { ...state, at: state.at + 1 };
+                                        next = past[state.at + 1];
+                                    } else {
+                                        browse.current = null;
+                                        next = state.draft;
+                                    }
+                                }
+
+                                if (next !== undefined) {
+                                    event.preventDefault();
+                                    setText(next);
+                                    // Put the caret at the end once React has applied the text.
+                                    requestAnimationFrame(() => {
+                                        box.setSelectionRange(next.length, next.length);
+                                    });
+                                } else if (up || state !== null) {
+                                    event.preventDefault();
+                                }
+                            }
+                        }
+
                         if (event.key === "Enter" && !event.shiftKey) {
                             event.preventDefault();
                             submit();

@@ -207,6 +207,8 @@ export function App() {
                         ) : null}
 
                         <Composer
+                            key={current}
+                            sessionId={String(current)}
                             busy={state.live.busy}
                             queued={state.live.queued ?? []}
                             model={model}
