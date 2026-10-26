@@ -21,6 +21,8 @@ import { Settings } from "./parts/settings.tsx";
 import { StatusBar } from "./parts/status-bar.tsx";
 import { Transcript } from "./parts/transcript.tsx";
 
+const SESSION_KEY = "session";
+
 function shortName(model: string | null): string {
     if (model === null) {
         return "";
@@ -56,13 +58,21 @@ export function App() {
 
             setHealth(info);
             setSessions(rows);
-            setCurrent(rows[0]?.id ?? info?.session ?? null);
+            const saved = rows.find((row) => String(row.id) === localStorage.getItem(SESSION_KEY));
+
+            setCurrent(saved?.id ?? rows[0]?.id ?? info?.session ?? null);
         })();
 
         return () => {
             alive = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (current !== null) {
+            localStorage.setItem(SESSION_KEY, String(current));
+        }
+    }, [current]);
 
     const reload = async (): Promise<void> => {
         setSessions(await listSessions());
