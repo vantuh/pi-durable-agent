@@ -65,6 +65,21 @@ function Field({ field }: { field: ClientStatus }) {
     );
 }
 
+/** 394, 1.2k, 10.9k, 250k, 1.5M: one decimal while it still says something. */
+function compact(count: number): string {
+    const trim = (value: number): string => value.toFixed(1).replace(/\.0$/, "");
+
+    if (count >= 1_000_000) {
+        return `${trim(count / 1_000_000)}M`;
+    }
+
+    if (count >= 100_000) {
+        return `${String(Math.round(count / 1000))}k`;
+    }
+
+    return count >= 1000 ? `${trim(count / 1000)}k` : String(count);
+}
+
 function money(cost: number): string {
     return cost === 0 ? "$0" : `$${cost.toFixed(3)}`;
 }
@@ -111,8 +126,11 @@ export function StatusBar({ connected, cwd, home, branch, usage, status, busy, i
                 {at("end").map((field) => (
                     <Field key={field.source} field={field} />
                 ))}
-                <span className="text-faint shrink-0 font-mono">
-                    ↑{usage.input} ↓{usage.output} · {money(usage.cost)}
+                <span
+                    title={`${String(usage.input)} tokens in, ${String(usage.output)} out`}
+                    className="text-faint shrink-0 font-mono"
+                >
+                    ↑{compact(usage.input)} ↓{compact(usage.output)} · {money(usage.cost)}
                 </span>
             </div>
         </footer>
