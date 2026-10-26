@@ -290,7 +290,9 @@ export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onCl
                                     }`}
                                 >
                                     <span
-                                        className={`size-2 shrink-0 rounded-full ${session.busy ? "bg-warn" : "bg-faint"}`}
+                                        role={session.busy ? "status" : undefined}
+                                        aria-label={session.busy ? "Working" : undefined}
+                                        className={`state-mark ${session.busy ? "working text-accent" : "idle text-faint"}`}
                                     />
                                     <span className="text-interface text-ink min-w-0 flex-1 truncate">
                                         {session.title ?? "New session"}
