@@ -87,6 +87,8 @@ export default function subscription(host: Host) {
         version,
         source: configured === undefined || configured === "" ? "default" : "environment",
         transportVersion: null,
+        learnedFloor: null,
+        lastRetry: "none",
         versionError: null,
         last: null,
     };

@@ -64,11 +64,25 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                     ? "Default"
                                     : state.source === "environment"
                                       ? "Environment variable"
-                                      : "Pi transport"}
+                                      : state.source === "transport"
+                                        ? "Pi transport"
+                                        : "Required by Anthropic"}
                             </dd>
                             <dt className="text-faint">Pi User-Agent version</dt>
                             <dd className="text-muted text-right font-mono">
                                 {state.transportVersion ?? "Not observed yet"}
+                            </dd>
+                            <dt className="text-faint">Learned minimum</dt>
+                            <dd className="text-muted text-right font-mono">
+                                {state.learnedFloor ?? "None"}
+                            </dd>
+                            <dt className="text-faint">Version retry</dt>
+                            <dd className="text-muted text-right">
+                                {state.lastRetry === "none"
+                                    ? "Not attempted"
+                                    : state.lastRetry === "recovered"
+                                      ? "Recovered"
+                                      : "Failed"}
                             </dd>
                             <dt className="text-faint">Last request</dt>
                             <dd className="text-muted text-right">

@@ -50,15 +50,18 @@ export function oauthTransport(
                 /\/messages\/?$/.test(new URL(request.url).pathname)
             ) {
                 const transportVersion = cliVersion(request);
+                const baseVersion = higherVersion(configured.version, transportVersion);
                 const version = configured.override
                     ? configured.version
-                    : higherVersion(configured.version, transportVersion);
+                    : higherVersion(baseVersion, state.learnedFloor ?? undefined);
                 state.version = version;
                 state.source = configured.override
                     ? "environment"
                     : version === configured.version
                       ? "default"
-                      : "transport";
+                      : version === baseVersion
+                        ? "transport"
+                        : "server-required";
                 state.transportVersion = transportVersion ?? null;
                 const payload = await payloadOf(request);
                 const shaped = shape(payload, version);
@@ -79,18 +82,62 @@ export function oauthTransport(
                         : "applied";
                 state.last = { outcome, provider: model.provider, at: Date.now() };
                 state.versionError = null;
-                const response = await (shaped === undefined
+                state.lastRetry = "none";
+                const replay = shaped === undefined ? undefined : withPayload(request, shaped);
+                const response = await (replay === undefined
                     ? next(input, init)
-                    : next(withPayload(request, shaped)));
+                    : next(replay.clone()));
                 const rejection = await readVersionRejection(response);
-                return rejection === undefined
-                    ? response
-                    : hintedResponse(
-                          response,
-                          rejection,
-                          recoveryHint(rejection.requiredVersion, configured.override, version),
-                          state,
-                      );
+                if (rejection === undefined) {
+                    return response;
+                }
+                const required = rejection.requiredVersion;
+                if (!configured.override && required !== null) {
+                    state.learnedFloor = higherVersion(
+                        state.learnedFloor ?? configured.version,
+                        required,
+                    );
+                }
+                if (
+                    !configured.override &&
+                    required !== null &&
+                    higherVersion(version, required) !== version &&
+                    replay !== undefined &&
+                    !request.signal.aborted
+                ) {
+                    const retryPayload = shape(payload, required);
+                    if (retryPayload !== undefined) {
+                        await response.body?.cancel();
+                        state.version = required;
+                        state.source = "server-required";
+                        state.lastRetry = "failed";
+                        // Exactly one replay of a rejected request; never retry success, network errors or other HTTP errors.
+                        const retried = await next(withPayload(replay, retryPayload));
+                        const second = await readVersionRejection(retried);
+                        if (second === undefined) {
+                            state.lastRetry = retried.ok ? "recovered" : "failed";
+                            return retried;
+                        }
+                        if (second.requiredVersion !== null) {
+                            state.learnedFloor = higherVersion(
+                                state.learnedFloor ?? required,
+                                second.requiredVersion,
+                            );
+                        }
+                        return hintedResponse(
+                            retried,
+                            second,
+                            recoveryHint(second.requiredVersion, false, required),
+                            state,
+                        );
+                    }
+                }
+                return hintedResponse(
+                    response,
+                    rejection,
+                    recoveryHint(required, configured.override, version),
+                    state,
+                );
             }
         }
         state.last = { outcome, provider: model.provider, at: Date.now() };

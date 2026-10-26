@@ -31,6 +31,8 @@ void test("only the structured version error is explained, preserving error and 
         version: "2.1.280",
         source: "default",
         transportVersion: null,
+        learnedFloor: null,
+        lastRetry: "none",
         versionError: null,
         last: null,
     };

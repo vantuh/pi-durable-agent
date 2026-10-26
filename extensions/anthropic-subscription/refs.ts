@@ -10,7 +10,9 @@ export type ShapeOutcome =
 export type VersionError = { requiredVersion: string | null; hint: string; at: number };
 export type Diagnostics = {
     version: string;
-    source: "default" | "environment" | "transport";
+    source: "default" | "environment" | "transport" | "server-required";
+    learnedFloor: string | null;
+    lastRetry: "none" | "recovered" | "failed";
     transportVersion: string | null;
     versionError: VersionError | null;
     last: { outcome: ShapeOutcome; provider: string; at: number } | null;
@@ -56,18 +58,37 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         const source: unknown = Reflect.get(value, "source");
         const last: unknown = Reflect.get(value, "last");
         const versionError = parseVersionError(Reflect.get(value, "versionError"));
+        const learnedFloor: unknown = Reflect.get(value, "learnedFloor") ?? null;
+        const lastRetry: unknown = Reflect.get(value, "lastRetry") ?? "none";
+        if (learnedFloor !== null && typeof learnedFloor !== "string") {
+            throw new Error("Invalid learned floor");
+        }
+        if (lastRetry !== "none" && lastRetry !== "recovered" && lastRetry !== "failed") {
+            throw new Error("Invalid retry status");
+        }
         const transportVersion: unknown = Reflect.get(value, "transportVersion") ?? null;
         if (transportVersion !== null && typeof transportVersion !== "string") {
             throw new Error("Invalid transport version");
         }
         if (
             typeof version !== "string" ||
-            (source !== "default" && source !== "environment" && source !== "transport")
+            (source !== "default" &&
+                source !== "environment" &&
+                source !== "transport" &&
+                source !== "server-required")
         ) {
             throw new Error("Invalid diagnostics version");
         }
         if (last === null) {
-            return { version, source, transportVersion, versionError, last };
+            return {
+                version,
+                source,
+                learnedFloor,
+                lastRetry,
+                transportVersion,
+                versionError,
+                last,
+            };
         }
         if (typeof last !== "object") {
             throw new Error("Invalid last request");
@@ -93,6 +114,8 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
             version,
             source,
             transportVersion,
+            learnedFloor,
+            lastRetry,
             versionError,
             last: { outcome: checked, provider, at },
         };
