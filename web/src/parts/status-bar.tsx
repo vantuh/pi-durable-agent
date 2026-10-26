@@ -43,10 +43,12 @@ function Field({ field }: { field: ClientStatus }) {
     return (
         <span
             title={field.title}
-            className={`text-faint shrink-0 items-center gap-1.5 font-mono ${field.slot === "center" ? "flex" : "hidden sm:flex"}`}
+            className={`text-faint shrink-0 items-center gap-1.5 font-mono ${field.slot === "end" ? "hidden sm:flex" : "flex"}`}
         >
             {field.label === undefined ? null : (
-                <span className="hidden sm:inline">{field.label}</span>
+                <span className={field.slot === "center" ? "hidden sm:inline" : ""}>
+                    {field.label}
+                </span>
             )}
             {field.meter === undefined ? null : (
                 <span className="bg-raised flex h-1 w-9 overflow-hidden rounded-full">

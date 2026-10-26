@@ -51,7 +51,7 @@ export const status: StatusProvider = ({ entries, contextWindow }) => ({
 
 The field may name a `slot` (`start`: after folder and branch, `center`, or `end`, the default), a
 `label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
-model's window from the catalog. Below `sm` only `center` fields are drawn.
+model's window from the catalog. Below `sm`, `end` fields are hidden and a `center` field loses its label.
 `extensions/context-meter` is the example for `center` with a meter.
 
 The field travels in `live.status` of the event stream, keyed by the folder's name. The core knows no
