@@ -1,11 +1,28 @@
-import { ChevronDown, Folder, Plus, X } from "lucide-react";
+import {
+    Archive,
+    ArchiveRestore,
+    ArrowLeft,
+    ChevronDown,
+    Folder,
+    MoreHorizontal,
+    Plus,
+    X,
+} from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, useEffect, useState } from "react";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu.tsx";
+import { toast } from "../lib/toast.ts";
 
 type Props = {
     sessions: SessionSummary[];
     current: number | null;
+    onArchive: (id: number, archived: boolean) => Promise<void>;
     onSelect: (id: number) => void;
     /** A folder was picked in the filter: show its latest session, keeping the list open. */
     onFolder: (id: number) => void;
@@ -161,6 +178,7 @@ export function Sessions({
     sessions,
     current,
     onSelect,
+    onArchive,
     onFolder,
     onNew,
     open: sheet,
@@ -168,6 +186,32 @@ export function Sessions({
 }: Props) {
     const active = sessions.find((session) => session.id === current);
     const [open, setOpen] = useState(false);
+    const [archived, setArchived] = useState(false);
+    const [pending, setPending] = useState(false);
+    const changeArchive = async (id: number, value: boolean): Promise<void> => {
+        setPending(true);
+        try {
+            await onArchive(id, value);
+            toast.success(value ? "Session archived" : "Session restored", {
+                id: `archive-${String(id)}`,
+                duration: 4000,
+                action: {
+                    label: "Undo",
+                    onClick: () => {
+                        toast.promise(onArchive(id, !value), {
+                            loading: "Undoing…",
+                            success: value ? "Session restored" : "Session archived",
+                            error: "Could not undo. Please try again.",
+                        });
+                    },
+                },
+            });
+        } catch {
+            toast.error("Could not update the archive. Please try again.");
+        } finally {
+            setPending(false);
+        }
+    };
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
@@ -198,7 +242,7 @@ export function Sessions({
             .filter((session) => session.cwd === cwd)
             .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
 
-    const shown = latest(folder);
+    const shown = latest(folder).filter((session) => session.archived === archived);
 
     return (
         <aside
@@ -273,7 +317,27 @@ export function Sessions({
                 ) : null}
             </div>
 
+            <div className="flex items-center justify-between px-3 pt-2">
+                <span className="text-meta text-muted">{archived ? "Archive" : "Sessions"}</span>
+                <button
+                    type="button"
+                    title={archived ? "Back to sessions" : "Show archived sessions"}
+                    aria-label={archived ? "Back to sessions" : "Show archived sessions"}
+                    aria-pressed={archived}
+                    onClick={() => {
+                        setArchived(!archived);
+                    }}
+                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 items-center justify-center"
+                >
+                    {archived ? <ArrowLeft className="size-4" /> : <Archive className="size-4" />}
+                </button>
+            </div>
             <nav className="min-h-0 flex-1 overflow-y-auto p-1.5">
+                {shown.length === 0 ? (
+                    <p className="text-meta text-faint px-2 py-3">
+                        {archived ? "No archived sessions" : "No sessions"}
+                    </p>
+                ) : null}
                 {GROUPS.map((group) => {
                     const rows = shown.filter(
                         (session) => groupOf(session.activeAt, now) === group,
@@ -290,30 +354,62 @@ export function Sessions({
                             </div>
 
                             {rows.map((session) => (
-                                <button
+                                <div
                                     key={session.id}
-                                    type="button"
-                                    onClick={() => {
-                                        onSelect(session.id);
-                                    }}
-                                    className={`rounded-control flex w-full items-center gap-2 px-2 py-2 text-left ${
-                                        session.id === current ? "bg-raised" : "hover:bg-raised/50"
-                                    }`}
+                                    className={`session-row group rounded-control relative flex items-center ${session.id === current ? "bg-raised" : "hover:bg-raised/50"}`}
                                 >
-                                    <span
-                                        role={session.busy ? "status" : undefined}
-                                        aria-label={session.busy ? "Working" : undefined}
-                                        className={`state-mark ${session.busy ? "working text-accent" : "idle text-faint"}`}
-                                    />
-                                    <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
-                                        {session.title ?? "New session"}
-                                    </span>
-                                    {session.activeAt === null ? null : (
-                                        <span className="text-faint text-meta shrink-0">
-                                            {ago(session.activeAt, now)}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onSelect(session.id);
+                                        }}
+                                        className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
+                                    >
+                                        <span
+                                            role={session.busy ? "status" : undefined}
+                                            aria-label={session.busy ? "Working" : undefined}
+                                            className={`state-mark ${session.busy ? "working text-accent" : "idle text-faint"}`}
+                                        />
+                                        <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
+                                            {session.title ?? "New session"}
                                         </span>
-                                    )}
-                                </button>
+                                        <span className="session-time text-faint text-meta min-w-7 shrink-0 text-right">
+                                            {session.activeAt === null
+                                                ? null
+                                                : ago(session.activeAt, now)}
+                                        </span>
+                                    </button>
+                                    <DropdownMenu modal={false}>
+                                        <DropdownMenuTrigger asChild>
+                                            <button
+                                                type="button"
+                                                aria-label={`Actions for ${session.title ?? "New session"}`}
+                                                title="Session actions"
+                                                className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center"
+                                            >
+                                                <MoreHorizontal className="size-4" />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                                disabled={pending}
+                                                onSelect={() => {
+                                                    void changeArchive(
+                                                        session.id,
+                                                        !session.archived,
+                                                    );
+                                                }}
+                                            >
+                                                {session.archived ? (
+                                                    <ArchiveRestore />
+                                                ) : (
+                                                    <Archive />
+                                                )}
+                                                {session.archived ? "Restore" : "Archive"}
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             ))}
                         </div>
                     );

@@ -95,11 +95,20 @@ export async function listSessions(): Promise<SessionSummary[]> {
             model: typeof row?.["model"] === "string" ? row["model"] : null,
             thinkingLevel: typeof row?.["thinkingLevel"] === "string" ? row["thinkingLevel"] : null,
             busy: row?.["busy"] === true,
+            archived: row?.["archived"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
         });
     }
 
     return rows;
+}
+
+export async function setSessionArchived(session: number, archived: boolean): Promise<void> {
+    await json("/api/sessions/archive", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session, archived }),
+    });
 }
 
 export async function createSession(cwd: string): Promise<number> {

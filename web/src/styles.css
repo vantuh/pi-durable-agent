@@ -252,3 +252,35 @@ body {
         animation: none;
     }
 }
+
+/* Time and actions share one slot; touch screens always show the actions. */
+.session-time {
+    visibility: hidden;
+}
+@media (hover: hover) and (pointer: fine) {
+    .session-time {
+        visibility: visible;
+    }
+    .session-actions {
+        opacity: 0;
+    }
+    .session-row:hover .session-actions,
+    .session-row:focus-within .session-actions,
+    .session-actions[data-state="open"] {
+        opacity: 1;
+    }
+    .session-row:hover .session-time,
+    .session-row:focus-within .session-time,
+    .session-row:has(.session-actions[data-state="open"]) .session-time {
+        visibility: hidden;
+    }
+}
+
+/* Sonner supplies motion and layout; focus and typography use the app theme too. */
+[data-sonner-toaster] .app-toast {
+    font-family: inherit;
+}
+[data-sonner-toaster] .app-toast:focus-visible {
+    outline: 2px solid var(--role-accent);
+    box-shadow: none;
+}

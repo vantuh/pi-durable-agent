@@ -26,6 +26,17 @@ const ClockDoc = defineDoc({
     checkpointWhen: () => true,
 });
 
+/** Sidebar visibility only; archiving never changes the agent's lifecycle. */
+const ArchiveDoc = defineDoc({
+    kind: "app.archive",
+    version: 1,
+    scope: "conversation",
+    history: "latest",
+    fork: "initial",
+    initial: (): { archived: boolean } => ({ archived: false }),
+    checkpointWhen: () => true,
+});
+
 /** The model a new session starts with. Empty strings mean "none chosen": the `MODEL` variable rules. */
 const SettingsDoc = defineDoc({
     kind: "app.settings",
@@ -46,6 +57,7 @@ export type SessionSummary = {
     model: string | null;
     thinkingLevel: string | null;
     busy: boolean;
+    archived: boolean;
     activeAt: number | null;
 };
 
@@ -135,6 +147,12 @@ export class Sessions {
         }, this.#context);
     }
 
+    async setArchived(id: ConversationId, archived: boolean): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(ArchiveDoc, id)).archived = archived;
+        }, this.#context);
+    }
+
     /** The conversation with its state attached, opened once and then kept. */
     async open(id: ConversationId): Promise<Opened | undefined> {
         const known = this.#open.get(id);
@@ -202,6 +220,10 @@ export class Sessions {
                         : `${agent.model.provider}/${agent.model.modelId}`,
                 thinkingLevel: agent.thinkingLevel,
                 busy: busy(record.id),
+                archived: await this.#harness.commit(
+                    async (tx) => (await tx.doc(ArchiveDoc, record.id)).archived,
+                    this.#context,
+                ),
                 activeAt: await this.#activeAt(record.id),
             });
         }

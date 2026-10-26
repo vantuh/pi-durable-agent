@@ -112,6 +112,7 @@ export type ServerEvent = { session: number } & (
 /** One row of the session list. */
 export type SessionSummary = {
     id: number;
+    archived: boolean;
     title: string | null;
     cwd: string | null;
     model: string | null;

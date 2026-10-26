@@ -439,6 +439,33 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
+    if (url.pathname === "/api/sessions/archive" && request.method === "POST") {
+        const payload = record(await body(request));
+        const id = payload?.["session"];
+        const archived = payload?.["archived"];
+
+        if (
+            typeof id !== "number" ||
+            !Number.isSafeInteger(id) ||
+            id <= 0 ||
+            typeof archived !== "boolean"
+        ) {
+            answer(response, 400, { error: "Expected a session id and archived boolean" });
+            return;
+        }
+
+        const opened = await attach(id);
+
+        if (opened === undefined) {
+            answer(response, 404, { error: "Session not found" });
+            return;
+        }
+
+        await sessions.setArchived(opened.id, archived);
+        answer(response, 200, { ok: true });
+        return;
+    }
+
     if (url.pathname === "/api/agent" && request.method === "POST") {
         const payload = record(await body(request));
         const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;

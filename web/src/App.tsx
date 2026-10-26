@@ -10,6 +10,7 @@ import {
     listModels,
     listSessions,
     setAgent,
+    setSessionArchived,
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
@@ -115,6 +116,12 @@ export function App() {
                 <Sessions
                     sessions={sessions}
                     current={current}
+                    onArchive={async (id, archived) => {
+                        await setSessionArchived(id, archived);
+                        setSessions((rows) =>
+                            rows.map((row) => (row.id === id ? { ...row, archived } : row)),
+                        );
+                    }}
                     onSelect={(id) => {
                         setCurrent(id);
                         setSheet(false);

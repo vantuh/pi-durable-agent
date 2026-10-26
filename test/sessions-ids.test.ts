@@ -34,6 +34,8 @@ void describe("Sessions.ids", () => {
                 context: BACKGROUND_CONTEXT,
             });
 
+            const first = await sessions.create(dir);
+
             for (let count = 0; count < 120; count += 1) {
                 await harness.createConversation(
                     { ownership: { kind: "ownerless" }, agent: { model, cwd: dir } },
@@ -41,10 +43,32 @@ void describe("Sessions.ids", () => {
                 );
             }
 
+            assert.equal(
+                (await sessions.list(() => false)).find((row) => row.id === first.id)?.archived,
+                false,
+            );
+            await sessions.setArchived(first.id, true);
+            const reopened = new Sessions({
+                harness,
+                model,
+                cwd: dir,
+                context: BACKGROUND_CONTEXT,
+            });
+            assert.equal(
+                (await reopened.list(() => false)).find((row) => row.id === first.id)?.archived,
+                true,
+            );
+            assert.ok(await reopened.open(first.id), "archived conversations remain accessible");
+            await reopened.setArchived(first.id, false);
+            assert.equal(
+                (await sessions.list(() => false)).find((row) => row.id === first.id)?.archived,
+                false,
+            );
+
             const ids = await sessions.ids();
 
-            assert.equal(ids.length, 120);
-            assert.equal(new Set(ids).size, 120);
+            assert.equal(ids.length, 121);
+            assert.equal(new Set(ids).size, 121);
         } finally {
             await harness.close(BACKGROUND_CONTEXT);
             await rm(dir, { recursive: true, force: true });
