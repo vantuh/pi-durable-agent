@@ -111,6 +111,14 @@ export async function setSessionArchived(session: number, archived: boolean): Pr
     });
 }
 
+export async function setSessionTitle(session: number, title: string): Promise<void> {
+    await json("/api/sessions/title", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session, title }),
+    });
+}
+
 export async function createSession(cwd: string): Promise<number> {
     const body = record(
         await json("/api/sessions", {

@@ -11,6 +11,7 @@ import {
     listSessions,
     setAgent,
     setSessionArchived,
+    setSessionTitle,
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
@@ -121,6 +122,10 @@ export function App() {
                         setSessions((rows) =>
                             rows.map((row) => (row.id === id ? { ...row, archived } : row)),
                         );
+                    }}
+                    onRename={async (id, name) => {
+                        await setSessionTitle(id, name);
+                        setSessions(await listSessions());
                     }}
                     onSelect={(id) => {
                         setCurrent(id);

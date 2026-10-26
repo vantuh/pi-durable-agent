@@ -466,6 +466,33 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
+    if (url.pathname === "/api/sessions/title" && request.method === "POST") {
+        const payload = record(await body(request));
+        const id = payload?.["session"];
+        const title = payload?.["title"];
+
+        if (
+            typeof id !== "number" ||
+            !Number.isSafeInteger(id) ||
+            id <= 0 ||
+            typeof title !== "string"
+        ) {
+            answer(response, 400, { error: "Expected a session id and a title string" });
+            return;
+        }
+
+        const opened = await attach(id);
+
+        if (opened === undefined) {
+            answer(response, 404, { error: "Session not found" });
+            return;
+        }
+
+        await sessions.setTitle(opened.id, title.trim().slice(0, 80));
+        answer(response, 200, { ok: true });
+        return;
+    }
+
     if (url.pathname === "/api/agent" && request.method === "POST") {
         const payload = record(await body(request));
         const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;

@@ -37,6 +37,17 @@ const ArchiveDoc = defineDoc({
     checkpointWhen: () => true,
 });
 
+/** A name chosen by hand. Empty means none: the session is named after its first question. */
+const TitleDoc = defineDoc({
+    kind: "app.title",
+    version: 1,
+    scope: "conversation",
+    history: "latest",
+    fork: "initial",
+    initial: (): { title: string } => ({ title: "" }),
+    checkpointWhen: () => true,
+});
+
 /** The model a new session starts with. Empty strings mean "none chosen": the `MODEL` variable rules. */
 const SettingsDoc = defineDoc({
     kind: "app.settings",
@@ -153,6 +164,13 @@ export class Sessions {
         }, this.#context);
     }
 
+    /** Names the session by hand; an empty name goes back to the automatic one. */
+    async setTitle(id: ConversationId, title: string): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(TitleDoc, id)).title = title;
+        }, this.#context);
+    }
+
     /** The conversation with its state attached, opened once and then kept. */
     async open(id: ConversationId): Promise<Opened | undefined> {
         const known = this.#open.get(id);
@@ -264,6 +282,15 @@ export class Sessions {
 
     /** A session is named after what it was first asked, until titles are documents of their own. */
     async #title(id: ConversationId): Promise<string | null> {
+        const chosen = await this.#harness.commit(
+            async (tx) => (await tx.doc(TitleDoc, id)).title,
+            this.#context,
+        );
+
+        if (chosen !== "") {
+            return chosen;
+        }
+
         const page = await this.#harness.commit(
             (tx) => tx.scanEntries({ conversationId: id, order: "ascending" }, 5),
             this.#context,
