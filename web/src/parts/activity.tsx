@@ -157,7 +157,11 @@ function argsText(name: string, args: unknown): string {
 }
 
 function ThoughtBody({ text }: { text: string }) {
-    return <p className="text-meta text-muted whitespace-pre-wrap italic">{text}</p>;
+    return (
+        <p className="rounded-control border-spark/30 bg-sunken text-meta text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
+            {text}
+        </p>
+    );
 }
 
 /** What an open step shows: an edit's diff, a write's file, or else its arguments and output. */
