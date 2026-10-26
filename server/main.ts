@@ -670,10 +670,13 @@ async function main(): Promise<void> {
 
     const stop = (): void => {
         clearInterval(heartbeat);
-        void harness.close(context).then(() => {
-            server.close();
-            process.exit(0);
-        });
+        void extensions
+            .dispose()
+            .then(() => harness.close(context))
+            .then(() => {
+                server.close();
+                process.exit(0);
+            });
     };
 
     process.on("SIGINT", stop);

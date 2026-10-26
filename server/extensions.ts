@@ -4,7 +4,7 @@
  * the core is a folder here.
  */
 
-import { watch } from "node:fs";
+import { type FSWatcher, watch } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,7 +19,14 @@ export type Host = {
     readonly cwd: string;
     readonly dataDir: string;
     readonly log: (message: string) => void;
+    /**
+     * Registers cleanup for what this version holds (timers, subscriptions). It runs once, after a
+     * newer version replaced this one, when the folder goes, or when the server stops.
+     */
+    readonly onDispose: (dispose: Disposer) => void;
 };
+
+export type Disposer = () => void | Promise<void>;
 
 export type ServerModule = (
     host: Host,
@@ -71,7 +78,10 @@ export class Extensions {
     readonly #installed = new Map<string, Extension>();
     readonly #status = new Map<string, StatusProvider>();
     readonly #listeners = new Set<() => void>();
+    /** Per folder, the disposers of the version that is live now. */
+    readonly #disposers = new Map<string, Disposer[]>();
 
+    #watcher: FSWatcher | undefined;
     #generation = 0;
     #failed: LoadFailure[] = [];
     #queue: Promise<void> = Promise.resolve();
@@ -134,7 +144,7 @@ export class Extensions {
 
     /** Loads again whenever anything under `extensions/` changes. */
     watch(): void {
-        watch(this.#dir, { recursive: true }, () => {
+        this.#watcher = watch(this.#dir, { recursive: true }, () => {
             if (this.#timer !== undefined) {
                 clearTimeout(this.#timer);
             }
@@ -148,6 +158,24 @@ export class Extensions {
         });
     }
 
+    /** Stops watching, finishes a running load, and runs every disposer. Safe to call twice. */
+    async dispose(): Promise<void> {
+        this.#watcher?.close();
+        this.#watcher = undefined;
+
+        if (this.#timer !== undefined) {
+            clearTimeout(this.#timer);
+            this.#timer = undefined;
+        }
+
+        // A failed earlier load was reported to its caller; it must not stop the cleanup.
+        await this.#queue.catch(() => undefined);
+
+        for (const folder of [...this.#disposers.keys()]) {
+            await this.#release(folder);
+        }
+    }
+
     async #load(): Promise<void> {
         this.#generation += 1;
 
@@ -157,21 +185,30 @@ export class Extensions {
         for (const folder of await this.#folders()) {
             present.add(folder);
 
-            try {
-                const extension = await this.#build(folder);
+            const attempt: Disposer[] = [];
 
-                if (extension !== undefined) {
+            try {
+                const extension = await this.#build(folder, attempt);
+
+                if (extension === undefined) {
+                    // The module ran, so what it registered is live: it replaces the old version's.
+                    this.#drop(folder, "installs nothing");
+                } else {
                     this.#registry.install(extension);
                     this.#installed.set(folder, extension);
                 }
+
+                await this.#swap(folder, attempt);
             } catch (error) {
                 failed.push({ folder, reason: reasonOf(error) });
+                await this.#run(folder, attempt);
             }
         }
 
-        for (const folder of [...this.#installed.keys()]) {
+        for (const folder of new Set([...this.#installed.keys(), ...this.#disposers.keys()])) {
             if (!present.has(folder)) {
                 this.#drop(folder, "removed");
+                await this.#release(folder);
             }
         }
 
@@ -210,7 +247,7 @@ export class Extensions {
     }
 
     /** Imports one folder and builds its extension, checking the name the whole design relies on. */
-    async #build(folder: string): Promise<Extension | undefined> {
+    async #build(folder: string, attempt: Disposer[]): Promise<Extension | undefined> {
         if (RESERVED.has(folder)) {
             throw new Error("the name is reserved by the core");
         }
@@ -229,11 +266,12 @@ export class Extensions {
             cwd: this.#cwd,
             dataDir: this.#dataDir,
             log: this.#log,
+            onDispose: (dispose) => {
+                attempt.push(dispose);
+            },
         });
 
         if (result === undefined) {
-            this.#drop(folder, "installs nothing");
-
             return undefined;
         }
 
@@ -268,5 +306,32 @@ export class Extensions {
         this.#registry.uninstall(extension);
         this.#installed.delete(folder);
         this.#log(`extensions: ${folder} ${why}`);
+    }
+
+    /** Makes `next` the live disposers of the folder, then runs the ones it replaced. */
+    async #swap(folder: string, next: Disposer[]): Promise<void> {
+        const old = this.#disposers.get(folder) ?? [];
+
+        this.#disposers.set(folder, next);
+        await this.#run(folder, old);
+    }
+
+    /** Runs and forgets the live disposers of the folder. */
+    async #release(folder: string): Promise<void> {
+        const old = this.#disposers.get(folder) ?? [];
+
+        this.#disposers.delete(folder);
+        await this.#run(folder, old);
+    }
+
+    /** One that throws or rejects is logged; the rest still run. */
+    async #run(folder: string, disposers: readonly Disposer[]): Promise<void> {
+        for (const dispose of disposers) {
+            try {
+                await dispose();
+            } catch (error) {
+                this.#log(`extensions: ${folder}: dispose failed: ${reasonOf(error)}`);
+            }
+        }
     }
 }

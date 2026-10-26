@@ -63,12 +63,13 @@ field by name: install the folder and it appears, remove the folder and the next
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
 
-| Member    | Is                                                |
-| --------- | ------------------------------------------------- |
-| `name`    | The folder's name; use it as the extension's name |
-| `cwd`     | The folder the app was started in                 |
-| `dataDir` | Where the app keeps its state                     |
-| `log`     | One line to the server's output                   |
+| Member      | Is                                                                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`      | The folder's name; use it as the extension's name                                                                                                                                                                                     |
+| `cwd`       | The folder the app was started in                                                                                                                                                                                                     |
+| `dataDir`   | Where the app keeps its state                                                                                                                                                                                                         |
+| `log`       | One line to the server's output                                                                                                                                                                                                       |
+| `onDispose` | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run |
 
 ## Live, without a restart
 
@@ -77,7 +78,18 @@ The loader watches `extensions/` and reloads on a change, at most once per 150 m
 - **added** → installed, and the next request uses it;
 - **changed** → the old one is replaced in place; a running tool call finishes on the old code;
 - **broken** → the previous version stays installed, and the folder is listed as failed;
-- **removed** → uninstalled.
+- **removed** → uninstalled, and its disposers run.
+
+Disposers follow the version that registered them:
+
+- **Replaced:** the new version is built first. If it builds, it is installed, then the old
+  version's disposers run. If the build fails (throw, wrong name, bad export), the disposers that
+  the failed attempt registered run, and the old version keeps its own.
+- **Installs nothing** (the default export returns `undefined`): the old version is uninstalled and
+  its disposers run. The disposers of the new run are kept, not run: the module did run and holds
+  what it registered, so they run on the next reload, removal, or stop.
+- **Stop:** `Extensions.dispose()` stops the watcher and runs every disposer. `server/main.ts` calls
+  it on SIGINT and SIGTERM.
 
 ```bash
 curl -s http://127.0.0.1:8788/api/extensions

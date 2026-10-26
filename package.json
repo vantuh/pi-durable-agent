@@ -8,6 +8,7 @@
         "serve": "node --watch server/main.ts",
         "build": "vite build",
         "preview": "vite preview",
+        "test": "node --test test/",
         "check": "oxfmt --check && oxlint --type-aware && tsc --noEmit",
         "fix": "oxfmt && oxlint --type-aware --fix"
     },
