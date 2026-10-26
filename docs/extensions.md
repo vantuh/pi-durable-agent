@@ -186,14 +186,18 @@ helpers) in memory until the process restarts. A module's top-level state is not
 state in documents or in `data/`, never in a module. Cleanup goes in `host.onDispose`.
 
 `web.tsx` goes live through Vite HMR. Vite's root is `web/`, so `vite.config.ts` adds `extensions/`
-to the watcher. Checked on a Vite dev server, by its HMR socket and by fetching `/src/extensions.ts`:
+to the watcher. What happens in `pnpm dev`:
 
-- **changed** → an `update` for that module;
-- **syntax error** → the same `update`; the browser then gets the transform error, until the file
+- **file changed** → a live update: Vite re-imports the module and the item list is read again,
+  without a page reload;
+- **syntax error** → the same update; the browser then gets the transform error, until the file
   is fixed;
-- **removed file** → `update` for the module and for `status-bar.tsx`, which re-reads the item list;
-- **new folder** → the transformed `/src/extensions.ts` lists its `web.tsx` without a restart, and
-  stops listing it when the folder is deleted. Without the watcher entry a new folder was not seen.
+- **file removed** (any file under `extensions/` that the page loaded, or the whole folder) → a full page reload. A live
+  update does not work here: Vite sends an update for the deleted module, the browser gets a 404 for
+  it (`Failed to reload`), and the item list is not rebuilt. `vite.config.ts` therefore drops the
+  update and reloads the page;
+- **folder added** → a live update: `web/src/extensions.ts` lists the new `web.tsx` without a
+  restart. Without the watcher entry a new folder was not seen.
 
 ## What an extension may not do
 
