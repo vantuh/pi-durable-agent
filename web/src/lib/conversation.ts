@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../../../shared/protocol.ts";
-import { type Health, getHealth, sendMessage, stopRun } from "./api.ts";
+import { sendMessage, stopRun } from "./api.ts";
 import { parseEvent } from "./event.ts";
 
 export type ConversationState = {
+    session: number | null;
     connected: boolean;
     model: string;
     entries: ClientEntry[];
@@ -15,6 +16,7 @@ export type ConversationState = {
 const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
 
 const START: ConversationState = {
+    session: null,
     connected: false,
     model: "",
     entries: [],
@@ -26,7 +28,13 @@ const START: ConversationState = {
 function withEvent(state: ConversationState, event: ServerEvent): ConversationState {
     switch (event.type) {
         case "hello":
-            return { ...state, entries: event.entries, live: event.live, model: event.model };
+            return {
+                ...state,
+                session: event.session,
+                entries: event.entries,
+                live: event.live,
+                model: event.model,
+            };
 
         case "entries":
             return {
@@ -45,17 +53,19 @@ function withEvent(state: ConversationState, event: ServerEvent): ConversationSt
     }
 }
 
-export function useConversation(): {
+export function useConversation(session: number | null): {
     state: ConversationState;
-    health: Health | undefined;
-    send: (text: string) => Promise<void>;
+    send: (text: string, files: string[]) => Promise<void>;
     stop: () => Promise<void>;
 } {
     const [state, setState] = useState<ConversationState>(START);
-    const [health, setHealth] = useState<Health | undefined>(undefined);
 
     useEffect(() => {
-        const source = new EventSource("/api/events");
+        if (session === null) {
+            return undefined;
+        }
+
+        const source = new EventSource(`/api/events?session=${String(session)}`);
 
         source.onopen = () => {
             setState((current) => ({ ...current, connected: true }));
@@ -66,7 +76,7 @@ export function useConversation(): {
         source.onmessage = (message: MessageEvent<string>) => {
             const event = parseEvent(message.data);
 
-            if (event !== undefined) {
+            if (event !== undefined && event.session === session) {
                 setState((current) => withEvent(current, event));
             }
         };
@@ -74,35 +84,46 @@ export function useConversation(): {
         return () => {
             source.close();
         };
-    }, []);
+    }, [session]);
 
-    useEffect(() => {
-        void getHealth().then(setHealth, () => {
-            setHealth(undefined);
-        });
-    }, []);
+    // The stream only answers for its own conversation: another one's state is not shown for a frame.
+    const shown = state.session === session ? state : START;
 
-    const send = useCallback(async (text: string) => {
-        setState((current) => ({ ...current, issue: null }));
-
-        try {
-            const accepted = await sendMessage(text);
-
-            if (!accepted) {
-                setState((current) => ({ ...current, issue: "the server refused the message" }));
+    const send = useCallback(
+        async (text: string, files: string[]) => {
+            if (session === null) {
+                return;
             }
-        } catch {
-            setState((current) => ({ ...current, issue: "the server did not answer" }));
-        }
-    }, []);
+
+            setState((current) => ({ ...current, issue: null }));
+
+            try {
+                const accepted = await sendMessage(session, text, files);
+
+                if (!accepted) {
+                    setState((current) => ({
+                        ...current,
+                        issue: "the server refused the message",
+                    }));
+                }
+            } catch {
+                setState((current) => ({ ...current, issue: "the server did not answer" }));
+            }
+        },
+        [session],
+    );
 
     const stop = useCallback(async () => {
+        if (session === null) {
+            return;
+        }
+
         try {
-            await stopRun();
+            await stopRun(session);
         } catch {
             setState((current) => ({ ...current, issue: "the server did not answer" }));
         }
-    }, []);
+    }, [session]);
 
-    return { state, health, send, stop };
+    return { state: shown, send, stop };
 }

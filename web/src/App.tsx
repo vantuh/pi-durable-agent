@@ -1,67 +1,159 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import type { ModelChoice, SessionSummary } from "../../shared/protocol.ts";
+import {
+    type Health,
+    createSession,
+    getHealth,
+    listModels,
+    listSessions,
+    setAgent,
+} from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
 import { type Flavour, currentFlavour } from "./lib/flavour.ts";
 import { Composer } from "./parts/composer.tsx";
+import { FolderPicker } from "./parts/folder-picker.tsx";
+import { ModelMenu } from "./parts/model-menu.tsx";
 import { Sessions } from "./parts/sessions.tsx";
 import { Settings } from "./parts/settings.tsx";
 import { StatusBar } from "./parts/status-bar.tsx";
 import { Transcript } from "./parts/transcript.tsx";
 
-function titleOf(entries: ReturnType<typeof useConversation>["state"]["entries"]): string | null {
-    for (const entry of entries) {
-        if (entry.kind === "user" && entry.text.trim() !== "") {
-            return entry.text.trim().slice(0, 80);
-        }
+function shortName(model: string | null): string {
+    if (model === null) {
+        return "";
     }
 
-    return null;
+    const parts = model.split("/");
+
+    return parts[parts.length - 1] ?? model;
 }
 
 export function App() {
-    const { state, health, send, stop } = useConversation();
+    const [health, setHealth] = useState<Health | undefined>(undefined);
+    const [sessions, setSessions] = useState<SessionSummary[]>([]);
+    const [current, setCurrent] = useState<number | null>(null);
+    const [picker, setPicker] = useState(false);
+    const [menu, setMenu] = useState(false);
+    const [models, setModels] = useState<{ scoped: ModelChoice[]; all: ModelChoice[] }>({
+        scoped: [],
+        all: [],
+    });
     const [flavour, setFlavour] = useState<Flavour>(currentFlavour);
-    const [open, setOpen] = useState(false);
+    const [settings, setSettings] = useState(false);
 
-    const cwd = health?.cwd ?? "";
-    const branch = health?.branch ?? null;
-    const model = state.model === "" ? (health?.model ?? "") : state.model;
-    const title = titleOf(state.entries) ?? health?.title ?? null;
+    const { state, send, stop } = useConversation(current);
+
+    useEffect(() => {
+        let alive = true;
+
+        void (async () => {
+            const [info, rows] = await Promise.all([getHealth(), listSessions()]);
+
+            if (!alive) {
+                return;
+            }
+
+            setHealth(info);
+            setSessions(rows);
+            setCurrent(rows[0]?.id ?? info?.session ?? null);
+        })();
+
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    const reload = async (): Promise<void> => {
+        setSessions(await listSessions());
+    };
+
+    const active = sessions.find((session) => session.id === current);
+    const model = shortName(active?.model ?? null);
 
     return (
         <div className="bg-sunken flex h-full flex-col gap-2 p-2">
             <div className="flex min-h-0 flex-1 items-stretch gap-2">
-                <Sessions cwd={cwd} title={title} busy={state.live.busy} />
+                <Sessions
+                    sessions={sessions}
+                    current={current}
+                    onSelect={setCurrent}
+                    onNew={() => {
+                        setPicker(true);
+                    }}
+                />
 
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
                     <Transcript
-                        title={title}
-                        branch={branch}
+                        title={active?.title ?? null}
+                        branch={active?.branch ?? null}
                         entries={state.entries}
                         live={state.live}
                         onSettings={() => {
-                            setOpen(true);
+                            setSettings(true);
                         }}
                     />
-                    <Composer
-                        busy={state.live.busy}
-                        model={model}
-                        onSend={send}
-                        onStop={() => {
-                            void stop();
-                        }}
-                    />
+
+                    <div className="relative">
+                        {menu ? (
+                            <ModelMenu
+                                scoped={models.scoped}
+                                all={models.all}
+                                current={active?.model ?? null}
+                                level={active?.thinkingLevel ?? null}
+                                onClose={() => {
+                                    setMenu(false);
+                                }}
+                                onPick={(choice, level) => {
+                                    setMenu(false);
+                                    void (async () => {
+                                        if (current !== null) {
+                                            await setAgent(current, {
+                                                model: {
+                                                    provider: choice.provider,
+                                                    modelId: choice.id,
+                                                },
+                                                thinkingLevel: level,
+                                            });
+                                        }
+
+                                        await reload();
+                                    })();
+                                }}
+                            />
+                        ) : null}
+
+                        <Composer
+                            busy={state.live.busy}
+                            model={model}
+                            level={active?.thinkingLevel ?? null}
+                            menuOpen={menu}
+                            onToggleMenu={() => {
+                                void (async () => {
+                                    if (models.all.length === 0) {
+                                        setModels(await listModels());
+                                    }
+
+                                    setMenu((open) => !open);
+                                })();
+                            }}
+                            onSend={send}
+                            onStop={() => {
+                                void stop();
+                            }}
+                        />
+                    </div>
                 </main>
 
-                {open ? (
+                {settings ? (
                     <Settings
                         flavour={flavour}
-                        model={model}
-                        cwd={cwd}
-                        branch={branch}
+                        model={active?.model ?? ""}
+                        cwd={active?.cwd ?? ""}
+                        branch={active?.branch ?? null}
                         onFlavour={setFlavour}
                         onClose={() => {
-                            setOpen(false);
+                            setSettings(false);
                         }}
                     />
                 ) : null}
@@ -70,12 +162,34 @@ export function App() {
             <StatusBar
                 connected={state.connected}
                 model={model}
-                cwd={cwd}
-                branch={branch}
+                cwd={active?.cwd ?? health?.cwd ?? ""}
+                branch={active?.branch ?? health?.branch ?? null}
                 usage={state.live.usage}
                 busy={state.live.busy}
                 issue={state.issue}
             />
+
+            {picker ? (
+                <FolderPicker
+                    start={health?.home ?? "/"}
+                    recent={sessions.map((session) => session.cwd).filter((cwd) => cwd !== null)}
+                    onClose={() => {
+                        setPicker(false);
+                    }}
+                    onOpen={(path) => {
+                        setPicker(false);
+                        void (async () => {
+                            const id = await createSession(path);
+
+                            if (id !== 0) {
+                                setCurrent(id);
+                            }
+
+                            await reload();
+                        })();
+                    }}
+                />
+            ) : null}
         </div>
     );
 }

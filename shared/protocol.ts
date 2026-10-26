@@ -44,11 +44,33 @@ export type ClientLive = {
     usage: ClientUsage;
 };
 
-export type ServerEvent =
+export type ServerEvent = { session: number } & (
     | { type: "hello"; entries: ClientEntry[]; live: ClientLive; model: string }
     | { type: "entries"; entries: ClientEntry[]; replace: boolean }
     | { type: "live"; live: ClientLive }
-    | { type: "error"; message: string };
+    | { type: "error"; message: string }
+);
+
+/** One row of the session list. */
+export type SessionSummary = {
+    id: number;
+    title: string | null;
+    cwd: string | null;
+    model: string | null;
+    thinkingLevel: string | null;
+    branch: string | null;
+    busy: boolean;
+};
+
+/** One model the picker offers. */
+export type ModelChoice = {
+    provider: string;
+    id: string;
+    name: string;
+    contextWindow: number;
+    reasoning: boolean;
+    levels: string[];
+};
 
 export type SendRequest = {
     text: string;

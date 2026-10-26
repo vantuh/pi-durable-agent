@@ -1,50 +1,100 @@
 /**
- * The whole server: one conversation, one event stream, one way in. Small on purpose — features become
+ * The whole server: conversations, one event stream each, one way in. Small on purpose — features become
  * extensions, and the core grows only when it must.
  */
 
-import { execFile } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { join } from "node:path";
-import { promisify } from "node:util";
+import { homedir } from "node:os";
+import { basename, extname, join, resolve } from "node:path";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { type Conversation, createRegistry, Harness } from "@earendil-works/pi-durable";
+import {
+    type Conversation,
+    type ConversationId,
+    createRegistry,
+    Harness,
+} from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { Extensions } from "./extensions.ts";
-import { projectEntry, projectLive, projectUsage } from "./projection.ts";
+import { projectEntry, projectLive } from "./projection.ts";
+import { type Opened, Sessions } from "./sessions.ts";
+
+async function readFavourites(): Promise<string[]> {
+    try {
+        const parsed: unknown = JSON.parse(await readFile(FAVOURITES_FILE, "utf8"));
+
+        return Array.isArray(parsed)
+            ? parsed.filter((entry): entry is string => typeof entry === "string")
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+async function enabledModels(): Promise<string[] | undefined> {
+    try {
+        const raw = await readFile(join(homedir(), ".pi/agent/settings.json"), "utf8");
+        const parsed: unknown = JSON.parse(raw);
+        const list =
+            typeof parsed === "object" && parsed !== null && "enabledModels" in parsed
+                ? parsed.enabledModels
+                : undefined;
+
+        return Array.isArray(list)
+            ? list.filter((entry): entry is string => typeof entry === "string")
+            : undefined;
+    } catch {
+        return undefined;
+    }
+}
 
 type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
+type Content = Extract<Parameters<Conversation["submit"]>[0], { type: "input" }>["content"];
 
-const run = promisify(execFile);
+const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+const IMAGE_TYPES: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+};
+
 const context = BACKGROUND_CONTEXT;
 const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = join(process.cwd(), "data");
+const UPLOAD_DIR = join(DATA_DIR, "uploads");
+const FAVOURITES_FILE = join(DATA_DIR, "favourites.json");
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
-const MAX_BODY = 1_000_000;
+const MAX_BODY = 100_000_000;
 const IDLE_HEARTBEAT_MS = 20_000;
 
-const clients = new Set<ServerResponse>();
+type Client = { response: ServerResponse; session: number };
 
-let branch: string | null = null;
-let sent: number[] = [];
+const clients = new Set<Client>();
+const busy = new Map<number, boolean>();
+
+let models: ModelRuntime;
 let extensions: Extensions;
-let root: Conversation;
-let viewState: Awaited<ReturnType<Conversation["viewState"]>>;
+let sessions: Sessions;
+let harness: Harness;
+let rootId: number;
 
-function send(response: ServerResponse, event: ServerEvent): void {
-    response.write(`data: ${JSON.stringify(event)}\n\n`);
+function send(client: Client, event: ServerEvent): void {
+    client.response.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
 function broadcast(event: ServerEvent): void {
     for (const client of clients) {
-        send(client, event);
+        if (client.session === event.session) {
+            send(client, event);
+        }
     }
 }
 
@@ -58,51 +108,58 @@ function liveOf(view: View): ClientLive {
     return projectLive(view.docs["pi.live"], view.docs["pi.usage"]);
 }
 
-/** A session is named after what it was first asked, until titles exist as documents. */
-function titleOf(view: View): string | null {
-    for (const entry of view.entries) {
-        const projected = projectEntry(entry);
-
-        if (projected?.kind === "user" && projected.text.trim() !== "") {
-            return projected.text.trim().slice(0, 80);
-        }
-    }
-
-    return null;
-}
-
-async function readBranch(cwd: string): Promise<string | null> {
-    try {
-        const { stdout } = await run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd });
-
-        return stdout.trim() === "" ? null : stdout.trim();
-    } catch {
-        return null;
-    }
-}
-
 /** Sends what changed since the last commit: only new entries when nothing was rewritten. */
-function publish(view: View): void {
+function publish(opened: Opened, view: View): void {
     const entries = entriesOf(view);
     const ids = entries.map((entry) => entry.id);
-    const grows = ids.length > sent.length && sent.every((id, at) => id === ids[at]);
-    const unchanged = ids.length === sent.length && ids.every((id, at) => id === sent[at]);
+    const grows = ids.length > opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
+    const unchanged =
+        ids.length === opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
 
     if (grows) {
-        const fresh = entries.slice(sent.length);
+        const fresh = entries.slice(opened.sent.length);
 
-        sent = ids;
-        broadcast({ type: "entries", entries: fresh, replace: false });
+        opened.sent = ids;
+        broadcast({ type: "entries", session: opened.id, entries: fresh, replace: false });
     } else if (!unchanged) {
-        sent = ids;
-        broadcast({ type: "entries", entries, replace: true });
+        opened.sent = ids;
+        broadcast({ type: "entries", session: opened.id, entries, replace: true });
     }
 
-    broadcast({ type: "live", live: liveOf(view) });
+    const live = liveOf(view);
+
+    busy.set(opened.id, live.busy);
+    broadcast({ type: "live", session: opened.id, live });
 }
 
-function readBody(request: IncomingMessage): Promise<unknown> {
-    return new Promise((resolve, reject) => {
+/** Opens a conversation and starts forwarding its commits. */
+async function attach(id: number): Promise<Opened | undefined> {
+    // Session ids come from the browser as plain numbers; the harness brands its own.
+    // A conversation id is a number at run time; the brand lives only in the type.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value came from a conversation id or a JSON number
+    const opened = await sessions.open(id as ConversationId);
+
+    if (opened === undefined) {
+        return undefined;
+    }
+
+    if (opened.watched) {
+        return opened;
+    }
+
+    const view = await opened.conversation.viewState(context);
+
+    opened.watched = true;
+    opened.sent = view.value.entries.map((entry) => Number(entry.id));
+    view.subscribe((state) => {
+        publish(opened, state);
+    });
+
+    return opened;
+}
+
+async function body(request: IncomingMessage): Promise<unknown> {
+    return new Promise((done, reject) => {
         const chunks: Buffer[] = [];
         let size = 0;
 
@@ -112,14 +169,23 @@ function readBody(request: IncomingMessage): Promise<unknown> {
             if (size > MAX_BODY) {
                 request.destroy();
                 reject(new Error("body is too large"));
+
                 return;
             }
 
             chunks.push(chunk);
         });
         request.on("end", () => {
+            const text = Buffer.concat(chunks).toString("utf8");
+
+            if (text === "") {
+                done(undefined);
+
+                return;
+            }
+
             try {
-                resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+                done(JSON.parse(text));
             } catch {
                 reject(new Error("body is not JSON"));
             }
@@ -128,72 +194,317 @@ function readBody(request: IncomingMessage): Promise<unknown> {
     });
 }
 
-function textOfBody(body: unknown): string | undefined {
-    if (typeof body !== "object" || body === null || !("text" in body)) {
+function bytes(request: IncomingMessage): Promise<Buffer> {
+    return new Promise((done, reject) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+
+        request.on("data", (chunk: Buffer) => {
+            size += chunk.length;
+
+            if (size > MAX_BODY) {
+                request.destroy();
+                reject(new Error("file is too large"));
+
+                return;
+            }
+
+            chunks.push(chunk);
+        });
+        request.on("end", () => {
+            done(Buffer.concat(chunks));
+        });
+        request.on("error", reject);
+    });
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
         return undefined;
     }
 
-    const value: unknown = body.text;
+    return Object.fromEntries(Object.entries(value));
+}
 
+function string(value: unknown): string | undefined {
     return typeof value === "string" ? value : undefined;
 }
 
-function answer(response: ServerResponse, status: number, body: unknown): void {
+function sessionOf(url: URL): number {
+    const raw = Number(url.searchParams.get("session"));
+
+    return Number.isFinite(raw) && raw > 0 ? raw : rootId;
+}
+
+function answer(response: ServerResponse, status: number, payload: unknown): void {
     response.writeHead(status, { "content-type": "application/json" });
-    response.end(JSON.stringify(body));
+    response.end(JSON.stringify(payload));
+}
+
+function contentOf(files: readonly string[], text: string): Promise<Content> {
+    return (async () => {
+        const images: { type: "image"; data: string; mimeType: string }[] = [];
+        const mentioned: string[] = [];
+
+        for (const file of files) {
+            const mime = IMAGE_TYPES[extname(file).toLowerCase()];
+
+            if (mime === undefined) {
+                mentioned.push(file);
+
+                continue;
+            }
+
+            images.push({
+                type: "image",
+                data: (await readFile(file)).toString("base64"),
+                mimeType: mime,
+            });
+        }
+
+        const said = mentioned.reduce((whole, file) => `${whole}\n\nAttached file: ${file}`, text);
+
+        return [{ type: "text", text: said }, ...images];
+    })();
 }
 
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
     if (request.method === "GET" && url.pathname === "/api/events") {
-        const view = viewState.value;
+        const id = sessionOf(url);
+        const opened = await attach(id);
+
+        if (opened === undefined) {
+            answer(response, 404, { error: "no such session" });
+
+            return;
+        }
+
+        const view = await opened.conversation.viewState(context);
 
         response.writeHead(200, {
             "content-type": "text/event-stream",
             "cache-control": "no-store",
             connection: "keep-alive",
         });
-        clients.add(response);
-        sent = view.entries.map((entry) => Number(entry.id));
-        send(response, {
-            type: "hello",
-            entries: entriesOf(view),
-            live: liveOf(view),
-            model: MODEL,
+        const client: Client = { response, session: id };
+
+        clients.add(client);
+        client.response.on("close", () => {
+            clients.delete(client);
         });
-        request.on("close", () => {
-            clients.delete(response);
+        send(client, {
+            type: "hello",
+            session: id,
+            entries: entriesOf(view.value),
+            live: liveOf(view.value),
+            model: MODEL,
         });
 
         return;
     }
 
     if (request.method === "POST" && url.pathname === "/api/messages") {
-        const text = textOfBody(await readBody(request));
+        const payload = record(await body(request));
+        const text = string(payload?.["text"]) ?? "";
+        const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;
+        const opened = await attach(id);
+        const files = Array.isArray(payload?.["files"])
+            ? payload["files"].filter((file): file is string => typeof file === "string")
+            : [];
 
-        if (text === undefined || text.trim() === "") {
-            answer(response, 400, { error: "text is required" });
+        if (opened === undefined) {
+            answer(response, 404, { error: "no such session" });
+
             return;
         }
 
-        const submission = await root.submit({ type: "input", content: text }, context);
+        if (text.trim() === "" && files.length === 0) {
+            answer(response, 400, { error: "text is required" });
 
+            return;
+        }
+
+        await opened.conversation.submit(
+            { type: "input", content: await contentOf(files, text) },
+            context,
+        );
         answer(response, 202, { ok: true });
-        void (async () => {
-            const settled = await submission.wait(context);
-
-            if (settled.status === "unanswered") {
-                broadcast({ type: "error", message: settled.reason ?? "the run was not answered" });
-            }
-        })();
 
         return;
     }
 
     if (request.method === "POST" && url.pathname === "/api/abort") {
-        await root.abort(context);
+        const payload = record(await body(request));
+        const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;
+        const opened = await attach(id);
+
+        if (opened !== undefined) {
+            await opened.conversation.abort(context);
+        }
+
         answer(response, 202, { ok: true });
+
+        return;
+    }
+
+    if (url.pathname === "/api/sessions" && request.method === "GET") {
+        const list = await sessions.list((id) => busy.get(id) === true);
+
+        answer(response, 200, { sessions: list });
+        return;
+    }
+
+    if (url.pathname === "/api/sessions" && request.method === "POST") {
+        const payload = record(await body(request));
+        const cwd = string(payload?.["cwd"]);
+        const conversation = await sessions.create(cwd ?? process.cwd());
+
+        await attach(Number(conversation.id));
+        answer(response, 201, { session: Number(conversation.id) });
+
+        return;
+    }
+
+    if (url.pathname === "/api/agent" && request.method === "POST") {
+        const payload = record(await body(request));
+        const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;
+        const opened = await attach(id);
+        const model = record(payload?.["model"]);
+        const provider = string(model?.["provider"]);
+        const modelId = string(model?.["modelId"]);
+        const level = string(payload?.["thinkingLevel"]);
+        const thinkingLevel = THINKING_LEVELS.find((known) => known === level);
+
+        if (opened === undefined) {
+            answer(response, 404, { error: "no such session" });
+
+            return;
+        }
+
+        await opened.conversation.configure(
+            {
+                ...(provider === undefined || modelId === undefined
+                    ? {}
+                    : { model: { provider, modelId } }),
+                ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
+            },
+            context,
+        );
+        answer(response, 202, { ok: true });
+
+        return;
+    }
+
+    if (url.pathname === "/api/favourites" && request.method === "GET") {
+        answer(response, 200, { folders: await readFavourites() });
+
+        return;
+    }
+
+    if (url.pathname === "/api/favourites" && request.method === "PUT") {
+        const raw = record(await body(request))?.["folders"];
+        const folders = Array.isArray(raw)
+            ? raw.filter((entry): entry is string => typeof entry === "string")
+            : [];
+
+        await writeFile(FAVOURITES_FILE, JSON.stringify(folders));
+        answer(response, 200, { folders });
+
+        return;
+    }
+
+    if (url.pathname === "/api/models" && request.method === "GET") {
+        const available = await models.getAvailable();
+        const list = models.getModels();
+        const enabled = await enabledModels();
+        const scoped =
+            enabled === undefined
+                ? available
+                : available.filter((model) => {
+                      const key = `${model.provider}/${model.id}`;
+
+                      return enabled.some(
+                          (entry) =>
+                              entry === key || entry.slice(0, entry.lastIndexOf(":")) === key,
+                      );
+                  });
+
+        answer(response, 200, {
+            scoped: scoped.map(modelInfo),
+            all: list.map(modelInfo),
+        });
+
+        return;
+    }
+
+    if (url.pathname === "/api/files" && request.method === "POST") {
+        const raw = request.headers["x-filename"];
+        const name = basename(decodeURIComponent(typeof raw === "string" ? raw : "file"));
+        const saved = join(UPLOAD_DIR, `${String(Date.now())}-${name}`);
+        const data = await bytes(request);
+
+        await writeFile(saved, data);
+        answer(response, 201, {
+            path: saved,
+            name,
+            size: data.length,
+            mime: IMAGE_TYPES[extname(name).toLowerCase()] ?? null,
+        });
+
+        return;
+    }
+
+    if (url.pathname === "/api/fs" && request.method === "GET") {
+        const wanted = url.searchParams.get("path") ?? homedir();
+        const path = resolve(wanted.startsWith("~") ? join(homedir(), wanted.slice(1)) : wanted);
+        const hidden = url.searchParams.get("hidden") === "1";
+
+        try {
+            const { readdir } = await import("node:fs/promises");
+            const entries = await readdir(path, { withFileTypes: true });
+            const dirs = entries
+                .filter((entry) => entry.isDirectory())
+                .filter((entry) => hidden || !entry.name.startsWith("."))
+                .map((entry) => ({ name: entry.name, path: join(path, entry.name) }))
+                .sort((left, right) => left.name.localeCompare(right.name));
+
+            answer(response, 200, {
+                path,
+                parent: path === "/" ? null : resolve(path, ".."),
+                home: homedir(),
+                dirs,
+            });
+        } catch {
+            answer(response, 400, { error: "cannot read that folder" });
+        }
+
+        return;
+    }
+
+    if (url.pathname === "/api/uploads" && request.method === "GET") {
+        const wanted = resolve(url.searchParams.get("path") ?? "");
+
+        if (!wanted.startsWith(UPLOAD_DIR)) {
+            answer(response, 403, { error: "not an uploaded file" });
+
+            return;
+        }
+
+        try {
+            const data = await readFile(wanted);
+
+            response.writeHead(200, {
+                "content-type":
+                    IMAGE_TYPES[extname(wanted).toLowerCase()] ?? "application/octet-stream",
+                "cache-control": "private, max-age=3600",
+            });
+            response.end(data);
+        } catch {
+            answer(response, 404, { error: "no such file" });
+        }
+
         return;
     }
 
@@ -203,21 +514,36 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (request.method === "GET" && url.pathname === "/api/health") {
-        const view = viewState.value;
-
         answer(response, 200, {
             ok: true,
             model: MODEL,
-            busy: liveOf(view).busy,
             cwd: process.cwd(),
-            branch,
-            title: titleOf(view),
-            usage: projectUsage(view.docs["pi.usage"]),
+            home: homedir(),
+            branch: await sessions.branchOf(process.cwd()),
+            session: rootId,
         });
+
         return;
     }
 
     answer(response, 404, { error: "not found" });
+}
+
+function modelInfo(model: {
+    provider: string;
+    id: string;
+    name: string;
+    contextWindow: number;
+    reasoning: boolean;
+}) {
+    return {
+        provider: model.provider,
+        id: model.id,
+        name: model.name,
+        contextWindow: model.contextWindow,
+        reasoning: model.reasoning,
+        levels: model.reasoning ? ["off", "low", "medium", "high", "max"] : ["off"],
+    };
 }
 
 async function main(): Promise<void> {
@@ -227,9 +553,12 @@ async function main(): Promise<void> {
         throw new Error(`MODEL must be "provider/modelId", not "${MODEL}"`);
     }
 
-    await mkdir(DATA_DIR, { recursive: true });
+    const { mkdir } = await import("node:fs/promises");
 
-    const models = await ModelRuntime.create();
+    await mkdir(UPLOAD_DIR, { recursive: true });
+
+    models = await ModelRuntime.create();
+
     const registry = createRegistry();
     const cwd = process.cwd();
 
@@ -248,7 +577,8 @@ async function main(): Promise<void> {
     extensions.watch();
 
     const storage = await openNodeSqliteStorage(join(DATA_DIR, "state.sqlite"));
-    const harness = await Harness.open(
+
+    harness = await Harness.open(
         storage,
         {
             models,
@@ -258,12 +588,12 @@ async function main(): Promise<void> {
         context,
     );
 
-    branch = await readBranch(cwd);
-    root = await harness.root(context, { agent: { model: { provider, modelId }, cwd } });
-    viewState = await root.viewState(context);
-    viewState.subscribe((view) => {
-        publish(view);
+    const root = await harness.root(context, {
+        agent: { model: { provider, modelId }, cwd },
     });
+
+    rootId = Number(root.id);
+    sessions = new Sessions({ harness, model: { provider, modelId }, cwd, context });
 
     const server = createServer((request, response) => {
         handle(request, response).catch((error: unknown) => {
@@ -274,14 +604,12 @@ async function main(): Promise<void> {
             } else {
                 response.end();
             }
-
-            broadcast({ type: "error", message });
         });
     });
 
     const heartbeat = setInterval(() => {
         for (const client of clients) {
-            client.write(": heartbeat\n\n");
+            client.response.write(": heartbeat\n\n");
         }
     }, IDLE_HEARTBEAT_MS);
 

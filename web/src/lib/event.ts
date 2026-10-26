@@ -186,9 +186,15 @@ export function parseEvent(raw: string): ServerEvent | undefined {
 
     const event = record(value);
     const type = event?.["type"];
+    const session = num(event?.["session"]);
+
+    if (session === undefined) {
+        return undefined;
+    }
 
     if (type === "hello") {
         return {
+            session,
             type: "hello",
             entries: entries(event?.["entries"]),
             live: live(event?.["live"]),
@@ -198,6 +204,7 @@ export function parseEvent(raw: string): ServerEvent | undefined {
 
     if (type === "entries") {
         return {
+            session,
             type: "entries",
             entries: entries(event?.["entries"]),
             replace: event?.["replace"] === true,
@@ -205,11 +212,11 @@ export function parseEvent(raw: string): ServerEvent | undefined {
     }
 
     if (type === "live") {
-        return { type: "live", live: live(event?.["live"]) };
+        return { session, type: "live", live: live(event?.["live"]) };
     }
 
     if (type === "error") {
-        return { type: "error", message: str(event?.["message"]) ?? "the run failed" };
+        return { session, type: "error", message: str(event?.["message"]) ?? "the run failed" };
     }
 
     return undefined;
