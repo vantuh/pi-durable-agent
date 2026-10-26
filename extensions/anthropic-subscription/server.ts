@@ -2,7 +2,14 @@ import { createHash } from "node:crypto";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Host } from "../../server/extensions.ts";
+import type { Action, Host } from "../../server/extensions.ts";
+import { DEFAULT_VERSION, type Diagnostics, type ShapeOutcome } from "./refs.ts";
+
+const states = new WeakMap<Host, Diagnostics>();
+
+export const actions = (host: Host): Record<string, Action> => ({
+    diagnostics: () => states.get(host),
+});
 
 export const meta = {
     title: "Anthropic subscription",
@@ -11,6 +18,35 @@ export const meta = {
 };
 
 const MARKER = "x-anthropic-billing-header:";
+
+function outcomeFor(payload: unknown, provider: string): ShapeOutcome {
+    if (provider !== "anthropic") {
+        return "other-provider";
+    }
+    if (!record(payload) || !Array.isArray(payload["system"])) {
+        return "no-oauth-identity";
+    }
+    const system: unknown[] = payload["system"];
+    if (
+        system.some(
+            (block) =>
+                record(block) &&
+                typeof block["text"] === "string" &&
+                block["text"].startsWith(MARKER),
+        )
+    ) {
+        return "already-shaped";
+    }
+    const first = system[0];
+    if (
+        !record(first) ||
+        typeof first["text"] !== "string" ||
+        !first["text"].startsWith("You are Claude Code")
+    ) {
+        return "no-oauth-identity";
+    }
+    return "no-user-text";
+}
 
 function record(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -80,12 +116,27 @@ export function shapeRequest(payload: unknown, version: string): unknown {
 
 export default function subscription(host: Host) {
     const configured = process.env["PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION"]?.trim();
-    const version = configured === undefined || configured === "" ? "2.1.280" : configured;
+    const version = configured === undefined || configured === "" ? DEFAULT_VERSION : configured;
     if (!/^\d+\.\d+\.\d+$/.test(version)) {
         throw new Error("PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION must be X.Y.Z");
     }
-    host.shapeModelRequests((payload, model) =>
-        model.provider === "anthropic" ? shapeRequest(payload, version) : undefined,
-    );
+    const state: Diagnostics = {
+        version,
+        source: configured === undefined || configured === "" ? "default" : "environment",
+        last: null,
+    };
+    states.set(host, state);
+    host.onDispose(() => {
+        states.delete(host);
+    });
+    host.shapeModelRequests((payload, model) => {
+        const shaped = model.provider === "anthropic" ? shapeRequest(payload, version) : undefined;
+        state.last = {
+            outcome: shaped === undefined ? outcomeFor(payload, model.provider) : "applied",
+            provider: model.provider,
+            at: Date.now(),
+        };
+        return shaped;
+    });
     return defineExtension({ name: host.name });
 }

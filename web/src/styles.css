@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/catppuccin.css";
+@source "../../extensions";
 
 @font-face {
     font-family: "JetBrains Mono";

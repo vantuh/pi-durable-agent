@@ -344,3 +344,28 @@ It is enabled by default, like other folders; turn **Anthropic subscription** of
 Extensions dialog to send Pi's original payloads. The version defaults to `2.1.280` and can
 be overridden with `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION=X.Y.Z` before starting the server.
 A malformed override fails the extension load instead of silently sending a bad identity.
+
+## Details in the Extensions dialog
+
+An optional `extensions/<folder>/details.tsx` default-exports a plain function component
+receiving `ExtensionDetailsProps` from the browser SDK: `{ enabled, installed }`.
+Its presence makes the folder's title an expandable button in the Extensions dialog.
+The switch remains separate; expanding does not enable the extension.
+
+This facet is separate from `web.tsx`: it is lazy-loaded only when expanded, including
+for disabled folders, without importing or mounting their normal browser features.
+Keep its module top level side-effect-free. A loading or rendering failure is isolated
+with an error boundary and an inline message. Like `web.tsx`, it uses Vite HMR.
+Details may use the existing action API, but actions are unavailable when a folder is
+not installed; the component must respect both props and show an honest offline state.
+Polling and subscriptions must stop on collapse, disable or unmount. Tailwind scans
+extension folders too, so their details components can use theme utilities.
+
+Anthropic subscription details show the configured billing-block version and its source
+(default or environment override), plus the last payload-processing outcome, provider and
+local time. These are in-memory, server-wide diagnostics across all sessions, reset when
+the extension reloads or is disabled. They retain no message text, system prompt or token.
+The open details refresh every three seconds, with no polling while disabled or collapsed.
+A disabled folder shows only the bundled default, not a claim about the effective env override.
+The displayed version is not the transport's HTTP User-Agent, and an applied shape does
+not prove either a successful response or subscription billing.

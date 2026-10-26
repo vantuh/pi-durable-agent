@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { shapeRequest } from "./server.ts";
+import type { Host } from "../../server/extensions.ts";
+import type { RequestShaper } from "../../server/model-requests.ts";
+import { diagnostics } from "./refs.ts";
+import subscription, { actions, shapeRequest } from "./server.ts";
 
 const identity = {
     type: "text",
@@ -65,4 +68,98 @@ void test("text content blocks seed the same billing identity as string content"
             "system",
         ),
     );
+});
+
+function setup() {
+    const shapers: RequestShaper[] = [];
+    const disposers: (() => void | Promise<void>)[] = [];
+    const host: Host = {
+        name: "anthropic-subscription",
+        cwd: ".",
+        dataDir: ".",
+        log: () => undefined,
+        onCommit: () => undefined,
+        onDispose: (dispose) => {
+            disposers.push(dispose);
+        },
+        shapeModelRequests: (shape) => {
+            shapers.push(shape);
+        },
+    };
+    subscription(host);
+    const read = () =>
+        diagnostics.parse(actions(host)["diagnostics"]?.({ args: undefined, session: null }));
+    const shape = (payload: unknown, provider = "anthropic") => shapers[0]?.(payload, { provider });
+    return { host, read, shape, disposers };
+}
+
+void test("diagnostics record only outcome, provider and time, never request content", () => {
+    const { read, shape } = setup();
+    assert.equal(read().last, null);
+    const payload = { system: [identity], messages: [{ role: "user", content: "private text" }] };
+    const shaped = shape(payload);
+    assert.equal(read().last?.outcome, "applied");
+    assert.equal(read().last?.provider, "anthropic");
+    assert.ok((read().last?.at ?? 0) > 0);
+    assert.equal(JSON.stringify(read()).includes("private text"), false);
+    shape(shaped);
+    assert.equal(read().last?.outcome, "already-shaped");
+    shape(payload, "openai");
+    assert.equal(read().last?.outcome, "other-provider");
+    shape({ system: [{ type: "text", text: "API key prompt" }] });
+    assert.equal(read().last?.outcome, "no-oauth-identity");
+    shape({ system: [identity], messages: [] });
+    assert.equal(read().last?.outcome, "no-user-text");
+});
+
+void test("version source, host isolation and reload reset", async () => {
+    const key = "PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION";
+    const previous = process.env[key];
+    try {
+        delete process.env[key];
+        const first = setup();
+        assert.equal(first.read().version, "2.1.280");
+        assert.equal(first.read().source, "default");
+        first.shape({}, "openai");
+        assert.equal(setup().read().last, null);
+        for (const dispose of first.disposers) {
+            await dispose();
+        }
+        assert.equal(
+            actions(first.host)["diagnostics"]?.({ args: undefined, session: null }),
+            undefined,
+        );
+        process.env[key] = " 2.1.300 ";
+        const override = setup();
+        assert.equal(override.read().version, "2.1.300");
+        assert.equal(override.read().source, "environment");
+        assert.equal(override.read().last, null);
+        process.env[key] = "invalid";
+        assert.throws(setup, /must be X.Y.Z/);
+    } finally {
+        if (previous === undefined) {
+            delete process.env[key];
+        } else {
+            process.env[key] = previous;
+        }
+    }
+});
+
+void test("diagnostics contract rejects malformed data", () => {
+    for (const value of [
+        null,
+        {},
+        {
+            version: "2.1.280",
+            source: "default",
+            last: { outcome: "made-up", provider: "anthropic", at: 1 },
+        },
+        { version: "2.1.280", source: "default", last: null },
+    ]) {
+        if (value?.last === null) {
+            assert.equal(diagnostics.parse(value).last, null);
+        } else {
+            assert.throws(() => diagnostics.parse(value));
+        }
+    }
 });

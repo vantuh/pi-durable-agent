@@ -2,7 +2,7 @@ import { Component, type ReactNode } from "react";
 
 /** One contribution that throws while rendering hides only itself, and logs once. */
 export class ItemBoundary extends Component<
-    { name: string; children: ReactNode },
+    { name: string; children: ReactNode; fallback?: ReactNode },
     { failed: boolean }
 > {
     override state = { failed: false };
@@ -16,6 +16,6 @@ export class ItemBoundary extends Component<
     }
 
     override render(): ReactNode {
-        return this.state.failed ? null : this.props.children;
+        return this.state.failed ? (this.props.fallback ?? null) : this.props.children;
     }
 }

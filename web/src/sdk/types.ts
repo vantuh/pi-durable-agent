@@ -43,3 +43,9 @@ export type WebExtension = {
     settings?: SettingsSection[];
     panels?: PanelItem[];
 };
+
+/** A details.tsx component in the Extensions dialog, also available while disabled. */
+export type ExtensionDetailsProps = {
+    enabled: boolean;
+    installed: boolean;
+};
