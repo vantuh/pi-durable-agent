@@ -68,6 +68,7 @@ One bar across the bottom, always visible:
 | folder, branch     | `/api/health`                | `sm` and wider                     |
 | extension fields   | `status` export of a folder  | only with that extension on        |
 | context meter      | `extensions/context-meter`   | centre slot, once an answer exists |
+| cache hit          | `extensions/cache-hit`       | start slot, once an answer exists  |
 | agents             | the subagents extension      | only with that extension on        |
 
 The bar has three slots (`start`, `center`, `end`) that extensions fill. `tok/s` is an `end` field: `extensions/tokens-per-second`. Below `sm` the path and branch
