@@ -1,6 +1,7 @@
 # pi-durable-agent
 
 Decisions written down before code, so that code can be read against them.
+The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 
 | Document                         | Holds                                                    |
 | -------------------------------- | -------------------------------------------------------- |

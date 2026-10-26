@@ -90,12 +90,14 @@ Radii, spacing, and type sizes are decided here once so components do not invent
 
 ## Build order
 
-Each step is visible in the browser before the next starts.
+This document is about the shell, which is core. The order for the whole app — server, loader,
+shell, then features as extensions — is in [../AGENTS.md](../AGENTS.md#how-we-build-in-order).
 
-1. Static shell: three regions and the grid, no data, no server.
-2. Server: `GET /` serves the built app, `GET /api/events` streams, `POST /api/messages` submits.
-3. One conversation, transcript drawn from the event stream.
-4. Composer, streaming text, Stop.
-5. Tool calls as folded activity lines, expanding to a timeline.
-6. Sidebar and the session list.
-7. Drawer: `Run`, then `Files`, then `Changes`.
+Inside the shell, each step is visible in the browser before the next starts.
+
+1. Three regions and the grid, no data.
+2. Transcript drawn from the event stream.
+3. Composer, streaming text, Stop.
+4. Tool calls as folded activity lines, expanding to a timeline.
+5. Sidebar and the session list.
+6. Drawer: `Run`, then `Files`, then `Changes`.
