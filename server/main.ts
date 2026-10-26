@@ -823,6 +823,8 @@ async function main(): Promise<void> {
     registry.install(CodingTools);
 
     extensions = new Extensions({
+        resolveModelAuth: async (providerId, signal) =>
+            (await models.getAuth(providerId, { signal }))?.auth,
         registry,
         dir: join(cwd, "extensions"),
         cwd,

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 
+import { AccountDetails } from "./account-details.tsx";
 import { DEFAULT_VERSION, type Diagnostics, diagnostics, outcomes } from "./refs.ts";
 
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
@@ -109,6 +110,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                             {state.versionError.hint}
                         </p>
                     )}
+                    <AccountDetails />
                     {error !== null && state !== null ? (
                         <p className="text-faint">
                             Values above are from the last successful refresh.

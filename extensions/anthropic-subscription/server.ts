@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Action, Host } from "../../server/extensions.ts";
+import { ActionError, type Action, type Host } from "../../server/extensions.ts";
+import { lookupAccount } from "./account.ts";
 import { DEFAULT_VERSION, type Diagnostics } from "./refs.ts";
 import { oauthTransport } from "./transport.ts";
 
@@ -10,6 +11,17 @@ const states = new WeakMap<Host, Diagnostics>();
 
 export const actions = (host: Host): Record<string, Action> => ({
     diagnostics: () => states.get(host),
+    account: ({ args }) => {
+        const includeIdentity: unknown = record(args) ? args["includeIdentity"] : undefined;
+        if (
+            args !== undefined &&
+            (!record(args) ||
+                (includeIdentity !== undefined && typeof includeIdentity !== "boolean"))
+        ) {
+            throw new ActionError("includeIdentity must be a boolean");
+        }
+        return lookupAccount(host.resolveModelAuth, includeIdentity === true);
+    },
 });
 
 export const meta = {

@@ -83,6 +83,7 @@ function setup() {
             disposers.push(dispose);
         },
         shapeModelRequests: () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
         wrapModelFetch: (wrap) => {
             wrappers.push(wrap);
         },
@@ -191,4 +192,14 @@ void test("authorization, not prompt identity, gates OAuth shaping", async () =>
     assert.deepEqual(await shape(payload, "openai"), payload);
     const spoof = { ...payload, system: [identity] };
     assert.deepEqual(await shape(spoof, "anthropic", false), spoof);
+});
+
+void test("account action validates identity opt-in and defaults to no OAuth without auth capability", async () => {
+    const { host } = setup();
+    const action = actions(host)["account"];
+    assert.ok(action);
+    for (const args of [null, "yes", { includeIdentity: "true" }]) {
+        assert.throws(() => action({ args, session: null }), /includeIdentity must be a boolean/);
+    }
+    assert.deepEqual(await action({ args: undefined, session: null }), { kind: "not-oauth" });
 });

@@ -412,3 +412,23 @@ extension retry. The caller's transport and signal are used for both attempts.
 The learned minimum is shared across this extension's requests in memory and discarded
 on reload/disable. A second version rejection is surfaced with a hint, never chased.
 Details show the learned minimum and whether the last OAuth request's retry recovered.
+
+### On-demand account lookup
+
+**Check subscription** in the extension details queries Anthropic's undocumented
+`https://api.anthropic.com/api/oauth/profile` endpoint only when clicked. It shows the
+organization/subscription type and status, seat/rate-limit tiers, and whether extra usage
+is enabled. Missing or unfamiliar fields show Unknown. This does not report remaining
+quota or prove which pool a model request was billed against.
+
+Email and organization name are excluded from the server's result unless **Include email
+and organization** is explicitly checked. Unchecking clears the displayed profile. Nothing
+is persisted; there is no background profile polling. Lookup has a five-second timeout,
+disallows redirects and returns sanitized failures rather than raw auth errors or bodies.
+API-key or missing authorization causes no profile HTTP request. No model call is made.
+
+The generic `host.resolveModelAuth(provider, signal)` capability resolves current request
+authorization through ModelRuntime, including its normal refresh and credential locking.
+It is server-only: credentials must never be returned to the browser, logged or cached by
+extensions. The core supplies this because extensions must not read Pi's credential files
+or implement OAuth refresh. Restart the server once to install this new capability.

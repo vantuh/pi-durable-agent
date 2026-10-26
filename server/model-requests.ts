@@ -7,6 +7,11 @@ export type RequestShaper = (payload: unknown, model: RequestModel) => unknown;
 type Options = Parameters<ModelRuntime["streamSimple"]>[2];
 export type ModelFetch = NonNullable<NonNullable<Options>["fetch"]>;
 export type FetchWrapper = (next: ModelFetch, model: RequestModel) => ModelFetch;
+export type ResolvedModelAuth = NonNullable<Awaited<ReturnType<ModelRuntime["getAuth"]>>>["auth"];
+export type ResolveModelAuth = (
+    provider: string,
+    signal: AbortSignal,
+) => Promise<ResolvedModelAuth | undefined>;
 
 export function shapeModelRequests(
     models: ModelRuntime,

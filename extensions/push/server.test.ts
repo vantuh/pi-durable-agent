@@ -391,6 +391,7 @@ void describe("push", () => {
                 onCommit: (listener) => listeners.push(listener),
                 shapeModelRequests: () => undefined,
                 wrapModelFetch: () => undefined,
+                resolveModelAuth: () => Promise.resolve(undefined),
             };
             const sends: string[] = [];
 

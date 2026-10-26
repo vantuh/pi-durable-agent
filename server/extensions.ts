@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
 import type { ClientStatus } from "../shared/protocol.ts";
-import type { FetchWrapper, RequestShaper } from "./model-requests.ts";
+import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
 
 /** What an extension's `server.ts` receives. It grows only when a feature needs more. */
 export type Host = {
@@ -37,6 +37,8 @@ export type Host = {
     readonly shapeModelRequests: (shape: RequestShaper) => void;
     /** Wraps the resolved HTTP transport; never retain or log authorization headers. */
     readonly wrapModelFetch: (wrap: FetchWrapper) => void;
+    /** Resolves current provider auth through Pi, including refresh. Never persist or log it. */
+    readonly resolveModelAuth: ResolveModelAuth;
 };
 
 /** One conversation after a commit: what a commit listener may read. */
@@ -275,6 +277,7 @@ export class Extensions {
 
     readonly #shapers = new Set<RequestShaper>();
     readonly #fetchWrappers = new Set<FetchWrapper>();
+    readonly #resolveModelAuth: ResolveModelAuth;
 
     get fetchWrappers(): readonly FetchWrapper[] {
         return [...this.#fetchWrappers];
@@ -299,12 +302,14 @@ export class Extensions {
         cwd: string;
         dataDir: string;
         log: (message: string) => void;
+        resolveModelAuth?: ResolveModelAuth;
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
         this.#cwd = options.cwd;
         this.#dataDir = options.dataDir;
         this.#log = options.log;
+        this.#resolveModelAuth = options.resolveModelAuth ?? (() => Promise.resolve(undefined));
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -667,6 +672,7 @@ export class Extensions {
             onDispose: (dispose) => {
                 attempt.push(dispose);
             },
+            resolveModelAuth: this.#resolveModelAuth,
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
                 attempt.push(() => {
