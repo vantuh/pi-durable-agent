@@ -1,5 +1,5 @@
 import { Paperclip, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
     Attachment,
@@ -11,6 +11,7 @@ import {
     AttachmentTitle,
     AttachmentTrigger,
 } from "@/components/ui/attachment";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 
 /** A file in the composer: on screen at once, `path` once the server has it. */
@@ -45,37 +46,20 @@ function srcOf(file: Pending): string | undefined {
 }
 
 function Lightbox({ file, onClose }: { file: Pending; onClose: () => void }) {
-    useEffect(() => {
-        const close = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        };
-
-        window.addEventListener("keydown", close);
-
-        return () => {
-            window.removeEventListener("keydown", close);
-        };
-    }, [onClose]);
-
     return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <button
-                type="button"
-                aria-label="Close preview"
-                onClick={onClose}
-                className="bg-sunken/90 absolute inset-0 cursor-default"
-            />
-            <div className="rounded-card border-edge bg-panel relative flex max-h-full max-w-full flex-col gap-1.5 border p-1.5 shadow-lg">
-                <button
-                    type="button"
-                    title="Close"
-                    onClick={onClose}
-                    className="border-edge bg-raised text-muted hover:text-ink absolute -top-2.5 -right-2.5 flex size-6 items-center justify-center rounded-full border"
-                >
-                    <X className="size-3.5" />
-                </button>
+        <Dialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
+            <DialogContent
+                aria-describedby={undefined}
+                className="bg-panel border-edge rounded-card inset-auto top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 gap-1.5 border p-1.5 sm:max-h-[calc(100dvh-2rem)] sm:w-auto sm:max-w-[calc(100vw-2rem)]"
+            >
+                <DialogTitle className="sr-only">{file.name}</DialogTitle>
                 <img
                     src={srcOf(file)}
                     alt={file.name}
@@ -84,8 +68,8 @@ function Lightbox({ file, onClose }: { file: Pending; onClose: () => void }) {
                 <p className="text-meta text-muted max-w-full truncate px-1 font-mono">
                     {file.name}
                 </p>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 

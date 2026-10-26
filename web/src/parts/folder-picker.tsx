@@ -1,5 +1,7 @@
-import { ArrowUp, Folder, House, Laptop, Star, X } from "lucide-react";
+import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
 import { useEffect, useState } from "react";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import {
     type FolderPage,
@@ -101,21 +103,18 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const trail = crumbs(page?.path ?? path);
 
     return (
-        <div className="bg-sunken/80 fixed inset-0 z-30 grid place-items-center p-4">
-            <div className="rounded-card border-edge-soft bg-canvas flex max-h-[90vh] w-full max-w-3xl flex-col border shadow-lg">
-                <header className="border-edge-soft flex items-center justify-between border-b px-4 py-3">
-                    <h2 className="text-interface text-ink font-medium">
-                        New session: pick a folder
-                    </h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        title="Close"
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                    >
-                        <X className="size-4" />
-                    </button>
-                </header>
+        <Dialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
+            <DialogContent aria-describedby={undefined} className="sm:max-w-3xl">
+                <DialogHeader className="px-4 py-3 pr-10">
+                    <DialogTitle>New session: pick a folder</DialogTitle>
+                </DialogHeader>
 
                 <div className="flex items-center gap-2 px-4 py-3">
                     <button
@@ -226,8 +225,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         </button>
                     </div>
                 </footer>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 

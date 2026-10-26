@@ -1,6 +1,7 @@
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { useState } from "react";
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
@@ -47,39 +48,32 @@ export function ModelMenu({
         defaultModel.thinkingLevel === (level ?? "off");
 
     return (
-        <div className="fixed inset-0 z-30 flex items-center justify-center p-4">
-            <button
-                type="button"
-                aria-label="Close"
-                onClick={onClose}
-                className="bg-sunken/70 absolute inset-0 cursor-default"
-            />
-            <div className="rounded-card border-edge-soft bg-panel relative flex h-[min(36rem,80vh)] w-full max-w-xl flex-col border shadow-lg">
-                <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2">
-                    <div className="text-interface flex items-center gap-3">
-                        <span className="text-ink">Model</span>
-                        <Tabs
-                            value={tab}
-                            onValueChange={(value) => {
-                                setTab(value === "all" ? "all" : "scoped");
-                            }}
-                        >
-                            <TabsList>
-                                <TabsTrigger value="scoped">scoped</TabsTrigger>
-                                <TabsTrigger value="all">all</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        title="Close"
-                        className="text-muted hover:text-ink flex size-6 items-center justify-center"
+        <Dialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
+            <DialogContent
+                aria-describedby={undefined}
+                className="bg-panel sm:h-[min(36rem,80dvh)] sm:max-w-xl"
+            >
+                <DialogHeader className="flex-row items-center gap-3 py-2">
+                    <DialogTitle>Model</DialogTitle>
+                    <Tabs
+                        value={tab}
+                        onValueChange={(value) => {
+                            setTab(value === "all" ? "all" : "scoped");
+                        }}
                     >
-                        <X className="size-4" />
-                    </button>
-                </header>
+                        <TabsList>
+                            <TabsTrigger value="scoped">scoped</TabsTrigger>
+                            <TabsTrigger value="all">all</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </DialogHeader>
 
                 <div className="px-3 py-2">
                     <input
@@ -170,7 +164,7 @@ export function ModelMenu({
                         </TabsList>
                     </Tabs>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }
