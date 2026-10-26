@@ -217,7 +217,7 @@ export function App() {
 
             {picker ? (
                 <FolderPicker
-                    start={health?.home ?? "/"}
+                    start={active?.cwd ?? health?.cwd ?? health?.home ?? "/"}
                     recent={sessions.map((session) => session.cwd).filter((cwd) => cwd !== null)}
                     onClose={() => {
                         setPicker(false);
