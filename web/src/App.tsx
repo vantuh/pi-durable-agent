@@ -278,6 +278,7 @@ export function App() {
 
                             if (id !== 0) {
                                 setCurrent(id);
+                                setSheet(false);
                             }
 
                             await reload();
