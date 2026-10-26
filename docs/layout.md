@@ -49,10 +49,15 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - A person's message: a `raised` card on the right, at most 80% wide.
-    - An answer: plain prose at 15px, no card, no name — the answer's statistics line from the
-      mockup (`model · ctx · cost · time`) comes with tool folding.
-    - A tool call: one dim mono line, `⌘ name`, until folding lands.
-    - Thinking: dim italic metadata.
+    - An answer: plain prose at 15px, no card, no name. Above it, one mono line of statistics:
+      `model · level` on the left, `↑context ↓output · $cost · time` on the right (the turn's newest
+      prompt, and output and cost summed over its responses); it ticks while the run is live.
+    - Thinking and tool calls between two of Pi's words fold into one activity line
+      (`Thought, read 2 files and ran 1 command · 1 failed · 12s`), across answers, closed by default.
+      Opened, it is a timeline: a line per step with its status, name, subject and time; a step opens
+      to its arguments and output. The grouping is `web/src/lib/turns.ts`, after Pi Pocket's `turns.js`.
+      An opened `edit` is a diff card (`details.diff` of its result, line numbers, the changed words
+      marked); an opened `write` is its file as a highlighted code block.
 - **Composer**: `sunken` card, textarea, `Enter` sends, `Shift+Enter` breaks the line. While a run is
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
   after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,

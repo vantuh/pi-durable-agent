@@ -7,6 +7,7 @@
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type {
+    ClientAnswerStats,
     ClientBlock,
     ClientEntry,
     ClientLive,
@@ -113,18 +114,83 @@ function textOf(content: unknown): string {
     return text;
 }
 
+function optionalNumber(
+    record: Record<string, unknown> | undefined,
+    key: string,
+): number | undefined {
+    const value = record?.[key];
+
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Undefined for a message too old to carry a start time: its line would say nothing true. */
+function statsOf(message: Record<string, unknown> | undefined): ClientAnswerStats | undefined {
+    const startedAt = optionalNumber(message, "timestamp");
+
+    if (startedAt === undefined) {
+        return undefined;
+    }
+
+    const usage = recordOf(message?.["usage"]);
+    const thinkingLevel =
+        stringOf(message, "thinkingLevel") ?? stringOf(message, "providerThinkingLevel");
+    const durationMs = optionalNumber(message, "durationMs");
+
+    return {
+        model: stringOf(message, "model") ?? "",
+        stopReason: stringOf(message, "stopReason") ?? "stop",
+        input:
+            numberAt(usage, "input") + numberAt(usage, "cacheRead") + numberAt(usage, "cacheWrite"),
+        output: numberAt(usage, "output"),
+        cost: numberAt(recordOf(usage?.["cost"]), "total"),
+        startedAt,
+        ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
+        ...(durationMs === undefined ? {} : { durationMs }),
+    };
+}
+
+/** Diff lines a card shows before it says the rest is cut. */
+const DIFF_LINES = 400;
+
+/** An edit's display diff, cut by whole lines: a cut line would read as a change. */
+function diffOf(details: Record<string, unknown> | undefined): string | undefined {
+    const diff = stringOf(details, "diff");
+
+    if (diff === undefined || diff === "") {
+        return undefined;
+    }
+
+    const lines = diff.split("\n");
+
+    return lines.length <= DIFF_LINES
+        ? diff
+        : [
+              ...lines.slice(0, DIFF_LINES),
+              ` … ${String(lines.length - DIFF_LINES)} more lines`,
+          ].join("\n");
+}
+
 /** One entry for the browser, or `undefined` for bookkeeping the screen never shows. */
 export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
     const id = Number(entry.id);
     const message = recordOf(Array.isArray(entry.model) ? entry.model[0] : undefined);
 
     switch (entry.kind) {
-        case "pi.user":
-            return { id, kind: "user", text: textOf(message?.["content"]) };
+        case "pi.user": {
+            const at = optionalNumber(message, "timestamp");
+
+            return {
+                id,
+                kind: "user",
+                text: textOf(message?.["content"]),
+                ...(at === undefined ? {} : { at }),
+            };
+        }
 
         case "pi.assistant": {
             const model = stringOf(message, "model");
             const error = stringOf(message, "errorMessage");
+            const stats = statsOf(message);
 
             return {
                 id,
@@ -132,12 +198,16 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
                 blocks: blocksOf(message?.["content"]),
                 ...(model === undefined ? {} : { model }),
                 ...(error === undefined ? {} : { error }),
+                ...(stats === undefined ? {} : { stats }),
             };
         }
 
         case "pi.tool-result": {
             const output = textOf(message?.["content"]);
             const cut = output.length > OUTPUT_LIMIT;
+            const at = optionalNumber(message, "timestamp");
+            const durationMs = optionalNumber(message, "durationMs");
+            const diff = diffOf(recordOf(message?.["details"]));
 
             return {
                 id,
@@ -147,6 +217,9 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
                 text: cut ? `${output.slice(0, OUTPUT_LIMIT)}\n…` : output,
                 isError: message?.["isError"] === true,
                 ...(cut ? { truncated: true } : {}),
+                ...(at === undefined ? {} : { at }),
+                ...(durationMs === undefined ? {} : { durationMs }),
+                ...(diff === undefined ? {} : { diff }),
             };
         }
 
@@ -253,7 +326,13 @@ export function projectLive(value: unknown, usage: unknown, inbox: unknown): Cli
     const message = recordOf(generation?.["message"]);
 
     if (message !== undefined) {
+        const startedAt = optionalNumber(message, "timestamp");
+
         out.blocks = blocksOf(message["content"]);
+
+        if (startedAt !== undefined) {
+            out.startedAt = startedAt;
+        }
     }
 
     if (live["tools"] !== undefined) {

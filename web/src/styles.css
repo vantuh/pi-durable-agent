@@ -26,6 +26,16 @@
     --role-warn: var(--ctp-yellow);
     --role-danger: var(--ctp-red);
     --role-info: var(--ctp-blue);
+    --role-spark: var(--ctp-pink);
+
+    /* Code, as Catppuccin's own syntax style colours it. */
+    --role-code-keyword: var(--ctp-mauve);
+    --role-code-string: var(--ctp-green);
+    --role-code-comment: var(--ctp-overlay2);
+    --role-code-constant: var(--ctp-peach);
+    --role-code-parameter: var(--ctp-maroon);
+    --role-code-function: var(--ctp-blue);
+    --role-code-punctuation: var(--ctp-overlay2);
 }
 
 @theme inline {
@@ -48,6 +58,14 @@
     --color-warn: var(--role-warn);
     --color-danger: var(--role-danger);
     --color-info: var(--role-info);
+    --color-spark: var(--role-spark);
+    --color-code-keyword: var(--role-code-keyword);
+    --color-code-string: var(--role-code-string);
+    --color-code-comment: var(--role-code-comment);
+    --color-code-constant: var(--role-code-constant);
+    --color-code-parameter: var(--role-code-parameter);
+    --color-code-function: var(--role-code-function);
+    --color-code-punctuation: var(--role-code-punctuation);
 
     --radius-control: 6px;
     --radius-card: 10px;
@@ -85,6 +103,39 @@ body {
     font-family: var(--font-sans);
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
+}
+
+/* Live work: the words shine left to right, from the theme's own dim and bright text. */
+.shimmer {
+    background: linear-gradient(
+            90deg,
+            var(--role-faint) 0%,
+            var(--role-faint) 40%,
+            var(--role-ink) 50%,
+            var(--role-faint) 60%,
+            var(--role-faint) 100%
+        )
+        0 0 / 250% 100%;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+    from {
+        background-position: 100% 0;
+    }
+
+    to {
+        background-position: -150% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shimmer {
+        animation: none;
+        color: var(--role-muted);
+    }
 }
 
 /*
@@ -153,6 +204,30 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
     .state-mark.working::before {
+        animation: none;
+    }
+}
+
+/* The answer being written: a caret after its last words. */
+.streaming > :last-child::after {
+    content: "";
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: -0.12em;
+    background: var(--role-accent);
+    animation: caret 1s steps(2, start) infinite;
+}
+
+@keyframes caret {
+    to {
+        visibility: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .streaming > :last-child::after {
         animation: none;
     }
 }

@@ -1,7 +1,12 @@
 import { PanelLeft, Settings as SettingsIcon } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 
-import type { ClientBlock, ClientEntry, ClientLive, ClientTool } from "../../../shared/protocol.ts";
+import { Spinner } from "@/components/ui/spinner";
+
+import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
+import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
+import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
+import { Markdown } from "./markdown.tsx";
 
 type Props = {
     title: string | null;
@@ -11,71 +16,92 @@ type Props = {
     onSessions: () => void;
 };
 
-function Blocks({ blocks }: { blocks: ClientBlock[] }) {
-    return (
-        <>
-            {blocks.map((block, at) => (
-                // oxlint-disable-next-line react/no-array-index-key -- a message's blocks carry no id; their order is the identity
-                <div key={at} className="flex flex-col gap-1.5">
-                    {block.type === "text" ? (
-                        <p className="text-prose text-ink whitespace-pre-wrap">{block.text}</p>
-                    ) : block.type === "thinking" ? (
-                        <p className="text-meta text-faint whitespace-pre-wrap italic">
-                            {block.text}
-                        </p>
-                    ) : (
-                        <p className="text-meta text-muted font-mono">⌘ {block.name}</p>
-                    )}
-                </div>
-            ))}
-        </>
-    );
-}
+const tokens = (count: number): string =>
+    count < 1000 ? String(count) : `${(count / 1000).toFixed(count < 10_000 ? 1 : 0)}k`;
 
-function Tools({ tools }: { tools: ClientTool[] }) {
+const dollars = (cost: number): string => `$${cost.toFixed(cost < 1 ? 3 : 2)}`;
+
+/**
+ * The answer's statistics, above it: model and thinking level, then context, output, cost and time. Context is the
+ * newest response's prompt; output and cost add up every response of the turn. Its title says it in full.
+ */
+function AnswerHeader({ turn }: { turn: Turn }) {
+    const now = useNow(turn.live);
+    const stats = turn.stats;
+    const startedAt = stats?.startedAt ?? turn.user?.at;
+    const until = turn.live ? now : stats?.endedAt;
+    const time = startedAt === undefined || until === undefined ? undefined : until - startedAt;
+    const spend =
+        stats === undefined
+            ? []
+            : [
+                  `↑${tokens(stats.context)} ↓${tokens(stats.output)}`,
+                  ...(stats.cost > 0 ? [dollars(stats.cost)] : []),
+              ];
+    const title =
+        stats === undefined
+            ? undefined
+            : [
+                  `${String(stats.responses)} ${stats.responses === 1 ? "response" : "responses"}`,
+                  `context ${stats.context.toLocaleString()} tokens`,
+                  `output ${stats.output.toLocaleString()} tokens`,
+                  ...(stats.cost > 0 ? [`cost ${dollars(stats.cost)}`] : []),
+              ].join(" · ");
+
     return (
-        <div className="flex flex-wrap gap-1.5">
-            {tools.map((tool) => (
-                <span
-                    key={tool.callId}
-                    className="bg-raised text-meta text-muted rounded-full px-2 py-0.5 font-mono"
-                >
-                    {tool.name}
-                    {tool.status === "done" ? "" : " …"}
-                </span>
-            ))}
+        <div
+            title={title}
+            className="text-meta text-faint flex min-w-0 items-center gap-2 font-mono"
+        >
+            {turn.live ? <Spinner className="size-3 shrink-0" /> : null}
+            <span className="text-muted truncate">
+                {stats === undefined ? "working" : stats.model}
+                {stats?.thinkingLevel === undefined ? "" : ` · ${stats.thinkingLevel}`}
+            </span>
+            <span className="ml-auto shrink-0 tabular-nums">
+                {[...spend, ...(time === undefined ? [] : [formatDuration(time)])].join(" · ")}
+            </span>
         </div>
     );
 }
 
-function Entry({ entry }: { entry: ClientEntry }) {
-    if (entry.kind === "user") {
-        return (
-            <div className="flex justify-end">
-                <p className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2 whitespace-pre-wrap">
-                    {entry.text}
-                </p>
-            </div>
-        );
+function TurnItem({ item }: { item: Item }) {
+    if (item.type === "activity") {
+        return <ActivityGroup item={item} />;
     }
 
-    if (entry.kind === "assistant") {
-        return (
-            <div className="flex flex-col gap-1.5">
-                <Blocks blocks={entry.blocks} />
-                {entry.error === undefined ? null : (
-                    <p className="text-meta text-danger">{entry.error}</p>
-                )}
-            </div>
-        );
+    if (item.type === "error") {
+        return <p className="text-meta text-danger">{item.text}</p>;
     }
 
-    // Tool results are folded into one line per group by the next step; until then the call alone shows.
-    return null;
+    return <Markdown text={item.text} streaming={item.streaming} />;
+}
+
+function TurnView({ turn }: { turn: Turn }) {
+    return (
+        <div className="flex flex-col gap-3">
+            {turn.user === undefined ? null : (
+                <div className="flex justify-end">
+                    <p className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2 whitespace-pre-wrap">
+                        {turn.user.text}
+                    </p>
+                </div>
+            )}
+            {turn.items.length === 0 && !turn.live ? null : (
+                <div className="flex flex-col gap-2.5">
+                    {turn.stats === undefined && !turn.live ? null : <AnswerHeader turn={turn} />}
+                    {turn.items.map((item) => (
+                        <TurnItem key={item.key} item={item} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 export function Transcript({ title, entries, live, onSettings, onSessions }: Props) {
     const bottom = useRef<HTMLDivElement>(null);
+    const turns = useMemo(() => turnsOf(entries, live), [entries, live]);
     const grown = (live.blocks ?? []).reduce(
         (size, block) => size + (block.type === "toolCall" ? 0 : block.text.length),
         0,
@@ -121,17 +147,9 @@ export function Transcript({ title, entries, live, onSettings, onSessions }: Pro
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                 <div className="mx-auto flex max-w-[46rem] flex-col gap-4">
-                    {entries.map((entry) => (
-                        <Entry key={entry.id} entry={entry} />
+                    {turns.map((turn) => (
+                        <TurnView key={turn.key} turn={turn} />
                     ))}
-
-                    {live.blocks === undefined ? null : (
-                        <div className="flex flex-col gap-1.5">
-                            <Blocks blocks={live.blocks} />
-                        </div>
-                    )}
-
-                    {live.tools === undefined ? null : <Tools tools={live.tools} />}
 
                     {entries.length === 0 && live.blocks === undefined ? (
                         <p className="text-prose text-faint">Nothing here yet. Ask something.</p>

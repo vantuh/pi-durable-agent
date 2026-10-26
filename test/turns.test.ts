@@ -1,0 +1,152 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import type { ClientAnswerStats, ClientEntry, ClientLive } from "../shared/protocol.ts";
+import { outcomeOf, summarize, turnsOf } from "../web/src/lib/turns.ts";
+
+const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
+
+function stats(startedAt: number, extra: Partial<ClientAnswerStats> = {}): ClientAnswerStats {
+    return {
+        model: "m1",
+        stopReason: "toolUse",
+        input: 100,
+        output: 10,
+        cost: 0.01,
+        startedAt,
+        durationMs: 1000,
+        ...extra,
+    };
+}
+
+const call = (id: string, name: string, args: unknown) =>
+    ({ type: "toolCall", id, name, args }) as const;
+
+const result = (id: number, callId: string, isError = false, at = 0): ClientEntry => ({
+    id,
+    kind: "toolResult",
+    callId,
+    name: "read",
+    text: "out",
+    isError,
+    at,
+});
+
+void describe("turnsOf", () => {
+    void it("folds calls across answers into one group until words end it", () => {
+        const entries: ClientEntry[] = [
+            { id: 1, kind: "user", text: "hi", at: 1000 },
+            {
+                id: 2,
+                kind: "assistant",
+                blocks: [{ type: "thinking", text: "hmm" }, call("a", "read", { path: "x.ts" })],
+                stats: stats(1000),
+            },
+            result(3, "a", false, 2500),
+            {
+                id: 4,
+                kind: "assistant",
+                blocks: [call("b", "bash", { command: "ls" }), { type: "text", text: "Done." }],
+                stats: stats(3000, { stopReason: "stop", input: 300, cost: 0.02 }),
+            },
+            result(5, "b", true, 4500),
+        ];
+
+        const [turn] = turnsOf(entries, IDLE);
+
+        assert.ok(turn !== undefined);
+        assert.deepEqual(
+            turn.items.map((item) => item.type),
+            ["activity", "reply"],
+        );
+
+        const group = turn.items[0];
+
+        assert.ok(group?.type === "activity");
+        assert.deepEqual(
+            group.steps.map((step) => (step.kind === "tool" ? step.status : step.kind)),
+            ["thinking", "done", "error"],
+        );
+        assert.equal(group.endedAt, 4500);
+        assert.equal(summarize(group.steps, false), "Thought, read 1 file and ran 1 command");
+        assert.deepEqual(turn.stats, {
+            model: "m1",
+            responses: 2,
+            context: 300,
+            output: 20,
+            cost: 0.03,
+            startedAt: 1000,
+            endedAt: 4000,
+        });
+    });
+
+    void it("says a call without a result stopped, unless the run can still reach it", () => {
+        const entries: ClientEntry[] = [
+            { id: 1, kind: "user", text: "hi" },
+            { id: 2, kind: "assistant", blocks: [call("a", "edit", { path: "y" })] },
+        ];
+        const statusOf = (live: ClientLive) => {
+            const item = turnsOf(entries, live)[0]?.items[0];
+
+            return item?.type === "activity" && item.steps[0]?.kind === "tool"
+                ? item.steps[0].status
+                : undefined;
+        };
+
+        assert.equal(statusOf(IDLE), "stopped");
+        assert.equal(statusOf({ ...IDLE, busy: true }), "pending");
+        assert.equal(
+            statusOf({
+                ...IDLE,
+                busy: true,
+                tools: [{ callId: "a", name: "edit", status: "running" }],
+            }),
+            "running",
+        );
+    });
+
+    void it("keeps a group's key when the streamed answer is stored", () => {
+        const user: ClientEntry = { id: 1, kind: "user", text: "hi" };
+        const blocks = [call("a", "read", { path: "x" })];
+        const streaming = turnsOf([user], { ...IDLE, busy: true, blocks });
+        const stored = turnsOf([user, { id: 2, kind: "assistant", blocks }], {
+            ...IDLE,
+            busy: true,
+        });
+
+        assert.equal(streaming[0]?.items[0]?.key, stored[0]?.items[0]?.key);
+        assert.equal(streaming[0]?.live, true);
+    });
+});
+
+void describe("outcomeOf", () => {
+    const step = (name: string, args: unknown, text: string, isError = false) =>
+        ({
+            kind: "tool",
+            key: "k",
+            id: "c",
+            name,
+            args,
+            status: isError ? "error" : "done",
+            result: { id: 1, kind: "toolResult", callId: "c", name, text, isError },
+        }) as const;
+
+    void it("counts lines, edits, and says how a call failed", () => {
+        assert.deepEqual(outcomeOf(step("read", { path: "a" }, "1\n2\n3")), { text: "3 lines" });
+        assert.deepEqual(outcomeOf(step("bash", { command: "true" }, "")), { text: "no output" });
+        assert.deepEqual(
+            outcomeOf(step("edit", { edits: [{ oldText: "a", newText: "b\nc" }] }, "ok")),
+            { text: "+2 \u22121", tone: "ok", counts: { added: 2, removed: 1 } },
+        );
+        assert.deepEqual(outcomeOf(step("bash", {}, "\nexit 1\nmore", true)), {
+            text: "exit 1",
+            tone: "danger",
+        });
+        assert.deepEqual(
+            outcomeOf(
+                step("bash", {}, "<harness>\n[error] Tool bash was aborted\n</harness>", true),
+            ),
+            { text: "stopped", tone: "danger" },
+        );
+    });
+});

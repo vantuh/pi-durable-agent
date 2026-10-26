@@ -1,4 +1,5 @@
 import type {
+    ClientAnswerStats,
     ClientBlock,
     ClientEntry,
     ClientLive,
@@ -162,6 +163,12 @@ function live(value: unknown): ClientLive {
         out.blocks = streamed;
     }
 
+    const startedAt = num(state?.["startedAt"]);
+
+    if (startedAt !== undefined) {
+        out.startedAt = startedAt;
+    }
+
     const running = tools(state?.["tools"]);
 
     if (running.length > 0) {
@@ -183,6 +190,29 @@ function live(value: unknown): ClientLive {
     return out;
 }
 
+function stats(value: unknown): ClientAnswerStats | undefined {
+    const raw = record(value);
+    const startedAt = num(raw?.["startedAt"]);
+
+    if (raw === undefined || startedAt === undefined) {
+        return undefined;
+    }
+
+    const thinkingLevel = str(raw["thinkingLevel"]);
+    const durationMs = num(raw["durationMs"]);
+
+    return {
+        model: str(raw["model"]) ?? "",
+        stopReason: str(raw["stopReason"]) ?? "stop",
+        input: num(raw["input"]) ?? 0,
+        output: num(raw["output"]) ?? 0,
+        cost: num(raw["cost"]) ?? 0,
+        startedAt,
+        ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
+        ...(durationMs === undefined ? {} : { durationMs }),
+    };
+}
+
 function entry(value: unknown): ClientEntry | undefined {
     const raw = record(value);
     const id = num(raw?.["id"]);
@@ -193,12 +223,20 @@ function entry(value: unknown): ClientEntry | undefined {
     }
 
     if (kind === "user") {
-        return { id, kind: "user", text: str(raw?.["text"]) ?? "" };
+        const at = num(raw?.["at"]);
+
+        return {
+            id,
+            kind: "user",
+            text: str(raw?.["text"]) ?? "",
+            ...(at === undefined ? {} : { at }),
+        };
     }
 
     if (kind === "assistant") {
         const model = str(raw?.["model"]);
         const error = str(raw?.["error"]);
+        const measured = stats(raw?.["stats"]);
 
         return {
             id,
@@ -206,10 +244,15 @@ function entry(value: unknown): ClientEntry | undefined {
             blocks: blocks(raw?.["blocks"]),
             ...(model === undefined ? {} : { model }),
             ...(error === undefined ? {} : { error }),
+            ...(measured === undefined ? {} : { stats: measured }),
         };
     }
 
     if (kind === "toolResult") {
+        const diff = str(raw?.["diff"]);
+        const at = num(raw?.["at"]);
+        const durationMs = num(raw?.["durationMs"]);
+
         return {
             id,
             kind: "toolResult",
@@ -217,6 +260,10 @@ function entry(value: unknown): ClientEntry | undefined {
             name: str(raw?.["name"]) ?? "?",
             text: str(raw?.["text"]) ?? "",
             isError: raw?.["isError"] === true,
+            ...(raw?.["truncated"] === true ? { truncated: true as const } : {}),
+            ...(at === undefined ? {} : { at }),
+            ...(durationMs === undefined ? {} : { durationMs }),
+            ...(diff === undefined ? {} : { diff }),
         };
     }
 

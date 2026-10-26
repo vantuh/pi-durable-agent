@@ -8,9 +8,31 @@ export type ClientBlock =
     | { type: "thinking"; text: string }
     | { type: "toolCall"; id: string; name: string; args: unknown };
 
+/** What one model response cost and how long it took, as the provider reported it. */
+export type ClientAnswerStats = {
+    model: string;
+    thinkingLevel?: string;
+    /** `toolUse` means the run goes on after its tools; anything else ends the turn. */
+    stopReason: string;
+    /** Prompt tokens, cache reads and writes included: the context the response was sent with. */
+    input: number;
+    output: number;
+    cost: number;
+    /** Unix milliseconds when the request started. */
+    startedAt: number;
+    durationMs?: number;
+};
+
 export type ClientEntry =
-    | { id: number; kind: "user"; text: string }
-    | { id: number; kind: "assistant"; blocks: ClientBlock[]; model?: string; error?: string }
+    | { id: number; kind: "user"; text: string; at?: number }
+    | {
+          id: number;
+          kind: "assistant";
+          blocks: ClientBlock[];
+          model?: string;
+          error?: string;
+          stats?: ClientAnswerStats;
+      }
     | {
           id: number;
           kind: "toolResult";
@@ -19,6 +41,10 @@ export type ClientEntry =
           text: string;
           isError: boolean;
           truncated?: true;
+          at?: number;
+          durationMs?: number;
+          /** An edit's diff as the tool wrote it: `+12 text`, `-12 text`, ` 12 text`, and `   ...` where lines are skipped. */
+          diff?: string;
       }
     | { id: number; kind: "other"; entryKind: string };
 
@@ -61,6 +87,8 @@ export type ClientLive = {
     busy: boolean;
     /** The answer being streamed now, before it is committed as an entry. */
     blocks?: ClientBlock[];
+    /** Unix milliseconds when the streamed answer's request started. */
+    startedAt?: number;
     tools?: ClientTool[];
     usage: ClientUsage;
     queued?: ClientQueued[];

@@ -132,8 +132,8 @@ second mechanism.
    ([docs/theme.md](docs/theme.md)).
 4. ~~**The shell, transcript and composer.**~~ **Done**: three panels with gaps, a status bar,
    the stream rendered, `Enter` sends, Stop aborts ([docs/layout.md](docs/layout.md)).
-   Still open in it: the answer's statistics line.
-5. **Tool calls** folded into one line per group, with the answer statistics.
+5. ~~**Tool calls** folded into one line per group, with the answer statistics.~~ **Done**:
+   `web/src/lib/turns.ts` groups, `web/src/parts/activity.tsx` folds. Markdown in answers is next.
 6. **Sessions**: more than one conversation, titles and times stored, a real list, a folder
    picker. The core API grows a conversation id here.
 7. **Features**, each a new `extensions/<name>/` folder; the planned ones and their sources are in
