@@ -47,6 +47,12 @@
     --role-danger: var(--ctp-red);
     --role-info: var(--ctp-blue);
     --role-spark: var(--ctp-pink);
+    --role-think-minimal: var(--ctp-teal);
+    --role-think-low: var(--ctp-blue);
+    --role-think-medium: var(--ctp-sapphire);
+    --role-think-high: var(--ctp-mauve);
+    --role-think-xhigh: var(--ctp-pink);
+    --role-think-max: var(--ctp-flamingo);
 
     /* Code, as Catppuccin's own syntax style colours it. */
     --role-code-keyword: var(--ctp-mauve);
@@ -79,6 +85,12 @@
     --color-danger: var(--role-danger);
     --color-info: var(--role-info);
     --color-spark: var(--role-spark);
+    --color-think-minimal: var(--role-think-minimal);
+    --color-think-low: var(--role-think-low);
+    --color-think-medium: var(--role-think-medium);
+    --color-think-high: var(--role-think-high);
+    --color-think-xhigh: var(--role-think-xhigh);
+    --color-think-max: var(--role-think-max);
     --color-code-keyword: var(--role-code-keyword);
     --color-code-string: var(--role-code-string);
     --color-code-comment: var(--role-code-comment);

@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
+import { thinkingTab } from "../lib/thinking.ts";
 
 type Props = {
     scoped: ModelChoice[];
@@ -161,7 +162,11 @@ export function ModelMenu({
                     >
                         <TabsList className="w-full">
                             {levels.map((option) => (
-                                <TabsTrigger key={option} value={option}>
+                                <TabsTrigger
+                                    key={option}
+                                    value={option}
+                                    className={thinkingTab(option)}
+                                >
                                     {option}
                                 </TabsTrigger>
                             ))}

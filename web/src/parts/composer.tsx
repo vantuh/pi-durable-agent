@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 
 import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { uploadFile } from "../lib/api.ts";
+import { thinkingText } from "../lib/thinking.ts";
 import { Attachments, type Pending } from "./attachments.tsx";
 
 const MODES: { mode: SendMode; label: string; hint: string }[] = [
@@ -324,7 +325,9 @@ export function Composer({
                     >
                         <Sparkles className="text-accent size-3.5" />
                         <span className="max-w-[12rem] truncate font-mono">{model}</span>
-                        {level === null ? null : <span className="text-faint">{level}</span>}
+                        {level === null ? null : (
+                            <span className={thinkingText(level)}>{level}</span>
+                        )}
                         <ChevronDown className="size-3.5" />
                     </button>
 
