@@ -7,6 +7,8 @@ type Props = {
     sessions: SessionSummary[];
     current: number | null;
     onSelect: (id: number) => void;
+    /** A folder was picked in the filter: show its latest session, keeping the list open. */
+    onFolder: (id: number) => void;
     onNew: () => void;
     /** Below `lg` the list is a full-screen sheet; this says whether it is showing. */
     open: boolean;
@@ -155,10 +157,16 @@ function ResizeHandle() {
     );
 }
 
-export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onClose }: Props) {
+export function Sessions({
+    sessions,
+    current,
+    onSelect,
+    onFolder,
+    onNew,
+    open: sheet,
+    onClose,
+}: Props) {
     const active = sessions.find((session) => session.id === current);
-    const [picked, setPicked] = useState<string | null>(null);
-    const [seen, setSeen] = useState(active?.cwd ?? null);
     const [open, setOpen] = useState(false);
     const [now, setNow] = useState(() => Date.now());
 
@@ -176,12 +184,7 @@ export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onCl
         };
     }, []);
 
-    if ((active?.cwd ?? null) !== seen) {
-        setSeen(active?.cwd ?? null);
-        setPicked(null);
-    }
-
-    const folder = picked ?? active?.cwd ?? null;
+    const folder = active?.cwd ?? null;
     const folders = new Map<string, number>();
 
     for (const session of sessions) {
@@ -190,9 +193,12 @@ export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onCl
         }
     }
 
-    const shown = sessions
-        .filter((session) => session.cwd === folder)
-        .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
+    const latest = (cwd: string | null): SessionSummary[] =>
+        sessions
+            .filter((session) => session.cwd === cwd)
+            .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
+
+    const shown = latest(folder);
 
     return (
         <aside
@@ -245,7 +251,12 @@ export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onCl
                                 type="button"
                                 title={cwd}
                                 onClick={() => {
-                                    setPicked(cwd);
+                                    const [first] = latest(cwd);
+
+                                    if (first !== undefined) {
+                                        onFolder(first.id);
+                                    }
+
                                     setOpen(false);
                                 }}
                                 className={`rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-left ${

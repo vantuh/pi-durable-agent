@@ -98,6 +98,7 @@ export function App() {
                         setCurrent(id);
                         setSheet(false);
                     }}
+                    onFolder={setCurrent}
                     onNew={() => {
                         setPicker(true);
                     }}
