@@ -17,7 +17,7 @@ export function Settings({ model, cwd, session, onClose }: Props) {
     const sections = useSettingsSections();
 
     return (
-        <aside className="rounded-card border-edge-soft bg-canvas flex w-[360px] shrink-0 flex-col border">
+        <aside className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 shrink-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[360px]">
             <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
                 <h2 className="text-interface text-ink font-medium">Settings</h2>
                 <button
