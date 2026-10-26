@@ -442,3 +442,18 @@ authorization through ModelRuntime, including its normal refresh and credential 
 It is server-only: credentials must never be returned to the browser, logged or cached by
 extensions. The core supplies this because extensions must not read Pi's credential files
 or implement OAuth refresh. Restart the server once to install this new capability.
+
+## Raw HTTP and composer drafts
+
+A server module may export `http: (host: Host) => HttpHandler`. Its factory runs after the default
+export and returns a handler receiving `{ request, response, path }`, where `path` is relative to
+`/api/extensions/:folder/http/` and includes the query string. Unlike JSON actions, it can stream
+HTML, binary bodies and SSE. The handler owns ending the response and any upstream cleanup.
+It follows reload/disable/removal and last-good-version rules just like actions. Core refuses
+foreign-origin browser requests before dispatching it (and before extension actions).
+
+Browser extensions may call `appendComposerDraft(sessionId, text, optionalUniqueId)` from
+`@/sdk/composer.ts`. It appends without replacing existing input, updates a mounted composer, and
+keeps inactive-session drafts separate. An optional ID deduplicates repeated delivery during the
+page lifetime. It never submits a message. `extensions/git-history` uses both seams;
+see [Git history and embedded review](git-history.md).
