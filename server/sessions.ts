@@ -8,12 +8,41 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import type { Context } from "@earendil-works/chord/context";
-import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
+import {
+    type Conversation,
+    type ConversationId,
+    defineDoc,
+    type Harness,
+} from "@earendil-works/pi-durable";
 
 import { projectEntry } from "./projection.ts";
 
 const run = promisify(execFile);
 const BRANCH_TTL_MS = 10_000;
+
+/** When a person last wrote to a session, or created it. 0 until something sets it. */
+const ClockDoc = defineDoc({
+    kind: "app.clock",
+    version: 1,
+    scope: "conversation",
+    history: "latest",
+    fork: "initial",
+    initial: () => ({ activeAt: 0 }),
+    checkpointWhen: () => true,
+});
+
+/** The model a new session starts with. Empty strings mean "none chosen": the `MODEL` variable rules. */
+const SettingsDoc = defineDoc({
+    kind: "app.settings",
+    version: 1,
+    scope: "session",
+    initial: () => ({ provider: "", modelId: "", thinkingLevel: "" }),
+    checkpointWhen: () => true,
+});
+
+export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 export type SessionSummary = {
     id: ConversationId;
@@ -23,6 +52,7 @@ export type SessionSummary = {
     thinkingLevel: string | null;
     branch: string | null;
     busy: boolean;
+    activeAt: number | null;
 };
 
 export type Opened = {
@@ -60,10 +90,58 @@ export class Sessions {
     }
 
     async create(cwd: string): Promise<Conversation> {
-        return this.#harness.createConversation(
-            { ownership: { kind: "ownerless" }, agent: { model: this.#model, cwd } },
+        const chosen = await this.defaults();
+        const conversation = await this.#harness.createConversation(
+            {
+                ownership: { kind: "ownerless" },
+                agent: {
+                    model: chosen === undefined ? this.#model : chosen.model,
+                    cwd,
+                    ...(chosen === undefined ? {} : { thinkingLevel: chosen.thinkingLevel }),
+                },
+            },
             this.#context,
         );
+
+        await this.touch(conversation.id);
+
+        return conversation;
+    }
+
+    /** The model chosen with "Make default", if any. */
+    async defaults(): Promise<
+        { model: { provider: string; modelId: string }; thinkingLevel: ThinkingLevel } | undefined
+    > {
+        const stored = await this.#harness.commit(async (tx) => {
+            const doc = await tx.doc(SettingsDoc);
+
+            return { provider: doc.provider, modelId: doc.modelId, level: doc.thinkingLevel };
+        }, this.#context);
+        const thinkingLevel = THINKING_LEVELS.find((level) => level === stored.level);
+
+        return stored.provider === "" || stored.modelId === "" || thinkingLevel === undefined
+            ? undefined
+            : { model: { provider: stored.provider, modelId: stored.modelId }, thinkingLevel };
+    }
+
+    async setDefaults(
+        model: { provider: string; modelId: string },
+        thinkingLevel: ThinkingLevel,
+    ): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            const doc = await tx.doc(SettingsDoc);
+
+            doc.provider = model.provider;
+            doc.modelId = model.modelId;
+            doc.thinkingLevel = thinkingLevel;
+        }, this.#context);
+    }
+
+    /** Records that a person just wrote to the session. */
+    async touch(id: ConversationId): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(ClockDoc, id)).activeAt = Date.now();
+        }, this.#context);
     }
 
     /** The conversation with its state attached, opened once and then kept. */
@@ -115,6 +193,7 @@ export class Sessions {
                 thinkingLevel: agent.thinkingLevel,
                 branch: cwd === null ? null : await this.branchOf(cwd),
                 busy: busy(record.id),
+                activeAt: await this.#activeAt(record.id),
             });
         }
 
@@ -141,6 +220,37 @@ export class Sessions {
         this.#branches.set(cwd, { name, at: Date.now() });
 
         return name;
+    }
+
+    /**
+     * The stored time, or, for a session older than the clock, the start time of its newest message,
+     * which the model message carries. A session with neither has no time.
+     */
+    async #activeAt(id: ConversationId): Promise<number | null> {
+        const stored = await this.#harness.commit(
+            async (tx) => (await tx.doc(ClockDoc, id)).activeAt,
+            this.#context,
+        );
+
+        if (stored > 0) {
+            return stored;
+        }
+
+        const page = await this.#harness.commit(
+            (tx) => tx.scanEntries({ conversationId: id, order: "descending" }, 1),
+            this.#context,
+        );
+        const stamp = page.items[0]?.model?.[0]?.timestamp;
+
+        if (stamp === undefined) {
+            return null;
+        }
+
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(ClockDoc, id)).activeAt = stamp;
+        }, this.#context);
+
+        return stamp;
     }
 
     /** A session is named after what it was first asked, until titles are documents of their own. */

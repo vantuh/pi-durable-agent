@@ -2,6 +2,8 @@ import type {
     ClientBlock,
     ClientEntry,
     ClientLive,
+    ClientQueued,
+    ClientStatus,
     ClientTool,
     ClientUsage,
     ServerEvent,
@@ -91,6 +93,47 @@ function usage(value: unknown): ClientUsage {
     };
 }
 
+function queued(value: unknown): ClientQueued[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    const out: ClientQueued[] = [];
+
+    for (const raw of value) {
+        const item = record(raw);
+        const id = num(item?.["id"]);
+        const mode = item?.["mode"];
+
+        if (id !== undefined && (mode === "steer" || mode === "followUp")) {
+            out.push({ id, mode, text: str(item?.["text"]) ?? "" });
+        }
+    }
+
+    return out;
+}
+
+function statusFields(value: unknown): ClientStatus[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    const out: ClientStatus[] = [];
+
+    for (const raw of value) {
+        const field = record(raw);
+        const source = str(field?.["source"]);
+        const text = str(field?.["text"]);
+        const title = str(field?.["title"]);
+
+        if (source !== undefined && text !== undefined) {
+            out.push({ source, text, ...(title === undefined ? {} : { title }) });
+        }
+    }
+
+    return out;
+}
+
 function live(value: unknown): ClientLive {
     const state = record(value);
     const out: ClientLive = { busy: state?.["busy"] === true, usage: usage(state?.["usage"]) };
@@ -104,6 +147,18 @@ function live(value: unknown): ClientLive {
 
     if (running.length > 0) {
         out.tools = running;
+    }
+
+    const waiting = queued(state?.["queued"]);
+
+    if (waiting.length > 0) {
+        out.queued = waiting;
+    }
+
+    const fields = statusFields(state?.["status"]);
+
+    if (fields.length > 0) {
+        out.status = fields;
     }
 
     return out;

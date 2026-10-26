@@ -23,7 +23,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { Extensions } from "./extensions.ts";
 import { projectEntry, projectLive } from "./projection.ts";
-import { type Opened, Sessions } from "./sessions.ts";
+import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
 
 async function readFavourites(): Promise<string[]> {
     try {
@@ -57,7 +57,6 @@ async function enabledModels(): Promise<string[] | undefined> {
 type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
 type Content = Extract<Parameters<Conversation["submit"]>[0], { type: "input" }>["content"];
 
-const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 const IMAGE_TYPES: Record<string, string> = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -79,6 +78,7 @@ type Client = { response: ServerResponse; session: number };
 
 const clients = new Set<Client>();
 const busy = new Map<number, boolean>();
+const latest = new Map<number, { opened: Opened; view: View }>();
 
 let models: ModelRuntime;
 let extensions: Extensions;
@@ -105,7 +105,10 @@ function entriesOf(view: View): ClientEntry[] {
 }
 
 function liveOf(view: View): ClientLive {
-    return projectLive(view.docs["pi.live"], view.docs["pi.usage"]);
+    const live = projectLive(view.docs["pi.live"], view.docs["pi.usage"], view.docs["pi.inbox"]);
+    const status = extensions.statuses({ entries: view.entries });
+
+    return status.length === 0 ? live : { ...live, status };
 }
 
 /** Sends what changed since the last commit: only new entries when nothing was rewritten. */
@@ -128,6 +131,7 @@ function publish(opened: Opened, view: View): void {
 
     const live = liveOf(view);
 
+    latest.set(opened.id, { opened, view });
     busy.set(opened.id, live.busy);
     broadcast({ type: "live", session: opened.id, live });
 }
@@ -326,10 +330,21 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
             return;
         }
 
+        const mode = string(payload?.["mode"]);
+
+        if (mode === "interrupt") {
+            await opened.conversation.abort(context);
+        }
+
         await opened.conversation.submit(
-            { type: "input", content: await contentOf(files, text) },
+            {
+                type: "input",
+                content: await contentOf(files, text),
+                ...(mode === "steer" || mode === "followUp" ? { whenBusy: mode } : {}),
+            },
             context,
         );
+        await sessions.touch(opened.id);
         answer(response, 202, { ok: true });
 
         return;
@@ -431,10 +446,40 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
                       );
                   });
 
+        const stored = await sessions.defaults();
+        const [fallbackProvider = "", ...fallbackId] = MODEL.split("/");
+
         answer(response, 200, {
             scoped: scoped.map(modelInfo),
             all: list.map(modelInfo),
+            default:
+                stored === undefined
+                    ? {
+                          provider: fallbackProvider,
+                          modelId: fallbackId.join("/"),
+                          thinkingLevel: "off",
+                      }
+                    : { ...stored.model, thinkingLevel: stored.thinkingLevel },
         });
+
+        return;
+    }
+
+    if (url.pathname === "/api/default" && request.method === "POST") {
+        const payload = record(await body(request));
+        const model = record(payload?.["model"]);
+        const provider = string(model?.["provider"]);
+        const modelId = string(model?.["modelId"]);
+        const thinkingLevel = THINKING_LEVELS.find((known) => known === payload?.["thinkingLevel"]);
+
+        if (provider === undefined || modelId === undefined || thinkingLevel === undefined) {
+            answer(response, 400, { error: "model and thinkingLevel are required" });
+
+            return;
+        }
+
+        await sessions.setDefaults({ provider, modelId }, thinkingLevel);
+        answer(response, 200, { provider, modelId, thinkingLevel });
 
         return;
     }
@@ -594,6 +639,11 @@ async function main(): Promise<void> {
 
     rootId = Number(root.id);
     sessions = new Sessions({ harness, model: { provider, modelId }, cwd, context });
+    extensions.onChange(() => {
+        for (const { opened, view } of latest.values()) {
+            publish(opened, view);
+        }
+    });
 
     const server = createServer((request, response) => {
         handle(request, response).catch((error: unknown) => {

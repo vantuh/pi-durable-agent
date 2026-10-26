@@ -1,4 +1,10 @@
-import type { ClientUsage, ModelChoice, SessionSummary } from "../../../shared/protocol.ts";
+import type {
+    ClientUsage,
+    DefaultModel,
+    ModelChoice,
+    SendMode,
+    SessionSummary,
+} from "../../../shared/protocol.ts";
 
 export type Health = {
     model: string;
@@ -92,6 +98,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
             thinkingLevel: typeof row?.["thinkingLevel"] === "string" ? row["thinkingLevel"] : null,
             branch: typeof row?.["branch"] === "string" ? row["branch"] : null,
             busy: row?.["busy"] === true,
+            activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
         });
     }
 
@@ -124,13 +131,37 @@ export async function setFavourites(folders: string[]): Promise<void> {
     });
 }
 
-export async function listModels(): Promise<{ scoped: ModelChoice[]; all: ModelChoice[] }> {
+export type Models = {
+    scoped: ModelChoice[];
+    all: ModelChoice[];
+    default: DefaultModel | null;
+};
+
+export async function listModels(): Promise<Models> {
     const body = record(await json("/api/models"));
+    const stored = record(body?.["default"]);
+    const provider = str(stored?.["provider"], "");
+    const modelId = str(stored?.["modelId"], "");
 
     return {
         scoped: choices(body?.["scoped"]),
         all: choices(body?.["all"]),
+        default:
+            provider === "" || modelId === ""
+                ? null
+                : { provider, modelId, thinkingLevel: str(stored?.["thinkingLevel"], "off") },
     };
+}
+
+export async function setDefaultModel(choice: DefaultModel): Promise<void> {
+    await json("/api/default", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            model: { provider: choice.provider, modelId: choice.modelId },
+            thinkingLevel: choice.thinkingLevel,
+        }),
+    });
 }
 
 function choices(value: unknown): ModelChoice[] {
@@ -175,11 +206,12 @@ export async function sendMessage(
     session: number,
     text: string,
     files: string[],
+    mode?: SendMode,
 ): Promise<boolean> {
     const response = await fetch("/api/messages", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session, text, files }),
+        body: JSON.stringify({ session, text, files, ...(mode === undefined ? {} : { mode }) }),
     });
 
     return response.ok;

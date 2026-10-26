@@ -9,7 +9,9 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import type { Extension, Registry } from "@earendil-works/pi-durable";
+import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
+
+import type { ClientStatus } from "../shared/protocol.ts";
 
 /** What an extension's `server.ts` receives. It grows only when a feature needs more. */
 export type Host = {
@@ -22,6 +24,15 @@ export type Host = {
 export type ServerModule = (
     host: Host,
 ) => Extension | undefined | void | Promise<Extension | undefined | void>;
+
+/** What a status provider reads: the conversation's active entries. */
+export type StatusView = { readonly entries: readonly EntryRecord[] };
+
+/**
+ * A folder's optional named export `status`. It runs on every commit and returns one field for the
+ * status bar, or nothing when it has no honest number to show.
+ */
+export type StatusProvider = (view: StatusView) => { text: string; title?: string } | undefined;
 
 export type LoadFailure = { folder: string; reason: string };
 
@@ -52,6 +63,8 @@ export class Extensions {
     readonly #dataDir: string;
     readonly #log: (message: string) => void;
     readonly #installed = new Map<string, Extension>();
+    readonly #status = new Map<string, StatusProvider>();
+    readonly #listeners = new Set<() => void>();
 
     #generation = 0;
     #failed: LoadFailure[] = [];
@@ -80,6 +93,30 @@ export class Extensions {
     /** Folders that failed to load, and why. The extension they had before is still installed. */
     get failed(): readonly LoadFailure[] {
         return this.#failed;
+    }
+
+    /** The status fields of every installed folder that has a provider, in folder order. */
+    statuses(view: StatusView): ClientStatus[] {
+        const fields: ClientStatus[] = [];
+
+        for (const folder of [...this.#status.keys()].sort()) {
+            try {
+                const field = this.#status.get(folder)?.(view);
+
+                if (field !== undefined) {
+                    fields.push({ source: folder, ...field });
+                }
+            } catch {
+                // A provider that throws shows nothing; it must not stop a commit from being published.
+            }
+        }
+
+        return fields;
+    }
+
+    /** Calls `listener` after every load, so the page can drop a field whose folder went away. */
+    onChange(listener: () => void): void {
+        this.#listeners.add(listener);
     }
 
     /** Loads every folder. A load already running is finished first, so two saves never interleave. */
@@ -137,6 +174,10 @@ export class Extensions {
         for (const failure of failed) {
             this.#log(`extensions: ${failure.folder}: ${failure.reason}`);
         }
+
+        for (const listener of this.#listeners) {
+            listener();
+        }
     }
 
     /** Folders that hold a `server.ts`, in name order. A folder with only web code is not one. */
@@ -169,7 +210,7 @@ export class Extensions {
         }
 
         const file = join(this.#dir, folder, "server.ts");
-        const module: { default?: (host: Host) => unknown } = await import(
+        const module: { default?: (host: Host) => unknown; status?: StatusProvider } = await import(
             `${pathToFileURL(file).href}?v=${this.#generation}`
         );
 
@@ -200,10 +241,18 @@ export class Extensions {
             );
         }
 
+        if (typeof module.status === "function") {
+            this.#status.set(folder, module.status);
+        } else {
+            this.#status.delete(folder);
+        }
+
         return result;
     }
 
     #drop(folder: string, why: string): void {
+        this.#status.delete(folder);
+
         const extension = this.#installed.get(folder);
 
         if (extension === undefined) {

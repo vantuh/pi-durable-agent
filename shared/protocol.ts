@@ -36,12 +36,29 @@ export type ClientUsage = {
     cost: number;
 };
 
+/** One field an extension adds to the status bar; it exists only while that extension is installed. */
+export type ClientStatus = {
+    /** The folder name of the extension that wrote it. */
+    source: string;
+    text: string;
+    title?: string;
+};
+
+/** A message waiting in `pi.inbox` until the run reaches the boundary its mode names. */
+export type ClientQueued = {
+    id: number;
+    mode: "steer" | "followUp";
+    text: string;
+};
+
 export type ClientLive = {
     busy: boolean;
     /** The answer being streamed now, before it is committed as an entry. */
     blocks?: ClientBlock[];
     tools?: ClientTool[];
     usage: ClientUsage;
+    queued?: ClientQueued[];
+    status?: ClientStatus[];
 };
 
 export type ServerEvent = { session: number } & (
@@ -60,6 +77,8 @@ export type SessionSummary = {
     thinkingLevel: string | null;
     branch: string | null;
     busy: boolean;
+    /** When a person last wrote to the session, or created it; null while unknown. */
+    activeAt: number | null;
 };
 
 /** One model the picker offers. */
@@ -72,6 +91,17 @@ export type ModelChoice = {
     levels: string[];
 };
 
+/** How a message goes while the agent works: after the next tool round, after the answer, or now. */
+export type SendMode = "steer" | "followUp" | "interrupt";
+
+/** The model and thinking level a new session starts with. */
+export type DefaultModel = {
+    provider: string;
+    modelId: string;
+    thinkingLevel: string;
+};
+
 export type SendRequest = {
     text: string;
+    mode?: SendMode;
 };

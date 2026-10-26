@@ -10,6 +10,7 @@ import type {
     ClientBlock,
     ClientEntry,
     ClientLive,
+    ClientQueued,
     ClientTool,
     ClientUsage,
 } from "../shared/protocol.ts";
@@ -213,14 +214,41 @@ export function projectUsage(value: unknown): ClientUsage {
     return total;
 }
 
-export function projectLive(value: unknown, usage: unknown): ClientLive {
-    const live = recordOf(value);
+/** Messages waiting in `pi.inbox`. Writes are not messages; they never reach the screen. */
+function queuedOf(value: unknown): ClientQueued[] {
+    const items = recordOf(value)?.["items"];
+    const queued: ClientQueued[] = [];
 
-    if (live === undefined) {
-        return { busy: false, usage: projectUsage(usage) };
+    if (!Array.isArray(items)) {
+        return queued;
     }
 
-    const out: ClientLive = { busy: live["run"] !== undefined, usage: projectUsage(usage) };
+    for (const raw of items) {
+        const item = recordOf(raw);
+        const mode = stringOf(item, "mode");
+        const id = numberAt(item, "id");
+
+        if (id !== 0 && (mode === "steer" || mode === "followUp")) {
+            queued.push({ id, mode, text: textOf(item?.["content"]) });
+        }
+    }
+
+    return queued;
+}
+
+export function projectLive(value: unknown, usage: unknown, inbox: unknown): ClientLive {
+    const live = recordOf(value);
+    const queued = queuedOf(inbox);
+    const out: ClientLive = { busy: live?.["run"] !== undefined, usage: projectUsage(usage) };
+
+    if (queued.length > 0) {
+        out.queued = queued;
+    }
+
+    if (live === undefined) {
+        return out;
+    }
+
     const generation = recordOf(live["generation"]);
     const message = recordOf(generation?.["message"]);
 

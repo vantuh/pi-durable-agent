@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { ClientEntry, ClientLive, ServerEvent } from "../../../shared/protocol.ts";
+import type { ClientEntry, ClientLive, SendMode, ServerEvent } from "../../../shared/protocol.ts";
 import { sendMessage, stopRun } from "./api.ts";
 import { parseEvent } from "./event.ts";
 
@@ -55,7 +55,7 @@ function withEvent(state: ConversationState, event: ServerEvent): ConversationSt
 
 export function useConversation(session: number | null): {
     state: ConversationState;
-    send: (text: string, files: string[]) => Promise<void>;
+    send: (text: string, files: string[], mode?: SendMode) => Promise<void>;
     stop: () => Promise<void>;
 } {
     const [state, setState] = useState<ConversationState>(START);
@@ -90,7 +90,7 @@ export function useConversation(session: number | null): {
     const shown = state.session === session ? state : START;
 
     const send = useCallback(
-        async (text: string, files: string[]) => {
+        async (text: string, files: string[], mode?: SendMode) => {
             if (session === null) {
                 return;
             }
@@ -98,7 +98,7 @@ export function useConversation(session: number | null): {
             setState((current) => ({ ...current, issue: null }));
 
             try {
-                const accepted = await sendMessage(session, text, files);
+                const accepted = await sendMessage(session, text, files, mode);
 
                 if (!accepted) {
                     setState((current) => ({
