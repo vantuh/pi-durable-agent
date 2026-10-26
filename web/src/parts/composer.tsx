@@ -325,19 +325,19 @@ export function Composer({
                     <button
                         type="button"
                         onClick={onToggleMenu}
-                        className={`text-interface flex items-center gap-1.5 rounded-full px-2 py-1 ${
+                        className={`text-interface flex min-w-0 items-center gap-1.5 rounded-full px-2 py-1 ${
                             menuOpen ? "bg-raised text-ink" : "text-muted hover:bg-raised"
                         }`}
                     >
                         <Sparkles className="text-accent size-3.5" />
-                        <span className="max-w-[12rem] truncate font-mono">{model}</span>
+                        <span className="max-w-[12rem] min-w-0 truncate font-mono">{model}</span>
                         {level === null ? null : (
-                            <span className={thinkingText(level)}>{level}</span>
+                            <span className={`shrink-0 ${thinkingText(level)}`}>{level}</span>
                         )}
-                        <ChevronDown className="size-3.5" />
+                        <ChevronDown className="size-3.5 shrink-0" />
                     </button>
 
-                    <div className="ml-auto flex items-center gap-1.5">
+                    <div className="ml-auto flex shrink-0 items-center gap-1.5">
                         {busy ? (
                             <button
                                 type="button"
