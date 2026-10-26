@@ -23,8 +23,15 @@ export type ClientAnswerStats = {
     durationMs?: number;
 };
 
+export type ClientAttachment = {
+    name: string;
+    path: string;
+    size: number;
+    image: boolean;
+};
+
 export type ClientEntry =
-    | { id: number; kind: "user"; text: string; at?: number }
+    | { id: number; kind: "user"; text: string; at?: number; files?: ClientAttachment[] }
     | {
           id: number;
           kind: "assistant";

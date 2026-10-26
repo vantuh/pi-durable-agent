@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
+import { Attachments } from "./attachments.tsx";
 import { Markdown } from "./markdown.tsx";
 
 type Props = {
@@ -84,9 +85,18 @@ function TurnView({ turn }: { turn: Turn }) {
         <div className="flex flex-col gap-3">
             {turn.user === undefined ? null : (
                 <div className="flex justify-end">
-                    <p className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2 whitespace-pre-wrap">
-                        {turn.user.text}
-                    </p>
+                    <div className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2">
+                        <Attachments
+                            files={(turn.user.files ?? []).map((file, index) => ({
+                                ...file,
+                                key: String(index),
+                                state: "done",
+                            }))}
+                        />
+                        {turn.user.text === "" ? null : (
+                            <p className="whitespace-pre-wrap">{turn.user.text}</p>
+                        )}
+                    </div>
                 </div>
             )}
             {turn.items.length === 0 && !turn.live ? null : (

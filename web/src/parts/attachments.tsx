@@ -28,7 +28,7 @@ export type Pending = {
 
 type Props = {
     files: Pending[];
-    onRemove: (key: string) => void;
+    onRemove?: (key: string) => void;
 };
 
 function size(bytes: number): string {
@@ -117,16 +117,18 @@ export function Attachments({ files, onRemove }: Props) {
                         </AttachmentDescription>
                     </AttachmentContent>
 
-                    <AttachmentActions>
-                        <AttachmentAction
-                            title="Remove"
-                            onClick={() => {
-                                onRemove(file.key);
-                            }}
-                        >
-                            <X className="size-3" />
-                        </AttachmentAction>
-                    </AttachmentActions>
+                    {onRemove === undefined ? null : (
+                        <AttachmentActions>
+                            <AttachmentAction
+                                title="Remove"
+                                onClick={() => {
+                                    onRemove(file.key);
+                                }}
+                            >
+                                <X className="size-3" />
+                            </AttachmentAction>
+                        </AttachmentActions>
+                    )}
                 </Attachment>
             ))}
 

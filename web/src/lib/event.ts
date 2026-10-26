@@ -1,5 +1,6 @@
 import type {
     ClientAnswerStats,
+    ClientAttachment,
     ClientBlock,
     ClientEntry,
     ClientLive,
@@ -224,11 +225,24 @@ function entry(value: unknown): ClientEntry | undefined {
 
     if (kind === "user") {
         const at = num(raw?.["at"]);
+        const files: ClientAttachment[] = Array.isArray(raw?.["files"])
+            ? raw["files"].flatMap((item) => {
+                  const file = record(item);
+                  const name = str(file?.["name"]);
+                  const path = str(file?.["path"]);
+                  const size = num(file?.["size"]);
+
+                  return name === undefined || path === undefined || size === undefined
+                      ? []
+                      : [{ name, path, size, image: file?.["image"] === true }];
+              })
+            : [];
 
         return {
             id,
             kind: "user",
             text: str(raw?.["text"]) ?? "",
+            ...(files.length === 0 ? {} : { files }),
             ...(at === undefined ? {} : { at }),
         };
     }

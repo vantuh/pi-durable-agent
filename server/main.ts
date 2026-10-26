@@ -3,7 +3,7 @@
  * extensions, and the core grows only when it must.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
@@ -376,6 +376,26 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
             {
                 type: "input",
                 content: await contentOf(files, text),
+                ...(files.length === 0
+                    ? {}
+                    : {
+                          entry: {
+                              kind: "chat.user",
+                              data: {
+                                  text,
+                                  files: await Promise.all(
+                                      files.map(async (path) => ({
+                                          path,
+                                          name: basename(path).replace(/^\d+-/, ""),
+                                          size: (await stat(path)).size,
+                                          image:
+                                              IMAGE_TYPES[extname(path).toLowerCase()] !==
+                                              undefined,
+                                      })),
+                                  ),
+                              },
+                          },
+                      }),
                 ...(mode === "steer" || mode === "followUp" ? { whenBusy: mode } : {}),
             },
             context,

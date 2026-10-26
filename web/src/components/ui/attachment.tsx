@@ -19,7 +19,7 @@ export function Attachment({
             data-slot="attachment"
             data-state={state}
             className={cn(
-                "group/attachment rounded-control border-edge-soft bg-raised text-ink focus-within:border-accent relative flex w-fit max-w-full min-w-0 shrink-0 items-center gap-1.5 border p-1 data-[state=error]:border-danger data-[state=idle]:border-dashed has-[>[data-slot=attachment-trigger]]:hover:bg-edge-soft",
+                "group/attachment rounded-control border-edge-soft bg-raised text-ink has-[:focus-visible]:border-accent relative flex w-fit max-w-full min-w-0 shrink-0 items-center gap-1.5 border p-1 data-[state=error]:border-danger data-[state=idle]:border-dashed has-[>[data-slot=attachment-trigger]]:hover:bg-edge-soft",
                 className,
             )}
             {...props}

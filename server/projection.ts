@@ -8,6 +8,7 @@ import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type {
     ClientAnswerStats,
+    ClientAttachment,
     ClientBlock,
     ClientEntry,
     ClientLive,
@@ -170,19 +171,41 @@ function diffOf(details: Record<string, unknown> | undefined): string | undefine
           ].join("\n");
 }
 
+/** Attachment metadata is persisted with the input, including inputs queued while busy. */
+function filesOf(value: unknown): ClientAttachment[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.flatMap((raw) => {
+        const file = recordOf(raw);
+        const name = stringOf(file, "name");
+        const path = stringOf(file, "path");
+        const size = optionalNumber(file, "size");
+
+        return name === undefined || path === undefined || size === undefined
+            ? []
+            : [{ name, path, size, image: file?.["image"] === true }];
+    });
+}
+
 /** One entry for the browser, or `undefined` for bookkeeping the screen never shows. */
 export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
     const id = Number(entry.id);
     const message = recordOf(Array.isArray(entry.model) ? entry.model[0] : undefined);
 
     switch (entry.kind) {
-        case "pi.user": {
+        case "pi.user":
+        case "chat.user": {
             const at = optionalNumber(message, "timestamp");
+            const data = recordOf(entry.data);
+            const files = filesOf(data?.["files"]);
 
             return {
                 id,
                 kind: "user",
-                text: textOf(message?.["content"]),
+                text: stringOf(data, "text") ?? textOf(message?.["content"]),
+                ...(files.length === 0 ? {} : { files }),
                 ...(at === undefined ? {} : { at }),
             };
         }
