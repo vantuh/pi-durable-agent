@@ -207,7 +207,7 @@ export function Sessions({
             }`}
         >
             <header className="border-edge-soft flex items-center justify-between gap-2 border-b px-3 py-2.5">
-                <h2 className="text-interface text-ink font-medium">Sessions</h2>
+                <h2 className="text-sidebar text-ink font-medium">Sessions</h2>
                 <div className="flex items-center gap-1">
                     <button
                         type="button"
@@ -305,7 +305,7 @@ export function Sessions({
                                         aria-label={session.busy ? "Working" : undefined}
                                         className={`state-mark ${session.busy ? "working text-accent" : "idle text-faint"}`}
                                     />
-                                    <span className="text-interface text-ink min-w-0 flex-1 truncate">
+                                    <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
                                         {session.title ?? "New session"}
                                     </span>
                                     {session.activeAt === null ? null : (

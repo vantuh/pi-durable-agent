@@ -81,9 +81,14 @@ already pointing at names, not values.
 In `styles.css`, next to the roles, so no component invents its own:
 
 - `--radius-control: 6px`, `--radius-card: 10px` (`rounded-control`, `rounded-card`);
-- `--text-meta: 12px`, `--text-interface: 13px`, `--text-prose: 15px` (`text-meta`, `text-interface`,
+- `--text-meta: 12px`, `--text-sidebar: 13px` (session titles and sidebar heading),
+  `--text-interface: 15px`, `--text-prose: 15px` (`text-meta`, `text-interface`,
   `text-prose`);
-- `--font-sans` and `--font-mono` (`font-sans`, `font-mono`).
+- `--font-sans` and `--font-mono` (`font-sans`, `font-mono`). The body and interface use 15px
+  system sans; code, diffs, paths and numeric metadata use JetBrains Mono. Metadata stays at 12px.
+- JetBrains Mono's variable upright and italic fonts are bundled in `web/src/fonts/` with their
+  SIL Open Font License, sourced from Pi Pocket's `web/fonts/`. Vite fingerprints the assets;
+  no external font service is needed.
 
 ## Check
 

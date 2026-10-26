@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @import "./styles/catppuccin.css";
 
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("./fonts/JetBrainsMono.woff2") format("woff2");
+    font-weight: 100 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("./fonts/JetBrainsMono-Italic.woff2") format("woff2");
+    font-weight: 100 800;
+    font-style: italic;
+    font-display: swap;
+}
+
 /*
  * Three names for the same colour, on purpose:
  *   --ctp-*   the palette, one block per flavour, in catppuccin.css.
@@ -74,13 +90,14 @@
     --radius-card: 10px;
 
     --text-meta: 12px;
-    --text-interface: 13px;
+    --text-sidebar: 13px;
+    --text-interface: 15px;
     --text-prose: 15px;
 }
 
 @theme {
     --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 html,
@@ -104,7 +121,7 @@ body {
     background-color: var(--role-canvas);
     color: var(--role-ink);
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: var(--text-interface);
     -webkit-font-smoothing: antialiased;
 }
 
