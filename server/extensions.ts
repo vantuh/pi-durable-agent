@@ -48,6 +48,44 @@ export type StatusLine = Omit<ClientStatus, "source" | "slot"> & { slot?: Client
 
 export type StatusProvider = (view: StatusView) => StatusLine | undefined;
 
+/** What an action receives. `args` is whatever the browser sent: the action validates it. */
+export type ActionCall = {
+    readonly args: unknown;
+    /** The session the call was made from, or null when it was made from none. */
+    readonly session: { readonly id: number; readonly cwd: string | null } | null;
+};
+
+/** A folder's entry in its `actions` export. Its return value must be JSON-serialisable. */
+export type Action = (call: ActionCall) => unknown;
+
+/** Thrown by an action for bad input from the caller; the route answers 400 with the message. */
+export class ActionError extends Error {}
+
+/** Thrown for an unknown extension or action; the route answers 404. */
+export class ActionNotFound extends Error {}
+
+/** Checks the body of an action request: an object or nothing, and a positive integer `session`. */
+export function parseActionBody(body: unknown): { session: number | undefined; args: unknown } {
+    if (body === undefined) {
+        return { session: undefined, args: undefined };
+    }
+
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+        throw new ActionError("the body must be a JSON object");
+    }
+
+    const session: unknown = Reflect.get(body, "session");
+
+    if (session !== undefined && !(Number.isSafeInteger(session) && Number(session) > 0)) {
+        throw new ActionError("session must be a positive integer");
+    }
+
+    return {
+        session: typeof session === "number" ? session : undefined,
+        args: Reflect.get(body, "args"),
+    };
+}
+
 export type LoadFailure = { folder: string; reason: string };
 
 /** Installed by the core, so no folder may take the name. */
@@ -117,6 +155,32 @@ function reasonOf(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+/** The `actions` export as a map, nothing when absent. Throws when it is not an object of functions. */
+function actionsOf(value: unknown): ReadonlyMap<string, Action> | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    const proto: unknown =
+        typeof value === "object" && value !== null ? Reflect.getPrototypeOf(value) : 0;
+
+    if (proto !== Object.prototype && proto !== null) {
+        throw new Error("the `actions` export must be a plain object of functions");
+    }
+
+    const actions = new Map<string, Action>();
+
+    for (const [name, action] of Object.entries(value ?? {})) {
+        if (typeof action !== "function") {
+            throw new Error(`the action "${name}" is not a function`);
+        }
+
+        actions.set(name, (call) => action(call));
+    }
+
+    return actions;
+}
+
 function isExtension(value: unknown): value is Extension {
     if (typeof value !== "object" || value === null) {
         return false;
@@ -135,6 +199,7 @@ export class Extensions {
     readonly #log: (message: string) => void;
     readonly #installed = new Map<string, Extension>();
     readonly #status = new Map<string, StatusProvider>();
+    readonly #actions = new Map<string, ReadonlyMap<string, Action>>();
     readonly #listeners = new Set<() => void>();
     /** Per folder, the disposers of the version that is live now. */
     readonly #disposers = new Map<string, Disposer[]>();
@@ -189,6 +254,23 @@ export class Extensions {
         }
 
         return fields;
+    }
+
+    /** Runs one action of an installed folder. Throws `ActionNotFound` when either is missing. */
+    async call(extension: string, action: string, call: ActionCall): Promise<unknown> {
+        const actions = this.#actions.get(extension);
+
+        if (actions === undefined) {
+            throw new ActionNotFound(`no extension "${extension}" has actions`);
+        }
+
+        const run = actions.get(action);
+
+        if (run === undefined) {
+            throw new ActionNotFound(`extension "${extension}" has no action "${action}"`);
+        }
+
+        return await run(call);
     }
 
     /** Calls `listener` after every load, so the page can drop a field whose folder went away. */
@@ -251,14 +333,16 @@ export class Extensions {
             const attempt: Disposer[] = [];
 
             try {
-                const extension = await this.#build(folder, attempt);
+                const built = await this.#build(folder, attempt);
 
-                if (extension === undefined) {
+                if (built === undefined) {
                     // The module ran, so what it registered is live: it replaces the old version's.
                     this.#drop(folder, "installs nothing");
                 } else {
-                    this.#registry.install(extension);
-                    this.#installed.set(folder, extension);
+                    this.#registry.install(built.extension);
+                    this.#installed.set(folder, built.extension);
+                    this.#setOrDelete(this.#actions, folder, built.actions);
+                    this.#setOrDelete(this.#status, folder, built.status);
                 }
 
                 await this.#swap(folder, attempt);
@@ -310,15 +394,27 @@ export class Extensions {
     }
 
     /** Imports one folder and builds its extension, checking the name the whole design relies on. */
-    async #build(folder: string, attempt: Disposer[]): Promise<Extension | undefined> {
+    async #build(
+        folder: string,
+        attempt: Disposer[],
+    ): Promise<
+        | {
+              extension: Extension;
+              actions: ReadonlyMap<string, Action> | undefined;
+              status: StatusProvider | undefined;
+          }
+        | undefined
+    > {
         if (RESERVED.has(folder)) {
             throw new Error("the name is reserved by the core");
         }
 
         const file = join(this.#dir, folder, "server.ts");
-        const module: { default?: (host: Host) => unknown; status?: StatusProvider } = await import(
-            `${pathToFileURL(file).href}?v=${this.#generation}`
-        );
+        const module: {
+            default?: (host: Host) => unknown;
+            status?: StatusProvider;
+            actions?: unknown;
+        } = await import(`${pathToFileURL(file).href}?v=${this.#generation}`);
 
         if (typeof module.default !== "function") {
             throw new Error("server.ts has no default function export");
@@ -348,17 +444,24 @@ export class Extensions {
             );
         }
 
-        if (typeof module.status === "function") {
-            this.#status.set(folder, module.status);
-        } else {
-            this.#status.delete(folder);
-        }
+        return {
+            extension: result,
+            actions: actionsOf(module.actions),
+            status: typeof module.status === "function" ? module.status : undefined,
+        };
+    }
 
-        return result;
+    #setOrDelete<T>(map: Map<string, T>, folder: string, value: T | undefined): void {
+        if (value === undefined) {
+            map.delete(folder);
+        } else {
+            map.set(folder, value);
+        }
     }
 
     #drop(folder: string, why: string): void {
         this.#status.delete(folder);
+        this.#actions.delete(folder);
 
         const extension = this.#installed.get(folder);
 

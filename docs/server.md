@@ -62,6 +62,8 @@ POST /api/messages           { session, text, files, mode? }  mode: steer | foll
 POST /api/agent              { session, model?, thinkingLevel? }
 GET  /api/models             { scoped, all, default }
 POST /api/default            { model: { provider, modelId }, thinkingLevel }  → "Make default"
+POST /api/extensions/:extension/actions/:action   { session?, args? } → { result }
+                             400 bad body or ActionError · 404 unknown extension, action or session · 500
 ```
 
 The default model is the `app.settings` session document. It survives a restart; `MODEL` is used

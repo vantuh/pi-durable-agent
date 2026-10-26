@@ -21,7 +21,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
-import { Extensions } from "./extensions.ts";
+import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
 
@@ -246,8 +246,20 @@ function sessionOf(url: URL): number {
 }
 
 function answer(response: ServerResponse, status: number, payload: unknown): void {
-    response.writeHead(status, { "content-type": "application/json" });
-    response.end(JSON.stringify(payload));
+    let text: string;
+    let code = status;
+
+    try {
+        text = JSON.stringify(payload);
+    } catch (error) {
+        code = 500;
+        text = JSON.stringify({
+            error: error instanceof Error ? error.message : "the result is not JSON",
+        });
+    }
+
+    response.writeHead(code, { "content-type": "application/json" });
+    response.end(text);
 }
 
 function contentOf(files: readonly string[], text: string): Promise<Content> {
@@ -558,6 +570,14 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
+    const actionRoute = /^\/api\/extensions\/([^/]+)\/actions\/([^/]+)$/.exec(url.pathname);
+
+    if (request.method === "POST" && actionRoute !== null) {
+        await runAction(request, response, actionRoute[1] ?? "", actionRoute[2] ?? "");
+
+        return;
+    }
+
     if (request.method === "GET" && url.pathname === "/api/extensions") {
         answer(response, 200, { installed: extensions.names, failed: extensions.failed });
         return;
@@ -577,6 +597,58 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     answer(response, 404, { error: "not found" });
+}
+
+/** 400 for bad input, 404 for an unknown extension, action or session, 500 for any other failure. */
+async function runAction(
+    request: IncomingMessage,
+    response: ServerResponse,
+    extension: string,
+    action: string,
+): Promise<void> {
+    try {
+        const parsed = parseActionBody(await body(request).catch(badBody));
+        let session: { id: number; cwd: string | null } | null = null;
+
+        if (parsed.session !== undefined) {
+            const opened = await attach(parsed.session);
+
+            if (opened === undefined) {
+                answer(response, 404, { error: "no such session" });
+
+                return;
+            }
+
+            const agent = await opened.conversation.agent(context);
+
+            session = { id: parsed.session, cwd: agent.cwd ?? null };
+        }
+
+        const result = await extensions.call(
+            decodeURIComponent(extension),
+            decodeURIComponent(action),
+            {
+                args: parsed.args,
+                session,
+            },
+        );
+
+        answer(response, 200, { result });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "the action failed";
+
+        if (error instanceof ActionNotFound) {
+            answer(response, 404, { error: message });
+        } else if (error instanceof ActionError || error instanceof URIError) {
+            answer(response, 400, { error: message });
+        } else {
+            answer(response, 500, { error: message });
+        }
+    }
+}
+
+function badBody(error: unknown): never {
+    throw new ActionError(error instanceof Error ? error.message : "the body is not valid");
 }
 
 function modelInfo(model: {

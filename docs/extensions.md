@@ -59,6 +59,35 @@ field by name: install the folder and it appears, remove the folder and the next
 `extensions/tokens-per-second` is the example. A folder that only adds a field still returns
 `defineExtension({ name: host.name })`, so it is listed as installed.
 
+## Actions
+
+A folder may export `actions` next to its default export: a plain object of functions. The browser
+calls one through the single route `POST /api/extensions/:extension/actions/:action`, so a new
+action needs no new route in the core.
+
+```ts
+import { ActionError, type Action } from "../../server/extensions.ts";
+
+export const actions: Record<string, Action> = {
+    rename({ args, session }) {
+        if (typeof args !== "string") {
+            throw new ActionError("args must be a string"); // 400
+        }
+
+        return { renamed: args, cwd: session?.cwd ?? null }; // 200 { result }
+    },
+};
+```
+
+- The call is `{ args, session }`. `args` is unchecked JSON: the action validates it. `session` is
+  `{ id, cwd }` when the request named one, else `null`.
+- `ActionError` answers 400 with its message. Any other throw answers 500 with its message.
+- An unknown extension, action, or session answers 404.
+- The result must be JSON-serialisable. The action decides what it returns; nothing else is exposed.
+- Actions follow the installed version: a failed replacement keeps the old actions, and a removed
+  folder, or one that installs nothing, drops them. A bad `actions` export (not a plain object, or a
+  value that is not a function) fails the build with that reason.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:

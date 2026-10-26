@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { createRegistry } from "@earendil-works/pi-durable";
 
-import { Extensions } from "../server/extensions.ts";
+import { ActionError, ActionNotFound, Extensions, parseActionBody } from "../server/extensions.ts";
 
 const CALLS = "__extensionTestCalls";
 
@@ -249,5 +249,153 @@ export default function (host) {
 
         assert.ok(seen instanceof Set);
         assert.equal(seen.size, 1);
+    });
+
+    const withActions = (actions: string): string =>
+        `export default function (host) { return { name: host.name }; }\nexport const actions = ${actions};`;
+    const call = { args: 1, session: { id: 7, cwd: "/work" } };
+
+    void it("dispatches an action with its args and session", async () => {
+        await write("alpha", withActions("{ echo: (call) => call, other: () => 'no' }"));
+        await write("beta", withActions("{ echo: () => 'beta' }"));
+        await extensions.load();
+
+        assert.deepEqual(await extensions.call("alpha", "echo", call), call);
+        assert.equal(await extensions.call("beta", "echo", call), "beta");
+    });
+
+    void it("tells an unknown extension from an unknown action", async () => {
+        await write("alpha", withActions("{ echo: () => 1 }"));
+        await extensions.load();
+
+        await assert.rejects(
+            extensions.call("nope", "echo", call),
+            (error) =>
+                error instanceof ActionNotFound && error.message.includes('no extension "nope"'),
+        );
+        await assert.rejects(
+            extensions.call("alpha", "nope", call),
+            (error) =>
+                error instanceof ActionNotFound && error.message.includes('no action "nope"'),
+        );
+        await assert.rejects(
+            extensions.call("alpha", "constructor", call),
+            (error) =>
+                error instanceof ActionNotFound &&
+                error.message.includes('no action "constructor"'),
+        );
+    });
+
+    void it("tells ActionError from another error", async () => {
+        const failing = `{
+            bad: () => { throw new (globalThis.__ActionError)("bad input"); },
+            crash: () => { throw new Error("crash"); },
+        }`;
+
+        Reflect.set(globalThis, "__ActionError", ActionError);
+        await write("alpha", withActions(failing));
+        await extensions.load();
+
+        await assert.rejects(
+            extensions.call("alpha", "bad", call),
+            (error) => error instanceof ActionError && error.message === "bad input",
+        );
+        await assert.rejects(
+            extensions.call("alpha", "crash", call),
+            (error) => error instanceof Error && !(error instanceof ActionError),
+        );
+    });
+
+    void it("a reload replaces the action's code", async () => {
+        await write("alpha", withActions("{ value: () => 1 }"));
+        await extensions.load();
+        await write("alpha", withActions("{ value: () => 2 }"));
+        await extensions.load();
+
+        assert.equal(await extensions.call("alpha", "value", call), 2);
+    });
+
+    void it("a failed replacement keeps the old action working", async () => {
+        await write("alpha", withActions("{ value: () => 1 }"));
+        await extensions.load();
+
+        await write("alpha", `${withActions("{ value: () => 2 }")}\nthrow new Error("broken");`);
+        await extensions.load();
+
+        assert.equal(extensions.failed[0]?.folder, "alpha");
+        assert.equal(await extensions.call("alpha", "value", call), 1);
+    });
+
+    void it("a bad actions export fails the build and keeps the old version", async () => {
+        await write("alpha", withActions("{ value: () => 1 }"));
+        await extensions.load();
+
+        for (const bad of ["{ value: 5 }", "[() => 1]", "'text'"]) {
+            await write("alpha", withActions(bad));
+            await extensions.load();
+
+            assert.match(extensions.failed[0]?.reason ?? "", /actions|not a function/);
+            assert.equal(await extensions.call("alpha", "value", call), 1);
+        }
+    });
+
+    void it("removal, and an extension that installs nothing, drop the actions", async () => {
+        await write("alpha", withActions("{ value: () => 1 }"));
+        await write("beta", withActions("{ value: () => 1 }"));
+        await extensions.load();
+
+        await write(
+            "beta",
+            "export default function () {}\nexport const actions = { value: () => 1 };",
+        );
+        await rm(join(dir, "alpha"), { recursive: true });
+        await extensions.load();
+
+        for (const folder of ["alpha", "beta"]) {
+            await assert.rejects(
+                extensions.call(folder, "value", call),
+                (error) => error instanceof ActionNotFound,
+            );
+        }
+    });
+
+    void it("checks the action request body", () => {
+        assert.deepEqual(parseActionBody(undefined), { session: undefined, args: undefined });
+        assert.deepEqual(parseActionBody({}), { session: undefined, args: undefined });
+        assert.deepEqual(parseActionBody({ session: 3, args: { a: 1 } }), {
+            session: 3,
+            args: { a: 1 },
+        });
+
+        for (const bad of [
+            [],
+            "x",
+            5,
+            null,
+            { session: 0 },
+            { session: -1 },
+            { session: 1.5 },
+            { session: "1" },
+        ]) {
+            assert.throws(() => parseActionBody(bad), ActionError);
+        }
+    });
+
+    void it("a failed install keeps the old actions and status", async () => {
+        const version = (value: number, tools: string): string =>
+            `export default function (host) { return { name: host.name, tools: ${tools} }; }
+export const actions = { value: () => ${value} };
+export const status = () => ({ text: "v${value}" });`;
+        const view = { entries: [], contextWindow: () => undefined };
+
+        await write("alpha", version(1, "[]"));
+        await extensions.load();
+
+        await write("alpha", version(2, '[{ name: "t" }, { name: "t" }]'));
+        await extensions.load();
+
+        assert.match(extensions.failed[0]?.reason ?? "", /two tools named t/);
+        assert.equal(await extensions.call("alpha", "value", call), 1);
+        assert.equal(extensions.statuses(view)[0]?.text, "v1");
     });
 });
