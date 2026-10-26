@@ -72,6 +72,13 @@ body {
     height: 100dvh;
 }
 
+/* While the sidebar's edge is dragged: no text selection, and the resize cursor everywhere. */
+:root.resizing,
+:root.resizing * {
+    cursor: col-resize !important;
+    user-select: none;
+}
+
 body {
     background-color: var(--role-canvas);
     color: var(--role-ink);

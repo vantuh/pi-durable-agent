@@ -1,5 +1,5 @@
 import { ChevronDown, Folder, Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useState } from "react";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 
@@ -71,12 +71,100 @@ function folderName(cwd: string | null): string {
     return parts[parts.length - 1] ?? cwd;
 }
 
+const WIDTH_KEY = "sidebarWidth";
+const USUAL_WIDTH = 264;
+const MIN_WIDTH = 204;
+const MAX_WIDTH = 464;
+
+function savedWidth(): number {
+    const width = Number(localStorage.getItem(WIDTH_KEY));
+
+    return width > 0 ? width : USUAL_WIDTH;
+}
+
+/** The stylesheet caps it at 40% of the screen as well, so the conversation keeps room. */
+function setWidth(wanted: number, save: boolean): number {
+    const max = Math.min(MAX_WIDTH, Math.max(USUAL_WIDTH, innerWidth * 0.4));
+    const width = Math.round(Math.min(max, Math.max(MIN_WIDTH, wanted)));
+
+    document.documentElement.style.setProperty("--sidebar-w", `${String(width)}px`);
+
+    if (save) {
+        localStorage.setItem(WIDTH_KEY, String(width));
+    }
+
+    return width;
+}
+
+/** Drag the sidebar's right edge, or press the arrow keys on it, to resize it; a double click resets it. */
+function ResizeHandle() {
+    const start = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+        if (event.button !== 0) {
+            return;
+        }
+
+        event.preventDefault();
+        const handle = event.currentTarget;
+        const left = handle.parentElement?.getBoundingClientRect().left ?? 0;
+        const root = document.documentElement;
+        let width: number | null = null;
+
+        const move = (each: PointerEvent): void => {
+            width = setWidth(each.clientX - left, false);
+        };
+
+        // Fires after pointerup and pointercancel alike, so one listener ends the drag.
+        const stop = (): void => {
+            root.classList.remove("resizing");
+            handle.removeEventListener("pointermove", move);
+            handle.removeEventListener("lostpointercapture", stop);
+
+            if (width !== null) {
+                setWidth(width, true);
+            }
+        };
+
+        root.classList.add("resizing");
+        handle.setPointerCapture(event.pointerId);
+        handle.addEventListener("pointermove", move);
+        handle.addEventListener("lostpointercapture", stop);
+    };
+
+    return (
+        <button
+            type="button"
+            aria-label="Resize sidebar"
+            title="Drag to resize, double-click to reset"
+            onPointerDown={start}
+            onKeyDown={(event) => {
+                const step = { ArrowLeft: -16, ArrowRight: 16 }[event.key];
+
+                if (step !== undefined) {
+                    event.preventDefault();
+                    setWidth(savedWidth() + step, true);
+                }
+            }}
+            onDoubleClick={() => {
+                localStorage.removeItem(WIDTH_KEY);
+                setWidth(USUAL_WIDTH, false);
+            }}
+            className="group absolute inset-y-0 -right-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
+        >
+            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
+        </button>
+    );
+}
+
 export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onClose }: Props) {
     const active = sessions.find((session) => session.id === current);
     const [picked, setPicked] = useState<string | null>(null);
     const [seen, setSeen] = useState(active?.cwd ?? null);
     const [open, setOpen] = useState(false);
     const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        setWidth(savedWidth(), false);
+    }, []);
 
     useEffect(() => {
         const tick = setInterval(() => {
@@ -108,7 +196,7 @@ export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onCl
 
     return (
         <aside
-            className={`rounded-card border-edge-soft bg-canvas shrink-0 flex-col border lg:static lg:inset-auto lg:z-auto lg:flex lg:w-[264px] ${
+            className={`rounded-card border-edge-soft bg-canvas shrink-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] ${
                 sheet ? "fixed inset-2 z-30 flex" : "hidden"
             }`}
         >
@@ -218,6 +306,8 @@ export function Sessions({ sessions, current, onSelect, onNew, open: sheet, onCl
                     );
                 })}
             </nav>
+
+            <ResizeHandle />
         </aside>
     );
 }
