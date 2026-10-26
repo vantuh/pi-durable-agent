@@ -29,6 +29,7 @@ void test("only the structured version error is explained, preserving error and 
     assert.equal(rejection.requiredVersion, "2.1.300");
     const state: Diagnostics = {
         version: "2.1.280",
+        sentVersion: null,
         source: "default",
         transportVersion: null,
         learnedFloor: null,
@@ -46,10 +47,10 @@ void test("only the structured version error is explained, preserving error and 
     assert.equal(result.headers.get("request-id"), "request-test");
     const text = await result.text();
     assert.match(text, /claude_code_version_too_old/);
-    assert.match(text, /Update Pi/);
+    assert.match(text, /update Pi/);
     assert.match(text, /2.1.300/);
     assert.equal(state.versionError?.requiredVersion, "2.1.300");
-    assert.match(recoveryHint("2.1.300", true, "2.1.200"), /2.1.200 is explicit/);
+    assert.match(recoveryHint("2.1.300", true, "2.1.200"), /override is explicit/);
 });
 
 void test("unrelated, malformed and successful responses are not consumed or modified", async () => {
@@ -78,4 +79,18 @@ void test("unknown wording does not invent a required floor", async () => {
         { status: 400 },
     );
     assert.equal((await readVersionRejection(response))?.requiredVersion, null);
+});
+
+void test("a billing version already meeting the floor recommends upgrading Pi, not setting the same value", () => {
+    for (const version of ["2.1.300", "2.1.400"]) {
+        for (const override of [false, true]) {
+            const hint = recoveryHint("2.1.300", override, version);
+            assert.match(hint, new RegExp(`already reports ${version.replaceAll(".", "\\.")}`));
+            assert.match(hint, /Update Pi/);
+            assert.doesNotMatch(hint, /Set PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION/);
+        }
+    }
+    assert.match(recoveryHint("2.1.300", true, "2.1.200"), /override is explicit/);
+    assert.match(recoveryHint(null, false, null), /current Claude Code release/);
+    assert.doesNotMatch(recoveryHint("2.1.300", false, null), /already reports/);
 });

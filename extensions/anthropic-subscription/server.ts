@@ -97,6 +97,7 @@ export default function subscription(host: Host) {
     }
     const state: Diagnostics = {
         version,
+        sentVersion: null,
         source: configured === undefined || configured === "" ? "default" : "environment",
         transportVersion: null,
         learnedFloor: null,
@@ -108,10 +109,11 @@ export default function subscription(host: Host) {
     host.onDispose(() => {
         states.delete(host);
     });
+    const override = configured !== undefined && configured !== "";
     host.wrapModelFetch((next, model) =>
         oauthTransport(next, model, state, shapeRequest, {
             version,
-            override: state.source === "environment",
+            override,
         }),
     );
     return defineExtension({ name: host.name });

@@ -121,8 +121,9 @@ void test("diagnostics record only outcome, provider and time, never request con
     assert.equal(JSON.stringify(read()).includes("private text"), false);
     await shape(shaped);
     assert.equal(read().last?.outcome, "already-shaped");
+    const beforeOtherProvider = structuredClone(read());
     await shape(payload, "openai");
-    assert.equal(read().last?.outcome, "other-provider");
+    assert.deepEqual(read(), beforeOtherProvider);
     await shape({ system: [{ type: "text", text: "API key prompt" }] }, "anthropic", false);
     assert.equal(read().last?.outcome, "not-oauth");
     await shape({ system: [identity], messages: [] });

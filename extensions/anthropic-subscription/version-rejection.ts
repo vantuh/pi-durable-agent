@@ -3,6 +3,7 @@
  * Copyright (c) 2026 Christopher D. Lasher. MIT; see LICENSE.pi-anthropic-auth.
  */
 import type { Diagnostics } from "./refs.ts";
+import { higherVersion } from "./version.ts";
 
 function record(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -47,20 +48,27 @@ export async function readVersionRejection(
 export function recoveryHint(
     required: string | null,
     override: boolean,
-    sentVersion: string,
+    sentVersion: string | null,
 ): string {
     const target = required ?? "the current Claude Code release";
-    if (override) {
-        return `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION=${sentVersion} is explicit. Raise it to ${target} or unset it to use automatic version selection.`;
+    if (
+        required !== null &&
+        sentVersion !== null &&
+        higherVersion(sentVersion, required) === sentVersion
+    ) {
+        return `The billing block already reports ${sentVersion}, meeting the required ${required}. This rejection may come from Pi's own Claude CLI version. Update Pi; changing the billing version to the same value will not help.`;
     }
-    return `Anthropic requires ${target}. Update Pi if its Claude CLI version is too old, or set PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION to the required version and retry.`;
+    if (override) {
+        return `The billing-version override is explicit and disables automatic recovery. Set PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION to ${target} or unset it to use automatic version selection.`;
+    }
+    return `Automatic version recovery did not succeed. Set PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION to ${target} and retry. If Pi's own Claude CLI version is too old, update Pi.`;
 }
 
 export async function hintedResponse(
     response: Response,
     rejection: VersionRejection,
     hint: string,
-    state: Diagnostics,
+    state: Pick<Diagnostics, "versionError">,
 ): Promise<Response> {
     state.versionError = { requiredVersion: rejection.requiredVersion, hint, at: Date.now() };
     const message =

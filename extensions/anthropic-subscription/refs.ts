@@ -1,15 +1,11 @@
 import { actionRef } from "../../shared/extension-api.ts";
 
 export const DEFAULT_VERSION = "2.1.280";
-export type ShapeOutcome =
-    | "applied"
-    | "other-provider"
-    | "not-oauth"
-    | "already-shaped"
-    | "no-user-text";
+export type ShapeOutcome = "applied" | "not-oauth" | "already-shaped" | "no-user-text";
 export type VersionError = { requiredVersion: string | null; hint: string; at: number };
 export type Diagnostics = {
     version: string;
+    sentVersion: string | null;
     source: "default" | "environment" | "transport" | "server-required";
     learnedFloor: string | null;
     lastRetry: "none" | "recovered" | "failed";
@@ -20,7 +16,6 @@ export type Diagnostics = {
 
 export const outcomes: Record<ShapeOutcome, string> = {
     applied: "Shaping applied",
-    "other-provider": "Skipped: other provider",
     "not-oauth": "Skipped: not an OAuth request",
     "already-shaped": "Skipped: billing block already present",
     "no-user-text": "Skipped: no first-user text",
@@ -56,6 +51,10 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         }
         const version: unknown = Reflect.get(value, "version");
         const source: unknown = Reflect.get(value, "source");
+        const sentVersion: unknown = Reflect.get(value, "sentVersion") ?? null;
+        if (sentVersion !== null && typeof sentVersion !== "string") {
+            throw new Error("Invalid sent version");
+        }
         const last: unknown = Reflect.get(value, "last");
         const versionError = parseVersionError(Reflect.get(value, "versionError"));
         const learnedFloor: unknown = Reflect.get(value, "learnedFloor") ?? null;
@@ -82,6 +81,7 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         if (last === null) {
             return {
                 version,
+                sentVersion,
                 source,
                 learnedFloor,
                 lastRetry,
@@ -112,6 +112,7 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
         }
         return {
             version,
+            sentVersion,
             source,
             transportVersion,
             learnedFloor,

@@ -5,7 +5,7 @@ import type { ModelFetch } from "../../server/model-requests.ts";
 import { type Diagnostics } from "./refs.ts";
 import { shapeRequest } from "./server.ts";
 import { oauthTransport, requestFrom } from "./transport.ts";
-import { higherVersion } from "./version.ts";
+import { cliVersion, higherVersion } from "./version.ts";
 
 const payload = {
     system: [{ type: "text", text: "Project rules" }],
@@ -15,6 +15,7 @@ const payload = {
 function state(): Diagnostics {
     return {
         version: "2.1.280",
+        sentVersion: null,
         source: "default",
         transportVersion: null,
         learnedFloor: null,
@@ -27,6 +28,7 @@ function state(): Diagnostics {
 void test("billing version follows the newer Pi User-Agent without altering HTTP identity", async () => {
     for (const [ua, expected] of [
         ["claude-cli/2.1.300 (external, cli)", "2.1.300"],
+        ["wrapper/1.0 claude-cli/2.1.350 (external, cli)", "2.1.350"],
         ["claude-cli/2.1.99", "2.1.280"],
         ["unexpected", "2.1.280"],
     ]) {
@@ -134,6 +136,7 @@ void test("one version recovery learns the minimum for subsequent requests", asy
     assert.match(bodies[1] ?? "", /cc_version=2\.1\.300\./);
     assert.equal(diagnostics.learnedFloor, "2.1.300");
     assert.equal(diagnostics.lastRetry, "recovered");
+    assert.equal(diagnostics.sentVersion, "2.1.300");
     assert.equal(diagnostics.versionError, null);
     await wrap()("https://api.anthropic.com/v1/messages", oauthInit);
     assert.equal(bodies.length, 3);
@@ -203,5 +206,203 @@ void test("overrides, unrelated errors, unknown floors and existing blocks are n
         };
         await wrapped("https://api.anthropic.com/v1/messages", init);
         assert.equal(calls, 1, scenario);
+    }
+});
+
+void test("other providers and non-message endpoints leave Anthropic diagnostics untouched", async () => {
+    const diagnostics = state();
+    const next: ModelFetch = () => Promise.resolve(new Response("ok"));
+    const configured = { version: "2.1.280", override: false };
+    const foreign = oauthTransport(
+        next,
+        { provider: "openai" },
+        diagnostics,
+        shapeRequest,
+        configured,
+    );
+    await foreign("custom-provider-input");
+    assert.equal(diagnostics.last, null);
+    await oauthTransport(
+        next,
+        { provider: "anthropic" },
+        diagnostics,
+        shapeRequest,
+        configured,
+    )("https://api.anthropic.com/v1/messages", oauthInit);
+    const previous = structuredClone(diagnostics);
+    await foreign("https://api.openai.com/v1/responses", { method: "POST", body: "{}" });
+    await oauthTransport(
+        next,
+        { provider: "anthropic" },
+        diagnostics,
+        shapeRequest,
+        configured,
+    )("https://api.anthropic.com/api/oauth/profile");
+    assert.deepEqual(diagnostics, previous);
+});
+
+function deferred<T>() {
+    let resolve: (value: T) => void = () => {
+        throw new Error("Promise executor did not run");
+    };
+    const promise = new Promise<T>((settle) => {
+        resolve = settle;
+    });
+    return { promise, resolve };
+}
+
+void test("older recovery and failure cannot overwrite a newer request snapshot, but may teach a floor", async () => {
+    for (const fails of [false, true]) {
+        const diagnostics = state();
+        const started = deferred<void>();
+        const response = deferred<Response>();
+        let calls = 0;
+        const oldFetch: ModelFetch = () => {
+            calls += 1;
+            if (calls === 1) {
+                started.resolve();
+                return response.promise;
+            }
+            return Promise.resolve(fails ? rejection("2.1.400") : new Response("ok"));
+        };
+        const configured = { version: "2.1.280", override: false };
+        const older = oauthTransport(
+            oldFetch,
+            { provider: "anthropic" },
+            diagnostics,
+            shapeRequest,
+            configured,
+        )("https://api.anthropic.com/v1/messages", oauthInit);
+        await started.promise;
+        await oauthTransport(
+            () => Promise.resolve(new Response("newer")),
+            { provider: "anthropic" },
+            diagnostics,
+            shapeRequest,
+            configured,
+        )("https://api.anthropic.com/v1/messages", {
+            ...oauthInit,
+            headers: { ...oauthInit.headers, "user-agent": "claude-cli/2.1.500" },
+        });
+        const expected = structuredClone(diagnostics);
+        response.resolve(rejection());
+        const oldResponse = await older;
+        assert.equal(oldResponse.status, fails ? 400 : 200);
+        expected.learnedFloor = fails ? "2.1.400" : "2.1.300";
+        assert.deepEqual(diagnostics, expected);
+        assert.equal(diagnostics.version, "2.1.500");
+        assert.equal(diagnostics.sentVersion, "2.1.500");
+        assert.equal(diagnostics.lastRetry, "none");
+        assert.equal(diagnostics.versionError, null);
+    }
+});
+
+void test("existing billing block reports actual version separately from selected version without rewriting", async () => {
+    for (const existingVersion of ["2.1.100", "2.1.500", "unparseable"]) {
+        const diagnostics = state();
+        const existing =
+            existingVersion === "unparseable"
+                ? {
+                      ...payload,
+                      system: [{ type: "text", text: "x-anthropic-billing-header: custom value" }],
+                  }
+                : shapeRequest(payload, existingVersion);
+        const body = JSON.stringify(existing);
+        let calls = 0;
+        const next: ModelFetch = async (input, init) => {
+            calls += 1;
+            assert.equal(await requestFrom(input, init).text(), body);
+            return new Response("ok");
+        };
+        await oauthTransport(next, { provider: "anthropic" }, diagnostics, shapeRequest, {
+            version: "2.1.280",
+            override: false,
+        })("https://api.anthropic.com/v1/messages", {
+            ...oauthInit,
+            body,
+            headers: { ...oauthInit.headers, "user-agent": "claude-cli/2.1.400" },
+        });
+        assert.equal(calls, 1);
+        assert.equal(diagnostics.version, "2.1.400");
+        assert.equal(
+            diagnostics.sentVersion,
+            existingVersion === "unparseable" ? null : existingVersion,
+        );
+        assert.equal(diagnostics.last?.outcome, "already-shaped");
+    }
+});
+
+void test("API-key request clears OAuth-only snapshot fields instead of retaining prior metadata", async () => {
+    const diagnostics = state();
+    const fetch = oauthTransport(
+        () => Promise.resolve(new Response("ok")),
+        { provider: "anthropic" },
+        diagnostics,
+        shapeRequest,
+        { version: "2.1.280", override: false },
+    );
+    await fetch("https://api.anthropic.com/v1/messages", oauthInit);
+    assert.equal(diagnostics.sentVersion, "2.1.280");
+    await fetch("https://api.anthropic.com/v1/messages", {
+        ...oauthInit,
+        headers: { "x-api-key": "test" },
+    });
+    assert.equal(diagnostics.last?.outcome, "not-oauth");
+    assert.equal(diagnostics.sentVersion, null);
+    assert.equal(diagnostics.transportVersion, null);
+    assert.equal(diagnostics.versionError, null);
+});
+
+void test("User-Agent token parsing matches donor boundaries including prefixes", () => {
+    for (const ua of [
+        "claude-cli/2.1.400",
+        "other-client/1.0 claude-cli/2.1.400",
+        "other-client/1.0 claude-cli/2.1.400 (external, cli)",
+    ]) {
+        assert.equal(
+            cliVersion(new Request("https://example.test", { headers: { "user-agent": ua } })),
+            "2.1.400",
+        );
+    }
+    for (const ua of [
+        "notclaude-cli/2.1.400",
+        "claude-cli/2.1.400.1",
+        "claude-cli/2.1.400-beta",
+        "claude-cli/2.1",
+        "unknown",
+    ]) {
+        assert.equal(
+            cliVersion(new Request("https://example.test", { headers: { "user-agent": ua } })),
+            undefined,
+        );
+    }
+});
+
+void test("version rejection advice uses the actual existing block, not the selected version", async () => {
+    for (const version of ["2.1.100", "2.1.500"]) {
+        const diagnostics = state();
+        let calls = 0;
+        const next: ModelFetch = () => {
+            calls += 1;
+            return Promise.resolve(rejection());
+        };
+        const response = await oauthTransport(
+            next,
+            { provider: "anthropic" },
+            diagnostics,
+            shapeRequest,
+            { version: "2.1.280", override: false },
+        )("https://api.anthropic.com/v1/messages", {
+            ...oauthInit,
+            body: JSON.stringify(shapeRequest(payload, version)),
+            headers: { ...oauthInit.headers, "user-agent": "claude-cli/2.1.400" },
+        });
+        const message = await response.text();
+        assert.equal(calls, 1);
+        if (version === "2.1.500") {
+            assert.match(message, /already reports 2\.1\.500/);
+        } else {
+            assert.doesNotMatch(message, /already reports/);
+        }
     }
 });

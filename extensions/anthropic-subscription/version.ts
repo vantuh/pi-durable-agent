@@ -17,7 +17,7 @@ export function higherVersion(left: string, right: string | undefined): string {
 }
 
 export function cliVersion(request: Request): string | undefined {
-    return /^claude-cli\/(\d+\.\d+\.\d+)(?:\s|$)/.exec(
+    return /(?:^|\s)claude-cli\/(\d+\.\d+\.\d+)(?=\s|$)/.exec(
         request.headers.get("user-agent") ?? "",
     )?.[1];
 }

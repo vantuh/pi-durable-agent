@@ -361,10 +361,15 @@ not installed; the component must respect both props and show an honest offline 
 Polling and subscriptions must stop on collapse, disable or unmount. Tailwind scans
 extension folders too, so their details components can use theme utilities.
 
-Anthropic subscription details show the configured billing-block version and its source
-(default or environment override), plus the last payload-processing outcome, provider and
-local time. These are in-memory, server-wide diagnostics across all sessions, reset when
-the extension reloads or is disabled. They retain no message text, system prompt or token.
+Anthropic subscription details separate the selected billing version and its source from
+**Sent billing version**, parsed from the outgoing billing block. Existing blocks remain
+unchanged; an absent or unparseable version shows unavailable instead of the selected value.
+The last-request fields describe only Anthropic POST messages requests across all sessions;
+other providers and endpoints cannot overwrite them. Request fields are published as one
+snapshot, and late responses/retries cannot replace a more recently started request's snapshot.
+The learned floor is shared knowledge and may still be raised by an older request.
+These in-memory diagnostics reset on extension reload/disable and retain no message text,
+system prompt or token.
 The open details refresh every three seconds, with no polling while disabled or collapsed.
 A disabled folder shows only the bundled default, not a claim about the effective env override.
 The displayed version is not the transport's HTTP User-Agent, and an applied shape does
@@ -385,8 +390,10 @@ that builds the billing block assumes its caller has already checked OAuth autho
 
 ### Billing-version synchronization
 
-For OAuth messages requests, the billing version is the numeric maximum of the bundled
-version and the final `claude-cli/X.Y.Z` User-Agent version. The HTTP User-Agent itself
+For OAuth messages requests, the selected version is the numeric maximum of the bundled
+version, the learned minimum and the final `claude-cli/X.Y.Z` User-Agent token. The token
+may follow other whitespace-separated User-Agent tokens, but partial names and versions
+with extra components or suffixes do not match. The HTTP User-Agent itself
 is not rewritten. An explicit environment override is absolute, even when lower.
 Details show both billing and observed Pi versions and distinguish a transport-derived
 version. Unknown User-Agents fall back to the bundled version; no package registry or
@@ -400,7 +407,10 @@ in extension details and are appended to the original SDK error message. The err
 status and request ID remain intact. Unknown wording produces a hint without inventing a
 floor. Successful streams, other HTTP errors and non-JSON responses are not consumed or
 rewritten. Diagnostic state keeps only the generated hint, floor and timestamp, not the
-raw upstream error. Explicit version overrides get a specific explanation.
+raw upstream error. Explicit version overrides get a specific explanation. If the actual
+sent billing version already meets the required floor, the hint recommends updating Pi
+rather than setting the billing version to the same value. Unparseable existing blocks
+never result in a claim that their version met the floor.
 
 ### Bounded version recovery
 

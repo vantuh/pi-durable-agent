@@ -57,9 +57,13 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                         </p>
                     ) : (
                         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
-                            <dt className="text-faint">Billing version</dt>
+                            <dt className="text-faint">Selected billing version</dt>
                             <dd className="text-ink text-right font-mono">{state.version}</dd>
-                            <dt className="text-faint">Version source</dt>
+                            <dt className="text-faint">Sent billing version</dt>
+                            <dd className="text-ink text-right font-mono">
+                                {state.sentVersion ?? "Not observed / unavailable"}
+                            </dd>
+                            <dt className="text-faint">Selection source</dt>
                             <dd className="text-muted text-right">
                                 {state.source === "default"
                                     ? "Default"
@@ -85,7 +89,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                       ? "Recovered"
                                       : "Failed"}
                             </dd>
-                            <dt className="text-faint">Last request</dt>
+                            <dt className="text-faint">Last Anthropic request</dt>
                             <dd className="text-muted text-right">
                                 {state.last === null
                                     ? "No requests yet"
@@ -130,9 +134,10 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 </>
             )}
             <p className="text-faint">
-                Billing version follows the newer of the default and Pi's observed User-Agent
-                version, unless overridden. Diagnostics cover all sessions and reset on reload or
-                disable.
+                Selected version follows the default, Pi User-Agent and learned minimum unless
+                overridden. Sent version is read from the outgoing billing block; existing blocks
+                are left unchanged. Diagnostics show the latest Anthropic messages request across
+                sessions and reset on reload or disable.
             </p>
             <p className="text-faint">
                 Shaping does not confirm that a request was charged to subscription limits.
