@@ -93,7 +93,7 @@ body {
     height: 100dvh;
 }
 
-/* While the sidebar's edge is dragged: no text selection, and the resize cursor everywhere. */
+/* While the sidebar's or a panel's edge is dragged: no text selection, and the resize cursor everywhere. */
 :root.resizing,
 :root.resizing * {
     cursor: col-resize !important;
