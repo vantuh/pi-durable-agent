@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
+import { usePanels } from "./extensions.ts";
 import {
     type Health,
     createSession,
@@ -15,6 +16,7 @@ import { useConversation } from "./lib/conversation.ts";
 import { Composer } from "./parts/composer.tsx";
 import { FolderPicker } from "./parts/folder-picker.tsx";
 import { ModelMenu } from "./parts/model-menu.tsx";
+import { PanelButtons, PanelHost, panelKey } from "./parts/panels.tsx";
 import { Sessions } from "./parts/sessions.tsx";
 import { Settings } from "./parts/settings.tsx";
 import { StatusBar } from "./parts/status-bar.tsx";
@@ -41,6 +43,8 @@ export function App() {
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
     const [sheet, setSheet] = useState(false);
     const [settings, setSettings] = useState(false);
+    const [panelOpen, setPanelOpen] = useState<string | null>(null);
+    const panels = usePanels();
 
     const { state, send, stop } = useConversation(current);
 
@@ -100,6 +104,8 @@ export function App() {
             ? null
             : { id: current, cwd: active?.cwd ?? health?.cwd ?? null, busy: state.live.busy };
 
+    const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
+
     return (
         <div className="bg-sunken flex h-full flex-col gap-2 p-2">
             <div className="flex min-h-0 flex-1 items-stretch gap-2">
@@ -125,6 +131,15 @@ export function App() {
                         title={active?.title ?? null}
                         entries={state.entries}
                         live={state.live}
+                        tools={
+                            <PanelButtons
+                                panels={panels}
+                                open={panelOpen}
+                                onToggle={(key) => {
+                                    setPanelOpen((open) => (open === key ? null : key));
+                                }}
+                            />
+                        }
                         onSettings={() => {
                             setSettings(true);
                         }}
@@ -194,6 +209,16 @@ export function App() {
                         />
                     </div>
                 </main>
+
+                {panel === undefined ? null : (
+                    <PanelHost
+                        panel={panel}
+                        session={activeSession}
+                        onClose={() => {
+                            setPanelOpen(null);
+                        }}
+                    />
+                )}
 
                 {settings ? (
                     <Settings

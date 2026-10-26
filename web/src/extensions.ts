@@ -1,6 +1,6 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items
- * and settings sections.
+ * settings sections and side panels.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -9,10 +9,11 @@
 import { useEffect, useState } from "react";
 
 import { listExtensions } from "./lib/api.ts";
-import type { SettingsSection, StatusItem } from "./sdk/types.ts";
+import type { PanelItem, SettingsSection, StatusItem } from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
 export type FolderSettingsSection = SettingsSection & { folder: string };
+export type FolderPanel = PanelItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end"]);
 
@@ -38,6 +39,17 @@ function isSection(value: unknown): value is SettingsSection {
         value !== null &&
         typeof Reflect.get(value, "id") === "string" &&
         typeof Reflect.get(value, "title") === "string" &&
+        typeof Reflect.get(value, "component") === "function"
+    );
+}
+
+function isPanel(value: unknown): value is PanelItem {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "string" &&
+        typeof Reflect.get(value, "title") === "string" &&
+        Reflect.get(value, "icon") !== undefined &&
         typeof Reflect.get(value, "component") === "function"
     );
 }
@@ -94,7 +106,11 @@ function collect<T extends { id: string }>(
     }
 }
 
-type Loaded = { status: FolderStatusItem[]; settings: FolderSettingsSection[] };
+type Loaded = {
+    status: FolderStatusItem[];
+    settings: FolderSettingsSection[];
+    panels: FolderPanel[];
+};
 
 const folders = Object.entries(import.meta.glob("../../extensions/*/web.tsx"))
     .map(([path, importModule]) => ({
@@ -113,13 +129,14 @@ const listeners = new Set<() => void>();
 const modules = new Map<string, Promise<Loaded>>();
 
 async function loadFolder(folder: string, importModule: () => Promise<unknown>): Promise<Loaded> {
-    const loaded: Loaded = { status: [], settings: [] };
+    const loaded: Loaded = { status: [], settings: [], panels: [] };
 
     try {
         const module = await importModule();
 
         collect(folder, "status", module, isStatusItem, loaded.status);
         collect(folder, "settings", module, isSection, loaded.settings);
+        collect(folder, "panels", module, isPanel, loaded.panels);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
     }
@@ -154,6 +171,7 @@ const first = refreshExtensions();
 
 const pickStatus = (loaded: Loaded): FolderStatusItem[] => loaded.status;
 const pickSettings = (loaded: Loaded): FolderSettingsSection[] => loaded.settings;
+const pickPanels = (loaded: Loaded): FolderPanel[] => loaded.panels;
 
 function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
     const [items, setItems] = useState<readonly T[]>([]);
@@ -209,4 +227,9 @@ export function useStatusItems(): readonly FolderStatusItem[] {
 /** The settings sections of every folder that is on and loaded; empty until the modules are in. */
 export function useSettingsSections(): readonly FolderSettingsSection[] {
     return useLoaded(pickSettings);
+}
+
+/** The side panels of every folder that is on and loaded; empty until the modules are in. */
+export function usePanels(): readonly FolderPanel[] {
+    return useLoaded(pickPanels);
 }

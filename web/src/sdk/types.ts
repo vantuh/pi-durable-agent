@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 export type StatusProps = {
     session: { id: number; cwd: string | null; busy: boolean } | null;
@@ -20,5 +20,20 @@ export type SettingsSection = {
     component: ComponentType<SettingsProps>;
 };
 
+export type PanelProps = StatusProps & { onClose: () => void };
+
+/** A side panel: a button in the conversation header opens it to the right of the transcript. */
+export type PanelItem = {
+    id: string;
+    title: string;
+    icon: ReactNode;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<PanelProps>;
+};
+
 /** What a folder's `web.tsx` default-exports. */
-export type WebExtension = { status?: StatusItem[]; settings?: SettingsSection[] };
+export type WebExtension = {
+    status?: StatusItem[];
+    settings?: SettingsSection[];
+    panels?: PanelItem[];
+};

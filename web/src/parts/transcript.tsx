@@ -1,5 +1,5 @@
 import { PanelLeft, Settings as SettingsIcon } from "lucide-react";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Spinner } from "@/components/ui/spinner";
 
@@ -12,6 +12,8 @@ type Props = {
     title: string | null;
     entries: ClientEntry[];
     live: ClientLive;
+    /** Buttons of the extensions' panels, before the settings gear. */
+    tools?: ReactNode;
     onSettings: () => void;
     onSessions: () => void;
 };
@@ -99,7 +101,7 @@ function TurnView({ turn }: { turn: Turn }) {
     );
 }
 
-export function Transcript({ title, entries, live, onSettings, onSessions }: Props) {
+export function Transcript({ title, entries, live, tools, onSettings, onSessions }: Props) {
     const bottom = useRef<HTMLDivElement>(null);
     const turns = useMemo(() => turnsOf(entries, live), [entries, live]);
     const grown = (live.blocks ?? []).reduce(
@@ -134,6 +136,7 @@ export function Transcript({ title, entries, live, onSettings, onSessions }: Pro
                     </h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                    {tools}
                     <button
                         type="button"
                         title="Settings"

@@ -171,6 +171,14 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
 - No extension uses a settings section now. `extensions/git-branch` is an example of a `branch` action on
   the server and a `start` status item.
 
+### Panels
+
+`web.tsx` may also export `panels: [{ id, title, icon, component }]`. Each adds a button to the
+conversation header; the open panel sits to the right of the transcript (a full-screen overlay
+below `lg`). The component gets `{ session, onClose }`. `extensions/browser` is the example: its
+frames travel as base64 through an action that waits for the next one, as extensions have no
+routes of their own.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
