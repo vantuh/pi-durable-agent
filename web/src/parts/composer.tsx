@@ -17,9 +17,12 @@ const drafts = new Map<string, string>();
 const HISTORY_KEY = "composer-history";
 const HISTORY_MAX = 100;
 
-function loadHistory(): string[] {
+// Sent messages are remembered per session, so an empty chat never recalls another chat's text.
+function loadHistory(sessionId: string): string[] {
     try {
-        const parsed: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+        const parsed: unknown = JSON.parse(
+            localStorage.getItem(`${HISTORY_KEY}:${sessionId}`) ?? "[]",
+        );
 
         return Array.isArray(parsed)
             ? parsed.filter((item): item is string => typeof item === "string")
@@ -29,15 +32,18 @@ function loadHistory(): string[] {
     }
 }
 
-function remember(text: string): void {
-    const past = loadHistory();
+function remember(sessionId: string, text: string): void {
+    const past = loadHistory(sessionId);
 
     if (past.at(-1) === text) {
         return;
     }
 
     try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify([...past, text].slice(-HISTORY_MAX)));
+        localStorage.setItem(
+            `${HISTORY_KEY}:${sessionId}`,
+            JSON.stringify([...past, text].slice(-HISTORY_MAX)),
+        );
     } catch {
         // History is a convenience; storage may be full or blocked.
     }
@@ -147,7 +153,7 @@ export function Composer({
             return;
         }
 
-        remember(body);
+        remember(sessionId, body);
         drafts.delete(sessionId);
         browse.current = null;
         setText("");
@@ -238,7 +244,7 @@ export function Composer({
                                 : !value.slice(selectionEnd).includes("\n");
 
                             if (collapsed && edge) {
-                                const past = loadHistory();
+                                const past = loadHistory(sessionId);
                                 const state = browse.current;
                                 let next: string | undefined;
 
