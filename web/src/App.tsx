@@ -7,7 +7,6 @@ import { usePanels } from "./extensions.ts";
 import {
     type Health,
     createSession,
-    deleteSession,
     getHealth,
     type Models,
     listModels,
@@ -144,16 +143,6 @@ export function App() {
                         setSessions((rows) =>
                             rows.map((row) => (row.id === id ? { ...row, archived } : row)),
                         );
-                    }}
-                    onDelete={async (id) => {
-                        await deleteSession(id);
-                        const rows = (await listSessions()).filter((row) => row.id !== id);
-
-                        setSessions(rows);
-
-                        if (id === current) {
-                            setCurrent(rows[0]?.id ?? null);
-                        }
                     }}
                     onRename={async (id, name) => {
                         await setSessionTitle(id, name);

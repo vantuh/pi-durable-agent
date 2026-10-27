@@ -120,15 +120,6 @@ export async function setSessionTitle(session: number, title: string): Promise<v
     });
 }
 
-/** Gone for good: hidden at once, its rows removed at the next start of the server. */
-export async function deleteSession(session: number): Promise<void> {
-    await json("/api/sessions/delete", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session }),
-    });
-}
-
 export async function createSession(cwd: string): Promise<number> {
     const body = record(
         await json("/api/sessions", {

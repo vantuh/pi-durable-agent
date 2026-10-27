@@ -9,7 +9,6 @@ import {
     PanelLeftOpen,
     Pencil,
     Plus,
-    Trash2,
     X,
 } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, useEffect, useState } from "react";
@@ -29,8 +28,6 @@ type Props = {
     sessions: SessionSummary[];
     current: number | null;
     onArchive: (id: number, archived: boolean) => Promise<void>;
-    /** Gone for good: the row and the transcript both disappear. */
-    onDelete: (id: number) => Promise<void>;
     /** An empty name returns the session to its automatic title. */
     onRename: (id: number, name: string) => Promise<void>;
     onSelect: (id: number) => void;
@@ -209,7 +206,6 @@ export function Sessions({
     current,
     onSelect,
     onArchive,
-    onDelete,
     onRename,
     onFolder,
     onNew,
@@ -221,7 +217,6 @@ export function Sessions({
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
     const [pending, setPending] = useState(false);
-    const [deleting, setDeleting] = useState<SessionSummary | null>(null);
     const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
     const saveName = async (): Promise<void> => {
         if (renaming === null) {
@@ -259,18 +254,6 @@ export function Sessions({
             });
         } catch {
             toast.error("Could not update the archive. Please try again.");
-        } finally {
-            setPending(false);
-        }
-    };
-    const remove = async (id: number): Promise<void> => {
-        setPending(true);
-        try {
-            await onDelete(id);
-            setDeleting(null);
-            toast.success("Session deleted");
-        } catch {
-            toast.error("Could not delete the session. Please try again.");
         } finally {
             setPending(false);
         }
@@ -572,14 +555,6 @@ export function Sessions({
                                                                 ? "Restore"
                                                                 : "Archive"}
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onSelect={() => {
-                                                                setDeleting(session);
-                                                            }}
-                                                        >
-                                                            <Trash2 />
-                                                            Delete
-                                                        </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
@@ -640,42 +615,6 @@ export function Sessions({
                         </button>
                     </div>
                 </form>
-            )}
-
-            {deleting === null ? null : (
-                <div
-                    role="alertdialog"
-                    aria-label="Delete session"
-                    className="rounded-card border-edge-soft bg-panel absolute inset-x-2 top-14 z-20 flex flex-col gap-2 border p-2 shadow-lg lg:inset-x-auto lg:left-full lg:ml-2 lg:w-64"
-                >
-                    <p className="text-meta text-ink break-words">
-                        Delete “{deleting.title ?? "New session"}”? It cannot be restored.
-                    </p>
-                    <div className="flex justify-end gap-1">
-                        <button
-                            type="button"
-                            ref={(node) => {
-                                node?.focus();
-                            }}
-                            onClick={() => {
-                                setDeleting(null);
-                            }}
-                            className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink px-2 py-1"
-                        >
-                            No
-                        </button>
-                        <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => {
-                                void remove(deleting.id);
-                            }}
-                            className="rounded-control text-meta bg-danger text-canvas px-2 py-1 disabled:opacity-50"
-                        >
-                            Yes, delete
-                        </button>
-                    </div>
-                </div>
             )}
 
             {collapsed ? null : <ResizeHandle />}

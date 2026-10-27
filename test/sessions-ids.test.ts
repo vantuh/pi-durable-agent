@@ -33,7 +33,6 @@ void describe("Sessions.ids", () => {
                 model,
                 models,
                 context: BACKGROUND_CONTEXT,
-                dataDir: dir,
             });
 
             const first = await sessions.create(dir);
@@ -55,7 +54,6 @@ void describe("Sessions.ids", () => {
                 model,
                 models,
                 context: BACKGROUND_CONTEXT,
-                dataDir: dir,
             });
             assert.equal(
                 (await reopened.list(() => false)).find((row) => row.id === first.id)?.archived,
