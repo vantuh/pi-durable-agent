@@ -92,7 +92,7 @@ export const status: StatusProvider = ({ entries, contextWindow }) => ({
 The field may name a `slot` (`start`: after the folder, `center`, or `end`, the default), a
 `label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
 model's window from the catalog. Below `sm`, `end` fields are hidden and a `center` field loses its label.
-`extensions/context-meter` is the example for `center` with a meter.
+`extensions/context-meter` draws its own `center` item in `web.tsx` instead, because it opens a popup on hover; its server half serves the breakdown as an action and reads `host.contextWindow`.
 
 The field travels in `live.status` of the event stream, keyed by the folder's name. The core knows no
 field by name: install the folder and it appears, remove the folder and the next event drops it.

@@ -84,6 +84,7 @@ function setup() {
         },
         shapeModelRequests: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
         wrapModelFetch: (wrap) => {
             wrappers.push(wrap);
         },

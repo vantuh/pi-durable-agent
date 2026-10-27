@@ -1,79 +1,111 @@
 /**
  * How full the context is, in the middle of the status bar: the last answer's tokens (prompt, cache,
- * and output: what the next request starts from) over the model's context window.
+ * and output: what the next request starts from) over the model's context window. Hovering it opens
+ * what the context holds: system prompt sections and tools, with estimated sizes.
  */
 
-import { defineExtension } from "@earendil-works/pi-durable";
+import { defineExtension, type EntryRecord } from "@earendil-works/pi-durable";
 
-import type { Host, StatusProvider } from "../../server/extensions.ts";
-
-const WARN_ABOVE = 0.7;
-const DANGER_ABOVE = 0.9;
-
-function tokens(count: number): string {
-    return count >= 1000 ? `${String(Math.round(count / 1000))}k` : String(count);
-}
+import type { Action, Host } from "../../server/extensions.ts";
+import type { Breakdown, Part } from "./refs.ts";
 
 export const meta = {
     title: "Context meter",
     description: "Shows how full the context window is.",
 };
 
-export default function contextMeter(host: Host) {
-    return defineExtension({ name: host.name });
+// The model's own count of a prompt is not known before a request, so these are estimates.
+const CHARS_PER_TOKEN = 3.5;
+const PREVIEW = 160;
+
+const views = new Map<number, readonly EntryRecord[]>();
+let windowOf: Host["contextWindow"] = () => undefined;
+
+const estimate = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
+
+/** The text of a tagged section without its `<key>` wrapper, on one line. */
+function previewOf(key: string, text: string): string {
+    const inner = text.startsWith(`<${key}>`)
+        ? text.slice(key.length + 2, -(key.length + 3))
+        : text;
+
+    return inner.trim().replace(/\s+/g, " ").slice(0, PREVIEW);
 }
 
-export const status: StatusProvider = ({ entries, contextWindow }) => {
-    // A compaction or reset drops what earlier answers measured; with no newer answer there is no number.
-    let boundary = -1;
+/** Replays the system entries in order, as the harness does: sections set or removed, tools added or removed. */
+function promptOf(entries: readonly EntryRecord[]): { sections: Part[]; tools: Part[] } {
+    const sections = new Map<string, string>();
+    const tools = new Map<string, { description: string; tokens: number }>();
 
     for (const entry of entries) {
-        if (entry.kind === "pi.compaction" || entry.kind === "pi.reset") {
-            boundary = Math.max(boundary, Number(entry.id));
-        }
-    }
+        const message = entry.kind === "pi.system" ? entry.model?.[0] : undefined;
 
-    for (let index = entries.length - 1; index >= 0; index -= 1) {
-        const entry = entries[index];
-        const message = entry?.kind === "pi.assistant" ? entry.model?.[0] : undefined;
-
-        if (entry === undefined || Number(entry.id) < boundary) {
-            return undefined;
-        }
-
-        if (
-            message?.role !== "assistant" ||
-            message.stopReason === "error" ||
-            message.stopReason === "aborted"
-        ) {
+        if (message?.role !== "system") {
             continue;
         }
 
-        const { input, output, cacheRead, cacheWrite } = message.usage;
-        const used = input + output + cacheRead + cacheWrite;
-        const window = contextWindow(message.provider, message.model);
-
-        if (used <= 0 || window === undefined || window <= 0) {
-            return undefined;
+        for (const [key, text] of Object.entries(message.sections ?? {})) {
+            if (text === null) {
+                sections.delete(key);
+            } else {
+                sections.set(key, text);
+            }
         }
 
-        const fill = Math.min(1, used / window);
+        for (const tool of message.toolsRemoved ?? []) {
+            tools.delete(tool.name);
+        }
 
-        return {
-            slot: "center",
-            label: "context",
-            meter: {
-                fill,
-                ...(fill > DANGER_ABOVE
-                    ? { tone: "danger" }
-                    : fill > WARN_ABOVE
-                      ? { tone: "warn" }
-                      : {}),
-            },
-            text: `${String(Math.round(fill * 100))}%`,
-            title: `${tokens(used)} of ${tokens(window)} tokens in context`,
-        };
+        for (const tool of message.toolsAdded ?? []) {
+            tools.set(tool.name, {
+                description: tool.description,
+                tokens: estimate(JSON.stringify(tool)),
+            });
+        }
     }
 
-    return undefined;
+    return {
+        sections: [...sections].map(([name, text]) => ({
+            name,
+            preview: previewOf(name, text),
+            tokens: estimate(text),
+        })),
+        tools: [...tools].map(([name, tool]) => ({
+            name,
+            preview: tool.description.trim().replace(/\s+/g, " ").slice(0, PREVIEW),
+            tokens: tool.tokens,
+        })),
+    };
+}
+
+export default function contextMeter(host: Host) {
+    windowOf = host.contextWindow;
+    host.onDispose(() => {
+        views.clear();
+    });
+    host.onCommit((view) => {
+        views.set(view.session.id, view.entries);
+    });
+
+    return defineExtension({ name: host.name });
+}
+
+export const actions: Record<string, Action> = {
+    breakdown({ session }): Breakdown | null {
+        const entries = session === null ? undefined : views.get(session.id);
+        const last = entries?.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
+
+        if (entries === undefined || last?.role !== "assistant") {
+            return null;
+        }
+
+        const { input, output, cacheRead, cacheWrite } = last.usage;
+
+        return {
+            model: `${last.provider}/${last.model}`,
+            used: input + output + cacheRead + cacheWrite,
+            window: windowOf(last.provider, last.model) ?? 0,
+            ...promptOf(entries),
+        };
+    },
 };

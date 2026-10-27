@@ -392,6 +392,7 @@ void describe("push", () => {
                 shapeModelRequests: () => undefined,
                 wrapModelFetch: () => undefined,
                 resolveModelAuth: () => Promise.resolve(undefined),
+                contextWindow: () => undefined,
             };
             const sends: string[] = [];
 

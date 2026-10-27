@@ -110,13 +110,16 @@ function entriesOf(view: View): ClientEntry[] {
         .filter((entry): entry is ClientEntry => entry !== undefined);
 }
 
+function windowOf(provider: string, modelId: string): number | undefined {
+    return models.getModels().find((model) => model.provider === provider && model.id === modelId)
+        ?.contextWindow;
+}
+
 function liveOf(view: View): ClientLive {
     const live = projectLive(view.docs["pi.live"], view.docs["pi.usage"], view.docs["pi.inbox"]);
     const status = extensions.statuses({
         entries: view.entries,
-        contextWindow: (provider, modelId) =>
-            models.getModels().find((model) => model.provider === provider && model.id === modelId)
-                ?.contextWindow,
+        contextWindow: windowOf,
     });
 
     return status.length === 0 ? live : { ...live, status };
@@ -882,6 +885,7 @@ async function main(): Promise<void> {
     registry.install(CodingTools);
 
     extensions = new Extensions({
+        contextWindow: windowOf,
         resolveModelAuth: async (providerId, signal) =>
             (await models.getAuth(providerId, { signal }))?.auth,
         registry,

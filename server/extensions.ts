@@ -40,6 +40,8 @@ export type Host = {
     readonly wrapModelFetch: (wrap: FetchWrapper) => void;
     /** Resolves current provider auth through Pi, including refresh. Never persist or log it. */
     readonly resolveModelAuth: ResolveModelAuth;
+    /** The context window of a model in the catalog, in tokens. */
+    readonly contextWindow: (provider: string, modelId: string) => number | undefined;
 };
 
 /** One conversation after a commit: what a commit listener may read. */
@@ -288,6 +290,7 @@ export class Extensions {
     readonly #shapers = new Set<RequestShaper>();
     readonly #fetchWrappers = new Set<FetchWrapper>();
     readonly #resolveModelAuth: ResolveModelAuth;
+    readonly #contextWindow: Host["contextWindow"];
 
     get fetchWrappers(): readonly FetchWrapper[] {
         return [...this.#fetchWrappers];
@@ -313,6 +316,7 @@ export class Extensions {
         dataDir: string;
         log: (message: string) => void;
         resolveModelAuth?: ResolveModelAuth;
+        contextWindow?: Host["contextWindow"];
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
@@ -320,6 +324,7 @@ export class Extensions {
         this.#dataDir = options.dataDir;
         this.#log = options.log;
         this.#resolveModelAuth = options.resolveModelAuth ?? (() => Promise.resolve(undefined));
+        this.#contextWindow = options.contextWindow ?? (() => undefined);
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -695,6 +700,7 @@ export class Extensions {
                 attempt.push(dispose);
             },
             resolveModelAuth: this.#resolveModelAuth,
+            contextWindow: this.#contextWindow,
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
                 attempt.push(() => {
