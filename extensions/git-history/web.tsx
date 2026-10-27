@@ -305,58 +305,58 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             >
                 <DialogContent className="sm:inset-3 sm:max-h-none sm:w-auto sm:max-w-none sm:translate-x-0 sm:translate-y-0">
                     <DialogHeader>
-                        <DialogTitle>
-                            {viewer ? "Plannotator review" : "Git history & review"}
-                        </DialogTitle>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <DialogTitle className="min-w-0 flex-1 truncate">
+                                {viewer ? "Plannotator review" : "Git history & review"}
+                            </DialogTitle>
+                            {viewer ? (
+                                <button
+                                    type="button"
+                                    title="Back to history"
+                                    className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
+                                    onClick={() => {
+                                        setViewer(false);
+                                    }}
+                                >
+                                    <ArrowLeft className="size-3" /> History
+                                </button>
+                            ) : null}
+                        </div>
                         <DialogDescription>
                             {viewer
                                 ? "Review stays inside this app. Feedback returns to the composer; nothing is sent automatically."
                                 : "Commits and uncommitted changes in this session’s folder. Ahead/behind reflects the last fetch."}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="border-edge-soft text-meta text-muted flex flex-wrap items-center gap-2 border-b px-3 py-2">
-                        {viewer ? (
+                    {!viewer ? (
+                        <div className="border-edge-soft text-meta text-muted flex flex-wrap items-center gap-2 border-b px-3 py-2">
+                            <span
+                                className="min-w-0 flex-1 truncate font-mono"
+                                title={session.cwd ?? ""}
+                            >
+                                {data?.branch ?? session.cwd}
+                            </span>
+                            {data?.upstream ? (
+                                <span title={data.upstream}>
+                                    ↑{data.ahead} ↓{data.behind}
+                                </span>
+                            ) : null}
                             <button
                                 type="button"
+                                title="Refresh history"
+                                disabled={loading}
                                 className={button}
                                 onClick={() => {
-                                    setViewer(false);
+                                    setLoading(true);
+                                    setRefresh((value) => value + 1);
                                 }}
                             >
-                                <ArrowLeft className="inline size-3" /> History
+                                <RefreshCw
+                                    className={`size-3.5 ${loading ? "animate-spin" : ""}`}
+                                />
                             </button>
-                        ) : (
-                            <>
-                                <span
-                                    className="min-w-0 flex-1 truncate font-mono"
-                                    title={session.cwd ?? ""}
-                                >
-                                    {data?.branch ?? session.cwd}
-                                </span>
-                                {data?.upstream ? (
-                                    <span title={data.upstream}>
-                                        ↑{data.ahead} ↓{data.behind}
-                                    </span>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    title="Refresh history"
-                                    disabled={loading}
-                                    className={button}
-                                    onClick={() => {
-                                        setLoading(true);
-                                        setRefresh((value) => value + 1);
-                                    }}
-                                >
-                                    <RefreshCw
-                                        className={`size-3.5 ${loading ? "animate-spin" : ""}`}
-                                    />
-                                </button>
-                            </>
-                        )}
-                        {running(state) ? (
-                            <>
-                                {!viewer ? (
+                            {running(state) ? (
+                                <>
                                     <button
                                         type="button"
                                         className={button}
@@ -366,20 +366,20 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                     >
                                         Resume review
                                     </button>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    className={button}
-                                    disabled={closing}
-                                    onClick={() => {
-                                        void stopReview();
-                                    }}
-                                >
-                                    Cancel review
-                                </button>
-                            </>
-                        ) : null}
-                    </div>
+                                    <button
+                                        type="button"
+                                        className={button}
+                                        disabled={closing}
+                                        onClick={() => {
+                                            void stopReview();
+                                        }}
+                                    >
+                                        Cancel review
+                                    </button>
+                                </>
+                            ) : null}
+                        </div>
+                    ) : null}
                     {issue !== null ? (
                         <p
                             role="alert"
