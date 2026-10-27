@@ -27,6 +27,24 @@ A parallel tool round is the case to expect here: with the default `settings.too
 call of a round starts together, so a pause pressed mid-round stops after the whole round, at the
 next request.
 
+## Steer and queue while held
+
+A hold postpones the boundaries that place queued input, so the two queue modes wait differently.
+Neither conflicts with a pause: the run is what stops, not the inbox.
+
+- **Steer** waits in `pi.inbox`, shown as queued in the composer. On resume it is placed at the first
+  boundary after the step under way — the post-tools one — so it joins the _next_ model request.
+  The model may then follow it instead of the instruction it was on: a run told "Run `sleep 5`, then
+  reply `first`" answered `steered.` after a steer was queued while it was held, and never said
+  `first`. Expect the steer to redirect, not to be appended to the answer that was coming.
+- **Queue** (`followUp`) is placed only at a run's `final` boundary. A hold keeps the run from
+  ending, so a queued message waits until the pause is lifted _and_ the rest of the cycle finishes.
+- **Stop on a held session drops the queue.** `Conversation.abort()` withdraws queued inputs (queued
+  writes stay), so a message queued while parked and then stopped is gone. Withdraw one on purpose
+  with `POST /api/queued/withdraw` instead; a pause does not block that.
+- **Interrupt drops the pause too.** The abort ends the run, the run ending opens the gate, and the
+  next message runs unpaused. Pause again if that is not what you wanted.
+
 ## How it works
 
 - `gate.ts` — one `Gate` per conversation. `hold(context)` resolves at once while the gate is open
