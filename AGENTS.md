@@ -123,7 +123,7 @@ second mechanism.
 
 | Path                          | Holds                                                                                           | Goes live by                                              |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `server/`, `shared/`          | HTTP, SSE, harness, loader, protocol                                                            | Restart the process (`node --watch`)                      |
+| `server/`, `shared/`          | HTTP, SSE, harness, loader, protocol                                                            | The restart button in Settings (`POST /api/restart`)      |
 | `web/`                        | Shell, transcript, composer, store                                                              | Vite HMR, instantly                                       |
 | `extensions/*/web.tsx`        | Status items, settings sections                                                                 | Vite HMR on change; a deleted file reloads the page       |
 | `extensions/*/server.ts`      | Tools, prompt sections, hooks, `status`, `actions`, and the helper files it imports (`refs.ts`) | Reinstalled on save; running calls finish on the old code |

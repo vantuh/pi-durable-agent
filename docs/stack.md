@@ -33,7 +33,8 @@ The first choice, recorded so later decisions can be read against it. Versions a
 - **Infrastructure**: no worktrees, spend limits, gallery, push notifications, PR watches.
 - **Front-end libraries**: no state library, no router, no component framework. One hand-written
   store; the sidebar is the only navigation until there are real URLs.
-- **Server tooling**: no bundler, no nodemon. `node --watch` is enough.
+- **Server tooling**: no bundler, no nodemon. `scripts/serve.ts` starts the server again when the
+  app asks (exit code 75), and that one parent is the whole watcher.
 
 ## Rules the stack imposes
 

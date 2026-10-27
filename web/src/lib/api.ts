@@ -331,6 +331,11 @@ export async function stopRun(session: number): Promise<void> {
     });
 }
 
+/** Asks the supervisor for a new server process; the event stream reconnects on its own. */
+export async function restartServer(): Promise<void> {
+    await json("/api/restart", { method: "POST" });
+}
+
 export async function uploadFile(file: File): Promise<UploadedFile | undefined> {
     try {
         const response = await fetch("/api/files", {

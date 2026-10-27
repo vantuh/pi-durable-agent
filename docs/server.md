@@ -12,6 +12,7 @@ GET /api/health         { ok, model, cwd, home, session }
 GET /api/extensions     { installed, failed, extensions: [{ name, title, description, enabled, installed, error? }] }
 PUT /api/extensions/:name   { enabled: boolean } → the new list entry (400 bad body, 404 unknown folder)
 POST /api/abort         stops the current run
+POST /api/restart       { ok } then exit 75, for `scripts/serve.ts` to start the server again; 409 without it
 ```
 
 - `server/main.ts` — the HTTP surface, the harness, the subscription.
@@ -72,13 +73,26 @@ a `ConversationId`, with a disable comment that says why. Anything else that nee
 ## Running it
 
 ```bash
-pnpm serve     # node --watch server/main.ts, port 8788
-pnpm dev       # vite on 5190, proxying /api → 8788
+pnpm dev       # the whole app: vite on 5190 (HMR on every web change) and the server on 8788
+pnpm serve     # the server alone, no web build: dist/ or the API, port 8788
 ```
 
+`pnpm dev` is the one command for working on it: the browser keeps its live reload, and the
+server runs under `scripts/serve.ts`, so the Restart button in Settings starts it again.
+
 For production, run `pnpm start`: build the web into `dist/`, then run the server on
-`127.0.0.1:8788` without watch. One process serves both the web and API. Stop it with Ctrl+C.
+`127.0.0.1:8788`. One process serves both the web and API. Stop it with Ctrl+C.
 The command does not configure Tailscale or install an auto-start service.
+
+### Restarting the server from the app
+
+Settings → the restart button asks `POST /api/restart`, which answers `{ ok: true }` and then ends
+the process with code 75. `scripts/serve.ts` reads that code and starts the server again; running
+work is durable and resumes in the new process, and the browser's event stream reconnects on its
+own. Nothing watches files: a change under `server/` or `shared/` goes live through that button.
+
+A server started any other way (`node server/main.ts`) has no parent to start it again, so it
+answers **409** instead of stopping.
 
 To expose it privately through Tailscale Serve, configure a free HTTPS port once:
 

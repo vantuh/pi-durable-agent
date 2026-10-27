@@ -1,8 +1,10 @@
-import { X } from "lucide-react";
+import { RotateCw, X } from "lucide-react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { useSettingsSections } from "../extensions.ts";
+import { restartServer } from "../lib/api.ts";
+import { toast } from "../lib/toast.ts";
 import type { SettingsProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { AppearanceButton } from "./appearance-dialog.tsx";
@@ -54,9 +56,36 @@ export function Settings({ model, cwd, session, onClose }: Props) {
             <footer className="border-edge-soft flex items-center gap-1 border-t px-3 py-2">
                 <ExtensionsButton />
                 <AppearanceButton />
+                <RestartButton />
             </footer>
         </aside>
     );
+}
+
+/** Starts a new server process; running work resumes, and the event stream reconnects on its own. */
+function RestartButton() {
+    return (
+        <button
+            type="button"
+            title="Restart the server: running work resumes"
+            aria-label="Restart the server"
+            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2"
+            onClick={() => {
+                void restart();
+            }}
+        >
+            <RotateCw className="size-4" />
+        </button>
+    );
+}
+
+async function restart(): Promise<void> {
+    try {
+        await restartServer();
+        toast.info("Restarting. Running work continues after the restart.");
+    } catch {
+        toast.error("Could not restart. Start the app with pnpm dev or pnpm start.");
+    }
 }
 
 function Row({ label, value }: { label: string; value: string }) {

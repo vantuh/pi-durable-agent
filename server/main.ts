@@ -44,6 +44,12 @@ const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = join(process.cwd(), "data");
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
+/** How long stopping may wait for running work; what is still running resumes in the next process. */
+const STOP_LIMIT_MS = 10_000;
+/** `scripts/serve.ts` starts the server again when it exits with this code, and only it can. */
+const RESTART_CODE = 75;
+/** The IPC channel `scripts/serve.ts` opens is the only thing that starts a stopped server again. */
+const SUPERVISED = typeof process.send === "function";
 /**
  * The hour-long provider cache, for every conversation and for the requests extensions send on top
  * of one (keep-warm renews it). A short cache is gone before a ping can renew it, so the two agree.
@@ -386,6 +392,25 @@ async function main(): Promise<void> {
         ...fileRoutes({ dataDir: DATA_DIR }),
         ...extensionRoutes({ extensions, attach }),
         {
+            // The app's restart button; 409 without the supervisor, which would leave nothing to start it.
+            method: "POST",
+            path: /^\/api\/restart$/,
+            handle: (_request, response) => {
+                if (!SUPERVISED) {
+                    answer(response, 409, {
+                        error: "start it with pnpm serve or pnpm start to restart it from the app",
+                    });
+
+                    return;
+                }
+
+                answer(response, 200, { ok: true });
+                setTimeout(() => {
+                    stop(RESTART_CODE);
+                }, 100);
+            },
+        },
+        {
             method: "GET",
             path: /^\/api\/health$/,
             handle: (_request, response) => {
@@ -420,19 +445,34 @@ async function main(): Promise<void> {
         }
     }, IDLE_HEARTBEAT_MS);
 
-    const stop = (): void => {
+    let stopping = false;
+
+    const stop = (code: number): void => {
+        if (stopping) {
+            return;
+        }
+
+        stopping = true;
         clearInterval(heartbeat);
-        void extensions
-            .dispose()
-            .then(() => harness.close(context))
-            .then(() => {
+        // A tool or model stream that ignores its abort must not hold the restart forever.
+        const limit = new Promise<void>((done) => {
+            setTimeout(done, STOP_LIMIT_MS);
+        });
+
+        void Promise.race([extensions.dispose().then(() => harness.close(context)), limit]).then(
+            () => {
                 server.close();
-                process.exit(0);
-            });
+                process.exit(code);
+            },
+        );
     };
 
-    process.on("SIGINT", stop);
-    process.on("SIGTERM", stop);
+    process.on("SIGINT", () => {
+        stop(0);
+    });
+    process.on("SIGTERM", () => {
+        stop(0);
+    });
 
     server.listen(PORT, "127.0.0.1", () => {
         console.log(`pi-durable-agent: http://127.0.0.1:${PORT} · ${MODEL}`);

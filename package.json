@@ -5,9 +5,9 @@
     "type": "module",
     "scripts": {
         "prepare": "git config core.hooksPath .githooks",
-        "dev": "vite",
-        "serve": "node --watch server/main.ts",
-        "start": "pnpm build && node server/main.ts",
+        "dev": "node scripts/dev.ts",
+        "serve": "node scripts/serve.ts",
+        "start": "pnpm build && node scripts/serve.ts",
         "build": "vite build",
         "preview": "vite preview",
         "test": "node --test test/ extensions/",

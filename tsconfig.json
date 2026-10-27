@@ -31,5 +31,5 @@
             "@/*": ["./web/src/*"]
         }
     },
-    "include": ["web/src", "server", "test", "extensions", "*.ts", "*.tsx"]
+    "include": ["web/src", "server", "scripts", "test", "extensions", "*.ts", "*.tsx"]
 }
