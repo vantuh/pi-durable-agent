@@ -520,9 +520,9 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   baseline views the loader hands over.
 - **What it costs.** A ping's tokens are not in `pi.usage`: they belong to no entry, so the status
   bar's spend does not include them. The popover shows what the last ping read and wrote.
-- **The chip.** `warm` in the `end` slot: amber while the cache is warm, dim while it is cold or off,
-  red after a failed ping. The popover has the switch, "Warm until 14:52" or "Cold since …", the next
-  ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
+- **The chip.** `warm` in the `end` slot: an ember flame (`--role-ember`, Catppuccin's peach) while
+  it is on, dim while it is off. The popover has the switch, "Warm until 14:52" or "Cold since …",
+  the next ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
 
 The host member it uses, `sessionRequest(session)`, is the one new core seam: it answers the
 conversation's model, the messages its next request would send, and `send(messages, signal)`, one

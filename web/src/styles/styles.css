@@ -48,6 +48,8 @@
     --role-danger-deep: var(--ctp-maroon);
     --role-info: var(--ctp-blue);
     --role-spark: var(--ctp-pink);
+    /* The keep-warm flame: on is a live job, not a warning. */
+    --role-ember: var(--ctp-peach);
     --role-think-minimal: var(--ctp-teal);
     --role-think-low: var(--ctp-blue);
     --role-think-medium: var(--ctp-sapphire);
@@ -87,6 +89,7 @@
     --color-danger-deep: var(--role-danger-deep);
     --color-info: var(--role-info);
     --color-spark: var(--role-spark);
+    --color-ember: var(--role-ember);
     --color-think-minimal: var(--role-think-minimal);
     --color-think-low: var(--role-think-low);
     --color-think-medium: var(--role-think-medium);

@@ -194,7 +194,6 @@ function KeepWarm({ session }: StatusProps) {
         return null;
     }
 
-    const live = warm.lastRequest !== undefined && warm.lastRequest + TTL > now;
     const toggle = (on: boolean) => {
         callAction(setAction, { on }, id)
             .then(setWarm)
@@ -215,7 +214,7 @@ function KeepWarm({ session }: StatusProps) {
                     setOpen((previous) => !previous);
                 }}
                 className={`hover:text-ink hover:bg-sunken aria-expanded:bg-sunken hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono sm:flex ${
-                    warm.on ? (live ? "text-warn" : "text-faint") : "text-faint/60"
+                    warm.on ? "text-ember" : "text-faint/60"
                 }`}
             >
                 <Flame className="size-3.5" />
