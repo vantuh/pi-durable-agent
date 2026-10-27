@@ -114,6 +114,9 @@ const COLLAPSED_KEY = "sidebarCollapsed";
 /** Hides everything but the status marks and the toggle once the sidebar is a narrow rail. */
 const FADE =
     "transition-opacity lg:group-data-[collapsed]/side:opacity-0 lg:group-data-[collapsed]/side:pointer-events-none";
+/** Gives back the height of blocks that are invisible in the rail; overflow is clipped only then, so the folder menu can still open. */
+const FOLD =
+    "max-h-24 transition-[max-height,padding,border-width] lg:group-data-[collapsed]/side:max-h-0 lg:group-data-[collapsed]/side:overflow-hidden lg:group-data-[collapsed]/side:border-b-0 lg:group-data-[collapsed]/side:py-0 lg:group-data-[collapsed]/side:pt-0";
 const WIDTH_KEY = "sidebarWidth";
 const USUAL_WIDTH = 264;
 const MIN_WIDTH = 204;
@@ -356,7 +359,7 @@ export function Sessions({
                     </div>
                 </header>
 
-                <div className={`border-edge-soft relative border-b ${FADE}`}>
+                <div className={`border-edge-soft relative border-b ${FADE} ${FOLD}`}>
                     <button
                         type="button"
                         onClick={() => {
@@ -403,7 +406,7 @@ export function Sessions({
                     ) : null}
                 </div>
 
-                <div className={`px-3 pt-3 ${FADE}`}>
+                <div className={`px-3 pt-3 ${FADE} ${FOLD}`}>
                     <button
                         type="button"
                         onClick={onNew}
@@ -414,7 +417,7 @@ export function Sessions({
                     </button>
                 </div>
 
-                <div className={`flex items-center justify-between px-3 pt-2 ${FADE}`}>
+                <div className={`flex items-center justify-between px-3 pt-2 ${FADE} ${FOLD}`}>
                     <span className="text-meta text-muted">
                         {archived ? "Archive" : "Sessions"}
                     </span>
@@ -454,7 +457,7 @@ export function Sessions({
                             return (
                                 <div key={group}>
                                     <div
-                                        className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE}`}
+                                        className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE} ${FOLD}`}
                                     >
                                         {group} {rows.length}
                                     </div>
@@ -512,7 +515,7 @@ export function Sessions({
                                                             type="button"
                                                             aria-label={`Actions for ${session.title ?? "New session"}`}
                                                             title="Session actions"
-                                                            className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center"
+                                                            className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center lg:group-data-[collapsed]/side:hidden"
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </button>
