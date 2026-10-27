@@ -1,5 +1,5 @@
 import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,6 +38,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [hidden, setHidden] = useState(false);
     const [error, setError] = useState(false);
     const [favourites, setFavourites] = useState<string[]>([]);
+    const openRef = useRef<HTMLButtonElement>(null);
     const recents = [...new Set(recent)].filter((folder) => !favourites.includes(folder));
 
     const toggle = (folder: string): void => {
@@ -112,7 +113,26 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 }
             }}
         >
-            <DialogContent aria-describedby={undefined} className="sm:max-w-3xl">
+            <DialogContent
+                aria-describedby={undefined}
+                className="sm:max-w-3xl"
+                onOpenAutoFocus={(event) => {
+                    // Radix focuses the first tabbable (the Up button) unless the default is cancelled.
+                    event.preventDefault();
+                    openRef.current?.focus();
+                }}
+                onKeyDown={(event) => {
+                    if (event.key !== "Enter" || event.defaultPrevented) {
+                        return;
+                    }
+
+                    if (event.target instanceof HTMLElement && event.target.closest("button")) {
+                        return;
+                    }
+
+                    onOpen(page?.path ?? path);
+                }}
+            >
                 <DialogHeader className="px-4 py-3 pr-10">
                     <DialogTitle>New session: pick a folder</DialogTitle>
                 </DialogHeader>
@@ -220,6 +240,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             Cancel
                         </button>
                         <button
+                            ref={openRef}
                             type="button"
                             onClick={() => {
                                 onOpen(page?.path ?? path);
