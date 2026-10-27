@@ -523,6 +523,12 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
 - **The chip.** `warm` in the `end` slot: an ember flame (`--role-ember`, Catppuccin's peach) while
   it is on, dim while it is off. The popover has the switch, "Warm until 14:52" or "Cold since …",
   the next ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
+- **The switch is one for every conversation.** A ping is a spend, so the popover also lists what it
+  is spent on: "Also warming", one row per other conversation with a ping coming, named by what it
+  was last asked (or its folder) and the time of that ping, the most recently asked first. Rows come
+  from the commits and the state file — the same data the tick reads — so the list never promises a
+  ping the tick will not send. A conversation whose cache is already cold is not listed: it is not
+  being warmed, and a ping would only pay to rebuild it.
 
 The host member it uses, `sessionRequest(session)`, is the one new core seam: it answers the
 conversation's model, the messages its next request would send, and `send(messages, signal)`, one

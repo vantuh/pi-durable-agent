@@ -11,7 +11,7 @@ import { type Action, ActionError, type Host, type SessionRequest } from "../../
 import { due, PROVIDER } from "./due.ts";
 import { type Ping, type WarmState } from "./refs.ts";
 import { readStore, writeStore } from "./store.ts";
-import { activityOf, nextOf, observe, open, type Seen, type Stored } from "./warm.ts";
+import { activityOf, nextOf, observe, open, warming, type Seen, type Stored } from "./warm.ts";
 
 export const meta = {
     title: "Keep warm",
@@ -121,15 +121,16 @@ async function tick(host: Host): Promise<void> {
 
 async function stateOf(host: Host, session: number | undefined): Promise<WarmState> {
     const on = stored.off !== true;
+    const sessions = on ? warming(stored, seen, Date.now()) : [];
 
     if (session === undefined) {
-        return { on };
+        return { on, sessions };
     }
 
     const request = await host.sessionRequest(session);
 
     if (request === undefined) {
-        return { on };
+        return { on, sessions };
     }
 
     const known = seen.get(session);
@@ -140,6 +141,7 @@ async function stateOf(host: Host, session: number | undefined): Promise<WarmSta
 
     return {
         on,
+        sessions,
         ...(lastRequest === undefined ? {} : { lastRequest }),
         ...(known?.inputAt === undefined ? {} : { inputAt: known.inputAt }),
         ...(nextAt === undefined ? {} : { nextAt }),

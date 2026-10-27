@@ -7,7 +7,12 @@ import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
 import { TTL } from "./due.ts";
-import { set as setAction, state as stateAction, type WarmState } from "./refs.ts";
+import {
+    set as setAction,
+    state as stateAction,
+    type WarmSession,
+    type WarmState,
+} from "./refs.ts";
 
 const POLL_MS = 60_000;
 const POPOVER_WIDTH = 256;
@@ -69,12 +74,15 @@ function nextLine(warm: WarmState, now: number): string {
 
 function Panel({
     warm,
+    others,
     anchor,
     now,
     onToggle,
     onClose,
 }: {
     warm: WarmState;
+    /** The conversations this one is not: what the pings are for besides this one. */
+    others: WarmSession[];
     anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
@@ -151,6 +159,17 @@ function Panel({
                     One small request 55 min after the last, until you have been away 8 h.
                 </div>
             </div>
+            {others.length === 0 ? null : (
+                <div className="border-edge-soft mt-2 border-t pt-2">
+                    <div className="text-faint mb-1">Also warming</div>
+                    {others.map((row) => (
+                        <div key={row.id} className="flex items-baseline justify-between gap-2">
+                            <span className="text-muted truncate">{row.label}</span>
+                            <span className="text-faint shrink-0">{clock(row.nextAt)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </dialog>,
         document.body,
     );
@@ -221,7 +240,14 @@ function KeepWarm({ session }: StatusProps) {
                 warm
             </button>
             {open && anchor !== null ? (
-                <Panel warm={warm} anchor={anchor} now={now} onToggle={toggle} onClose={close} />
+                <Panel
+                    warm={warm}
+                    others={warm.sessions.filter((row) => row.id !== session.id)}
+                    anchor={anchor}
+                    now={now}
+                    onToggle={toggle}
+                    onClose={close}
+                />
             ) : null}
         </>
     );

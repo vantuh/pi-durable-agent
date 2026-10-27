@@ -7,6 +7,9 @@ import { actionRef } from "../../shared/extension-api.ts";
 /** One keep-warm request: when, on which model, what it read from and wrote to the cache, or why it failed. */
 export type Ping = { at: number; model: string; read?: number; write?: number; error?: string };
 
+/** A conversation a ping is coming for: the popover lists these, so a spent plan is never a mystery. */
+export type WarmSession = { id: number; label: string; nextAt: number };
+
 export type WarmState = {
     on: boolean;
     /** The latest request on the conversation's cache, an answer or a ping (ms); the cache is warm for an hour after it. */
@@ -16,6 +19,8 @@ export type WarmState = {
     /** When the next ping is due (ms), while one will run. */
     nextAt?: number;
     last?: Ping;
+    /** Every conversation a ping is coming for, the one asked last first. */
+    sessions: WarmSession[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -46,6 +51,16 @@ function parsePing(value: unknown): Ping | undefined {
     };
 }
 
+function parseSession(value: unknown): WarmSession | undefined {
+    if (!isRecord(value) || typeof value["id"] !== "number" || typeof value["label"] !== "string") {
+        return undefined;
+    }
+
+    const nextAt = optionalNumber(value, "nextAt");
+
+    return nextAt === undefined ? undefined : { id: value["id"], label: value["label"], nextAt };
+}
+
 function parseState(value: unknown): WarmState {
     if (!isRecord(value) || typeof value["on"] !== "boolean") {
         throw new Error("Invalid keep-warm state");
@@ -55,9 +70,13 @@ function parseState(value: unknown): WarmState {
     const inputAt = optionalNumber(value, "inputAt");
     const nextAt = optionalNumber(value, "nextAt");
     const last = parsePing(value["last"]);
+    const sessions = Array.isArray(value["sessions"])
+        ? value["sessions"].flatMap((session) => parseSession(session) ?? [])
+        : [];
 
     return {
         on: value["on"],
+        sessions,
         ...(lastRequest === undefined ? {} : { lastRequest }),
         ...(inputAt === undefined ? {} : { inputAt }),
         ...(nextAt === undefined ? {} : { nextAt }),

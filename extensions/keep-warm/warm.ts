@@ -5,8 +5,8 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 
 import type { CommitView } from "../../server/sdk.ts";
-import { due, LEAD, PROVIDER, TTL, type Activity } from "./due.ts";
-import type { Ping } from "./refs.ts";
+import { due, IDLE_STOP, LEAD, PROVIDER, TTL, type Activity } from "./due.ts";
+import type { Ping, WarmSession } from "./refs.ts";
 
 /** What the commits say about one conversation. */
 export type Seen = {
@@ -14,6 +14,8 @@ export type Seen = {
     inputAt?: number;
     /** The newest answer that read or wrote a model's cache: what renews the hour. */
     cached?: { at: number; model: string };
+    /** How the popover names it: what was last asked, or the folder. */
+    label: string;
     /** A run is live: nothing is sent on top of it. */
     busy: boolean;
 };
@@ -31,18 +33,39 @@ export function cached(message: AssistantMessage): boolean {
     );
 }
 
+/** The text an entry was asked with, or the folder it works in: enough to tell two sessions apart. */
+function labelOf(entry: CommitView["entries"][number] | undefined, cwd: string | null): string {
+    const data = entry?.data;
+    const asked = typeof data === "object" && data !== null ? Reflect.get(data, "text") : undefined;
+    const text = typeof asked === "string" ? asked : "";
+    const line = text.split("\n")[0]?.trim() ?? "";
+
+    if (line !== "") {
+        return line.length > 32 ? `${line.slice(0, 32)}…` : line;
+    }
+
+    return (
+        cwd
+            ?.split("/")
+            .filter((part) => part !== "")
+            .pop() ?? "conversation"
+    );
+}
+
 /** Folds one commit into what is known about its conversation: the last input and the last cached answer. */
 export function observe(seen: Map<number, Seen>, view: CommitView): void {
     const id = view.session.id;
     const known = seen.get(id);
     let inputAt = known?.inputAt;
     let cachedAt = known?.cached;
+    let label = known?.label;
 
     for (const entry of view.entries) {
         const message = entry.model?.[0];
 
         if (message?.role === "user" && (inputAt === undefined || message.timestamp > inputAt)) {
             inputAt = message.timestamp;
+            label = labelOf(entry, view.session.cwd);
         }
 
         if (
@@ -57,6 +80,7 @@ export function observe(seen: Map<number, Seen>, view: CommitView): void {
     seen.set(id, {
         ...(inputAt === undefined ? {} : { inputAt }),
         ...(cachedAt === undefined ? {} : { cached: cachedAt }),
+        label: label ?? labelOf(undefined, view.session.cwd),
         busy: view.busy,
     });
 }
@@ -111,6 +135,37 @@ export function nextOf(activity: Activity & { lastRequest: number }): number | u
     const lead = activity.lastRequest + LEAD;
 
     return due({ ...activity, now: Math.max(activity.now, lead) }) ? lead : undefined;
+}
+
+/** The conversations a ping is coming for, the one asked last first: what the popover lists. */
+export function warming(stored: Stored, seen: Map<number, Seen>, now: number): WarmSession[] {
+    const found: { id: number; inputAt: number; label: string; nextAt: number }[] = [];
+
+    for (const [id, known] of seen) {
+        const { inputAt } = known;
+
+        if (inputAt === undefined || now - inputAt >= IDLE_STOP) {
+            continue;
+        }
+
+        const model = known.cached?.model ?? stored.last?.[String(id)]?.model;
+
+        if (model === undefined) {
+            continue;
+        }
+
+        const activity = activityOf(stored, id, known, model, now);
+        const { lastRequest } = activity;
+        const nextAt = lastRequest === undefined ? undefined : nextOf({ ...activity, lastRequest });
+
+        if (nextAt !== undefined) {
+            found.push({ id, inputAt, label: known.label, nextAt });
+        }
+    }
+
+    return found
+        .sort((a, b) => b.inputAt - a.inputAt)
+        .map(({ id, label, nextAt }) => ({ id, label, nextAt }));
 }
 
 /**

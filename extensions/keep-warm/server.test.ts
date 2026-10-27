@@ -6,7 +6,16 @@ import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type { CommitView } from "../../server/sdk.ts";
 import { due, IDLE_STOP, LEAD, TTL } from "./due.ts";
-import { activityOf, cached, lastRequestOf, nextOf, observe, open, type Seen } from "./warm.ts";
+import {
+    activityOf,
+    cached,
+    lastRequestOf,
+    nextOf,
+    observe,
+    open,
+    warming,
+    type Seen,
+} from "./warm.ts";
 
 const now = Date.parse("2026-10-24T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -73,6 +82,7 @@ void test("a commit gives the user's latest input, the newest cached answer and 
             id: 1,
             conversationId: 7,
             kind: "pi.user",
+            data: { text: "why does the fold close\nsecond line" },
             model: [{ role: "user", content: "hi", timestamp }],
         });
     const answer = (timestamp: number, change: Record<string, unknown> = {}) =>
@@ -98,6 +108,7 @@ void test("a commit gives the user's latest input, the newest cached answer and 
     assert.deepEqual(seen.get(7), {
         inputAt: now - minutes(10),
         cached: { at: now - minutes(9), model: "claude-opus-5-5" },
+        label: "why does the fold close",
         busy: false,
     });
 
@@ -109,14 +120,72 @@ void test("a commit gives the user's latest input, the newest cached answer and 
     assert.deepEqual(seen.get(7), {
         inputAt: now - minutes(5),
         cached: { at: now - minutes(9), model: "claude-opus-5-5" },
+        label: "why does the fold close",
         busy: true,
     });
+
+    // A session asked nothing yet is named after its folder.
+    observe(seen, { session: { id: 8, cwd: "/work/pi-durable-agent" }, entries: [], busy: false });
+    assert.equal(seen.get(8)?.label, "pi-durable-agent");
+});
+
+void test("lists the conversations a ping is coming for, the one asked last first", () => {
+    const seen = new Map<number, Seen>([
+        [
+            1,
+            {
+                inputAt: now - minutes(70),
+                cached: { at: now - minutes(56), model: "opus" },
+                label: "older question",
+                busy: false,
+            },
+        ],
+        [
+            2,
+            {
+                inputAt: now - IDLE_STOP,
+                cached: { at: now - minutes(56), model: "opus" },
+                label: "away too long",
+                busy: false,
+            },
+        ],
+        [
+            3,
+            {
+                inputAt: now - minutes(5),
+                cached: { at: now - minutes(4), model: "opus" },
+                label: "newer question",
+                busy: false,
+            },
+        ],
+        // A ping failed after the last answer: no next one until a newer answer.
+        [
+            4,
+            {
+                inputAt: now - minutes(5),
+                cached: { at: now - minutes(56), model: "opus" },
+                label: "after a failure",
+                busy: false,
+            },
+        ],
+        // Nothing ever renewed the cache here.
+        [5, { inputAt: now - minutes(5), label: "nothing cached", busy: false }],
+    ]);
+    const stored = {
+        last: { "4": { at: now - minutes(50), model: "opus", error: "boom" } },
+    };
+
+    assert.deepEqual(warming(stored, seen, now), [
+        { id: 3, label: "newer question", nextAt: now - minutes(4) + LEAD },
+        { id: 1, label: "older question", nextAt: now - minutes(56) + LEAD },
+    ]);
 });
 
 void test("a ping counts as the last request only when it succeeded on this model", () => {
     const seen: Seen = {
         inputAt: now,
         cached: { at: now - minutes(60), model: "opus" },
+        label: "a question",
         busy: false,
     };
 
@@ -130,7 +199,7 @@ void test("a ping counts as the last request only when it succeeded on this mode
         lastRequestOf(seen, { at: now - minutes(5), model: "opus", error: "boom" }, "opus"),
         now - minutes(60),
     );
-    assert.equal(lastRequestOf({ busy: false }, undefined, "opus"), undefined);
+    assert.equal(lastRequestOf({ label: "x", busy: false }, undefined, "opus"), undefined);
 });
 
 void test("shows the next ping only when one will really run", () => {
@@ -150,6 +219,7 @@ void test("reads a conversation's last request and failure from the state it was
     const seen: Seen = {
         inputAt: now - minutes(5),
         cached: { at: now - minutes(56), model: "opus" },
+        label: "a question",
         busy: false,
     };
     const stored = { last: { "7": { at: now - minutes(1), model: "opus", error: "boom" } } };
