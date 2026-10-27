@@ -8,7 +8,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import { ActionError, type Action, type Host } from "../../server/extensions.ts";
+import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import type { File, Folder } from "./refs.ts";
 
 export const meta = {

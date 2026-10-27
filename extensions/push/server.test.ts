@@ -5,12 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import {
-    ActionError,
-    type CommitListener,
-    type CommitView,
-    type Host,
-} from "../../server/extensions.ts";
+import { ActionError, type CommitListener, type CommitView, type Host } from "../../server/sdk.ts";
 import { normalizeContact, type DeviceSubscription } from "./refs.ts";
 import { finishedPayload, notifyAll, type Transport } from "./send.ts";
 import { listen, pushActions } from "./server.ts";

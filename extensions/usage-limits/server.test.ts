@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import type { Host } from "../../server/extensions.ts";
-import type { ResolveModelAuth } from "../../server/model-requests.ts";
+import type { Host, ResolveModelAuth } from "../../server/sdk.ts";
 import { createKeeper } from "./keeper.ts";
 import { collect, readCodex, toMs, type Fetch } from "./readers.ts";
 import { readerFor, type ProviderUsage } from "./refs.ts";

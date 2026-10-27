@@ -5,7 +5,7 @@
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Host, StatusProvider } from "../../server/extensions.ts";
+import type { Host, StatusProvider } from "../../server/sdk.ts";
 
 /**
  * `durationMs` includes the wait for the first token, which cannot be separated from it here. A short

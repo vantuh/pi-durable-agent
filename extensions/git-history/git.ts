@@ -4,7 +4,7 @@ import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { ActionError } from "../../server/extensions.ts";
+import { ActionError } from "../../server/sdk.ts";
 import type { ChangedFile, Changes, Commit, History } from "./refs.ts";
 
 const run = promisify(execFile);

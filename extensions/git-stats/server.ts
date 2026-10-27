@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import { ActionError, type Action, type Host } from "../../server/extensions.ts";
+import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import type { GitStats } from "./refs.ts";
 
 const run = promisify(execFile);

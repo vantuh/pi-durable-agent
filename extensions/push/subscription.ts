@@ -1,4 +1,4 @@
-import { ActionError } from "../../server/extensions.ts";
+import { ActionError } from "../../server/sdk.ts";
 import type { DeviceSubscription } from "./refs.ts";
 
 /**

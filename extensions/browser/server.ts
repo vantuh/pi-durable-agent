@@ -13,7 +13,7 @@ import { awaitWithContext } from "@earendil-works/chord/context";
 import { AgentDoc, defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 
-import { ActionError, type Action, type Host } from "../../server/extensions.ts";
+import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { Browsers } from "./lib/browsers.ts";
 import { BrowserError } from "./lib/cdp.ts";
 import type { BrowserPage, LogEntry, Saved, Target } from "./lib/page.ts";

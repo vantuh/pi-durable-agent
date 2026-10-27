@@ -57,6 +57,22 @@
             "env": { "browser": false, "node": true }
         },
         {
+            "files": ["extensions/**"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "group": ["**/server/*", "!**/server/sdk.ts"],
+                                "message": "Extensions take core server code only from server/sdk.ts."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
             "files": ["**/*.test.ts", "**/*.test.tsx", "test/**"],
             "rules": { "typescript/no-non-null-assertion": "off" }
         }

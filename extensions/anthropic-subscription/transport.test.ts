@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ModelFetch } from "../../server/model-requests.ts";
+import type { ModelFetch } from "../../server/sdk.ts";
 import { type Diagnostics } from "./refs.ts";
 import { shapeRequest } from "./server.ts";
 import { oauthTransport, requestFrom } from "./transport.ts";

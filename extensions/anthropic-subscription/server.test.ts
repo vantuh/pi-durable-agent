@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Host } from "../../server/extensions.ts";
-import type { FetchWrapper, ModelFetch } from "../../server/model-requests.ts";
+import type { Host, FetchWrapper, ModelFetch } from "../../server/sdk.ts";
 import { diagnostics } from "./refs.ts";
 import subscription, { actions, shapeRequest } from "./server.ts";
 

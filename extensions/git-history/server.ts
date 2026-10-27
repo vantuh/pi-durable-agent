@@ -1,6 +1,6 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import { ActionError, type Action, type Host, type HttpHandler } from "../../server/extensions.ts";
+import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
 import { readChanges, readHistory } from "./git.ts";
 import { reviewProxy } from "./proxy.ts";
 import { Reviews } from "./reviews.ts";

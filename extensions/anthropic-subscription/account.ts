@@ -2,7 +2,7 @@
  * Adapted from pi-anthropic-auth's account-profile lookup.
  * Copyright (c) 2026 Christopher D. Lasher. MIT; see LICENSE.pi-anthropic-auth.
  */
-import type { ModelFetch, ResolveModelAuth } from "../../server/model-requests.ts";
+import type { ModelFetch, ResolveModelAuth } from "../../server/sdk.ts";
 import type { AccountResult } from "./account-refs.ts";
 import { record } from "./transport.ts";
 

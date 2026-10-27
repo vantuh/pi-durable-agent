@@ -20,7 +20,7 @@ dependencies between extensions) does not exist yet.
 ```ts
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Host } from "../../server/extensions.ts";
+import type { Host } from "../../server/sdk.ts";
 
 export default function prompt(host: Host) {
     return defineExtension({
@@ -81,7 +81,7 @@ A folder may also export `status` next to its default export. It receives the co
 entries on every commit and returns one field for the status bar, or nothing:
 
 ```ts
-import type { StatusProvider } from "../../server/extensions.ts";
+import type { StatusProvider } from "../../server/sdk.ts";
 
 export const status: StatusProvider = ({ entries, contextWindow }) => ({
     text: "13 tok/s",
@@ -109,7 +109,7 @@ calls one through the single route `POST /api/extensions/:extension/actions/:act
 action needs no new route in the core.
 
 ```ts
-import { ActionError, type Action } from "../../server/extensions.ts";
+import { ActionError, type Action } from "../../server/sdk.ts";
 
 export const actions: Record<string, Action> = {
     rename({ args, session }) {

@@ -7,7 +7,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { ResolveModelAuth } from "../../server/model-requests.ts";
+import type { ResolveModelAuth } from "../../server/sdk.ts";
 import { PROVIDERS, type Bucket, type ProviderUsage } from "./refs.ts";
 
 /** Anthropic reports limit resets only to the Claude Code CLI surface. */

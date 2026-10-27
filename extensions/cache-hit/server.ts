@@ -5,7 +5,7 @@
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Host, StatusProvider } from "../../server/extensions.ts";
+import type { Host, StatusProvider } from "../../server/sdk.ts";
 
 export const meta = {
     title: "Cache hit",

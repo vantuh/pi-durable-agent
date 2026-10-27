@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ModelFetch, ResolveModelAuth } from "../../server/model-requests.ts";
+import type { ModelFetch, ResolveModelAuth } from "../../server/sdk.ts";
 import { account } from "./account-refs.ts";
 import { lookupAccount } from "./account.ts";
 

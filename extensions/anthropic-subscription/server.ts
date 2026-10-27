@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import { ActionError, type Action, type Host } from "../../server/extensions.ts";
+import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { lookupAccount } from "./account.ts";
 import { DEFAULT_VERSION, type Diagnostics } from "./refs.ts";
 import { oauthTransport } from "./transport.ts";

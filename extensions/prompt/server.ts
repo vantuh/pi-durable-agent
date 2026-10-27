@@ -10,8 +10,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { defineExtension, section } from "@earendil-works/pi-durable";
 
-import type { Host } from "../../server/extensions.ts";
-import { skillsFor } from "../../server/skills.ts";
+import { type Host, skillsFor } from "../../server/sdk.ts";
 
 const RULES = [
     "You are a coding agent working in a project folder. You read, edit, and run commands there.",

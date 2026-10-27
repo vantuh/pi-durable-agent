@@ -1,4 +1,4 @@
-import type { ModelFetch, RequestModel } from "../../server/model-requests.ts";
+import type { ModelFetch, RequestModel } from "../../server/sdk.ts";
 import type { Diagnostics } from "./refs.ts";
 import { hintedResponse, readVersionRejection, recoveryHint } from "./version-rejection.ts";
 import { cliVersion, higherVersion } from "./version.ts";

@@ -4,8 +4,7 @@
  */
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Action, Host } from "../../server/extensions.ts";
-import { ActionError } from "../../server/extensions.ts";
+import { type Action, ActionError, type Host } from "../../server/sdk.ts";
 import { createKeeper } from "./keeper.ts";
 import { collect } from "./readers.ts";
 import { PROVIDERS, type UsageResult } from "./refs.ts";

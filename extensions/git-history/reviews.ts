@@ -2,7 +2,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
-import { ActionError } from "../../server/extensions.ts";
+import { ActionError } from "../../server/sdk.ts";
 import { readChanges, resolveCommit, rootOf } from "./git.ts";
 import type { ReviewState } from "./refs.ts";
 

@@ -1,7 +1,7 @@
 import { request as httpRequest } from "node:http";
 import { gzipSync } from "node:zlib";
 
-import type { HttpHandler } from "../../server/extensions.ts";
+import type { HttpHandler } from "../../server/sdk.ts";
 import { embedHtml } from "./bridge.ts";
 import type { Reviews } from "./reviews.ts";
 

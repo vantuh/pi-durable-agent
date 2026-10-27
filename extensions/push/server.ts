@@ -6,7 +6,7 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 import webpush from "web-push";
 
-import { ActionError, type Action, type CommitView, type Host } from "../../server/extensions.ts";
+import { ActionError, type Action, type CommitView, type Host } from "../../server/sdk.ts";
 import { Completions } from "./completion.ts";
 import { normalizeContact } from "./refs.ts";
 import { finishedPayload, notifyAll, sendWithWebPush, type Transport } from "./send.ts";
