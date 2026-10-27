@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+
+import { parsePatchFiles } from "@pierre/diffs";
 
 import { filesOf, git, readChanges, readHistory } from "./git.ts";
 
@@ -122,6 +124,37 @@ void describe("git-history reads", () => {
         assert.equal(diff.truncated, true);
         assert.doesNotMatch(diff.patch, /OUTSIDE SECRET/);
         assert.deepEqual(diff.files.map((f) => f.path).sort(), ["large", "link"]);
+    });
+    void it("matches Pierre file names to Git stats for commits and the working tree", async () => {
+        await writeFile(join(repo, "before.ts"), "export const value = 1;\n");
+        await writeFile(join(repo, "removed"), "gone\n");
+        await writeFile(join(repo, "executable"), "run\n");
+        await commit();
+        const renamed = 'renamed\t"file"\n.ts';
+        await git(repo, ["mv", "before.ts", renamed]);
+        await git(repo, ["rm", "removed"]);
+        await chmod(join(repo, "executable"), 0o755);
+        await writeFile(join(repo, "binary"), Buffer.from([0, 1, 2]));
+        await writeFile(join(repo, "new.ts"), "export const added = true;\n");
+        const working = await readChanges(repo, "worktree");
+        const committed = await readChanges(repo, await commit());
+        for (const data of [working, committed]) {
+            const files = parsePatchFiles(data.patch, undefined, true).flatMap(
+                (patch) => patch.files,
+            );
+            assert.deepEqual(
+                files.map((file) => file.name).sort(),
+                data.files.map((file) => file.path).sort(),
+            );
+            assert.equal(files.find((file) => file.name === renamed)?.prevName, "before.ts");
+            assert.equal(files.find((file) => file.name === "executable")?.hunks.length, 0);
+            assert.equal(data.files.find((file) => file.path === "binary")?.binary, true);
+            assert.equal(
+                files.find((file) => file.name === "new.ts")?.additionLines.join(""),
+                "export const added = true;\n",
+            );
+            assert.equal(files.find((file) => file.name === "removed")?.type, "deleted");
+        }
     });
     void it("parses binary and renamed numstat records with unusual paths", () => {
         assert.deepEqual(filesOf("-\t-\tbinary\0"), [

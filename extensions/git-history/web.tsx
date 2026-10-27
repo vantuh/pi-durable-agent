@@ -19,6 +19,7 @@ import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
+import { PatchPreview } from "./preview.tsx";
 import {
     cancel,
     changes,
@@ -78,20 +79,6 @@ function Preview({ session, target }: { session: number; target: string }) {
                     −{data.files.reduce((sum, file) => sum + file.deleted, 0)}
                 </span>
             </div>
-            <ul className="text-meta text-muted px-3 pb-2 font-mono">
-                {data.files.map((file) => (
-                    <li key={file.path} className="flex gap-2">
-                        <span className="min-w-0 flex-1 truncate" title={file.path}>
-                            {file.path}
-                        </span>
-                        <span>
-                            {file.binary
-                                ? "binary"
-                                : `+${String(file.added)} −${String(file.deleted)}`}
-                        </span>
-                    </li>
-                ))}
-            </ul>
             {data.truncated ? (
                 <p className="text-warn text-meta px-3 pb-2">
                     Preview is limited to 400 KiB; oversized changes or new symlinks are listed
@@ -101,18 +88,7 @@ function Preview({ session, target }: { session: number; target: string }) {
             {data.files.length === 0 ? (
                 <p className="text-meta text-muted p-3">No changes.</p>
             ) : null}
-            {data.patch !== "" ? (
-                <pre className="text-meta border-edge-soft max-h-[55dvh] overflow-auto border-t py-2 font-mono">
-                    {data.patch.split("\n").map((line, index) => (
-                        <div
-                            key={`${String(index)}:${line}`}
-                            className={`min-w-max px-3 ${line.startsWith("+") ? "bg-ok/10 text-ok" : line.startsWith("-") ? "bg-danger/10 text-danger" : line.startsWith("@@") ? "text-info" : "text-muted"}`}
-                        >
-                            {line || " "}
-                        </div>
-                    ))}
-                </pre>
-            ) : null}
+            <PatchPreview data={data} />
         </div>
     );
 }

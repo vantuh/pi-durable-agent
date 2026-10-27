@@ -8,8 +8,13 @@ It is independent of `git-stats`: disabling either does not disable the other.
 
 - Open History to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
   50 local commits. Load older commits up to 200. Refresh reads local Git only; it never fetches.
-- Uncommitted changes appear above the commits. Click a row for a bounded unified diff preview
-  and per-file line counts. Untracked non-ignored files are included; binary files are listed.
+- Uncommitted changes appear above the commits. Click a row for a bounded diff preview
+  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. Each file has
+  its own foldable header and line counts; files start expanded. Untracked non-ignored files
+  are included; binary files are listed without a text diff.
+- In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
+  **Side by side** for history previews. The choice is saved in this browser, applies to all
+  sessions and updates open previews. Plannotator's layout is controlled inside its own UI.
 - Click **Review**. The server launches the installed `plannotator` CLI with browser opening
   disabled. Its real UI appears in a full-size dialog, full screen on phones, not a new tab.
 - Uncommitted changes use Plannotator's native Git mode, with full-file context and its normal
@@ -31,7 +36,8 @@ preview. New symlinks are listed but never followed into files outside the check
 ## Processes, settings and limits
 
 Requires `plannotator` on the **server process's PATH**. Tested with 0.28.27. No skill or model call
-is involved in opening Review. No new package dependency is bundled into our app.
+is involved in opening Review. The read-only preview uses `@pierre/diffs`; the interactive
+review UI still comes from the installed CLI, not a bundled Plannotator package.
 
 One process per session. Closing the dialog leaves it running: reopen History and **Resume review**.
 Cancel stops it explicitly. Disabling/removing/reloading the extension, or stopping the server,
