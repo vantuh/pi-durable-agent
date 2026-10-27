@@ -223,6 +223,9 @@ by itself. `extensions/auto-session-name` is the example.
 | `sessionName`     | `(session) => Promise<string \| null>`: the name someone gave it, by hand or through an extension, without the first question the sidebar falls back to. This is the "is it named yet?" question; `sessionTitle` is the "what do I show?" one                                                                                                                                                                                                                                                                             |
 | `setSessionTitle` | `(session, title) => Promise<void>`: names the conversation for every browser, and an empty title goes back to the first question. The list is sent to the browsers at once, because a title is a document and no commit carries it                                                                                                                                                                                                                                                                                       |
 
+For `sessionRequest.send`, omitted `reasoning` inherits the session's thinking level; `"off"`
+explicitly disables thinking for that request.
+
 ## Live, without a restart
 
 The loader watches `extensions/` and reloads only the changed folders after 150 ms of quiet:

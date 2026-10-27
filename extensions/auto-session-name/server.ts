@@ -121,7 +121,7 @@ async function generateTitle(host: Host, session: number): Promise<string> {
                 // cache nobody will read.
                 cacheRetention: "none",
                 sessionId: randomUUID(),
-                ...(thinking === "off" ? {} : { reasoning: thinking }),
+                reasoning: thinking,
             },
         );
         return titleFromAssistant(answer);

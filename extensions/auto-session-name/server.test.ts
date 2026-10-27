@@ -7,7 +7,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import type { Api, AssistantMessage, Message, Model } from "@earendil-works/pi-ai";
+import type {
+    Api,
+    AssistantMessage,
+    Message,
+    Model,
+    ModelThinkingLevel,
+} from "@earendil-works/pi-ai";
 
 import type { CommitListener, Host, SessionSendOptions } from "../../server/sdk.ts";
 import { buildTitleTranscript, parseGeneratedSessionTitle } from "./lib.ts";
@@ -165,6 +171,7 @@ function hostOf(options: {
     named?: string;
     renamedWhile?: string;
     stop?: AssistantMessage["stopReason"];
+    model?: Model<Api>;
     recorded: Recorded[];
 }) {
     const commits: CommitListener[] = [];
@@ -194,7 +201,7 @@ function hostOf(options: {
         },
         sessionRequest: () =>
             Promise.resolve({
-                model,
+                model: options.model ?? model,
                 messages: [
                     { role: "user", content: "how do I plug mcp in", timestamp: 0 },
                     answer("here is how"),
@@ -237,10 +244,34 @@ void test("names an unnamed session when a run ends, on a request of its own", a
         assert.equal(recorded.length, 1);
         assert.equal(recorded[0]?.options?.maxTokens, 512);
         assert.equal(recorded[0]?.options?.cacheRetention, "none");
-        assert.equal(recorded[0]?.options?.reasoning, undefined);
+        assert.equal(recorded[0]?.options?.reasoning, "off");
         assert.match(recorded[0]?.options?.systemPrompt ?? "", /You name chat sessions/);
         assert.match(asked(recorded), /how do I plug mcp in/);
         assert.match(asked(recorded), /Create a concise title/);
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+void test("uses the cheapest supported thinking level for naming", async () => {
+    const cases: ReadonlyArray<readonly [Model<Api>, ModelThinkingLevel]> = [
+        [{ ...model, reasoning: true }, "off"],
+        [{ ...model, reasoning: true, thinkingLevelMap: { off: null, minimal: null } }, "low"],
+        [{ ...model, reasoning: true, api: "google-generative-ai" }, "low"],
+    ];
+    const dir = await mkdtemp(join(tmpdir(), "auto-session-name-"));
+
+    try {
+        for (const [selected, expected] of cases) {
+            const recorded: Recorded[] = [];
+            const { host } = hostOf({ dir, recorded, model: selected });
+            const generate = actions(host)["generate"];
+            assert.ok(generate);
+
+            await generate({ args: undefined, session: { id: 1, cwd: dir } });
+
+            assert.equal(recorded[0]?.options?.reasoning, expected);
+        }
     } finally {
         await rm(dir, { recursive: true, force: true });
     }

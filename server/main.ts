@@ -27,7 +27,7 @@ import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import { answer, type Route } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
-import { shapeModelRequests } from "./model-requests.ts";
+import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { conversationRoutes } from "./routes/conversation.ts";
 import { extensionRoutes } from "./routes/extensions.ts";
@@ -198,42 +198,8 @@ async function sessionRequestOf(session: number): Promise<SessionRequest | undef
     }
 
     const { messages } = await opened.conversation.context(context);
-    // The conversation's own thinking level, unless the caller asks for another for this request.
-    const thinking = agent.thinkingLevel === "off" ? undefined : agent.thinkingLevel;
 
-    return {
-        model,
-        messages,
-        send: (next, signal, options) => {
-            const reasoning = options?.reasoning ?? thinking;
-
-            return runtime
-                .streamSimple(
-                    model,
-                    {
-                        messages: [...next],
-                        ...(options?.systemPrompt === undefined
-                            ? {}
-                            : { systemPrompt: options.systemPrompt }),
-                    },
-                    {
-                        ...STREAM,
-                        ...(options?.maxTokens === undefined
-                            ? {}
-                            : { maxTokens: options.maxTokens }),
-                        ...(options?.cacheRetention === undefined
-                            ? {}
-                            : { cacheRetention: options.cacheRetention }),
-                        ...(options?.sessionId === undefined
-                            ? {}
-                            : { sessionId: options.sessionId }),
-                        ...(reasoning === undefined ? {} : { reasoning }),
-                        signal,
-                    },
-                )
-                .result();
-        },
-    };
+    return createSessionRequest(runtime, model, messages, agent.thinkingLevel);
 }
 
 function liveOf(view: View): ClientLive {
