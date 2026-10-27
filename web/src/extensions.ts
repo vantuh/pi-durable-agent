@@ -1,6 +1,6 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items
- * settings sections and side panels.
+ * settings sections, side panels and tool icons.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -9,13 +9,14 @@
 import { useEffect, useState } from "react";
 
 import { listExtensions } from "./lib/api.ts";
-import type { HeaderItem, PanelItem, SettingsSection, StatusItem } from "./sdk/types.ts";
+import type { HeaderItem, PanelItem, SettingsSection, StatusItem, ToolIcon } from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
 export type FolderSettingsSection = SettingsSection & { folder: string };
 export type FolderPanel = PanelItem & { folder: string };
 
 export type FolderHeaderItem = HeaderItem & { folder: string };
+export type FolderToolIcon = ToolIcon & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end"]);
 
@@ -62,6 +63,20 @@ function isPanel(value: unknown): value is PanelItem {
         typeof Reflect.get(value, "title") === "string" &&
         Reflect.get(value, "icon") !== undefined &&
         typeof Reflect.get(value, "component") === "function"
+    );
+}
+
+/** An icon component; lucide's are `forwardRef` objects, not functions. */
+function isToolIcon(value: unknown): value is ToolIcon {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const icon: unknown = Reflect.get(value, "icon");
+
+    return (
+        typeof Reflect.get(value, "id") === "string" &&
+        (typeof icon === "function" || (typeof icon === "object" && icon !== null))
     );
 }
 
@@ -122,6 +137,7 @@ type Loaded = {
     header: FolderHeaderItem[];
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
+    tools: FolderToolIcon[];
 };
 
 const folders = Object.entries(import.meta.glob("../../extensions/*/web.tsx"))
@@ -141,7 +157,7 @@ const listeners = new Set<() => void>();
 const modules = new Map<string, Promise<Loaded>>();
 
 async function loadFolder(folder: string, importModule: () => Promise<unknown>): Promise<Loaded> {
-    const loaded: Loaded = { status: [], header: [], settings: [], panels: [] };
+    const loaded: Loaded = { status: [], header: [], settings: [], panels: [], tools: [] };
 
     try {
         const module = await importModule();
@@ -150,6 +166,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "status", module, isStatusItem, loaded.status);
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
+        collect(folder, "tools", module, isToolIcon, loaded.tools);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
     }
@@ -252,4 +269,11 @@ const pickHeader = (loaded: Loaded): FolderHeaderItem[] => loaded.header;
 /** Arbitrary extension controls in the conversation header. */
 export function useHeaderItems(): readonly FolderHeaderItem[] {
     return useLoaded(pickHeader);
+}
+
+const pickTools = (loaded: Loaded): FolderToolIcon[] => loaded.tools;
+
+/** The icons extensions give their tools; empty until the modules are in. */
+export function useToolIcons(): readonly FolderToolIcon[] {
+    return useLoaded(pickTools);
 }

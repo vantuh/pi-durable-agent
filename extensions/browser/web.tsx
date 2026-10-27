@@ -13,4 +13,5 @@ export default {
             component: BrowserPanel,
         },
     ],
+    tools: [{ id: "browser", icon: Globe }],
 } satisfies WebExtension;

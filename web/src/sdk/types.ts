@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 
 export type StatusProps = {
@@ -42,12 +43,20 @@ export type HeaderItem = {
     component: ComponentType<StatusProps>;
 };
 
+/** The mark of a tool the extension registers, on that tool's steps in the transcript. */
+export type ToolIcon = {
+    /** The tool's name, as the model calls it. */
+    id: string;
+    icon: LucideIcon;
+};
+
 /** What a folder's `web.tsx` default-exports. */
 export type WebExtension = {
     status?: StatusItem[];
     header?: HeaderItem[];
     settings?: SettingsSection[];
     panels?: PanelItem[];
+    tools?: ToolIcon[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

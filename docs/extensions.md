@@ -189,6 +189,12 @@ below `lg`). The component gets `{ session, onClose }`. `extensions/browser` is 
 frames travel as base64 through an action that waits for the next one, as extensions have no
 routes of their own.
 
+### Tool icons
+
+`web.tsx` may export `tools: [{ id, icon }]`: `id` is the name of a tool the folder registers,
+`icon` a lucide icon. The transcript marks that tool's finished steps with it; a tool without one
+gets a wrench. The core's own tools (`bash`, `read`, `edit`, …) keep the core's icons.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:

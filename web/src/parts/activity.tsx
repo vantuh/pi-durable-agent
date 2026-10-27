@@ -1,11 +1,8 @@
 import {
-    Bot,
-    Braces,
     ChevronRight,
     FilePlus,
     FileText,
     Folder,
-    Globe,
     type LucideIcon,
     Minus,
     Pencil,
@@ -22,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
+import { type FolderToolIcon, useToolIcons } from "../extensions.ts";
 import { langOfPath } from "../lib/highlight.ts";
 import {
     argOf,
@@ -87,7 +85,7 @@ const MARK_TONES = {
     stopped: "bg-raised text-faint",
 } as const;
 
-/** What kind of call a step is, as its mark's icon: the tone says how it went. */
+/** What kind of core call a step is, as its mark's icon: the tone says how it went. Extensions bring their own. */
 const TOOL_ICONS: Record<string, LucideIcon> = {
     bash: Terminal,
     read: FileText,
@@ -96,13 +94,20 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
     grep: Search,
     find: Search,
     ls: Folder,
-    browser: Globe,
-    codemode: Braces,
-    subagent: Bot,
 };
 
+type ExtensionIcons = readonly FolderToolIcon[];
+
 /** How a step went, in a circle on the timeline's rule; the canvas ring cuts the rule around it. */
-function Mark({ tone, tool }: { tone: StepStatus | "thought"; tool?: string }) {
+function Mark({
+    tone,
+    tool,
+    icons,
+}: {
+    tone: StepStatus | "thought";
+    tool?: string;
+    icons?: ExtensionIcons;
+}) {
     // While it runs, and when it failed or never ran, the mark says how it stands, as Pi Pocket's does; once done, what
     // kind of call it was.
     const Icon =
@@ -112,7 +117,9 @@ function Mark({ tone, tool }: { tone: StepStatus | "thought"; tool?: string }) {
               ? X
               : tone === "stopped"
                 ? Minus
-                : (TOOL_ICONS[tool ?? ""] ?? Wrench);
+                : (TOOL_ICONS[tool ?? ""] ??
+                  icons?.find((each) => each.id === tool)?.icon ??
+                  Wrench);
     const label =
         tone === "error"
             ? "Failed"
@@ -213,7 +220,7 @@ const STEP_HEAD =
 /** Under a step's line, in line with its label. */
 const STEP_BODY = "mt-1.5 mr-3.5 mb-3 ml-[42px] flex min-w-0 flex-col gap-2";
 
-function StepRow({ step }: { step: Step }) {
+function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
     if (step.kind === "thinking") {
         return (
             <Collapsible>
@@ -242,7 +249,7 @@ function StepRow({ step }: { step: Step }) {
     return (
         <Collapsible>
             <CollapsibleTrigger className={STEP_HEAD}>
-                <Mark tone={step.status} tool={step.name} />
+                <Mark tone={step.status} tool={step.name} icons={icons} />
                 <span className="text-ink max-w-[45%] shrink-0 truncate font-mono text-[12.5px] font-semibold">
                     {step.name}
                 </span>
@@ -282,6 +289,7 @@ function StepRow({ step }: { step: Step }) {
  */
 export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity" }> }) {
     const now = useNow(item.live);
+    const icons = useToolIcons();
     const last = item.steps.at(-1);
     const thinking = item.live && last?.kind === "thinking" && last.streaming;
     const failed = item.steps.filter(
@@ -321,7 +329,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                             className="bg-edge absolute top-5 bottom-5 left-[22px] w-px"
                         />
                         {item.steps.map((step) => (
-                            <StepRow key={step.key} step={step} />
+                            <StepRow key={step.key} step={step} icons={icons} />
                         ))}
                     </div>
                 ) : (
