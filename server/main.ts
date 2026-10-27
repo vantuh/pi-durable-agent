@@ -302,7 +302,7 @@ async function main(): Promise<void> {
     }
 
     routes = [
-        ...conversationRoutes({ sessions, attach, rootId: () => rootId, stream }),
+        ...conversationRoutes({ sessions, attach, rootId: () => rootId, harness, stream }),
         ...sessionRoutes({
             sessions,
             attach,

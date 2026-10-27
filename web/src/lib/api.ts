@@ -256,6 +256,32 @@ export async function sendMessage(
     return response.ok;
 }
 
+/** Takes a waiting message out of `pi.inbox`; answers where it got to, or `undefined` when the call failed. */
+export async function withdrawQueued(
+    session: number,
+    id: number,
+): Promise<"aborted" | "already_placed" | "settled" | "not_found" | undefined> {
+    try {
+        const body = record(
+            await json("/api/queued/withdraw", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ session, id }),
+            }),
+        );
+        const result = body?.["result"];
+
+        return result === "aborted" ||
+            result === "already_placed" ||
+            result === "settled" ||
+            result === "not_found"
+            ? result
+            : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 export async function stopRun(session: number): Promise<void> {
     await fetch("/api/abort", {
         method: "POST",

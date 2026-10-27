@@ -87,7 +87,9 @@ export type ClientStatus = {
 export type ClientQueued = {
     id: number;
     mode: "steer" | "followUp";
+    /** What was typed, not the expansion the agent reads, so it can go back into the composer as it was. */
     text: string;
+    files?: ClientAttachment[];
 };
 
 export type ClientLive = {

@@ -72,8 +72,14 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
   removed or sent. `Enter` sends, `Shift+Enter` breaks the line. While a run is
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
   after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,
-  then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are listed above the
-  card. The model chip opens `ModelMenu`: a search over the scoped or all models, with a thinking
+  then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are cards above the
+  card (`web/src/composer/queued.tsx`): a `raised` card with a 3px stripe, `accent` for Steer and
+  `info` for Queued, the mode and what it waits for, the text clamped to two lines (a tap opens it),
+  the names of its files, and two buttons. ✕ withdraws it: the agent never reads it. ✎ withdraws it
+  and puts it back in the composer with its mode and its files, so it can be changed and sent again;
+  a draft already there stays, and the message goes below it as one more paragraph. The card shows
+  the entry the input will be placed as, so a `/skill:` message comes back as the command, not as the
+  instructions it expands to. The model chip opens `ModelMenu`: a search over the scoped or all models, with a thinking
   level. Picking one calls `POST /api/agent` for the open session; "make default" calls
   `POST /api/default` for new sessions.
 

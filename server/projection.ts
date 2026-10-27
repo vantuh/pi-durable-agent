@@ -313,7 +313,10 @@ export function projectUsage(value: unknown): ClientUsage {
     return total;
 }
 
-/** Messages waiting in `pi.inbox`. Writes are not messages; they never reach the screen. */
+/**
+ * Messages waiting in `pi.inbox`. Writes are not messages; they never reach the screen. A queued input keeps the
+ * entry it will be placed as, so the card shows what was typed and the files it carries, not the expansion.
+ */
 function queuedOf(value: unknown): ClientQueued[] {
     const items = recordOf(value)?.["items"];
     const queued: ClientQueued[] = [];
@@ -326,9 +329,16 @@ function queuedOf(value: unknown): ClientQueued[] {
         const item = recordOf(raw);
         const mode = stringOf(item, "mode");
         const id = numberAt(item, "id");
+        const data = recordOf(recordOf(item?.["entry"])?.["data"]);
+        const files = filesOf(data?.["files"]);
 
         if (id !== 0 && (mode === "steer" || mode === "followUp")) {
-            queued.push({ id, mode, text: textOf(item?.["content"]) });
+            queued.push({
+                id,
+                mode,
+                text: stringOf(data, "text") ?? textOf(item?.["content"]),
+                ...(files.length === 0 ? {} : { files }),
+            });
         }
     }
 

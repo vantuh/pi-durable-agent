@@ -78,6 +78,8 @@ POST /api/sessions           { cwd } → a new conversation with the default mod
 POST /api/sessions/archive   { session, archived }  sidebar visibility only
 POST /api/sessions/delete    { session }  gone from every list; see [session-delete.md](session-delete.md)
 POST /api/messages           { session, text, files, mode? }  mode: steer | followUp | interrupt
+POST /api/queued/withdraw    { session, id } → { result }  result: aborted | already_placed | settled | not_found
+                             deletes the `pi.inbox` item; 400 bad id (an unknown session is a 500, as everywhere)
 POST /api/agent              { session, model?, thinkingLevel? }
 GET  /api/models             { scoped, all, default }
 POST /api/default            { model: { provider, modelId }, thinkingLevel }  → "Make default"

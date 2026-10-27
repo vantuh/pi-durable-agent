@@ -5,7 +5,7 @@ import type { ServerResponse } from "node:http";
 import { basename, extname } from "node:path";
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import type { Conversation } from "@earendil-works/pi-durable";
+import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
@@ -43,6 +43,8 @@ export function conversationRoutes(deps: {
     sessions: Sessions;
     attach: (id: number) => Promise<Opened | undefined>;
     rootId: () => number;
+    /** Withdraws one queued input, which deletes its `pi.inbox` item in the harness's own commit. */
+    harness: Harness;
     /** Starts the event stream of an opened session on this response. */
     stream: (response: ServerResponse, opened: Opened) => Promise<void>;
 }): Route[] {
@@ -152,6 +154,42 @@ export function conversationRoutes(deps: {
                 );
                 await sessions.touch(opened.id);
                 answer(response, 202, { ok: true });
+            },
+        },
+        {
+            method: "POST",
+            path: /^\/api\/queued\/withdraw$/,
+            handle: async (request, response) => {
+                const payload = record(await readJson(request));
+                const id = sessionFrom(payload?.["session"]);
+                const item = sessionIdOf(payload?.["id"]);
+
+                if (id === undefined) {
+                    badSession(response);
+
+                    return;
+                }
+
+                if (item === undefined) {
+                    answer(response, 400, { error: "id must be a positive integer" });
+
+                    return;
+                }
+
+                const opened = await attach(id);
+
+                if (opened === undefined) {
+                    answer(response, 404, { error: "no such session" });
+
+                    return;
+                }
+
+                // A submission id is a number at run time; the brand lives only in the type.
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value passed a positive-integer check
+                const submission = item as SubmissionId;
+                const result = await deps.harness.abortSubmission(submission, context, opened.id);
+
+                answer(response, 200, { result });
             },
         },
         {

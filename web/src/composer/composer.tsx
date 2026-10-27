@@ -1,11 +1,13 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
-import { listSkills, type SkillInfo, uploadFile } from "../lib/api.ts";
+import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
+import { listSkills, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
+import { toast } from "../lib/toast.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
 import { Attachments, type Pending } from "../ui/attachments.tsx";
+import { Queued } from "./queued.tsx";
 
 const MODES: { mode: SendMode; label: string; hint: string }[] = [
     { mode: "steer", label: "Steer", hint: "read after the current step" },
@@ -68,6 +70,19 @@ function forget(gone: Pending[]): void {
     }
 }
 
+/** A file that waits in the queue, back as a composer attachment: the bytes are still under its path. */
+function pendingOf(file: ClientAttachment): Pending {
+    return {
+        key: crypto.randomUUID(),
+        name: file.name,
+        size: file.size,
+        image: file.image,
+        state: "done",
+        path: file.path,
+        ...(file.image ? { preview: `/api/uploads?path=${encodeURIComponent(file.path)}` } : {}),
+    };
+}
+
 export function Composer({
     sessionId,
     busy,
@@ -93,6 +108,7 @@ export function Composer({
     const [mode, setMode] = useState<SendMode>("steer");
     const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
+    const field = useRef<HTMLTextAreaElement>(null);
     const [skills, setSkills] = useState<SkillInfo[]>([]);
     const [marked, setMarked] = useState(0);
     // The list closes on Escape and opens again when the text changes.
@@ -174,6 +190,44 @@ export function Composer({
         }
     };
 
+    // ✕ takes it out of `pi.inbox`; the agent never reads it. Answers whether it really went.
+    const take = async (item: ClientQueued): Promise<boolean> => {
+        const result = await withdrawQueued(Number(sessionId), item.id);
+
+        if (result === "aborted") {
+            return true;
+        }
+
+        toast.error(
+            result === undefined
+                ? "Could not take that message back"
+                : "The agent is already reading that message",
+        );
+
+        return false;
+    };
+
+    // ✎ takes it out of the queue and puts it back in the composer, with its mode and files, to be changed
+    // and sent again. A draft already there stays, and the message goes below it as one more paragraph.
+    const edit = async (item: ClientQueued): Promise<void> => {
+        if (!(await take(item))) {
+            return;
+        }
+
+        const draft = composerDraft(sessionId).trim();
+        const next = draft === "" ? item.text : `${draft}\n\n${item.text}`;
+
+        if (draft !== "") {
+            toast.info("Added below what you were writing");
+        }
+
+        setComposerDraft(sessionId, next);
+        setText(next);
+        setMode(item.mode);
+        setFiles((current) => [...current, ...(item.files ?? []).map(pendingOf)]);
+        field.current?.focus();
+    };
+
     const submit = (): void => {
         const body = text.trim();
 
@@ -201,21 +255,15 @@ export function Composer({
 
     return (
         <div>
-            {queued.length === 0 ? null : (
-                <ul className="mb-2 flex flex-col gap-1">
-                    {queued.map((item) => (
-                        <li
-                            key={item.id}
-                            className="text-meta text-faint flex min-w-0 items-baseline gap-2 px-1"
-                        >
-                            <span className="text-muted shrink-0">
-                                {item.mode === "steer" ? "Steer" : "Queued"}
-                            </span>
-                            <span className="min-w-0 truncate">{item.text}</span>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            <Queued
+                items={queued}
+                onWithdraw={(item) => {
+                    void take(item);
+                }}
+                onEdit={(item) => {
+                    void edit(item);
+                }}
+            />
 
             <div
                 className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2"
@@ -283,6 +331,7 @@ export function Composer({
 
                 <textarea
                     rows={2}
+                    ref={field}
                     value={text}
                     placeholder={
                         busy && how !== undefined
