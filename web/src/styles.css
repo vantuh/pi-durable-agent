@@ -45,6 +45,7 @@
     --role-ok: var(--ctp-green);
     --role-warn: var(--ctp-yellow);
     --role-danger: var(--ctp-red);
+    --role-danger-deep: var(--ctp-maroon);
     --role-info: var(--ctp-blue);
     --role-spark: var(--ctp-pink);
     --role-think-minimal: var(--ctp-teal);
@@ -83,6 +84,7 @@
     --color-ok: var(--role-ok);
     --color-warn: var(--role-warn);
     --color-danger: var(--role-danger);
+    --color-danger-deep: var(--role-danger-deep);
     --color-info: var(--role-info);
     --color-spark: var(--role-spark);
     --color-think-minimal: var(--role-think-minimal);

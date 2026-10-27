@@ -82,10 +82,18 @@ function GitBadge({ session }: StatusProps) {
                 <span className="text-ok">+{value.added}</span>
                 <span className="text-danger">−{value.deleted}</span>
                 <span className="border-edge flex items-center gap-1 border-l pl-2">
-                    <ArrowUp className="size-3" />
-                    {value.upstream === null ? "?" : value.ahead}
-                    <ArrowDown className="size-3" />
-                    {value.upstream === null ? "?" : value.behind}
+                    <span
+                        className={`flex items-center gap-1 ${value.ahead > 0 ? "text-warn" : ""}`}
+                    >
+                        <ArrowUp className="size-3" />
+                        {value.upstream === null ? "?" : value.ahead}
+                    </span>
+                    <span
+                        className={`flex items-center gap-1 ${value.behind > 0 ? "text-danger-deep" : ""}`}
+                    >
+                        <ArrowDown className="size-3" />
+                        {value.upstream === null ? "?" : value.behind}
+                    </span>
                 </span>
                 <button
                     type="button"
