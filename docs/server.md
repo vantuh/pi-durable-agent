@@ -41,8 +41,7 @@ GET /api/history?session=7&before=7463   → { entries: [...], more: false }
 
 `hello` carries the same fact in one bit: `more`, true when the log keeps entries older than the
 oldest one it just sent. It comes from one read of the oldest entry (`hasOlder()`), so a screen that
-already holds the whole conversation never asks for a page it cannot get, and knows it can show
-counts rather than a spinner.
+already holds the whole conversation never asks for a page it cannot get.
 
 `before` is the oldest entry the browser already has; the answer is older than it, oldest entry
 first. `server/history.ts` reads the entry log (`conversation.entries()`, descending with its

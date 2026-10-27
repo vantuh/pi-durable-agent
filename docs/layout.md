@@ -65,11 +65,10 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       screen, and nothing the server rewrites can take loaded entries away: the list is an upsert by
       id (`web/src/lib/conversation-state.ts`).
     - **Where a compaction cut**: a line across the transcript with a filled `raised` pill on it —
-      layers icon, `earlier messages were compacted · 23`, chevron — and the summary the model was
-      handed under it (folded, opened by a tap). The number counts the person's messages above the
-      cut among those on screen, which while pages are still coming is less than the truth: until
-      `hello`'s `more` says the start is on screen, a small spinner sits where the number will be,
-      not a count that climbs as the reader scrolls.
+      layers icon, `earlier messages were compacted`, chevron — and the summary the model was handed
+      under it (folded, opened by a tap). No count: what a person wants to know is where the cut is
+      and what was kept, and a number above it is only true once the start of the conversation is on
+      screen, which after a fresh compaction it is not.
     - **While a compaction runs**: there is no entry yet, so the same pill sits at the end of the
       transcript — `compacting earlier messages` and a spinner, nothing to open. That is exactly where
       the marker lands when the summary commits, so the spinner turns into the mark in place. It comes

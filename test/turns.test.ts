@@ -143,12 +143,7 @@ void describe("turnsOf", () => {
         assert.equal(turns[1]?.compacted?.summary, "## Goal\nship it");
         assert.equal(turns[1]?.items.length, 0, "and carries no answer of its own");
         assert.equal(new Set(turns.map((turn) => turn.key)).size, 3, "keys stay unique");
-        assert.equal(
-            turns[1]?.compacted?.above,
-            1,
-            "and counts the messages above it, so the mark can say how many it replaced",
-        );
-        assert.equal(turns[2]?.compacted, undefined);
+        assert.equal(turns[2]?.compacted, undefined, "and does not leak into the turn after it");
     });
 });
 
