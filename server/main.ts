@@ -24,6 +24,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
+import { answer, answerError, readBytes, readJson, record, sessionIdOf, string } from "./http.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { knownHost, sameOrigin } from "./same-origin.ts";
@@ -78,7 +79,6 @@ const DATA_DIR = join(process.cwd(), "data");
 const UPLOAD_DIR = join(DATA_DIR, "uploads");
 const FAVOURITES_FILE = join(DATA_DIR, "favourites.json");
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
-const MAX_BODY = 100_000_000;
 const IDLE_HEARTBEAT_MS = 20_000;
 
 type Client = { response: ServerResponse; session: number };
@@ -200,99 +200,15 @@ async function attach(id: number): Promise<Opened | undefined> {
     return opened;
 }
 
-async function body(request: IncomingMessage): Promise<unknown> {
-    return new Promise((done, reject) => {
-        const chunks: Buffer[] = [];
-        let size = 0;
-
-        request.on("data", (chunk: Buffer) => {
-            size += chunk.length;
-
-            if (size > MAX_BODY) {
-                request.destroy();
-                reject(new Error("body is too large"));
-
-                return;
-            }
-
-            chunks.push(chunk);
-        });
-        request.on("end", () => {
-            const text = Buffer.concat(chunks).toString("utf8");
-
-            if (text === "") {
-                done(undefined);
-
-                return;
-            }
-
-            try {
-                done(JSON.parse(text));
-            } catch {
-                reject(new Error("body is not JSON"));
-            }
-        });
-        request.on("error", reject);
-    });
+/** The session a request names, the root one when it names none, `undefined` when the id is not valid. */
+function sessionFrom(value: unknown): number | undefined {
+    return value === undefined || value === null ? rootId : sessionIdOf(value);
 }
 
-function bytes(request: IncomingMessage): Promise<Buffer> {
-    return new Promise((done, reject) => {
-        const chunks: Buffer[] = [];
-        let size = 0;
+function querySession(url: URL): number | undefined {
+    const raw = url.searchParams.get("session");
 
-        request.on("data", (chunk: Buffer) => {
-            size += chunk.length;
-
-            if (size > MAX_BODY) {
-                request.destroy();
-                reject(new Error("file is too large"));
-
-                return;
-            }
-
-            chunks.push(chunk);
-        });
-        request.on("end", () => {
-            done(Buffer.concat(chunks));
-        });
-        request.on("error", reject);
-    });
-}
-
-function record(value: unknown): Record<string, unknown> | undefined {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        return undefined;
-    }
-
-    return Object.fromEntries(Object.entries(value));
-}
-
-function string(value: unknown): string | undefined {
-    return typeof value === "string" ? value : undefined;
-}
-
-function sessionOf(url: URL): number {
-    const raw = Number(url.searchParams.get("session"));
-
-    return Number.isFinite(raw) && raw > 0 ? raw : rootId;
-}
-
-function answer(response: ServerResponse, status: number, payload: unknown): void {
-    let text: string;
-    let code = status;
-
-    try {
-        text = JSON.stringify(payload);
-    } catch (error) {
-        code = 500;
-        text = JSON.stringify({
-            error: error instanceof Error ? error.message : "the result is not JSON",
-        });
-    }
-
-    response.writeHead(code, { "content-type": "application/json" });
-    response.end(text);
+    return sessionFrom(raw === null ? undefined : Number(raw));
 }
 
 function contentOf(files: readonly string[], text: string): Promise<Content> {
@@ -338,7 +254,14 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (request.method === "GET" && url.pathname === "/api/events") {
-        const id = sessionOf(url);
+        const id = querySession(url);
+
+        if (id === undefined) {
+            answer(response, 400, { error: "session must be a positive integer" });
+
+            return;
+        }
+
         const opened = await attach(id);
 
         if (opened === undefined) {
@@ -372,9 +295,16 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (request.method === "POST" && url.pathname === "/api/messages") {
-        const payload = record(await body(request));
+        const payload = record(await readJson(request));
         const text = string(payload?.["text"]) ?? "";
-        const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;
+        const id = sessionFrom(payload?.["session"]);
+
+        if (id === undefined) {
+            answer(response, 400, { error: "session must be a positive integer" });
+
+            return;
+        }
+
         const opened = await attach(id);
         const files = Array.isArray(payload?.["files"])
             ? payload["files"].filter((file): file is string => typeof file === "string")
@@ -438,8 +368,15 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (request.method === "POST" && url.pathname === "/api/abort") {
-        const payload = record(await body(request));
-        const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;
+        const payload = record(await readJson(request));
+        const id = sessionFrom(payload?.["session"]);
+
+        if (id === undefined) {
+            answer(response, 400, { error: "session must be a positive integer" });
+
+            return;
+        }
+
         const opened = await attach(id);
 
         if (opened !== undefined) {
@@ -462,7 +399,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/sessions" && request.method === "POST") {
-        const payload = record(await body(request));
+        const payload = record(await readJson(request));
         const cwd = string(payload?.["cwd"]);
         const conversation = await sessions.create(cwd ?? process.cwd());
 
@@ -473,16 +410,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/sessions/archive" && request.method === "POST") {
-        const payload = record(await body(request));
-        const id = payload?.["session"];
+        const payload = record(await readJson(request));
+        const id = sessionIdOf(payload?.["session"]);
         const archived = payload?.["archived"];
 
-        if (
-            typeof id !== "number" ||
-            !Number.isSafeInteger(id) ||
-            id <= 0 ||
-            typeof archived !== "boolean"
-        ) {
+        if (id === undefined || typeof archived !== "boolean") {
             answer(response, 400, { error: "Expected a session id and archived boolean" });
             return;
         }
@@ -500,16 +432,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/sessions/title" && request.method === "POST") {
-        const payload = record(await body(request));
-        const id = payload?.["session"];
+        const payload = record(await readJson(request));
+        const id = sessionIdOf(payload?.["session"]);
         const title = payload?.["title"];
 
-        if (
-            typeof id !== "number" ||
-            !Number.isSafeInteger(id) ||
-            id <= 0 ||
-            typeof title !== "string"
-        ) {
+        if (id === undefined || typeof title !== "string") {
             answer(response, 400, { error: "Expected a session id and a title string" });
             return;
         }
@@ -527,8 +454,15 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/agent" && request.method === "POST") {
-        const payload = record(await body(request));
-        const id = typeof payload?.["session"] === "number" ? payload["session"] : rootId;
+        const payload = record(await readJson(request));
+        const id = sessionFrom(payload?.["session"]);
+
+        if (id === undefined) {
+            answer(response, 400, { error: "session must be a positive integer" });
+
+            return;
+        }
+
         const opened = await attach(id);
         const model = record(payload?.["model"]);
         const provider = string(model?.["provider"]);
@@ -563,7 +497,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/favourites" && request.method === "PUT") {
-        const raw = record(await body(request))?.["folders"];
+        const raw = record(await readJson(request))?.["folders"];
         const folders = Array.isArray(raw)
             ? raw.filter((entry): entry is string => typeof entry === "string")
             : [];
@@ -575,8 +509,15 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/skills" && request.method === "GET") {
-        const id = Number(url.searchParams.get("session"));
-        const opened = await attach(Number.isInteger(id) ? id : rootId);
+        const id = querySession(url);
+
+        if (id === undefined) {
+            answer(response, 400, { error: "session must be a positive integer" });
+
+            return;
+        }
+
+        const opened = await attach(id);
         const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
 
         answer(response, 200, {
@@ -622,7 +563,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/default" && request.method === "POST") {
-        const payload = record(await body(request));
+        const payload = record(await readJson(request));
         const model = record(payload?.["model"]);
         const provider = string(model?.["provider"]);
         const modelId = string(model?.["modelId"]);
@@ -644,7 +585,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         const raw = request.headers["x-filename"];
         const name = basename(decodeURIComponent(typeof raw === "string" ? raw : "file"));
         const saved = join(UPLOAD_DIR, `${String(Date.now())}-${name}`);
-        const data = await bytes(request);
+        const data = await readBytes(request);
 
         await writeFile(saved, data);
         answer(response, 201, {
@@ -781,7 +722,7 @@ async function toggleExtension(
     name: string,
 ): Promise<void> {
     try {
-        const parsed: unknown = await body(request).catch(badBody);
+        const parsed: unknown = await readJson(request).catch(badBody);
         const enabled: unknown =
             typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
                 ? Reflect.get(parsed, "enabled")
@@ -793,15 +734,7 @@ async function toggleExtension(
 
         answer(response, 200, await extensions.setEnabled(decodeURIComponent(name), enabled));
     } catch (error) {
-        const message = error instanceof Error ? error.message : "the change failed";
-
-        if (error instanceof ActionNotFound) {
-            answer(response, 404, { error: message });
-        } else if (error instanceof ActionError || error instanceof URIError) {
-            answer(response, 400, { error: message });
-        } else {
-            answer(response, 500, { error: message });
-        }
+        answerError(response, error, "the change failed");
     }
 }
 
@@ -813,7 +746,7 @@ async function runAction(
     action: string,
 ): Promise<void> {
     try {
-        const parsed = parseActionBody(await body(request).catch(badBody));
+        const parsed = parseActionBody(await readJson(request).catch(badBody));
         let session: { id: number; cwd: string | null } | null = null;
 
         if (parsed.session !== undefined) {
@@ -841,15 +774,7 @@ async function runAction(
 
         answer(response, 200, { result });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "the action failed";
-
-        if (error instanceof ActionNotFound) {
-            answer(response, 404, { error: message });
-        } else if (error instanceof ActionError || error instanceof URIError) {
-            answer(response, 400, { error: message });
-        } else {
-            answer(response, 500, { error: message });
-        }
+        answerError(response, error, "the action failed");
     }
 }
 
