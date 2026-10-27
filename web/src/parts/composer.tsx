@@ -242,6 +242,14 @@ export function Composer({
                                 <button
                                     type="button"
                                     aria-current={index === marked}
+                                    // Arrow keys move the mark past the visible part of the list: follow it.
+                                    ref={
+                                        index === marked
+                                            ? (element) => {
+                                                  element?.scrollIntoView({ block: "nearest" });
+                                              }
+                                            : undefined
+                                    }
                                     // Keep focus in the textarea.
                                     onMouseDown={(event) => {
                                         event.preventDefault();
