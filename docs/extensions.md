@@ -219,6 +219,10 @@ The loader watches `extensions/` and reloads only the changed folders after 150 
 - **broken** → the previous version stays installed, and the folder is listed as failed;
 - **removed** → uninstalled, and its disposers run.
 
+One thing does not reload: `host` itself. A member added to it in `server/` arrives with the process, so
+an extension that calls one on the first live load fails with `host.sessionTitle is not a function`.
+Restart the server after adding a member, before an extension uses it.
+
 Connected conversation tabs show a toast after a live load, reload, removal or failure. A failure
 says when the previous version is still active. Initial startup loads are silent; disabled folders
 stay off. These notices report the server half, not whether the browser half finished its Vite HMR
