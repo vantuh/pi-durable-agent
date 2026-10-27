@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -29,9 +29,8 @@ void describe("git-branch branch action", () => {
         await rm(dir, { recursive: true, force: true });
     });
 
-    void it("gives the branch of a git folder", async () => {
-        await run("git", ["init", "-b", "topic"], { cwd: dir });
-        await run(
+    const commit = (cwd: string) =>
+        run(
             "git",
             [
                 "-c",
@@ -45,10 +44,31 @@ void describe("git-branch branch action", () => {
                 "-m",
                 "x",
             ],
-            { cwd: dir },
+            { cwd },
         );
 
-        assert.equal(await branch(dir), "topic");
+    void it("gives the branch of a git folder, and no worktree for the main checkout", async () => {
+        await run("git", ["init", "-b", "topic"], { cwd: dir });
+        await commit(dir);
+
+        assert.deepEqual(await branch(dir), { branch: "topic", worktree: null });
+    });
+
+    void it("names the worktree of a linked checkout, from inside it too", async () => {
+        const main = join(dir, "main");
+        const linked = join(dir, "side-work");
+
+        await run("git", ["init", "-b", "topic", main]);
+        await commit(main);
+        await run("git", ["worktree", "add", "-b", "other", linked], { cwd: main });
+        await mkdir(join(linked, "deep"));
+
+        assert.deepEqual(await branch(linked), { branch: "other", worktree: "side-work" });
+        assert.deepEqual(await branch(join(linked, "deep")), {
+            branch: "other",
+            worktree: "side-work",
+        });
+        assert.deepEqual(await branch(main), { branch: "topic", worktree: null });
     });
 
     void it("gives null for a folder without git", async () => {

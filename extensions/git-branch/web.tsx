@@ -1,14 +1,16 @@
-import { GitBranch } from "lucide-react";
+import { FolderGit2, GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { branch } from "./refs.ts";
+import { branch, type Checkout } from "./refs.ts";
 
-function useBranch(session: StatusProps["session"]): string | null {
-    const [name, setName] = useState<string | null>(null);
+const BADGE = "hidden h-4 max-w-full min-w-0 shrink px-1.5 sm:inline-flex [&>svg]:size-2.5";
+
+function useCheckout(session: StatusProps["session"]): Checkout | null {
+    const [checkout, setCheckout] = useState<Checkout | null>(null);
     const id = session?.id ?? null;
     const cwd = session?.cwd ?? null;
     const busy = session?.busy ?? false;
@@ -17,7 +19,7 @@ function useBranch(session: StatusProps["session"]): string | null {
         let alive = true;
 
         void (async () => {
-            let found: string | null = null;
+            let found: Checkout | null = null;
 
             try {
                 found = await callAction(branch, undefined, id);
@@ -26,7 +28,7 @@ function useBranch(session: StatusProps["session"]): string | null {
             }
 
             if (alive) {
-                setName(found);
+                setCheckout(found);
             }
         })();
 
@@ -36,24 +38,29 @@ function useBranch(session: StatusProps["session"]): string | null {
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new folder, or a run ending (busy going false), can change the branch
     }, [id, cwd, busy]);
 
-    return name;
+    return checkout;
 }
 
 function Branch({ session }: StatusProps) {
-    const name = useBranch(session);
+    const checkout = useCheckout(session);
 
-    if (name === null) {
+    if (checkout === null) {
         return null;
     }
 
     return (
-        <Badge
-            title={`Branch ${name}`}
-            className="hidden h-4 max-w-full px-1.5 sm:inline-flex [&>svg]:size-2.5"
-        >
-            <GitBranch />
-            <span className="truncate">{name}</span>
-        </Badge>
+        <>
+            <Badge title={`Branch ${checkout.branch}`} className={BADGE}>
+                <GitBranch />
+                <span className="truncate">{checkout.branch}</span>
+            </Badge>
+            {checkout.worktree === null ? null : (
+                <Badge title={`Worktree ${checkout.worktree}`} className={BADGE}>
+                    <FolderGit2 />
+                    <span className="truncate">{checkout.worktree}</span>
+                </Badge>
+            )}
+        </>
     );
 }
 

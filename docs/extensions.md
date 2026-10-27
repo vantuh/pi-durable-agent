@@ -173,7 +173,8 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   (a small store in `web.tsx` can share it between an item and a section).
 - `extensions/push` is an example of a settings section with buttons, actions and a commit
   listener ([push.md](push.md)). `extensions/git-branch` is an example of a `branch` action on
-  the server and a `start` status item.
+  the server and a `title` status item: the branch, and the worktree's name when the folder is a
+  linked worktree (its git dir is not the shared one).
 
 ### The service worker facet
 

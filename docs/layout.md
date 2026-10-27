@@ -65,7 +65,7 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 ## Conversation
 
 - **Header**: the session title, the `title` slot in a small line under it (the branch badge of
-  `extensions/git-branch`, from `sm`), and the settings gear. The folder is the sidebar's. The mockup's other three
+  `extensions/git-branch`, and a worktree badge in a linked worktree, from `sm`), and the settings gear. The folder is the sidebar's. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - **What is loaded**: the event stream carries the active view, which starts at the newest
