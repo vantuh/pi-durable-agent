@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders } from "node:http";
 
-/** Raw local-process HTTP must not accept a browser from another origin/site. */
-export function extensionHttpAllowed(headers: IncomingHttpHeaders): boolean {
+/** The API runs tools on this machine, so a page from another origin or site must not reach it. */
+export function sameOrigin(headers: IncomingHttpHeaders): boolean {
     const site = headers["sec-fetch-site"];
     if (site !== undefined && site !== "same-origin" && site !== "none") {
         return false;

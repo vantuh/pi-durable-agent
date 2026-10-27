@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { createRegistry } from "@earendil-works/pi-durable";
 
-import { extensionHttpAllowed } from "../server/extension-http.ts";
 import { ActionNotFound, Extensions } from "../server/extensions.ts";
+import { sameOrigin } from "../server/same-origin.ts";
 
 void describe("extension HTTP", () => {
     let root: string;
@@ -82,30 +82,18 @@ void describe("extension HTTP", () => {
     });
     void it("rejects foreign origins without rejecting an HTTPS reverse proxy", () => {
         assert.equal(
-            extensionHttpAllowed({
+            sameOrigin({
                 host: "agent.example",
                 origin: "https://agent.example",
                 "sec-fetch-site": "same-origin",
             }),
             true,
         );
-        assert.equal(
-            extensionHttpAllowed({ host: "localhost:5190", origin: "http://localhost:5190" }),
-            true,
-        );
-        assert.equal(extensionHttpAllowed({ host: "localhost:5190" }), true);
-        assert.equal(extensionHttpAllowed({ host: "localhost:5190", origin: "null" }), false);
-        assert.equal(
-            extensionHttpAllowed({ host: "localhost:5190", origin: "https://evil.example" }),
-            false,
-        );
-        assert.equal(
-            extensionHttpAllowed({ host: "localhost:5190", "sec-fetch-site": "cross-site" }),
-            false,
-        );
-        assert.equal(
-            extensionHttpAllowed({ host: "agent.example", "sec-fetch-site": "same-site" }),
-            false,
-        );
+        assert.equal(sameOrigin({ host: "localhost:5190", origin: "http://localhost:5190" }), true);
+        assert.equal(sameOrigin({ host: "localhost:5190" }), true);
+        assert.equal(sameOrigin({ host: "localhost:5190", origin: "null" }), false);
+        assert.equal(sameOrigin({ host: "localhost:5190", origin: "https://evil.example" }), false);
+        assert.equal(sameOrigin({ host: "localhost:5190", "sec-fetch-site": "cross-site" }), false);
+        assert.equal(sameOrigin({ host: "agent.example", "sec-fetch-site": "same-site" }), false);
     });
 });

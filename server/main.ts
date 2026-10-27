@@ -22,10 +22,10 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
-import { extensionHttpAllowed } from "./extension-http.ts";
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
+import { sameOrigin } from "./same-origin.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
 import { expandSkillCommand, skillsFor } from "./skills.ts";
 import { serveStatic } from "./static.ts";
@@ -323,6 +323,12 @@ function contentOf(files: readonly string[], text: string): Promise<Content> {
 
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+    if (url.pathname.startsWith("/api/") && !sameOrigin(request.headers)) {
+        answer(response, 403, { error: "cross-origin requests are not allowed" });
+
+        return;
+    }
 
     if (request.method === "GET" && url.pathname === "/api/events") {
         const id = sessionOf(url);
@@ -701,11 +707,6 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 
     const httpRoute = /^\/api\/extensions\/([^/]+)\/http(\/.*)$/.exec(url.pathname);
     if (httpRoute !== null) {
-        // A raw handler must not become a cross-site proxy to a local process.
-        if (!extensionHttpAllowed(request.headers)) {
-            answer(response, 403, { error: "cross-origin extension HTTP is not allowed" });
-            return;
-        }
         try {
             await extensions.serveHttp(decodeURIComponent(httpRoute[1] ?? ""), {
                 request,
@@ -727,10 +728,6 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     const actionRoute = /^\/api\/extensions\/([^/]+)\/actions\/([^/]+)$/.exec(url.pathname);
 
     if (request.method === "POST" && actionRoute !== null) {
-        if (!extensionHttpAllowed(request.headers)) {
-            answer(response, 403, { error: "cross-origin extension actions are not allowed" });
-            return;
-        }
         await runAction(request, response, actionRoute[1] ?? "", actionRoute[2] ?? "");
 
         return;
