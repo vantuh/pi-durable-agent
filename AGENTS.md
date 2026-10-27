@@ -167,6 +167,8 @@ pnpm fix       # repairs formatting and anything auto-fixable
 - [ ] Server files use erasable syntax only: no `enum`, no parameter properties, no `namespace`.
 - [ ] No `any`, no `!`, no `as` without a check that justifies it.
 - [ ] Every promise is awaited or explicitly ignored with `void`.
+- [ ] Tests and standalone Harness checks use disposable databases, never the working `data/state.sqlite`.
+      Test servers set `PI_DURABLE_DATA_DIR` to a temporary folder and use a free `PORT`.
 - [ ] `web/` never imports from `server/`; extensions never import each other's files.
 - [ ] **No colour is ever invented.** Every colour is a `--role-*` name from the theme. No hex,
       no `rgb()`, no `oklch()`, no Tailwind palette class, no inline `style={{ color }}`, not

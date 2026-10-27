@@ -109,6 +109,19 @@ The proxy must preserve the public `Host` for extension origin checks.
   (`ModelRuntime.create()`), the same logins the `pi` command uses.
 - `PORT` — default 8788. Not 8787: Pi Pocket runs there on this machine.
 - `data/state.sqlite` — the only state, gitignored. Delete it for a clean conversation.
+- `PI_DURABLE_DATA_DIR` — the folder of `state.sqlite` and the other data files, default `data/` in the
+  working folder.
+
+One process owns a `state.sqlite` (`server/lifecycle.ts`). It holds an exclusive transaction on a second
+SQLite file, `state.sqlite.owner.sqlite`, next to the real `state.sqlite`. The path is resolved first, so
+another `PORT`, `TMPDIR` or a symlinked folder meets the same owner. Then it binds the port, and only then
+opens storage. Until ready, connections are reset so the browser's event stream keeps retrying;
+answering 503 would end it. A second server exits with "in use by another server" before it touches
+`state.sqlite` or `uploads/`. The lock is let go after the harness has closed,
+and the kernel drops it when the process dies, so no stale state needs cleaning. The owner file is empty,
+permanent and not part of the schema; never delete it while a server runs. If storage fails the harness
+session, the server logs `pi-durable-agent: storage session failed` and the original error to stderr,
+and nothing else.
 
 ## Beyond the first conversation
 

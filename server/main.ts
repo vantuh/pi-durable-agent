@@ -4,7 +4,7 @@
  */
 
 import { mkdir } from "node:fs/promises";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -25,6 +25,7 @@ import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import { answer, type Route } from "./http.ts";
+import { type Lifecycle, listen } from "./lifecycle.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { conversationRoutes } from "./routes/conversation.ts";
@@ -41,7 +42,7 @@ type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
 const context = BACKGROUND_CONTEXT;
 const DIST = resolve(import.meta.dirname, "../dist");
 const PORT = Number(process.env["PORT"] ?? 8788);
-const DATA_DIR = join(process.cwd(), "data");
+const DATA_DIR = resolve(process.env["PI_DURABLE_DATA_DIR"] ?? join(process.cwd(), "data"));
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
 /** How long stopping may wait for running work; what is still running resumes in the next process. */
@@ -68,6 +69,7 @@ let runtime: ModelRuntime;
 let extensions: Extensions;
 let sessions: Sessions;
 let harness: Harness;
+let lifecycle: Lifecycle;
 let rootId: number;
 let routes: Route[] = [];
 
@@ -301,12 +303,25 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     answer(response, 404, { error: "not found" });
 }
 
-async function main(): Promise<void> {
+/** Opens everything that touches storage. Runs once the lock and the port are ours. */
+async function boot(): Promise<void> {
     const [provider, modelId, ...rest] = MODEL.split("/");
 
     if (provider === undefined || modelId === undefined || rest.length > 0) {
         throw new Error(`MODEL must be "provider/modelId", not "${MODEL}"`);
     }
+
+    const heartbeat = setInterval(() => {
+        for (const client of clients) {
+            client.response.write(": heartbeat\n\n");
+        }
+    }, IDLE_HEARTBEAT_MS);
+
+    lifecycle.onStop(() => {
+        clearInterval(heartbeat);
+
+        return Promise.resolve();
+    });
 
     await mkdir(join(DATA_DIR, "uploads"), { recursive: true });
 
@@ -336,6 +351,7 @@ async function main(): Promise<void> {
             console.log(message);
         },
     });
+    lifecycle.onStop(() => extensions.dispose());
     await extensions.load();
     extensions.watch();
 
@@ -346,16 +362,30 @@ async function main(): Promise<void> {
         () => extensions.requestShapers,
         () => extensions.fetchWrappers,
     );
-    harness = await Harness.open(
-        storage,
-        {
-            models: runtime,
-            registry,
-            settings: { stream: STREAM },
-            env: () => new NodeExecutionEnv({ cwd }),
-        },
-        context,
-    );
+
+    try {
+        harness = await Harness.open(
+            storage,
+            {
+                models: runtime,
+                registry,
+                settings: { stream: STREAM },
+                env: () => new NodeExecutionEnv({ cwd }),
+                onReport: (error, info) => {
+                    if (info.type === "session_failed") {
+                        console.error("pi-durable-agent: storage session failed", error);
+                    }
+                },
+            },
+            context,
+        );
+    } catch (error) {
+        await storage.close(context);
+
+        throw error;
+    }
+
+    lifecycle.onStop(() => harness.close(context));
 
     const root = await harness.root(context, {
         agent: {
@@ -426,57 +456,58 @@ async function main(): Promise<void> {
     ];
 
     harness.resume();
+}
 
-    const server = createServer((request, response) => {
-        handle(request, response).catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : "the request failed";
+let stopping = false;
 
-            if (!response.headersSent) {
-                answer(response, 500, { error: message });
-            } else {
-                response.end();
-            }
-        });
+function stop(code: number): void {
+    if (stopping) {
+        return;
+    }
+
+    stopping = true;
+    // A tool or model stream that ignores its abort must not hold the restart forever; the lock
+    // goes with the process.
+    const limit = new Promise<void>((done) => {
+        setTimeout(done, STOP_LIMIT_MS);
     });
 
-    const heartbeat = setInterval(() => {
-        for (const client of clients) {
-            client.response.write(": heartbeat\n\n");
-        }
-    }, IDLE_HEARTBEAT_MS);
+    void Promise.race([lifecycle.stop(), limit]).then(
+        () => {
+            process.exit(code);
+        },
+        (error: unknown) => {
+            console.error(error);
+            process.exit(1);
+        },
+    );
+}
 
-    let stopping = false;
+async function main(): Promise<void> {
+    lifecycle = await listen({
+        dataDir: DATA_DIR,
+        port: PORT,
+        handle,
+    });
 
-    const stop = (code: number): void => {
-        if (stopping) {
-            return;
-        }
-
-        stopping = true;
-        clearInterval(heartbeat);
-        // A tool or model stream that ignores its abort must not hold the restart forever.
-        const limit = new Promise<void>((done) => {
-            setTimeout(done, STOP_LIMIT_MS);
+    try {
+        await boot();
+    } catch (error) {
+        await lifecycle.stop().catch((stopError: unknown) => {
+            console.error(stopError);
         });
 
-        void Promise.race([extensions.dispose().then(() => harness.close(context)), limit]).then(
-            () => {
-                server.close();
-                process.exit(code);
-            },
-        );
-    };
+        throw error;
+    }
 
+    lifecycle.ready();
     process.on("SIGINT", () => {
         stop(0);
     });
     process.on("SIGTERM", () => {
         stop(0);
     });
-
-    server.listen(PORT, "127.0.0.1", () => {
-        console.log(`pi-durable-agent: http://127.0.0.1:${PORT} · ${MODEL}`);
-    });
+    console.log(`pi-durable-agent: http://127.0.0.1:${PORT} · ${MODEL}`);
 }
 
 main().catch((error: unknown) => {
