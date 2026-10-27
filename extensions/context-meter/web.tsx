@@ -94,8 +94,8 @@ function Popup({ data, left, bottom }: { data: Breakdown; left: number; bottom: 
                 <Group title="tools" unit="tools" parts={data.tools} />
                 <p className="text-faint">
                     {data.calibrated
-                        ? "Estimates, scaled to this model's own count of the first request."
-                        : "Estimates at 3.5 characters per token."}
+                        ? "Approximate: sizes are scaled to the model's own count of the first request."
+                        : "Approximate: 3.5 characters per token, not the model's own count."}
                 </p>
             </div>
         </div>
