@@ -111,6 +111,11 @@ export function supportedLevel(
     return known === undefined ? level : clampThinkingLevel(known, level);
 }
 
+/** A session's name is one line: the first question can be a paragraph. */
+function oneLine(text: string): string {
+    return text.replace(/\s+/g, " ").trim();
+}
+
 export class Sessions {
     readonly #harness: Harness;
     readonly #model: ModelRef;
@@ -341,8 +346,12 @@ export class Sessions {
         return stamp;
     }
 
-    /** The name the sidebar shows: the one set by hand, else the first question. */
+    /** The name the sidebar shows: the one set by hand, else the first question. None for a deleted session, which no list shows. */
     async title(id: ConversationId): Promise<string | null> {
+        if (await this.#isDeleted(id)) {
+            return null;
+        }
+
         return (await this.#name(id)) ?? (await this.#question(id));
     }
 
@@ -353,7 +362,7 @@ export class Sessions {
             this.#context,
         );
 
-        return chosen === "" ? null : chosen;
+        return chosen === "" ? null : oneLine(chosen);
     }
 
     /** The first question, cut: what a session is called until someone names it. */
@@ -366,8 +375,12 @@ export class Sessions {
         for (const record of page.items) {
             const entry = projectEntry(record);
 
-            if (entry?.kind === "user" && entry.text.trim() !== "") {
-                return entry.text.trim().slice(0, 80);
+            if (entry?.kind === "user") {
+                const line = oneLine(entry.text);
+
+                if (line !== "") {
+                    return line.slice(0, 80);
+                }
             }
         }
 

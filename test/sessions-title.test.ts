@@ -33,7 +33,7 @@ void describe("Sessions.title", () => {
             await harness.commit(async (tx) => {
                 await tx.appendEntry(asked.id, {
                     kind: "pi.user",
-                    data: { text: "why does the fold close" },
+                    data: { text: "why does the fold close\n\nand what is under it" },
                 });
                 await tx.appendEntry(asked.id, {
                     kind: "pi.user",
@@ -41,9 +41,12 @@ void describe("Sessions.title", () => {
                 });
             }, BACKGROUND_CONTEXT);
 
-            // The first question names it; a later one does not rename it.
-            assert.equal(await sessions.title(asked.id), "why does the fold close");
-            assert.equal(await listed(asked.id), "why does the fold close");
+            // The first question names it, on one line; a later one does not rename it.
+            assert.equal(
+                await sessions.title(asked.id),
+                "why does the fold close and what is under it",
+            );
+            assert.equal(await listed(asked.id), "why does the fold close and what is under it");
 
             await sessions.setTitle(asked.id, "mcp plugin");
 
@@ -54,13 +57,17 @@ void describe("Sessions.title", () => {
 
             assert.equal(
                 await sessions.title(asked.id),
-                "why does the fold close",
+                "why does the fold close and what is under it",
                 "an empty name goes back to the question",
             );
-            assert.equal(await listed(asked.id), "why does the fold close");
+            assert.equal(await listed(asked.id), "why does the fold close and what is under it");
 
             assert.equal(await sessions.title(silent.id), null, "nothing asked, nothing named");
             assert.equal(await listed(silent.id), null);
+
+            await sessions.delete(asked.id);
+
+            assert.equal(await sessions.title(asked.id), null, "a deleted session has no name");
         } finally {
             await harness.close(BACKGROUND_CONTEXT);
             await rm(dir, { recursive: true, force: true });
