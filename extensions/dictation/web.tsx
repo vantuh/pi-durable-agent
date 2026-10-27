@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/toast.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
+import { beep } from "./beep.ts";
 import { createDictation, dictationAvailable, type Dictation } from "./dictate.ts";
 
 function MicButton({ field, setText, onSent }: ComposerProps) {
@@ -23,7 +24,10 @@ function MicButton({ field, setText, onSent }: ComposerProps) {
             onText: (value) => {
                 write.current(value);
             },
-            onListening: setListening,
+            onListening: (on) => {
+                setListening(on);
+                beep(on);
+            },
             onNotice: (level, text) => {
                 toast[level](text);
             },

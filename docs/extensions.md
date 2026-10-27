@@ -349,6 +349,7 @@ has none: there, and off https or localhost, the mic does not show.
   still being heard when you type or move the caret finishes where it is.
 - It never sends. Tap the mic again or press Alt+V to stop. Sending, leaving the conversation and
   switching away from the tab stop it too, dropping words not yet settled.
+- A short rising tone marks the start and a falling one the end (`beep.ts`, Web Audio; no files).
 - The text-merging logic is in `dictate.ts` with no React in it; its tests drive a stand-in
   recognizer. `server.ts` only gives the owner a title and a switch.
 
