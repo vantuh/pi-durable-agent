@@ -1,5 +1,5 @@
 /**
- * How full the context is, in the middle of the status bar: the last answer's tokens (prompt, cache,
+ * How full the context is, under the composer: the last answer's tokens (prompt, cache,
  * and output: what the next request starts from) over the model's context window. Hovering it opens
  * what the context holds: system prompt sections and tools, with estimated sizes.
  */

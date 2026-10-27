@@ -1,4 +1,4 @@
-/** The git branch of the session's folder, for the status bar. */
+/** The git branch of the session's folder, beside its title. */
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -11,7 +11,7 @@ const run = promisify(execFile);
 
 export const meta = {
     title: "Git branch",
-    description: "Shows the git branch of the session's folder in the status bar.",
+    description: "Shows the git branch of the session's folder beside its title.",
 };
 
 export default function gitBranch(host: Host) {

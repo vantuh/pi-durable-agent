@@ -36,7 +36,7 @@ export const status: StatusProvider = ({ entries }) => {
     const percent = Math.round((cached / prompt) * 100);
 
     return {
-        slot: "start",
+        slot: "composer",
         label: "cache",
         text: `${String(percent)}%`,
         title: `${String(percent)}% of the input came from the cache`,

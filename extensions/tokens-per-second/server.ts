@@ -1,5 +1,5 @@
 /**
- * Output speed in the status bar. It needs no hook: every committed answer already carries its output
+ * Output speed under the composer. It needs no hook: every committed answer already carries its output
  * tokens and `durationMs`, the monotonic time from the request's start to its last token.
  */
 
@@ -42,6 +42,7 @@ export const status: StatusProvider = ({ entries }) => {
         const rate = output / (durationMs / 1000);
 
         return {
+            slot: "composer",
             text: `${rate < 9.95 ? rate.toFixed(1) : String(Math.round(rate))} tok/s`,
             title: `${rate.toFixed(1)} output tokens a second over the last answer, the wait for its first token included`,
         };

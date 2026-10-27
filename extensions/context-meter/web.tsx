@@ -173,7 +173,7 @@ function Context({ session }: StatusProps) {
                 aria-expanded={at !== null}
                 className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono"
             >
-                <span className="max-sm:hidden">context</span>
+                <span>context</span>
                 <span className="w-9">
                     <Bar fill={fill} className={toneOf(fill)} />
                 </span>
@@ -185,5 +185,5 @@ function Context({ session }: StatusProps) {
 }
 
 export default {
-    status: [{ id: "context", slot: "center", component: Context }],
+    status: [{ id: "context", slot: "composer", component: Context }],
 } satisfies WebExtension;

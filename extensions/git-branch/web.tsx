@@ -1,6 +1,7 @@
 import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -46,13 +47,13 @@ function Branch({ session }: StatusProps) {
     }
 
     return (
-        <span className="text-faint hidden shrink-0 items-center gap-1 font-mono sm:flex">
-            <GitBranch className="size-3" />
-            {name}
-        </span>
+        <Badge title={`Branch ${name}`} className="hidden max-w-40 sm:inline-flex">
+            <GitBranch />
+            <span className="truncate">{name}</span>
+        </Badge>
     );
 }
 
 export default {
-    status: [{ id: "branch", slot: "start", component: Branch }],
+    status: [{ id: "branch", slot: "title", component: Branch }],
 } satisfies WebExtension;
