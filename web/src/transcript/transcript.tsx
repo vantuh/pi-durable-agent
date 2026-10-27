@@ -350,7 +350,7 @@ export function Transcript({
 
     return (
         <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
-            <header className="border-edge-soft flex min-h-[45px] items-center justify-between gap-3 border-b px-3 py-1">
+            <header className="border-edge-soft flex min-h-[45px] items-center justify-between gap-3 border-b px-3 py-0.5">
                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                     <button
                         type="button"
@@ -360,7 +360,7 @@ export function Transcript({
                     >
                         <PanelLeft className="size-4" />
                     </button>
-                    <div className="flex min-w-0 flex-col">
+                    <div className="flex min-w-0 flex-col gap-0.5">
                         <h1 className="text-interface text-ink truncate leading-5 font-medium">
                             {title ?? "New session"}
                         </h1>
