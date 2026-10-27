@@ -262,7 +262,7 @@ function UsageLimits({ session }: StatusProps) {
                 onClick={() => {
                     setOpen((previous) => !previous);
                 }}
-                className="text-faint hover:text-ink hidden shrink-0 items-center gap-1.5 font-mono sm:flex"
+                className="text-faint hover:text-ink hover:bg-raised aria-expanded:bg-raised hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono sm:flex"
             >
                 {bucket === undefined ? (
                     <Gauge className="size-3.5" />
