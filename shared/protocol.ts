@@ -53,6 +53,15 @@ export type ClientEntry =
           /** An edit's diff as the tool wrote it: `+12 text`, `-12 text`, ` 12 text`, and `   ...` where lines are skipped. */
           diff?: string;
       }
+    | {
+          /**
+           * Where a compaction cut the active context: everything above it was summarized, and the summary is here.
+           * The entries above are still the conversation, they are just no longer what the model is sent.
+           */
+          id: number;
+          kind: "compaction";
+          summary?: string;
+      }
     | { id: number; kind: "other"; entryKind: string };
 
 export type ClientTool = {

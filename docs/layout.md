@@ -64,6 +64,10 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       words the reader was looking at do not move. Nothing is asked for once the first entry is on
       screen, and nothing the server rewrites can take loaded entries away: the list is an upsert by
       id (`web/src/lib/conversation-state.ts`).
+    - **Where a compaction cut**: a line across the transcript, `earlier messages were compacted`, with
+      the summary the model was handed under it (folded, opened by a tap). The messages above it stay
+      on screen: they are the conversation, they are just no longer what the model is sent. The mark
+      is `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.
     - A person's message: a `raised` card on the right, at most 80% wide.
     - An answer: plain prose at 15px, no card, no name. Above it, one mono line of statistics:
       `model · level` on the left, `↑context ↓output · $cost · time` on the right (the turn's newest

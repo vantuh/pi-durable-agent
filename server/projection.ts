@@ -189,6 +189,17 @@ function filesOf(value: unknown): ClientAttachment[] {
     });
 }
 
+/** The summary a compaction wrote, out of the message that carries it: the sentences around the tags say nothing new. */
+function summaryOf(message: Record<string, unknown> | undefined): string | undefined {
+    const text = textOf(message?.["content"]);
+    const open = text.indexOf("<summary>");
+    const close = text.lastIndexOf("</summary>");
+    const summary = open < 0 || close <= open ? text : text.slice(open + "<summary>".length, close);
+    const kept = summary.trim();
+
+    return kept === "" ? undefined : kept;
+}
+
 /** One entry for the browser, or `undefined` for bookkeeping the screen never shows. */
 export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
     const id = Number(entry.id);
@@ -247,6 +258,12 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
                 ...(durationMs === undefined ? {} : { durationMs }),
                 ...(diff === undefined ? {} : { diff }),
             };
+        }
+
+        case "pi.compaction": {
+            const summary = summaryOf(message);
+
+            return { id, kind: "compaction", ...(summary === undefined ? {} : { summary }) };
         }
 
         default:

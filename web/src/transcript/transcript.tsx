@@ -1,6 +1,7 @@
-import { CircleAlert, PanelLeft, Settings as SettingsIcon } from "lucide-react";
+import { ChevronRight, CircleAlert, PanelLeft, Settings as SettingsIcon } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -96,6 +97,44 @@ function ErrorNotice({ text }: { text: string }) {
     );
 }
 
+const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1" />;
+
+/**
+ * Where a compaction cut the context: a line, and the summary the model was handed instead of everything above it.
+ * The messages above stay on screen — they are the conversation, they are just no longer what is sent.
+ */
+function CompactionMark({ summary }: { summary?: string }) {
+    const label = <span className="text-meta text-faint">earlier messages were compacted</span>;
+
+    if (summary === undefined) {
+        return (
+            <div className="flex items-center gap-3">
+                <Rule />
+                {label}
+                <Rule />
+            </div>
+        );
+    }
+
+    return (
+        <Collapsible className="group/fold flex flex-col gap-2">
+            <CollapsibleTrigger className="text-muted hover:text-ink flex items-center gap-3 text-left">
+                <Rule />
+                <span className="flex shrink-0 items-center gap-1.5">
+                    <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
+                    {label}
+                </span>
+                <Rule />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <div className="rounded-card border-edge-soft bg-panel border px-3 py-2.5">
+                    <Markdown text={summary} />
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
+    );
+}
+
 function TurnItem({ item }: { item: Item }) {
     if (item.type === "activity") {
         return <ActivityGroup item={item} />;
@@ -111,6 +150,7 @@ function TurnItem({ item }: { item: Item }) {
 function TurnView({ turn }: { turn: Turn }) {
     return (
         <div className="flex flex-col gap-3">
+            {turn.compacted === undefined ? null : <CompactionMark {...turn.compacted} />}
             {turn.user === undefined ? null : (
                 <div className="flex justify-end">
                     <div className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2">

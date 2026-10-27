@@ -117,6 +117,26 @@ void describe("turnsOf", () => {
         assert.equal(streaming[0]?.items[0]?.key, stored[0]?.items[0]?.key);
         assert.equal(streaming[0]?.live, true);
     });
+
+    void it("keeps the messages on both sides of a compaction, split where it cut", () => {
+        const entries: ClientEntry[] = [
+            { id: 1, kind: "user", text: "before" },
+            { id: 2, kind: "assistant", blocks: [{ type: "text", text: "an answer" }] },
+            { id: 3, kind: "compaction", summary: "## Goal\nship it" },
+            { id: 4, kind: "user", text: "after" },
+        ];
+
+        const turns = turnsOf(entries, IDLE);
+
+        assert.deepEqual(
+            turns.map((turn) => turn.user?.text ?? "compacted"),
+            ["before", "compacted", "after"],
+            "the marker sits between the messages it was written between",
+        );
+        assert.equal(turns[1]?.compacted?.summary, "## Goal\nship it");
+        assert.equal(turns[1]?.items.length, 0, "and carries no answer of its own");
+        assert.equal(new Set(turns.map((turn) => turn.key)).size, 3, "keys stay unique");
+    });
 });
 
 void describe("outcomeOf", () => {

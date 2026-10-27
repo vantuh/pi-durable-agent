@@ -162,6 +162,57 @@ void describe("historyPage", () => {
         );
     });
 
+    void it("hands a compaction marker to the browser with the summary it wrote", async () => {
+        await withConversation(
+            async (conversation) => {
+                await appendTurn(conversation, "the last question before the cut");
+                await conversation.commit(
+                    (tx) =>
+                        tx.appendEntry(conversation.id, {
+                            kind: "pi.compaction",
+                            head: "self",
+                            model: [
+                                {
+                                    role: "user",
+                                    timestamp: Date.now(),
+                                    content: [
+                                        {
+                                            type: "text",
+                                            text: "The conversation history before this point was compacted into the following summary:\n\n<summary>\n## Goal\nship it\n</summary>",
+                                        },
+                                    ],
+                                },
+                            ],
+                        }),
+                    BACKGROUND_CONTEXT,
+                );
+            },
+            async (conversation) => {
+                const newest = (
+                    await conversation.entries(
+                        { order: "descending" },
+                        1,
+                        undefined,
+                        BACKGROUND_CONTEXT,
+                    )
+                ).items[0];
+                assert.ok(newest !== undefined);
+
+                const page = await historyPage({
+                    conversation,
+                    context: BACKGROUND_CONTEXT,
+                    before: Number(newest.id) + 1,
+                });
+
+                assert.deepEqual(page.entries.at(-1), {
+                    id: Number(newest.id),
+                    kind: "compaction",
+                    summary: "## Goal\nship it",
+                });
+            },
+        );
+    });
+
     void it("answers nothing more before the start of the conversation", async () => {
         await withConversation(
             (conversation) => appendTurn(conversation, "the only question"),
