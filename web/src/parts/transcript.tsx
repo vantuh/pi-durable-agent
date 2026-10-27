@@ -247,7 +247,10 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                     },
                 }}
             >
-                <div ref={content} className="mx-auto flex max-w-[46rem] flex-col gap-4">
+                <div
+                    ref={content}
+                    className="mx-auto flex max-w-[var(--chat-width)] flex-col gap-4"
+                >
                     {turns.map((turn) => (
                         <TurnView key={turn.key} turn={turn} />
                     ))}

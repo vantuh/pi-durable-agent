@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour, currentFlavour } from "../lib/flavour.ts";
+import type { Width } from "../lib/width.ts";
+import { WIDTH_NAMES, applyWidth, currentWidth } from "../lib/width.ts";
 
 const DOTS = ["red", "yellow", "green", "pink", "blue", "mauve"] as const;
 
@@ -41,9 +43,12 @@ export function AppearanceButton() {
             >
                 <DialogHeader>
                     <DialogTitle>Appearance</DialogTitle>
-                    <DialogDescription>Pick a theme. It applies at once.</DialogDescription>
+                    <DialogDescription>
+                        Pick a theme and a chat width. They apply at once.
+                    </DialogDescription>
                 </DialogHeader>
                 <FlavourGrid />
+                <WidthPicker />
             </DialogContent>
         </Dialog>
     );
@@ -83,6 +88,39 @@ function FlavourGrid() {
                 ))}
             </div>
         </ScrollArea>
+    );
+}
+
+function WidthPicker() {
+    const [active, setActive] = useState<Width>(currentWidth);
+
+    return (
+        <div className="border-edge-soft flex items-center justify-between gap-3 border-t p-3">
+            <div className="flex min-w-0 flex-col">
+                <span className="text-interface text-ink">Width</span>
+                <span className="text-meta text-faint">
+                    Wide screens: how much room the conversation and message box take.
+                </span>
+            </div>
+            <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
+                {WIDTH_NAMES.map((width) => (
+                    <button
+                        key={width}
+                        type="button"
+                        aria-pressed={width === active}
+                        onClick={() => {
+                            applyWidth(width);
+                            setActive(width);
+                        }}
+                        className={`rounded-control text-interface px-2 py-1 capitalize ${
+                            width === active ? "bg-raised text-ink" : "text-muted"
+                        }`}
+                    >
+                        {width}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
 
