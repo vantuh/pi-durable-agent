@@ -532,16 +532,6 @@ export function Composer({
                     </button>
 
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                        {busy ? (
-                            <button
-                                type="button"
-                                onClick={onStop}
-                                title="Stop"
-                                className="rounded-control bg-danger/20 text-danger hover:bg-danger/30 flex size-7 items-center justify-center"
-                            >
-                                <Square className="size-3 fill-current" />
-                            </button>
-                        ) : null}
                         <ComposerItems
                             session={session}
                             field={field}
@@ -552,6 +542,16 @@ export function Composer({
                             }}
                             onSent={onSent}
                         />
+                        {busy ? (
+                            <button
+                                type="button"
+                                onClick={onStop}
+                                title="Stop"
+                                className="rounded-control bg-danger/20 text-danger hover:bg-danger/30 flex size-7 items-center justify-center"
+                            >
+                                <Square className="size-3 fill-current" />
+                            </button>
+                        ) : null}
                         <div
                             className="relative flex items-center"
                             onBlur={(event) => {

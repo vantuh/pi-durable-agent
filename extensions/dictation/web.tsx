@@ -77,7 +77,7 @@ function MicButton({ field, setText, onSent }: ComposerProps) {
             onClick={() => {
                 dictation.current?.toggle();
             }}
-            className={`rounded-control relative flex size-7 items-center justify-center ${
+            className={`rounded-control relative mr-1 flex size-7 items-center justify-center ${
                 listening ? "bg-accent/20 text-accent" : "text-muted hover:text-ink hover:bg-raised"
             }`}
         >
