@@ -25,7 +25,7 @@ import { commitAnnouncer } from "./commit-announcer.ts";
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
-import { sameOrigin } from "./same-origin.ts";
+import { knownHost, sameOrigin } from "./same-origin.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
 import { expandSkillCommand, skillsFor } from "./skills.ts";
 import { serveStatic } from "./static.ts";
@@ -323,6 +323,12 @@ function contentOf(files: readonly string[], text: string): Promise<Content> {
 
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+    if (!knownHost(request.headers.host)) {
+        answer(response, 403, { error: "unknown host" });
+
+        return;
+    }
 
     if (url.pathname.startsWith("/api/") && !sameOrigin(request.headers)) {
         answer(response, 403, { error: "cross-origin requests are not allowed" });
