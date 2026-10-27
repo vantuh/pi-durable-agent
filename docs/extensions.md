@@ -555,7 +555,9 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   whose cache is already cold is not listed: it is not being warmed, and a ping would only pay to
   rebuild it. Each row is named through `sessionTitle`, so it says what the sidebar says, a rename
   included; when the core has no name yet — nothing asked, nothing written — the row falls back to
-  the folder the conversation works in, and to nothing else.
+  the folder the conversation works in, and to nothing else. A conversation the core can no longer
+  build a request for — deleted, unknown, or with no model chosen — is forgotten on the next tick,
+  so the list stops promising a ping that cannot run.
 
 The host members it uses are the two core seams: `sessionRequest(session)` answers the
 conversation's model, the messages its next request would send, and `send(messages, signal)`, one

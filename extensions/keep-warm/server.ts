@@ -105,7 +105,14 @@ async function tick(host: Host): Promise<void> {
 
         const request = await host.sessionRequest(session);
 
-        if (request === undefined || request.model.provider !== PROVIDER) {
+        if (request === undefined) {
+            // Nothing can be sent to it any more: deleted, unknown, or no model chosen. Forget it, so
+            // the popover stops promising a ping that will never run.
+            seen.delete(session);
+            continue;
+        }
+
+        if (request.model.provider !== PROVIDER) {
             continue;
         }
 

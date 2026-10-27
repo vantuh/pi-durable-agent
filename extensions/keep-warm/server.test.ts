@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
+import { setTimeout } from "node:timers/promises";
 
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
@@ -23,6 +24,34 @@ import {
 
 const now = Date.parse("2026-10-24T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
+
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a written entry, without the harness that brands its ids
+const entry = (value: object): EntryRecord => value as unknown as EntryRecord;
+const asked = (id: number, text: string, timestamp: number): EntryRecord =>
+    entry({
+        id,
+        conversationId: id,
+        kind: "pi.user",
+        data: { text },
+        model: [{ role: "user", content: text, timestamp }],
+    });
+const answered = (id: number, timestamp: number): EntryRecord =>
+    entry({
+        id,
+        conversationId: id,
+        kind: "pi.assistant",
+        model: [
+            {
+                role: "assistant",
+                provider: "anthropic",
+                model: "opus",
+                stopReason: "stop",
+                timestamp,
+                usage: { cacheRead: 1_000, cacheWrite: 0 },
+                content: [],
+            },
+        ],
+    });
 
 void test("pings in the last minutes of the cache hour while the user was here recently", () => {
     assert.equal(due({ now, lastRequest: now - LEAD, inputAt: now - minutes(70) }), true);
@@ -79,8 +108,6 @@ void test("a commit gives the user's latest input, the newest cached answer and 
         entries,
         busy,
     });
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a written entry, without the harness that brands its ids
-    const entry = (value: object) => value as unknown as EntryRecord;
     const user = (timestamp: number) =>
         entry({
             id: 1,
@@ -270,33 +297,6 @@ void test("names the warmed conversations with the titles the core keeps", async
         // Session 3 has no title yet, so the folder the commits alone name it by has to stand.
         sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
     };
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a written entry, without the harness that brands its ids
-    const entry = (value: object) => value as unknown as EntryRecord;
-    const asked = (id: number, text: string, timestamp: number) =>
-        entry({
-            id,
-            conversationId: id,
-            kind: "pi.user",
-            data: { text },
-            model: [{ role: "user", content: text, timestamp }],
-        });
-    const answered = (id: number, timestamp: number) =>
-        entry({
-            id,
-            conversationId: id,
-            kind: "pi.assistant",
-            model: [
-                {
-                    role: "assistant",
-                    provider: "anthropic",
-                    model: "opus",
-                    stopReason: "stop",
-                    timestamp,
-                    usage: { cacheRead: 1_000, cacheWrite: 0 },
-                    content: [],
-                },
-            ],
-        });
     const at = Date.now();
 
     // The timer outlives a failed assertion, so it has to be cleared even then.
@@ -329,6 +329,67 @@ void test("names the warmed conversations with the titles the core keeps", async
             ],
         });
     } finally {
+        for (const dispose of disposers) {
+            await dispose();
+        }
+
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+void test("forgets a conversation nothing can be sent to, so the popover stops promising a ping", async () => {
+    // The tick's minute is fired by hand: waiting for it is the one thing a test cannot do.
+    mock.timers.enable({ apis: ["setInterval"] });
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    const commits: CommitListener[] = [];
+    const disposers: (() => void | Promise<void>)[] = [];
+    const host: Host = {
+        name: "keep-warm",
+        cwd: dir,
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: (listener) => {
+            commits.push(listener);
+        },
+        onDispose: (dispose) => {
+            disposers.push(dispose);
+        },
+        shapeModelRequests: () => undefined,
+        wrapModelFetch: () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
+        // Deleted: the core refuses to build a request for it, so no ping can be sent.
+        sessionRequest: () => Promise.resolve(undefined),
+        sessionTitle: () => Promise.resolve(null),
+    };
+    const at = Date.now();
+    const sessions = async (): Promise<unknown> =>
+        await actions(host)["state"]?.({ args: undefined, session: null });
+
+    try {
+        await keepWarm(host);
+        await commits[0]?.({
+            session: { id: 4, cwd: "/work/mcp" },
+            entries: [
+                asked(4, "how do I plug mcp in", at - minutes(10)),
+                answered(4, at - minutes(9)),
+            ],
+            busy: false,
+        });
+
+        // The list is built from the commits alone, so it promises a ping before the tick has looked.
+        assert.deepEqual(await sessions(), {
+            on: true,
+            sessions: [{ id: 4, label: "mcp", nextAt: at - minutes(9) + LEAD }],
+        });
+
+        mock.timers.tick(60_000);
+        await setTimeout(50);
+
+        assert.deepEqual(await sessions(), { on: true, sessions: [] }, "the row is gone");
+    } finally {
+        mock.timers.reset();
+
         for (const dispose of disposers) {
             await dispose();
         }
