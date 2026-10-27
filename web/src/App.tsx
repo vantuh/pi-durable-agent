@@ -215,7 +215,7 @@ export function App() {
                                 onSessions={() => {
                                     setSheet(true);
                                 }}
-                                beside={<StatusItems slot="title" session={activeSession} />}
+                                below={<StatusItems slot="title" session={activeSession} />}
                             />
 
                             <div className="relative">

@@ -91,7 +91,7 @@ export const status: StatusProvider = ({ entries, contextWindow }) => ({
 
 The field may name a `slot`: `start`, `center`, or `end` (the default) of the status bar, for what is
 about the app; `composer`, the line under the composer, for what one conversation used; or `title`,
-right after the conversation's title. It may also have a
+in a small line under the conversation's title. It may also have a
 `label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
 model's window from the catalog. Below `sm`, `end` fields are hidden and a `center` field loses its label.
 `extensions/context-meter` draws its own `composer` item in `web.tsx` instead, because it opens a popup on hover; its server half serves the breakdown as an action and reads `host.contextWindow`.

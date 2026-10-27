@@ -47,7 +47,10 @@ function Branch({ session }: StatusProps) {
     }
 
     return (
-        <Badge title={`Branch ${name}`} className="hidden max-w-40 sm:inline-flex">
+        <Badge
+            title={`Branch ${name}`}
+            className="hidden h-4 max-w-40 px-1.5 sm:inline-flex [&>svg]:size-2.5"
+        >
             <GitBranch />
             <span className="truncate">{name}</span>
         </Badge>

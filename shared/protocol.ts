@@ -86,7 +86,7 @@ export type ClientStatus = {
     source: string;
     /**
      * Where it sits. `start`, `center`, `end`: the status bar, for what is about the app. `composer`: beside the
-     * model chip, for what one conversation used. `title`: right after the conversation's title.
+     * model chip, for what one conversation used. `title`: a small line under the conversation's title.
      */
     slot: "start" | "center" | "end" | "composer" | "title";
     text: string;
