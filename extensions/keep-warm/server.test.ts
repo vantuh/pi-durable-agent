@@ -124,9 +124,17 @@ void test("a commit gives the user's latest input, the newest cached answer and 
         busy: true,
     });
 
+    // A later question does not rename the session: the first one names it, as the sidebar does.
+    observe(seen, view([user(now - minutes(1))]));
+    assert.equal(seen.get(7)?.label, "why does the fold close");
+
     // A session asked nothing yet is named after its folder.
     observe(seen, { session: { id: 8, cwd: "/work/pi-durable-agent" }, entries: [], busy: false });
     assert.equal(seen.get(8)?.label, "pi-durable-agent");
+
+    // The folder outlives the questions the view no longer holds, so the name does not flicker.
+    observe(seen, { session: { id: 7, cwd: "/work/pi-durable-agent" }, entries: [], busy: false });
+    assert.equal(seen.get(7)?.label, "why does the fold close");
 });
 
 void test("lists the conversations a ping is coming for, the one asked last first", () => {

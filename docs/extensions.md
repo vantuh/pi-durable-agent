@@ -524,8 +524,10 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   it is on, dim while it is off. The popover has the switch, "Warm until 14:52" or "Cold since …",
   the next ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
 - **The switch is one for every conversation.** A ping is a spend, so the popover also lists what it
-  is spent on: "Also warming", one row per other conversation with a ping coming, named by what it
-  was last asked (or its folder) and the time of that ping, the most recently asked first. Rows come
+  is spent on: "Also warming", one row per other conversation with a ping coming, the most recently
+  asked first, with the time of that ping. A row is named by the title the sidebar shows, read from
+  `/api/sessions` when the popover opens; without one it falls back to the conversation's first
+  question and then to its folder, so two sessions in the same folder are never told apart by it. Rows come
   from the commits and the state file — the same data the tick reads — so the list never promises a
   ping the tick will not send. A conversation whose cache is already cold is not listed: it is not
   being warmed, and a ping would only pay to rebuild it.

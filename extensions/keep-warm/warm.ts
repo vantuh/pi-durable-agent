@@ -33,17 +33,33 @@ export function cached(message: AssistantMessage): boolean {
     );
 }
 
-/** The text an entry was asked with, or the folder it works in: enough to tell two sessions apart. */
-function labelOf(entry: CommitView["entries"][number] | undefined, cwd: string | null): string {
-    const data = entry?.data;
-    const asked = typeof data === "object" && data !== null ? Reflect.get(data, "text") : undefined;
-    const text = typeof asked === "string" ? asked : "";
-    const line = text.split("\n")[0]?.trim() ?? "";
+type Entry = CommitView["entries"][number];
 
-    if (line !== "") {
-        return line.length > 32 ? `${line.slice(0, 32)}…` : line;
+/**
+ * What an entry was asked with, one line: the session's name when the popover has no better one.
+ * The argument, the browser's title and the harness's own auto-title all come from the first question.
+ */
+function askedOf(entry: Entry): string | undefined {
+    const data = entry.data;
+    const chosen =
+        typeof data === "object" && data !== null ? Reflect.get(data, "text") : undefined;
+    const content = entry.model?.[0]?.content;
+    const blocks = Array.isArray(content)
+        ? content.find((part) => part.type === "text")?.text
+        : undefined;
+    const text =
+        typeof chosen === "string" ? chosen : typeof content === "string" ? content : blocks;
+    const line = (text ?? "").split("\n")[0]?.trim() ?? "";
+
+    if (line === "") {
+        return undefined;
     }
 
+    return line.length > 32 ? `${line.slice(0, 32)}…` : line;
+}
+
+/** The folder a session works in, for one that has not been asked anything yet. */
+function folderOf(cwd: string | null): string {
     return (
         cwd
             ?.split("/")
@@ -58,14 +74,17 @@ export function observe(seen: Map<number, Seen>, view: CommitView): void {
     const known = seen.get(id);
     let inputAt = known?.inputAt;
     let cachedAt = known?.cached;
-    let label = known?.label;
+    let asked: string | undefined;
 
     for (const entry of view.entries) {
         const message = entry.model?.[0];
 
-        if (message?.role === "user" && (inputAt === undefined || message.timestamp > inputAt)) {
-            inputAt = message.timestamp;
-            label = labelOf(entry, view.session.cwd);
+        if (message?.role === "user") {
+            if (inputAt === undefined || message.timestamp > inputAt) {
+                inputAt = message.timestamp;
+            }
+            // The first question names the session, as the sidebar's automatic title does.
+            asked ??= askedOf(entry);
         }
 
         if (
@@ -80,7 +99,7 @@ export function observe(seen: Map<number, Seen>, view: CommitView): void {
     seen.set(id, {
         ...(inputAt === undefined ? {} : { inputAt }),
         ...(cachedAt === undefined ? {} : { cached: cachedAt }),
-        label: label ?? labelOf(undefined, view.session.cwd),
+        label: asked ?? known?.label ?? folderOf(view.session.cwd),
         busy: view.busy,
     });
 }
