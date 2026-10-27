@@ -190,6 +190,11 @@ body {
     opacity: 0.55;
 }
 
+/* Finished while nobody was looking. */
+.state-mark.fresh {
+    background: currentColor;
+}
+
 .state-mark.working::before,
 .state-mark.working::after {
     content: "";

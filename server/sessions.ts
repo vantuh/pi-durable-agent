@@ -70,6 +70,7 @@ export type SessionSummary = {
     busy: boolean;
     archived: boolean;
     activeAt: number | null;
+    endedAt?: number;
 };
 
 export type Opened = {
@@ -211,7 +212,10 @@ export class Sessions {
         return ids;
     }
 
-    async list(busy: (id: ConversationId) => boolean): Promise<SessionSummary[]> {
+    async list(
+        busy: (id: ConversationId) => boolean,
+        endedAt: (id: ConversationId) => number | undefined = () => undefined,
+    ): Promise<SessionSummary[]> {
         const page = await this.#harness.commit(
             (tx) => tx.scanConversations({}, 100),
             this.#context,
@@ -228,6 +232,8 @@ export class Sessions {
             const agent = await conversation.agent(this.#context);
             const cwd = agent.cwd ?? null;
 
+            const ended = endedAt(record.id);
+
             summaries.push({
                 id: record.id,
                 title: await this.#title(record.id),
@@ -243,6 +249,7 @@ export class Sessions {
                     this.#context,
                 ),
                 activeAt: await this.#activeAt(record.id),
+                ...(ended === undefined ? {} : { endedAt: ended }),
             });
         }
 

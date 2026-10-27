@@ -84,6 +84,7 @@ type Client = { response: ServerResponse; session: number };
 
 const clients = new Set<Client>();
 const busy = new Map<number, boolean>();
+const endedAt = new Map<number, number>();
 const latest = new Map<number, { opened: Opened; view: View }>();
 
 let models: ModelRuntime;
@@ -146,6 +147,10 @@ function publish(opened: Opened, view: View): void {
     const live = liveOf(view);
 
     latest.set(opened.id, { opened, view });
+    if (busy.get(opened.id) === true && !live.busy) {
+        endedAt.set(opened.id, Date.now());
+    }
+
     busy.set(opened.id, live.busy);
     broadcast({ type: "live", session: opened.id, live });
 }
@@ -434,7 +439,10 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     if (url.pathname === "/api/sessions" && request.method === "GET") {
-        const list = await sessions.list((id) => busy.get(id) === true);
+        const list = await sessions.list(
+            (id) => busy.get(id) === true,
+            (id) => endedAt.get(id),
+        );
 
         answer(response, 200, { sessions: list });
         return;

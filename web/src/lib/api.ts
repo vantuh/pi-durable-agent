@@ -97,6 +97,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
             busy: row?.["busy"] === true,
             archived: row?.["archived"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
+            ...(typeof row?.["endedAt"] === "number" ? { endedAt: row["endedAt"] } : {}),
         });
     }
 

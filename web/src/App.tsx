@@ -102,6 +102,22 @@ export function App() {
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run starting, ending or adding a message is the trigger: a title, a time and a busy dot change then
     }, [state.live.busy, state.entries.length]);
 
+    // Only the open session streams; the rest are known by asking, for as long as any is at work.
+    const someBusy = sessions.some((session) => session.busy);
+
+    useEffect(() => {
+        const tick = setInterval(() => {
+            if (someBusy) {
+                void reload();
+            }
+        }, 4000);
+
+        return () => {
+            clearInterval(tick);
+        };
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `reload` only sets state from a fetch
+    }, [someBusy]);
+
     const active = sessions.find((session) => session.id === current);
     const model = shortName(active?.model ?? null);
     const activeSession =

@@ -120,6 +120,8 @@ export type SessionSummary = {
     busy: boolean;
     /** When a person last wrote to the session, or created it; null while unknown. */
     activeAt: number | null;
+    /** When the latest run ended, on the server's clock; absent until one ends while the server is up. */
+    endedAt?: number;
 };
 
 /** One model the picker offers. */
