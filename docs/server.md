@@ -7,6 +7,7 @@ POST /api/messages  ──▶ conversation.submit()  ──▶ durable generatio
                                               │ commits
                                               ▼
 GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
+GET /api/history        { entries, more } of the durable log, older than `before`
 GET /api/health         { ok, model, cwd, home, session }
 GET /api/extensions     { installed, failed, extensions: [{ name, title, description, enabled, installed, error? }] }
 PUT /api/extensions/:name   { enabled: boolean } → the new list entry (400 bad body, 404 unknown folder)
@@ -14,6 +15,7 @@ POST /api/abort         stops the current run
 ```
 
 - `server/main.ts` — the HTTP surface, the harness, the subscription.
+- `server/history.ts` — the older transcript, paged back from the entry log.
 - `server/extensions.ts` — the loader ([extensions.md](extensions.md)).
 - `server/projection.ts` — the harness's committed view → `shared/protocol.ts`.
 - `shared/protocol.ts` — the only contract the browser sees.
@@ -23,6 +25,26 @@ POST /api/abort         stops the current run
 `root.viewState()` is committed state. Every event on the wire is derived from it, never from a
 stream handler. A browser that connects mid-run gets a `hello` with the whole transcript and the
 live state, so nothing has to be replayed and nothing can arrive out of order.
+
+## The view is not the whole conversation
+
+The view is the **active** transcript: it starts at the newest head marker. A compaction — automatic
+when a request would not fit the model's window, and a model with a smaller window can bring that on
+by itself — writes a `pi.compaction` entry with a head, and from then on the view no longer carries
+anything before it. The entries are still in storage; they are simply not in the view.
+
+So the start of a long conversation is reached through `GET /api/history`, not through the stream:
+
+```text
+GET /api/history?session=7&before=7463   → { entries: [...], more: false }
+```
+
+`before` is the oldest entry the browser already has; the answer is older than it, oldest entry
+first. `server/history.ts` reads the entry log (`conversation.entries()`, descending with its
+cursor) and ends a page at a question, so a page never starts in the middle of a turn: a `toolResult`
+without the assistant that called it would be dropped by the transcript's grouping. `more` says
+whether older entries are left. Nothing here is cached: the log is append-only, so a page asked for
+twice is the same page.
 
 ## Entries: tail or replace
 

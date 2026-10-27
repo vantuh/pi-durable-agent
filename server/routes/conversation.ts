@@ -7,6 +7,7 @@ import { basename, extname } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 
+import { historyPage } from "../history.ts";
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
 import { expandSkillCommand, skillsFor } from "../skills.ts";
@@ -80,6 +81,39 @@ export function conversationRoutes(deps: {
                 }
 
                 await deps.stream(response, opened);
+            },
+        },
+        {
+            method: "GET",
+            path: /^\/api\/history$/,
+            handle: async (_request, response, url) => {
+                const id = querySession(url);
+                const raw = url.searchParams.get("before");
+                const before = raw === null ? undefined : sessionIdOf(Number(raw));
+
+                if (raw !== null && before === undefined) {
+                    answer(response, 400, { error: "before must be a positive entry id" });
+
+                    return;
+                }
+
+                const opened = await attach(id);
+
+                if (opened === undefined) {
+                    answer(response, 404, { error: "no such session" });
+
+                    return;
+                }
+
+                answer(
+                    response,
+                    200,
+                    await historyPage({
+                        conversation: opened.conversation,
+                        context,
+                        ...(before === undefined ? {} : { before }),
+                    }),
+                );
             },
         },
         {

@@ -104,6 +104,16 @@ export type ClientLive = {
     status?: ClientStatus[];
 };
 
+/**
+ * Older entries, as `GET /api/history` answers them: the durable transcript, oldest of the page first. The event
+ * stream only carries the active view, which starts at the newest compaction; this is how the start is reached.
+ */
+export type ClientHistory = {
+    entries: ClientEntry[];
+    /** Older entries exist: ask again with this page's first id as `before`. */
+    more: boolean;
+};
+
 export type ExtensionNotice = { level: "success" | "error"; message: string };
 
 export type ServerEvent = { session: number } & (
