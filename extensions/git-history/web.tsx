@@ -6,7 +6,7 @@ import {
     RefreshCw,
     LoaderCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     Dialog,
@@ -119,6 +119,8 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
     const [issue, setIssue] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [starting, setStarting] = useState(false);
+    const [closing, setClosing] = useState(false);
+    const pendingStart = useRef<Promise<ReviewState | null> | null>(null);
     const [viewer, setViewer] = useState(false);
     const id = session.id;
 
@@ -189,14 +191,39 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
     async function begin(target: string) {
         setStarting(true);
         setIssue(null);
+        const request = callAction(start, { target }, id);
+        pendingStart.current = request;
         try {
-            const found = await callAction(start, { target }, id);
+            const found = await request;
             setState(found);
             setViewer(true);
         } catch (error) {
             setIssue(errorText(error));
         } finally {
+            pendingStart.current = null;
             setStarting(false);
+        }
+    }
+    async function closeDialog() {
+        if (closing) {
+            return;
+        }
+        setClosing(true);
+        try {
+            // A close must not overtake an in-flight start; begin reports its own errors.
+            await pendingStart.current?.catch(() => undefined);
+            const current = await callAction(review, undefined, id);
+            setState(
+                current !== null && running(current)
+                    ? await callAction(cancel, { id: current.id }, id)
+                    : current,
+            );
+            setViewer(false);
+            setOpen(false);
+        } catch (error) {
+            setIssue(errorText(error));
+        } finally {
+            setClosing(false);
         }
     }
     async function stopReview() {
@@ -210,7 +237,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             setIssue(errorText(error));
         }
     }
-    const canStart = !starting && !running(state);
+    const canStart = !starting && !closing && !running(state);
     const row = (target: string, title: string, detail: string, marker?: "local" | "remote") => (
         <li key={target} className="border-edge-soft border-b">
             <div className="flex items-center gap-2 px-3 py-3">
@@ -266,7 +293,16 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             >
                 <HistoryIcon className="size-4" />
             </button>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog
+                open={open}
+                onOpenChange={(value) => {
+                    if (value) {
+                        setOpen(true);
+                    } else {
+                        void closeDialog();
+                    }
+                }}
+            >
                 <DialogContent className="sm:inset-3 sm:max-h-none sm:w-auto sm:max-w-none sm:translate-x-0 sm:translate-y-0">
                     <DialogHeader>
                         <DialogTitle>
@@ -334,6 +370,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                 <button
                                     type="button"
                                     className={button}
+                                    disabled={closing}
                                     onClick={() => {
                                         void stopReview();
                                     }}

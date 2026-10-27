@@ -22,7 +22,7 @@ const server=http.createServer((req,res)=>{
  if(req.url==='/api/echo'){let text='';req.on('data',c=>text+=c);req.on('end',()=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({body:text,origin:req.headers.origin,cookie:req.headers.cookie??null,authorization:req.headers.authorization??null}));});return;}
  res.writeHead(404);res.end();
 });
-server.listen(0,'127.0.0.1',()=>console.error('Plannotator session ready: http://localhost:'+server.address().port));
+server.listen(0,'127.0.0.1',()=>setTimeout(()=>console.error('Plannotator session ready: http://localhost:'+server.address().port),process.env.SLOW_REVIEW?1000:0));
 `;
 async function until(predicate: () => boolean): Promise<void> {
     const deadline = Date.now() + 5000;
@@ -129,6 +129,19 @@ void describe("embedded review lifecycle and proxy", () => {
         await until(() => reviews.state(1)?.state === "running");
         await reviews.dispose();
         assert.equal(reviews.state(1), null);
+    });
+    void it("stops the child even while Plannotator is still starting", async () => {
+        await reviews.dispose();
+        reviews = new Reviews("/http", { command, env: { ...process.env, SLOW_REVIEW: "1" } });
+        const view = reviews.start(1, repo, "worktree");
+        await until(() => reviews.jobs.get(1)?.child?.pid !== undefined);
+        const child = reviews.jobs.get(1)?.child;
+        assert.ok(child);
+        assert.equal(reviews.state(1)?.state, "starting");
+        await reviews.cancel(1, view.id);
+        assert.equal(reviews.state(1)?.state, "cancelled");
+        assert.ok(child.exitCode !== null || child.signalCode !== null);
+        assert.equal(reviews.find(view.id), undefined);
     });
     void it("reports missing CLI and startup errors", async () => {
         await reviews.dispose();

@@ -39,9 +39,11 @@ Requires `plannotator` on the **server process's PATH**. Tested with 0.28.27. No
 is involved in opening Review. The read-only preview uses `@pierre/diffs`; the interactive
 review UI still comes from the installed CLI, not a bundled Plannotator package.
 
-One process per session. Closing the dialog leaves it running: reopen History and **Resume review**.
-Cancel stops it explicitly. Disabling/removing/reloading the extension, or stopping the server,
-stops its processes. Startup times out after 45 seconds; a running review expires after two hours.
+One process per session. Closing the outer dialog (×, Escape or an outside click) cancels an
+active review and waits for its process to stop, including a review still starting. If cancellation
+fails, the dialog stays open with the error so it can be retried. **History** only hides the iframe;
+**Resume review** returns to it without stopping the process. **Cancel review** also stops it
+explicitly. Disabling/removing/reloading the extension, or stopping the server, stops its processes. Startup times out after 45 seconds; a running review expires after two hours.
 Session/decision tracking is ephemeral and resets on server restart. Plannotator's own drafts,
 preferences and feedback history follow its installed configuration. The app's composer drafts
 currently survive session switching, not a page reload.
