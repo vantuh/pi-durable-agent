@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import type { SessionSummary } from "../../shared/protocol.ts";
 import { Composer } from "./composer/composer.tsx";
 import { ModelMenu } from "./composer/model-menu.tsx";
 import { usePanels } from "./extensions.ts";
@@ -20,6 +19,7 @@ import {
 import { useConversation } from "./lib/conversation.ts";
 import { sessionFromSearch } from "./lib/deep-link.ts";
 import { useSeen } from "./lib/seen.ts";
+import { useSessionList } from "./lib/session-list.ts";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { PanelButtons, PanelHost, panelKey } from "./shell/panels.tsx";
@@ -42,7 +42,7 @@ function shortName(model: string | null): string {
 
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
-    const [sessions, setSessions] = useState<SessionSummary[]>([]);
+    const [sessions, setSessions] = useSessionList();
     const [current, setCurrent] = useState<number | null>(null);
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
@@ -65,7 +65,6 @@ export function App() {
             }
 
             setHealth(info);
-            setSessions(rows);
             const linked = rows.find((row) => row.id === sessionFromSearch(location.search));
             const saved = rows.find((row) => String(row.id) === localStorage.getItem(SESSION_KEY));
 
@@ -83,42 +82,10 @@ export function App() {
         }
     }, [current]);
 
+    // The stream catches up a moment later; an action's own result is shown at once.
     const reload = async (): Promise<void> => {
         setSessions(await listSessions());
     };
-
-    useEffect(() => {
-        let alive = true;
-
-        void (async () => {
-            const rows = await listSessions();
-
-            if (alive) {
-                setSessions(rows);
-            }
-        })();
-
-        return () => {
-            alive = false;
-        };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run starting, ending or adding a message is the trigger: a title, a time and a busy dot change then
-    }, [state.live.busy, state.entries.length]);
-
-    // Only the open session streams; the rest are known by asking, for as long as any is at work.
-    const someBusy = sessions.some((session) => session.busy);
-
-    useEffect(() => {
-        const tick = setInterval(() => {
-            if (someBusy) {
-                void reload();
-            }
-        }, 4000);
-
-        return () => {
-            clearInterval(tick);
-        };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `reload` only sets state from a fetch
-    }, [someBusy]);
 
     const active = sessions.find((session) => session.id === current);
 

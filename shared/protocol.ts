@@ -166,6 +166,9 @@ export type SessionSummary = {
     unseen: boolean;
 };
 
+/** What `GET /api/sessions/events` sends: the whole list, at once and after every change. */
+export type SessionsEvent = { type: "sessions"; sessions: SessionSummary[] };
+
 /** One model the picker offers. */
 export type ModelChoice = {
     provider: string;

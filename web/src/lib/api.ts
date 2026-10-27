@@ -80,7 +80,12 @@ export async function getHealth(): Promise<Health | undefined> {
 }
 
 export async function listSessions(): Promise<SessionSummary[]> {
-    const body = record(await json("/api/sessions"));
+    return sessionsOf(await json("/api/sessions"));
+}
+
+/** The rows of a list answer or of a `sessions` event; both carry them as `sessions`. */
+export function sessionsOf(value: unknown): SessionSummary[] {
+    const body = record(value);
     const rows: SessionSummary[] = [];
 
     for (const raw of list(body?.["sessions"])) {

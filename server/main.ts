@@ -7,6 +7,7 @@ import { mkdir } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -20,7 +21,7 @@ import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
+import type { ClientEntry, ClientLive, ServerEvent, SessionsEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
@@ -45,6 +46,8 @@ const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = resolve(process.env["PI_DURABLE_DATA_DIR"] ?? join(process.cwd(), "data"));
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
+/** A burst of changes (a run ending writes several) is sent as one list. */
+const LIST_DELAY_MS = 100;
 /** How long stopping may wait for running work; what is still running resumes in the next process. */
 const STOP_LIMIT_MS = 10_000;
 /** `scripts/serve.ts` starts the server again when it exits with this code, and only it can. */
@@ -60,8 +63,11 @@ const STREAM = { cacheRetention: "long" } as const;
 type Client = { response: ServerResponse; session: number };
 
 const clients = new Set<Client>();
+const listWatchers = new Set<ServerResponse>();
 const busy = new Map<number, boolean>();
 const latest = new Map<number, { opened: Opened; view: View }>();
+let listQueued = false;
+let listChain: Promise<void> = Promise.resolve();
 
 let models: ModelRuntime;
 let runtime: ModelRuntime;
@@ -82,6 +88,54 @@ function broadcast(event: ServerEvent): void {
             send(client, event);
         }
     }
+}
+
+function isBusy(id: number): boolean {
+    return busy.get(id) === true;
+}
+
+async function sendList(watchers: Iterable<ServerResponse>): Promise<void> {
+    const list: SessionsEvent = { type: "sessions", sessions: await sessions.list(isBusy) };
+    const event = `data: ${JSON.stringify(list)}\n\n`;
+
+    for (const watcher of watchers) {
+        watcher.write(event);
+    }
+}
+
+/** Sends the whole list to every list stream, once per burst; in order, so an older list never lands last. */
+function listChanged(): void {
+    if (listQueued || listWatchers.size === 0) {
+        return;
+    }
+
+    listQueued = true;
+    listChain = listChain.then(flushList);
+}
+
+async function flushList(): Promise<void> {
+    await delay(LIST_DELAY_MS);
+    listQueued = false;
+
+    try {
+        await sendList(listWatchers);
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+/** The session list stream: the whole list now, then after every change. */
+async function watchList(response: ServerResponse): Promise<void> {
+    response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-store",
+        connection: "keep-alive",
+    });
+    listWatchers.add(response);
+    response.on("close", () => {
+        listWatchers.delete(response);
+    });
+    await sendList([response]);
 }
 
 function entriesOf(view: View): ClientEntry[] {
@@ -161,6 +215,7 @@ function liveOf(view: View): ClientLive {
 
 /** Sends what changed since the last commit: only new entries when nothing was rewritten. */
 function publish(opened: Opened, view: View): void {
+    const live = liveOf(view);
     const entries = entriesOf(view);
     const ids = entries.map((entry) => entry.id);
     const grows = ids.length > opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
@@ -177,12 +232,15 @@ function publish(opened: Opened, view: View): void {
         broadcast({ type: "entries", session: opened.id, entries, replace: true });
     }
 
-    const live = liveOf(view);
+    // New entries name a session and move its time; a run starting or ending moves its mark.
+    if (!unchanged || isBusy(opened.id) !== live.busy) {
+        listChanged();
+    }
 
     latest.set(opened.id, { opened, view });
     // Taken before the browsers hear of it, so a `seen` sent the moment it ends is later.
     if (busy.get(opened.id) === true && !live.busy) {
-        void sessions.ended(opened.id, Date.now());
+        void sessions.ended(opened.id, Date.now()).then(listChanged);
     }
 
     busy.set(opened.id, live.busy);
@@ -296,6 +354,10 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         if (match !== null) {
             await route.handle(request, response, url, match);
 
+            if (request.method !== "GET") {
+                listChanged();
+            }
+
             return;
         }
     }
@@ -314,6 +376,10 @@ async function boot(): Promise<void> {
     const heartbeat = setInterval(() => {
         for (const client of clients) {
             client.response.write(": heartbeat\n\n");
+        }
+
+        for (const watcher of listWatchers) {
+            watcher.write(": heartbeat\n\n");
         }
     }, IDLE_HEARTBEAT_MS);
 
@@ -415,7 +481,8 @@ async function boot(): Promise<void> {
         ...sessionRoutes({
             sessions,
             attach,
-            busy: (id) => busy.get(id) === true,
+            busy: isBusy,
+            watch: watchList,
         }),
         ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
         ...fileRoutes({ dataDir: DATA_DIR }),

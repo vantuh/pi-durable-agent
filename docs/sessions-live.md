@@ -23,7 +23,7 @@ POST /api/sessions/seen      { session }  the latest run is seen
 The list is sent whole, not as deltas: it is a few dozen rows, and a whole list cannot drift.
 Changes in a burst are sent once. A change is: a session starts or stops working, gains or loses
 entries (its title and time come from them), or any non-`GET` API call (create, rename, archive,
-delete, model, seen, a message). The browser drops its polling and its re-reads after each action.
+delete, model, seen, a message). The browser drops its polling; an action still re-reads the list, so its own result shows at once.
 
 ## Seen
 

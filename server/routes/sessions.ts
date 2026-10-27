@@ -1,5 +1,7 @@
 /** The session list: rows, a new session, archiving, deleting, renaming and marking seen. */
 
+import type { ServerResponse } from "node:http";
+
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
 
@@ -7,6 +9,7 @@ export function sessionRoutes(deps: {
     sessions: Sessions;
     attach: (id: number) => Promise<Opened | undefined>;
     busy: (id: number) => boolean;
+    watch: (response: ServerResponse) => Promise<void>;
 }): Route[] {
     const { sessions, attach } = deps;
 
@@ -16,6 +19,13 @@ export function sessionRoutes(deps: {
             path: /^\/api\/sessions$/,
             handle: async (_request, response) => {
                 answer(response, 200, { sessions: await sessions.list(deps.busy) });
+            },
+        },
+        {
+            method: "GET",
+            path: /^\/api\/sessions\/events$/,
+            handle: async (_request, response) => {
+                await deps.watch(response);
             },
         },
         {
