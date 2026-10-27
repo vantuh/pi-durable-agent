@@ -63,6 +63,8 @@ type Props = {
     onToggleMenu: () => void;
     onSend: (text: string, files: string[], mode?: SendMode) => Promise<void>;
     onStop: () => void;
+    /** Opens a new session in the folder this one works in. */
+    onNewSession: () => void;
 };
 
 function forget(gone: Pending[]): void {
@@ -97,6 +99,7 @@ export function Composer({
     onToggleMenu,
     onSend,
     onStop,
+    onNewSession,
 }: Props) {
     const [text, setText] = useState(() => composerDraft(sessionId));
     useEffect(
@@ -261,18 +264,25 @@ export function Composer({
 
         // A command is not a message: it never enters the transcript, and its arguments are not files.
         const command = /^\/(\w+)(?:\s+([\s\S]*))?$/.exec(body);
+        const name = command?.[1];
+        const args = command?.[2]?.trim() ?? "";
 
-        if (command !== null && command[1] === "compact" && paths.length === 0) {
+        if (name === "new" && args === "" && paths.length === 0) {
+            setComposerDraft(sessionId, "");
+            browse.current = null;
+            setText("");
+            onNewSession();
+
+            return;
+        }
+
+        if (name === "compact" && paths.length === 0) {
             setComposerDraft(sessionId, "");
             browse.current = null;
             setText("");
             void (async () => {
                 try {
-                    const result = await runCommand(
-                        Number(sessionId),
-                        "compact",
-                        command[2]?.trim() ?? "",
-                    );
+                    const result = await runCommand(Number(sessionId), "compact", args);
 
                     if (result === "empty") {
                         toast.warning("Nothing to compact: the conversation is too short");

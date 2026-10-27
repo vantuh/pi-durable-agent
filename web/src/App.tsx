@@ -133,6 +133,20 @@ export function App() {
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
 
+    // A new session in `path`, opened at once.
+    const openSession = (path: string): void => {
+        void (async () => {
+            const id = await createSession(path);
+
+            if (id !== 0) {
+                setCurrent(id);
+                setSheet(false);
+            }
+
+            await reload();
+        })();
+    };
+
     return (
         <div className="bg-sunken flex h-full flex-col gap-2 p-2">
             <div className="flex min-h-0 flex-1 items-stretch gap-2">
@@ -263,6 +277,9 @@ export function App() {
                             onStop={() => {
                                 void stop();
                             }}
+                            onNewSession={() => {
+                                openSession(active?.cwd ?? health?.cwd ?? health?.home ?? "/");
+                            }}
                         />
                     </div>
                 </main>
@@ -309,16 +326,7 @@ export function App() {
                     }}
                     onOpen={(path) => {
                         setPicker(false);
-                        void (async () => {
-                            const id = await createSession(path);
-
-                            if (id !== 0) {
-                                setCurrent(id);
-                                setSheet(false);
-                            }
-
-                            await reload();
-                        })();
+                        openSession(path);
                     }}
                 />
             ) : null}
