@@ -208,6 +208,7 @@ gets a wrench. The core's own tools (`bash`, `read`, `edit`, …) keep the core'
 | `onDispose`      | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                                                             |
 | `onCommit`       | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd }, entries, busy }`. It is removed when this version is replaced, turned off or deleted; a throw is logged without data                                            |
 | `sessionRequest` | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm) |
+| `sessionTitle`   | `(session) => Promise<string \| null>`: the name the sidebar shows — the one set by hand from `app.title`, else the conversation's first question — or null while it has neither. Titles belong to the core, so an extension that names a conversation in its own UI asks instead of guessing                     |
 
 ## Live, without a restart
 
@@ -545,16 +546,18 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   the next ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
 - **The switch is one for every conversation.** A ping is a spend, so the popover also lists what it
   is spent on: "Also warming", one row per other conversation with a ping coming, the most recently
-  asked first, with the time of that ping. A row is named by the title the sidebar shows, read from
-  `/api/sessions` when the popover opens; without one it falls back to the conversation's first
-  question and then to its folder, so two sessions in the same folder are never told apart by it. Rows come
-  from the commits and the state file — the same data the tick reads — so the list never promises a
-  ping the tick will not send. A conversation whose cache is already cold is not listed: it is not
-  being warmed, and a ping would only pay to rebuild it.
+  asked first, with the time of that ping. Rows come from the commits and the state file — the same
+  data the tick reads — so the list never promises a ping the tick will not send. A conversation
+  whose cache is already cold is not listed: it is not being warmed, and a ping would only pay to
+  rebuild it. Each row is named through `sessionTitle`, so it says what the sidebar says, a rename
+  included; when the core has no name yet the row falls back to the conversation's first question
+  and then to its folder, so two sessions in the same folder are never told apart by it.
 
-The host member it uses, `sessionRequest(session)`, is the one new core seam: it answers the
+The host members it uses are the two core seams: `sessionRequest(session)` answers the
 conversation's model, the messages its next request would send, and `send(messages, signal)`, one
-request through the same model runtime. `busy` comes from `onCommit`, not from the seam.
+request through the same model runtime; `sessionTitle(session)` answers the name the sidebar shows,
+so a row in "Also warming" never has to re-derive it in the browser.
+`busy` comes from `onCommit`, not from the seams.
 
 ## MCP servers
 

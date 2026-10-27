@@ -9,7 +9,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host, type SessionRequest } from "../../server/sdk.ts";
 import { due, PROVIDER } from "./due.ts";
-import { type Ping, type WarmState } from "./refs.ts";
+import { type Ping, type WarmSession, type WarmState } from "./refs.ts";
 import { readStore, writeStore } from "./store.ts";
 import { activityOf, nextOf, observe, open, warming, type Seen, type Stored } from "./warm.ts";
 
@@ -119,9 +119,22 @@ async function tick(host: Host): Promise<void> {
     }
 }
 
+/**
+ * The warmed conversations, each named as the sidebar names it. The core owns titles, so the label
+ * the commits alone can guess is only the fallback for a session it has no name for yet.
+ */
+async function named(host: Host, rows: readonly WarmSession[]): Promise<WarmSession[]> {
+    return await Promise.all(
+        rows.map(async (row) => ({
+            ...row,
+            label: (await host.sessionTitle(row.id)) ?? row.label,
+        })),
+    );
+}
+
 async function stateOf(host: Host, session: number | undefined): Promise<WarmState> {
     const on = stored.off !== true;
-    const sessions = on ? warming(stored, seen, Date.now()) : [];
+    const sessions = on ? await named(host, warming(stored, seen, Date.now())) : [];
 
     if (session === undefined) {
         return { on, sessions };

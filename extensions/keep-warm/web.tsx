@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Switch } from "@/components/ui/switch";
-import { listSessions } from "@/lib/api.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -76,7 +75,6 @@ function nextLine(warm: WarmState, now: number): string {
 function Panel({
     warm,
     others,
-    titles,
     anchor,
     now,
     onToggle,
@@ -85,8 +83,6 @@ function Panel({
     warm: WarmState;
     /** The conversations this one is not: what the pings are for besides this one. */
     others: WarmSession[];
-    /** The titles the sidebar shows, by session; the extension's own label is the fallback. */
-    titles: Record<number, string>;
     anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
@@ -168,9 +164,7 @@ function Panel({
                     <div className="text-faint mb-1">Also warming</div>
                     {others.map((row) => (
                         <div key={row.id} className="flex items-baseline justify-between gap-2">
-                            <span className="text-muted truncate">
-                                {titles[row.id] ?? row.label}
-                            </span>
+                            <span className="text-muted truncate">{row.label}</span>
                             <span className="text-faint shrink-0">{clock(row.nextAt)}</span>
                         </div>
                     ))}
@@ -186,7 +180,6 @@ function KeepWarm({ session }: StatusProps) {
     const [open, setOpen] = useState(false);
     const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
     const [now, setNow] = useState(() => Date.now());
-    const [titles, setTitles] = useState<Record<number, string>>({});
     const id = session?.id ?? null;
 
     const read = useCallback(async () => {
@@ -216,24 +209,6 @@ function KeepWarm({ session }: StatusProps) {
         setOpen(false);
     }, []);
 
-    /** The names the sidebar gives the sessions, so the list says "mcp plugin", not the folder they share. */
-    const readTitles = useCallback(async () => {
-        try {
-            const rows = await listSessions();
-            const found: Record<number, string> = {};
-
-            for (const row of rows) {
-                if (row.title !== null && row.title !== "") {
-                    found[row.id] = row.title;
-                }
-            }
-
-            setTitles(found);
-        } catch {
-            // No titles: the extension's own label is enough to tell two sessions apart.
-        }
-    }, []);
-
     if (session === null || warm === null) {
         return null;
     }
@@ -255,10 +230,6 @@ function KeepWarm({ session }: StatusProps) {
                 aria-expanded={open}
                 onClick={() => {
                     setNow(Date.now());
-                    if (!open) {
-                        void readTitles();
-                    }
-
                     setOpen((previous) => !previous);
                 }}
                 className={`hover:text-ink hover:bg-sunken aria-expanded:bg-sunken hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono sm:flex ${
@@ -272,7 +243,6 @@ function KeepWarm({ session }: StatusProps) {
                 <Panel
                     warm={warm}
                     others={warm.sessions.filter((row) => row.id !== session.id)}
-                    titles={titles}
                     anchor={anchor}
                     now={now}
                     onToggle={toggle}

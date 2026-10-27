@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
-import type { CommitView } from "../../server/sdk.ts";
+import type { CommitListener, CommitView, Host } from "../../server/sdk.ts";
 import { due, IDLE_STOP, LEAD, TTL } from "./due.ts";
+import keepWarm, { actions } from "./server.ts";
 import {
     activityOf,
     cached,
@@ -249,4 +253,94 @@ void test("sends only while on, idle and within the hour", () => {
     assert.equal(open(true, false, lastRequest, now), false);
     assert.equal(open(false, true, lastRequest, now), false);
     assert.equal(open(false, false, now - TTL, now), false);
+});
+
+void test("names the warmed conversations with the titles the core keeps", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    const commits: CommitListener[] = [];
+    const disposers: (() => void | Promise<void>)[] = [];
+    const host: Host = {
+        name: "keep-warm",
+        cwd: dir,
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: (listener) => {
+            commits.push(listener);
+        },
+        onDispose: (dispose) => {
+            disposers.push(dispose);
+        },
+        shapeModelRequests: () => undefined,
+        wrapModelFetch: () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
+        sessionRequest: () => Promise.resolve(undefined),
+        // Session 3 has no title yet, so the label the commits alone give it has to stand.
+        sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
+    };
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a written entry, without the harness that brands its ids
+    const entry = (value: object) => value as unknown as EntryRecord;
+    const asked = (id: number, text: string, timestamp: number) =>
+        entry({
+            id,
+            conversationId: id,
+            kind: "pi.user",
+            data: { text },
+            model: [{ role: "user", content: text, timestamp }],
+        });
+    const answered = (id: number, timestamp: number) =>
+        entry({
+            id,
+            conversationId: id,
+            kind: "pi.assistant",
+            model: [
+                {
+                    role: "assistant",
+                    provider: "anthropic",
+                    model: "opus",
+                    stopReason: "stop",
+                    timestamp,
+                    usage: { cacheRead: 1_000, cacheWrite: 0 },
+                    content: [],
+                },
+            ],
+        });
+    const at = Date.now();
+
+    // The timer outlives a failed assertion, so it has to be cleared even then.
+    try {
+        await keepWarm(host);
+        await commits[0]?.({
+            session: { id: 2, cwd: "/work/mcp" },
+            entries: [
+                asked(2, "how do I plug mcp in", at - minutes(10)),
+                answered(2, at - minutes(9)),
+            ],
+            busy: false,
+        });
+        await commits[0]?.({
+            session: { id: 3, cwd: "/work/other" },
+            entries: [asked(3, "a renamed one", at - minutes(10)), answered(3, at - minutes(9))],
+            busy: false,
+        });
+
+        const state: unknown = await actions(host)["state"]?.({
+            args: undefined,
+            session: { id: 2, cwd: "/work/mcp" },
+        });
+
+        assert.deepEqual(state, {
+            on: true,
+            sessions: [
+                { id: 2, label: "mcp plugin", nextAt: at - minutes(9) + LEAD },
+                { id: 3, label: "a renamed one", nextAt: at - minutes(9) + LEAD },
+            ],
+        });
+    } finally {
+        for (const dispose of disposers) {
+            await dispose();
+        }
+
+        await rm(dir, { recursive: true, force: true });
+    }
 });
