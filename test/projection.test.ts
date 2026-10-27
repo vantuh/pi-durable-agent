@@ -3,6 +3,29 @@ import { describe, it } from "node:test";
 
 import { projectLive } from "../server/projection.ts";
 
+void describe("live compaction", () => {
+    void it("says a compaction is running while the harness lists one, and stops when it is done", () => {
+        const running = projectLive(
+            {
+                compactions: [
+                    {
+                        taskId: 3,
+                        reason: "threshold",
+                        blocking: true,
+                        attempt: 1,
+                    },
+                ],
+            },
+            undefined,
+            undefined,
+        );
+
+        assert.equal(running.compacting, true, "the mark can spin while the summary is written");
+        assert.equal(projectLive({ compactions: [] }, undefined, undefined).compacting, undefined);
+        assert.equal(projectLive({}, undefined, undefined).compacting, undefined);
+    });
+});
+
 void describe("queued messages", () => {
     const inbox = (items: unknown[]) => ({ items });
 

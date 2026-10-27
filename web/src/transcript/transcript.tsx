@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
 import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
+import { cn } from "../lib/utils.ts";
 import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
@@ -105,6 +106,35 @@ function ErrorNotice({ text }: { text: string }) {
 
 const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1" />;
 
+/** The mark's pill: a filled chip on the line between messages, interactive when it opens the summary. */
+function CompactionPill({ children, interactive }: { children: ReactNode; interactive?: boolean }) {
+    return (
+        <span
+            className={cn(
+                "border-edge bg-raised flex shrink-0 items-center gap-2 rounded-full border px-3 py-1",
+                interactive === true && "hover:border-muted",
+            )}
+        >
+            <Layers className="size-3.5 shrink-0" />
+            {children}
+        </span>
+    );
+}
+
+/** A compaction that is running now, at the end of the transcript: where its marker lands once it is done. */
+function CompactingMark() {
+    return (
+        <div className="flex items-center gap-3">
+            <Rule />
+            <CompactionPill>
+                <span className="text-meta text-ink">compacting earlier messages</span>
+                <Spinner className="size-3 shrink-0" />
+            </CompactionPill>
+            <Rule />
+        </div>
+    );
+}
+
 /**
  * Where a compaction cut the context: a line, and the summary the model was handed instead of everything above it.
  * The messages above stay on screen — they are the conversation, they are just no longer what is sent.
@@ -126,14 +156,13 @@ function CompactionMark({
         </span>
     );
     const pill = (
-        <span className="border-edge bg-raised hover:border-muted flex shrink-0 items-center gap-2 rounded-full border px-3 py-1">
-            <Layers className="size-3.5 shrink-0" />
+        <CompactionPill interactive={summary !== undefined}>
             {label}
             {whole ? null : <Spinner className="size-3 shrink-0" />}
             {summary === undefined ? null : (
                 <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
             )}
-        </span>
+        </CompactionPill>
     );
 
     if (summary === undefined) {
@@ -368,6 +397,8 @@ export function Transcript({
                     {turns.map((turn) => (
                         <TurnView key={turn.key} turn={turn} whole={exhausted} />
                     ))}
+
+                    {live.compacting === true ? <CompactingMark /> : null}
 
                     {entries.length === 0 && live.blocks === undefined ? (
                         <p className="text-prose text-faint">Nothing here yet. Ask something.</p>

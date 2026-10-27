@@ -69,7 +69,12 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       handed under it (folded, opened by a tap). The number counts the person's messages above the
       cut among those on screen, which while pages are still coming is less than the truth: until
       `hello`'s `more` says the start is on screen, a small spinner sits where the number will be,
-      not a count that climbs as the reader scrolls. The pill is a role, not a colour's meaning: filling it with `accent` or `warn` would
+      not a count that climbs as the reader scrolls.
+    - **While a compaction runs**: there is no entry yet, so the same pill sits at the end of the
+      transcript — `compacting earlier messages` and a spinner, nothing to open. That is exactly where
+      the marker lands when the summary commits, so the spinner turns into the mark in place. It comes
+      from the harness's live document (`pi.live.compactions`, projected as `live.compacting`), which
+      covers a `/compact` as well as the threshold compaction a run does on its own. The pill is a role, not a colour's meaning: filling it with `accent` or `warn` would
       read as "live" or "broken", and a compaction is neither. The messages above it stay on screen:
       they are the conversation, they are just no longer what the model is sent. The mark is
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.

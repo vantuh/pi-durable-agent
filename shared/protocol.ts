@@ -108,6 +108,8 @@ export type ClientLive = {
     /** Unix milliseconds when the streamed answer's request started. */
     startedAt?: number;
     tools?: ClientTool[];
+    /** A compaction is running now: the model is being handed a summary of what came before. */
+    compacting?: boolean;
     usage: ClientUsage;
     queued?: ClientQueued[];
     status?: ClientStatus[];

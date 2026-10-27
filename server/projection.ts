@@ -392,5 +392,11 @@ export function projectLive(value: unknown, usage: unknown, inbox: unknown): Cli
         out.tools = toolsOf(live["tools"]);
     }
 
+    const compactions = live["compactions"];
+
+    if (Array.isArray(compactions) && compactions.length > 0) {
+        out.compacting = true;
+    }
+
     return out;
 }
