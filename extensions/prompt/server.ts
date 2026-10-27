@@ -3,18 +3,15 @@
  * agent is told about how to behave lives in a folder like this one, not in the core.
  */
 
-import { homedir } from "node:os";
-import { join } from "node:path";
-
 import {
     formatSkillsForPrompt,
     getAgentDir,
     loadProjectContextFiles,
-    loadSkills,
 } from "@earendil-works/pi-coding-agent";
 import { defineExtension, section } from "@earendil-works/pi-durable";
 
 import type { Host } from "../../server/extensions.ts";
+import { skillsFor } from "../../server/skills.ts";
 
 const RULES = [
     "You are a coding agent working in a project folder. You read, edit, and run commands there.",
@@ -36,7 +33,7 @@ export default function prompt(host: Host) {
                 tag: false,
             }),
             // Pi's own loaders and folders: `AGENTS.md` (or `CLAUDE.md`) in `~/.pi/agent` and from the session's folder
-            // up to `/`; skills from `~/.pi/agent/skills` and `<cwd>/.pi/skills`, `<cwd>/.agents/skills`, `~/.agents/skills`. Read on every prompt build, so edits
+            // up to `/`; skills from `server/skills.ts`. Read on every prompt build, so edits
             // show up on the next run.
             section(
                 "project_context",
@@ -63,17 +60,7 @@ export default function prompt(host: Host) {
                         return undefined;
                     }
 
-                    const cwd = input.agent.cwd ?? host.cwd;
-                    const { skills } = loadSkills({
-                        cwd,
-                        agentDir: getAgentDir(),
-                        // The shared Agent Skills folders, after Pi's own: on a name clash the first one wins.
-                        skillPaths: [
-                            join(cwd, ".agents", "skills"),
-                            join(homedir(), ".agents", "skills"),
-                        ],
-                        includeDefaults: true,
-                    });
+                    const skills = skillsFor(input.agent.cwd ?? host.cwd);
 
                     return formatSkillsForPrompt(skills, reader).trim() || undefined;
                 },

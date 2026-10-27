@@ -131,6 +131,21 @@ export async function createSession(cwd: string): Promise<number> {
     return num(body?.["session"], 0);
 }
 
+export type SkillInfo = { name: string; description: string };
+
+/** The skills a session can run with `/skill:name`. */
+export async function listSkills(session: number): Promise<SkillInfo[]> {
+    const body = record(await json(`/api/skills?session=${String(session)}`));
+
+    return list(body?.["skills"]).flatMap((item) => {
+        const skill = record(item);
+
+        return skill === undefined
+            ? []
+            : [{ name: str(skill["name"], ""), description: str(skill["description"], "") }];
+    });
+}
+
 export async function getFavourites(): Promise<string[]> {
     return list(record(await json("/api/favourites"))?.["folders"]).filter(
         (entry): entry is string => typeof entry === "string",

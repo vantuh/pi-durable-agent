@@ -27,6 +27,7 @@ import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./exte
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
+import { expandSkillCommand, skillsFor } from "./skills.ts";
 import { serveStatic } from "./static.ts";
 
 async function readFavourites(): Promise<string[]> {
@@ -371,6 +372,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         }
 
         const mode = string(payload?.["mode"]);
+        // `/skill:name request` carries the skill's instructions; the screen keeps showing what was typed.
+        const cwd = (await opened.conversation.agent(context))?.cwd ?? process.cwd();
+        const expanded = text.startsWith("/skill:")
+            ? expandSkillCommand(text, skillsFor(cwd))
+            : text;
 
         if (mode === "interrupt") {
             await opened.conversation.abort(context);
@@ -379,8 +385,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         await opened.conversation.submit(
             {
                 type: "input",
-                content: await contentOf(files, text),
-                ...(files.length === 0
+                content: await contentOf(files, expanded),
+                ...(files.length === 0 && expanded === text
                     ? {}
                     : {
                           entry: {
@@ -540,6 +546,21 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 
         await writeFile(FAVOURITES_FILE, JSON.stringify(folders));
         answer(response, 200, { folders });
+
+        return;
+    }
+
+    if (url.pathname === "/api/skills" && request.method === "GET") {
+        const id = Number(url.searchParams.get("session"));
+        const opened = await attach(Number.isInteger(id) ? id : rootId);
+        const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
+
+        answer(response, 200, {
+            skills: skillsFor(cwd).map((skill) => ({
+                name: skill.name,
+                description: skill.description,
+            })),
+        });
 
         return;
     }

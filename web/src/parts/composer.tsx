@@ -2,7 +2,7 @@ import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide
 import { useEffect, useRef, useState } from "react";
 
 import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
-import { uploadFile } from "../lib/api.ts";
+import { listSkills, type SkillInfo, uploadFile } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
 import { Attachments, type Pending } from "./attachments.tsx";
@@ -93,6 +93,36 @@ export function Composer({
     const [mode, setMode] = useState<SendMode>("steer");
     const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
+    const [skills, setSkills] = useState<SkillInfo[]>([]);
+    const [marked, setMarked] = useState(0);
+    // The list closes on Escape and opens again when the text changes.
+    const [dismissed, setDismissed] = useState<string | null>(null);
+
+    useEffect(() => {
+        void listSkills(Number(sessionId)).then(setSkills);
+    }, [sessionId]);
+
+    // "/" or "/par" (no space yet) asks for a skill; names that start with the typed letters come first.
+    const typed = /^\/(?:skill:)?([\w-]*)$/.exec(text)?.[1]?.toLowerCase();
+    const matches =
+        typed === undefined || dismissed === text
+            ? []
+            : [
+                  ...skills.filter((skill) => skill.name.toLowerCase().startsWith(typed)),
+                  ...(typed.length < 2
+                      ? []
+                      : skills.filter(
+                            (skill) =>
+                                !skill.name.toLowerCase().startsWith(typed) &&
+                                skill.name.toLowerCase().includes(typed),
+                        )),
+              ];
+    const pick = (skill: SkillInfo): void => {
+        const next = `/skill:${skill.name} `;
+
+        setComposerDraft(sessionId, next);
+        setText(next);
+    };
 
     // An Interrupt is for the run it was chosen in; the next run starts on Steer again.
     if (!busy && mode === "interrupt") {
@@ -205,6 +235,36 @@ export function Composer({
                     }
                 }}
             >
+                {matches.length === 0 ? null : (
+                    <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 flex max-h-64 flex-col overflow-y-auto border p-1 shadow-lg">
+                        {matches.map((skill, index) => (
+                            <li key={skill.name}>
+                                <button
+                                    type="button"
+                                    aria-current={index === marked}
+                                    // Keep focus in the textarea.
+                                    onMouseDown={(event) => {
+                                        event.preventDefault();
+                                    }}
+                                    onClick={() => {
+                                        pick(skill);
+                                    }}
+                                    className={`rounded-control hover:bg-raised flex w-full min-w-0 items-baseline gap-2 px-2 py-1.5 text-left ${
+                                        index === marked ? "bg-raised" : ""
+                                    }`}
+                                >
+                                    <span className="text-interface text-ink shrink-0 font-mono">
+                                        /skill:{skill.name}
+                                    </span>
+                                    <span className="text-meta text-faint min-w-0 truncate">
+                                        {skill.description}
+                                    </span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+
                 <Attachments
                     files={files}
                     onRemove={(key) => {
@@ -225,11 +285,42 @@ export function Composer({
                     onChange={(event) => {
                         const value = event.target.value;
 
+                        setMarked(0);
+
                         browse.current = null;
                         setComposerDraft(sessionId, value);
                         setText(value);
                     }}
                     onKeyDown={(event) => {
+                        const chosenSkill = matches[Math.min(marked, matches.length - 1)];
+
+                        if (chosenSkill !== undefined && !event.nativeEvent.isComposing) {
+                            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                                event.preventDefault();
+                                setMarked(
+                                    (marked +
+                                        (event.key === "ArrowDown" ? 1 : -1) +
+                                        matches.length) %
+                                        matches.length,
+                                );
+
+                                return;
+                            }
+
+                            if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
+                                event.preventDefault();
+                                pick(chosenSkill);
+
+                                return;
+                            }
+
+                            if (event.key === "Escape") {
+                                setDismissed(text);
+
+                                return;
+                            }
+                        }
+
                         const up = event.key === "ArrowUp";
                         const down = event.key === "ArrowDown";
 
