@@ -68,12 +68,13 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 Providers to show. A hidden provider is not asked for its limits.
             </p>
             {PROVIDERS.map((provider) => (
-                <div key={provider.id} className="flex items-center justify-between gap-3">
-                    <span id={`usage-${provider.id}`} className="text-ink">
+                <div key={provider.id} className="flex items-center gap-2 pl-3">
+                    <span id={`usage-${provider.id}`} className="text-ink w-28">
                         {provider.name}
                     </span>
                     <Switch
                         aria-labelledby={`usage-${provider.id}`}
+                        className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
                         disabled={state === null || saving}
                         checked={state !== null && !state.hidden.includes(provider.id)}
                         onCheckedChange={(shown) => {
