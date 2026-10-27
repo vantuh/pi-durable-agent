@@ -471,8 +471,10 @@ windows and reset times; the current provider is highlighted. It is hidden below
 - Anthropic and OpenCode Go tokens come from `host.resolveModelAuth` and never leave the server.
 - Pi's OpenAI token is refused by the ChatGPT usage endpoint (HTTP 401), so Codex reads the Codex
   CLI's own sign-in from `$CODEX_HOME/auth.json` (`~/.codex/auth.json`). Without it Codex is absent.
-- The server caches the answer for 60 s; the browser asks every 60 s and when a run ends. The
-  refresh button bypasses the cache.
+- The browser reads every five minutes and when the popover opens (the refresh button does the same).
+  A session switch only picks another row of the data already loaded. The server caches for four
+  minutes and skips a forced read when the last one is under 30 s old. A provider that answers 429 is
+  left alone for five minutes and keeps its last reading.
 - **Which providers.** The row in the Extensions dialog expands (`details.tsx`) to one switch per
   provider. The choice is stored in `usage-limits.json` in the data directory
   (`{ "hidden": ["codex"] }`; a missing or broken file shows all). A hidden provider is not asked at

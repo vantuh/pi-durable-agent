@@ -7,7 +7,7 @@ import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
 import { providers, readerFor, SETTINGS_CHANGED, type Bucket, type UsageResult } from "./refs.ts";
 
-const REFRESH_MS = 60_000;
+const REFRESH_MS = 5 * 60_000;
 const POPOVER_WIDTH = 288;
 const WARN_ABOVE = 70;
 const DANGER_ABOVE = 90;
@@ -49,13 +49,11 @@ function Bar({ pct, className }: { pct: number; className: string }) {
     );
 }
 
-/** The data, kept fresh while a session is open; a new session or model reads the new provider. */
-function useUsage(session: StatusProps["session"]) {
+/** Every provider's limits, read on a slow timer and when the popover opens; a session switch only picks another row. */
+function useUsage() {
     const [data, setData] = useState<UsageResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [failure, setFailure] = useState<string | null>(null);
-    const id = session?.id ?? null;
-    const busy = session?.busy ?? false;
     const [tick, setTick] = useState(0);
     const forced = useRef(false);
 
@@ -68,7 +66,7 @@ function useUsage(session: StatusProps["session"]) {
             forced.current = false;
 
             try {
-                const found = await callAction(providers, fresh ? { fresh } : undefined, id);
+                const found = await callAction(providers, fresh ? { fresh } : undefined, null);
 
                 if (alive) {
                     setData(found);
@@ -94,8 +92,8 @@ function useUsage(session: StatusProps["session"]) {
             alive = false;
             clearTimeout(timer);
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) has just spent some of the limit; tick is a manual refresh
-    }, [id, busy, tick]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- tick is a manual refresh
+    }, [tick]);
 
     const refresh = useCallback(() => {
         forced.current = true;
@@ -232,7 +230,7 @@ function Popover({
 }
 
 function UsageLimits({ session }: StatusProps) {
-    const usage = useUsage(session);
+    const usage = useUsage();
     const [open, setOpen] = useState(false);
     const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
     const reader = readerFor(session?.model ?? null);
@@ -260,6 +258,10 @@ function UsageLimits({ session }: StatusProps) {
                 aria-label={title}
                 aria-expanded={open}
                 onClick={() => {
+                    if (!open) {
+                        usage.refresh();
+                    }
+
                     setOpen((previous) => !previous);
                 }}
                 className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono sm:flex"

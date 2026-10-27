@@ -11,7 +11,10 @@ import { collect } from "./readers.ts";
 import { PROVIDERS, type UsageResult } from "./refs.ts";
 import { readSettings, writeSettings } from "./settings.ts";
 
-const CACHE_MS = 60_000;
+/** Slightly under the browser's five-minute timer, so each tick reads again. */
+const CACHE_MS = 4 * 60_000;
+/** Opening the popover reads again, but never more often than this, however often it is opened. */
+const MIN_FRESH_MS = 30_000;
 
 export const meta = {
     title: "Usage limits",
@@ -94,7 +97,9 @@ export const actions = (host: Host): Record<string, Action> => {
             const fresh =
                 typeof args === "object" && args !== null && "fresh" in args && args.fresh === true;
 
-            return cache !== undefined && !fresh && Date.now() - cache.at < CACHE_MS
+            const age = cache === undefined ? Infinity : Date.now() - cache.at;
+
+            return cache !== undefined && age < (fresh ? MIN_FRESH_MS : CACHE_MS)
                 ? cache
                 : await load();
         },
