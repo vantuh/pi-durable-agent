@@ -155,10 +155,26 @@ async function sessionTitleOf(session: number): Promise<string | null> {
     return await sessions.title(session as ConversationId);
 }
 
+/** The name someone gave a session, without the first question the sidebar falls back to. */
+async function sessionNameOf(session: number): Promise<string | null> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
+    return await sessions.name(session as ConversationId);
+}
+
 /**
- * One conversation's next request, for an extension that must reuse its cache and add nothing: the
- * context the next request would send, and a request on top through the same model runtime, so the
- * installed fetch wrappers shape both.
+ * Names a session from an extension. The title lives in a document, so no commit carries it to the
+ * browsers: the list is sent again here, or the sidebar would show the old name.
+ */
+async function setSessionTitleOf(session: number, title: string): Promise<void> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
+    await sessions.setTitle(session as ConversationId, title);
+    listChanged();
+}
+
+/**
+ * One conversation's next request, for an extension that reuses its cache, and one request on top: the
+ * context the next request would send, and a request through the same model runtime, so the installed
+ * fetch wrappers shape both. The request sends the messages it is given, the conversation's or its own.
  */
 async function sessionRequestOf(session: number): Promise<SessionRequest | undefined> {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
@@ -182,24 +198,41 @@ async function sessionRequestOf(session: number): Promise<SessionRequest | undef
     }
 
     const { messages } = await opened.conversation.context(context);
+    // The conversation's own thinking level, unless the caller asks for another for this request.
+    const thinking = agent.thinkingLevel === "off" ? undefined : agent.thinkingLevel;
 
     return {
-        model: ref,
+        model,
         messages,
-        send: (next, signal) =>
-            runtime
+        send: (next, signal, options) => {
+            const reasoning = options?.reasoning ?? thinking;
+
+            return runtime
                 .streamSimple(
                     model,
-                    { messages: [...next] },
+                    {
+                        messages: [...next],
+                        ...(options?.systemPrompt === undefined
+                            ? {}
+                            : { systemPrompt: options.systemPrompt }),
+                    },
                     {
                         ...STREAM,
-                        signal,
-                        ...(agent.thinkingLevel === "off"
+                        ...(options?.maxTokens === undefined
                             ? {}
-                            : { reasoning: agent.thinkingLevel }),
+                            : { maxTokens: options.maxTokens }),
+                        ...(options?.cacheRetention === undefined
+                            ? {}
+                            : { cacheRetention: options.cacheRetention }),
+                        ...(options?.sessionId === undefined
+                            ? {}
+                            : { sessionId: options.sessionId }),
+                        ...(reasoning === undefined ? {} : { reasoning }),
+                        signal,
                     },
                 )
-                .result(),
+                .result();
+        },
     };
 }
 
@@ -409,6 +442,8 @@ async function boot(): Promise<void> {
             (await models.getAuth(providerId, { signal }))?.auth,
         sessionRequest: sessionRequestOf,
         sessionTitle: sessionTitleOf,
+        sessionName: sessionNameOf,
+        setSessionTitle: setSessionTitleOf,
         registry,
         dir: join(cwd, "extensions"),
         cwd,

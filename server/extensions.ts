@@ -11,7 +11,14 @@ import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
+import type {
+    Api,
+    AssistantMessage,
+    CacheRetention,
+    Message,
+    Model,
+    ThinkingLevel,
+} from "@earendil-works/pi-ai";
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
 import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
@@ -53,15 +60,37 @@ export type Host = {
      * it; null while it has neither. The core owns titles, so an extension that shows a session asks.
      */
     readonly sessionTitle: (session: number) => Promise<string | null>;
+    /**
+     * The name someone gave a session, by hand or through an extension; null while it has none. The
+     * first question the sidebar falls back to is not a name: it is what an unnamed session shows.
+     */
+    readonly sessionName: (session: number) => Promise<string | null>;
+    /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
+    readonly setSessionTitle: (session: number, title: string) => Promise<void>;
+};
+
+/** What one request on top of a conversation may ask for beyond its own messages. */
+export type SessionSendOptions = {
+    /** Stands in for the conversation's system messages; absent sends none of its own. */
+    readonly systemPrompt?: string;
+    readonly maxTokens?: number;
+    /** Defaults to the long cache a conversation's own requests use. */
+    readonly cacheRetention?: CacheRetention;
+    readonly sessionId?: string;
+    readonly reasoning?: ThinkingLevel;
 };
 
 /** One conversation's next request: the model, the context it would send, and one request on top. */
 export type SessionRequest = {
-    readonly model: { readonly provider: string; readonly modelId: string };
+    readonly model: Model<Api>;
     /** The model context of the next request, its system messages included. */
     readonly messages: readonly Message[];
     /** One request with these messages on the long cache; nothing reaches the transcript. */
-    readonly send: (messages: readonly Message[], signal: AbortSignal) => Promise<AssistantMessage>;
+    readonly send: (
+        messages: readonly Message[],
+        signal: AbortSignal,
+        options?: SessionSendOptions,
+    ) => Promise<AssistantMessage>;
 };
 
 /** One conversation after a commit: what a commit listener may read. */
@@ -315,6 +344,8 @@ export class Extensions {
     readonly #contextWindow: Host["contextWindow"];
     readonly #sessionRequest: Host["sessionRequest"];
     readonly #sessionTitle: Host["sessionTitle"];
+    readonly #sessionName: Host["sessionName"];
+    readonly #setSessionTitle: Host["setSessionTitle"];
 
     get fetchWrappers(): readonly FetchWrapper[] {
         return [...this.#fetchWrappers];
@@ -344,6 +375,8 @@ export class Extensions {
         contextWindow?: Host["contextWindow"];
         sessionRequest?: Host["sessionRequest"];
         sessionTitle?: Host["sessionTitle"];
+        sessionName?: Host["sessionName"];
+        setSessionTitle?: Host["setSessionTitle"];
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
@@ -355,6 +388,8 @@ export class Extensions {
         this.#contextWindow = options.contextWindow ?? (() => undefined);
         this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
+        this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
+        this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -767,6 +802,8 @@ export class Extensions {
             contextWindow: this.#contextWindow,
             sessionRequest: (session) => this.#sessionRequest(session),
             sessionTitle: (session) => this.#sessionTitle(session),
+            sessionName: (session) => this.#sessionName(session),
+            setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
                 attempt.push(() => {

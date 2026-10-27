@@ -22,8 +22,10 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
+import { type FolderSessionMenuItem, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { toast } from "../lib/toast.ts";
@@ -191,6 +193,18 @@ export function Sessions({
     };
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
+    const menu = useSessionMenu();
+    const runMenuItem = (item: FolderSessionMenuItem, id: number): void => {
+        setPending(true);
+        toast.promise(item.run(id), {
+            loading: `${item.label}…`,
+            error: (error: unknown) =>
+                error instanceof Error ? error.message : "Could not finish the action.",
+            finally: () => {
+                setPending(false);
+            },
+        });
+    };
     const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
     const saveName = async (): Promise<void> => {
         if (renaming === null) {
@@ -589,6 +603,21 @@ export function Sessions({
                                                             event.preventDefault();
                                                         }}
                                                     >
+                                                        {menu.map((item) => (
+                                                            <DropdownMenuItem
+                                                                key={item.id}
+                                                                disabled={pending}
+                                                                onSelect={() => {
+                                                                    runMenuItem(item, session.id);
+                                                                }}
+                                                            >
+                                                                {item.icon}
+                                                                {item.label}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                        {menu.length === 0 ? null : (
+                                                            <DropdownMenuSeparator />
+                                                        )}
                                                         <DropdownMenuItem
                                                             onSelect={() => {
                                                                 setRenaming({

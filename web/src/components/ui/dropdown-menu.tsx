@@ -45,3 +45,15 @@ export function DropdownMenuItem({
         />
     );
 }
+
+export function DropdownMenuSeparator({
+    className,
+    ...props
+}: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
+    return (
+        <DropdownMenuPrimitive.Separator
+            className={cn("bg-edge-soft -mx-1 my-1 h-px", className)}
+            {...props}
+        />
+    );
+}

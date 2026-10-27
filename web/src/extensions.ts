@@ -1,6 +1,6 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
- * composer controls, settings sections, side panels and tool icons.
+ * composer controls, settings sections, side panels, tool icons and session menu items.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -13,6 +13,7 @@ import type {
     ComposerItem,
     HeaderItem,
     PanelItem,
+    SessionMenuItem,
     SettingsSection,
     StatusItem,
     ToolIcon,
@@ -25,6 +26,7 @@ export type FolderPanel = PanelItem & { folder: string };
 export type FolderHeaderItem = HeaderItem & { folder: string };
 export type FolderComposerItem = ComposerItem & { folder: string };
 export type FolderToolIcon = ToolIcon & { folder: string };
+export type FolderSessionMenuItem = SessionMenuItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end", "composer", "title"]);
 
@@ -92,6 +94,16 @@ function isToolIcon(value: unknown): value is ToolIcon {
     );
 }
 
+function isSessionMenuItem(value: unknown): value is SessionMenuItem {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "string" &&
+        typeof Reflect.get(value, "label") === "string" &&
+        typeof Reflect.get(value, "run") === "function"
+    );
+}
+
 /** One list of a module's default export; absent is empty, a bad list throws. */
 function listOf<T>(module: unknown, key: string, check: (value: unknown) => value is T): T[] {
     const extension: unknown =
@@ -151,6 +163,7 @@ type Loaded = {
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
     tools: FolderToolIcon[];
+    sessionMenu: FolderSessionMenuItem[];
 };
 
 const folders = Object.entries(import.meta.glob("../../extensions/*/web.tsx"))
@@ -177,6 +190,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         settings: [],
         panels: [],
         tools: [],
+        sessionMenu: [],
     };
 
     try {
@@ -188,6 +202,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
         collect(folder, "tools", module, isToolIcon, loaded.tools);
+        collect(folder, "sessionMenu", module, isSessionMenuItem, loaded.sessionMenu);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
     }
@@ -304,4 +319,11 @@ const pickTools = (loaded: Loaded): FolderToolIcon[] => loaded.tools;
 /** The icons extensions give their tools; empty until the modules are in. */
 export function useToolIcons(): readonly FolderToolIcon[] {
     return useLoaded(pickTools);
+}
+
+const pickSessionMenu = (loaded: Loaded): FolderSessionMenuItem[] => loaded.sessionMenu;
+
+/** The items extensions add to every session row's menu; empty until the modules are in. */
+export function useSessionMenu(): readonly FolderSessionMenuItem[] {
+    return useLoaded(pickSessionMenu);
 }

@@ -328,6 +328,8 @@ void test("names the warmed conversations with the titles the core keeps", async
         sessionRequest: () => Promise.resolve(undefined),
         // Session 3 has no title yet, so the folder the commits alone name it by has to stand.
         sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
     };
     const at = Date.now();
 
@@ -393,6 +395,8 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         // Deleted: the core refuses to build a request for it, so no ping can be sent.
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
     };
     const at = Date.now();
     const sessions = async (): Promise<unknown> =>

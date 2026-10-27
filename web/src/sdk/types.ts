@@ -62,6 +62,15 @@ export type ComposerItem = {
     component: ComponentType<ComposerProps>;
 };
 
+/** One item an extension adds to a session row's menu, above the core's own. */
+export type SessionMenuItem = {
+    id: string;
+    label: string;
+    icon?: ReactNode;
+    /** Runs for one session; its label stands in a toast while it runs, and the failure's message after. */
+    run: (session: number) => Promise<void>;
+};
+
 /** The mark of a tool the extension registers, on that tool's steps in the transcript. */
 export type ToolIcon = {
     /** The tool's name, as the model calls it. */
@@ -77,6 +86,7 @@ export type WebExtension = {
     settings?: SettingsSection[];
     panels?: PanelItem[];
     tools?: ToolIcon[];
+    sessionMenu?: SessionMenuItem[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

@@ -86,6 +86,8 @@ function setup() {
         contextWindow: () => undefined,
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
         wrapModelFetch: (wrap) => {
             wrappers.push(wrap);
         },

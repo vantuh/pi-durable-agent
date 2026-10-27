@@ -8,6 +8,7 @@ export {
     type Host,
     type HttpHandler,
     type SessionRequest,
+    type SessionSendOptions,
     type StatusProvider,
 } from "./extensions.ts";
 export type { FetchWrapper, ModelFetch, RequestModel, ResolveModelAuth } from "./model-requests.ts";

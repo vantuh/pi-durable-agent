@@ -59,7 +59,7 @@ async function ping(
     lastRequest: number,
 ): Promise<void> {
     const at = Date.now();
-    const model = request.model.modelId;
+    const model = request.model.id;
     const busy = () => seen.get(session)?.busy === true;
 
     if (!open(stored.off === true, busy(), lastRequest, at)) {
@@ -125,7 +125,7 @@ async function tick(host: Host): Promise<void> {
             continue;
         }
 
-        const activity = activityOf(stored, session, known, request.model.modelId, Date.now());
+        const activity = activityOf(stored, session, known, request.model.id, Date.now());
 
         if (
             activity.lastRequest === undefined ||
@@ -167,7 +167,7 @@ async function stateOf(host: Host, session: number | undefined): Promise<WarmSta
     }
 
     const known = seen.get(session);
-    const activity = activityOf(stored, session, known, request.model.modelId, Date.now());
+    const activity = activityOf(stored, session, known, request.model.id, Date.now());
     const { lastRequest } = activity;
     const nextAt =
         on && lastRequest !== undefined ? nextOf({ ...activity, lastRequest }) : undefined;

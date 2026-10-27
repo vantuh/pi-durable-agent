@@ -197,20 +197,30 @@ routes of their own.
 `icon` a lucide icon. The transcript marks that tool's finished steps with it; a tool without one
 gets a wrench. The core's own tools (`bash`, `read`, `edit`, …) keep the core's icons.
 
+### Session menu items
+
+`web.tsx` may export `sessionMenu: [{ id, label, icon, run }]`. Each item sits at the top of a
+session row's menu, above Rename, Archive and Delete, with a separator. `run(sessionId)` is the
+whole behaviour: the item's label is the toast while it runs, a rejection becomes a toast with its
+message, and the list is re-read afterwards, so an item that names the session shows the new name
+by itself. `extensions/auto-session-name` is the example.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
 
-| Member           | Is                                                                                                                                                                                                                                                                                                                |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`           | The folder's name; use it as the extension's name                                                                                                                                                                                                                                                                 |
-| `cwd`            | The folder the app was started in                                                                                                                                                                                                                                                                                 |
-| `dataDir`        | Where the app keeps its state                                                                                                                                                                                                                                                                                     |
-| `log`            | One line to the server's output                                                                                                                                                                                                                                                                                   |
-| `onDispose`      | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                                                             |
-| `onCommit`       | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd }, entries, busy }`. It is removed when this version is replaced, turned off or deleted; a throw is logged without data                                            |
-| `sessionRequest` | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm) |
-| `sessionTitle`   | `(session) => Promise<string \| null>`: the name the sidebar shows — the one set by hand from `app.title`, else the conversation's first question — or null while it has neither. Titles belong to the core, so an extension that names a conversation in its own UI asks instead of guessing                     |
+| Member            | Is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | The folder's name; use it as the extension's name                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `cwd`             | The folder the app was started in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `dataDir`         | Where the app keeps its state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `log`             | One line to the server's output                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `onDispose`       | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                                                                                                                                                                                                                                                                     |
+| `onCommit`        | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd }, entries, busy }`. It is removed when this version is replaced, turned off or deleted; a throw is logged without data                                                                                                                                                                                                                                                    |
+| `sessionRequest`  | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. `send(messages, signal, options?)` takes `{ systemPrompt, maxTokens, cacheRetention, sessionId, reasoning }` for a request of its own — the messages you pass are what is sent, not the conversation's. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm) |
+| `sessionTitle`    | `(session) => Promise<string \| null>`: the name the sidebar shows — the one set by hand from `app.title`, else the conversation's first question — or null while it has neither. Titles belong to the core, so an extension that names a conversation in its own UI asks instead of guessing                                                                                                                                                                                                                             |
+| `sessionName`     | `(session) => Promise<string \| null>`: the name someone gave it, by hand or through an extension, without the first question the sidebar falls back to. This is the "is it named yet?" question; `sessionTitle` is the "what do I show?" one                                                                                                                                                                                                                                                                             |
+| `setSessionTitle` | `(session, title) => Promise<void>`: names the conversation for every browser, and an empty title goes back to the first question. The list is sent to the browsers at once, because a title is a document and no commit carries it                                                                                                                                                                                                                                                                                       |
 
 ## Live, without a restart
 
@@ -563,10 +573,40 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   so the list stops promising a ping that cannot run.
 
 The host members it uses are the two core seams: `sessionRequest(session)` answers the
-conversation's model, the messages its next request would send, and `send(messages, signal)`, one
-request through the same model runtime; `sessionTitle(session)` answers the name the sidebar shows,
+conversation's model, the messages its next request would send, and `send(messages, signal, options?)`,
+one request through the same model runtime; `sessionTitle(session)` answers the name the sidebar shows,
 so a row in "Also warming" never has to re-derive it in the browser.
 `busy` comes from `onCommit`, not from the seams.
+
+## Session names
+
+`extensions/auto-session-name` names a conversation from what it was about. Ported from the Pi
+extension of the same name, which carries Pi Web's "generate name" policy: the whole conversation
+under a character budget, the session's model, strict title parsing, and no fallback — a failed run
+leaves the name alone instead of naming the session after a fragment of the user's own message.
+
+- **The transcript.** `lib.ts` keeps the policy verbatim: 800 characters of each user turn, 300 of
+  an intermediate reply and 600 of the newest, 6000 across the session with 40% reserved for the
+  opening turns (a session states its goal early and then drifts into chores), tool calls and their
+  results dropped, both ends kept and the middle elided. It reads the conversation's model context
+  from `sessionRequest`, typed as pi-ai's `Message`: this copy has no branch for the roles only a Pi
+  session record has (`bashExecution`, `compactionSummary`, `custom`), because a compaction reaches
+  this app's model as the user message that carries its summary. That type is imported rather than
+  restated, so a message shape that changes upstream breaks the file instead of passing silently.
+- **The request.** The session's model at the cheapest thinking level it supports (Gemini's
+  unsupported `minimal` skipped), 512 output tokens shared with the reasoning, no prompt cache or
+  session id — too small to reuse a prefix or to warm one — and a 90-second abort. Its own system
+  prompt, one user message, the harness's fetch wrappers shaping it like any other request.
+- **Automatic, off by default.** `details.tsx` in the Extensions dialog turns it on; the setting is
+  `auto-session-name.json` in the data directory. Then a run that ends names its session **only while
+  the session has no name** — `sessionName`, not `sessionTitle`, because the first question is not a
+  name. A name set by hand is never replaced, and neither is one this extension set, so it happens
+  once per session. A failed call changes nothing and the next settle tries again.
+- **The menu item.** "Generate name" in a session row's menu is the explicit path, and the only one
+  that replaces a name: it keeps a name that landed while the title was generating, and says so.
+- **What it names.** The title lands in `app.title` through `setSessionTitle`, so the sidebar, the
+  header and every extension that asks `sessionTitle` see it. Clearing the name by hand returns the
+  session to its first question, and turns automatic naming on for it again.
 
 ## MCP servers
 

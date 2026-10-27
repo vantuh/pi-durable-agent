@@ -302,7 +302,7 @@ export class Sessions {
             const agent = await conversation.agent(this.#context);
             const cwd = agent.cwd ?? null;
 
-            const name = await this.#name(id);
+            const name = await this.name(id);
             const working = busy(id);
             const { archived, endedAt, seenAt } = await this.#harness.commit(async (tx) => {
                 const attention = await tx.doc(AttentionDoc, id);
@@ -379,11 +379,11 @@ export class Sessions {
             return null;
         }
 
-        return (await this.#name(id)) ?? (await this.#question(id));
+        return (await this.name(id)) ?? (await this.#question(id));
     }
 
-    /** The name set by hand, or null while the first question still names the session. */
-    async #name(id: ConversationId): Promise<string | null> {
+    /** The name set by hand or by an extension, or null while the first question still names the session. */
+    async name(id: ConversationId): Promise<string | null> {
         const chosen = await this.#harness.commit(
             async (tx) => (await tx.doc(TitleDoc, id)).title,
             this.#context,
