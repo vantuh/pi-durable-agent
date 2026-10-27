@@ -7,8 +7,19 @@ export function Toaster() {
         <Sonner
             position="bottom-center"
             duration={3000}
-            offset="max(24px, env(safe-area-inset-bottom))"
-            mobileOffset={{ bottom: "max(16px, env(safe-area-inset-bottom))", left: 16, right: 16 }}
+            // The top is for session notices: below the panel headers, so none covers their buttons.
+            offset={{
+                top: 60,
+                right: 24,
+                bottom: "max(24px, env(safe-area-inset-bottom))",
+                left: 24,
+            }}
+            mobileOffset={{
+                top: "calc(60px + env(safe-area-inset-top))",
+                bottom: "max(16px, env(safe-area-inset-bottom))",
+                left: 16,
+                right: 16,
+            }}
             closeButton
             expand
             icons={{
@@ -33,7 +44,7 @@ export function Toaster() {
                         "rounded-control bg-raised text-accent focus-visible:ring-accent shrink-0 px-2 py-1.5 font-medium outline-none focus-visible:ring-2",
                     cancelButton: "rounded-control text-muted hover:bg-raised shrink-0 px-2 py-1.5",
                     closeButton:
-                        "rounded-control text-muted hover:bg-raised focus-visible:ring-accent absolute top-2 right-2 flex size-6 items-center justify-center outline-none focus-visible:ring-2",
+                        "rounded-control text-muted hover:bg-raised focus-visible:ring-accent absolute top-2 right-2 z-10 flex size-6 items-center justify-center outline-none focus-visible:ring-2",
                 },
             }}
         />

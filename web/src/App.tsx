@@ -20,6 +20,7 @@ import { useConversation } from "./lib/conversation.ts";
 import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
+import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { Home } from "./shell/home.tsx";
@@ -83,6 +84,12 @@ export function App() {
     };
 
     const active = sessions.find((session) => session.id === current);
+
+    useFinishedToasts(sessions, current, (id) => {
+        go(id);
+        setSheet(false);
+    });
+
     // The home page has no session; the sidebar keeps showing the folder of the last one opened.
     const last = sessions.find(
         (session) => String(session.id) === localStorage.getItem(SESSION_KEY),
