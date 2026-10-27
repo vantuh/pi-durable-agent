@@ -99,7 +99,9 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
   lines), then scrolls internally. Native CSS `field-sizing: content` also shrinks it when text is
   removed or sent. `Enter` sends, `Shift+Enter` breaks the line. A command typed in the box
   (`/compact`, `/new`) is run instead of sent and never enters the transcript: `/new` opens a new
-  session in the folder this one works in. While a run is
+  session in the folder this one works in. `/` opens a list of the commands and the session's skills,
+  narrowed as you type, walked with the arrows and taken with `Enter` or `Tab`; a picked command or
+  skill is inserted and the list closes. While a run is
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
   after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,
   then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are cards above the

@@ -20,6 +20,14 @@ const MODES: { mode: SendMode; label: string; hint: string }[] = [
 const HISTORY_KEY = "composer-history";
 const HISTORY_MAX = 100;
 
+/** What the composer runs itself instead of saying something; the same names `submit` matches on. */
+const COMMANDS: { name: string; description: string; takesArgs: boolean }[] = [
+    { name: "new", description: "Open a new session in this folder", takesArgs: false },
+    { name: "compact", description: "Summarize the earlier messages", takesArgs: true },
+];
+
+type Candidate = { label: string; description: string; insert: string };
+
 // Sent messages are remembered per session, so an empty chat never recalls another chat's text.
 function loadHistory(sessionId: string): string[] {
     try {
@@ -133,10 +141,11 @@ export function Composer({
         void listSkills(Number(sessionId)).then(setSkills);
     }, [sessionId]);
 
-    // "/" or "/par" (no space yet) asks for a skill; names that start with the typed letters come first.
+    // "/" or "/ne" (no space yet) asks for a command or a skill; names that start with the typed letters come
+    // first. A picked command is inserted without a trailing space, so the pick closes the list itself.
     const typed = /^\/(?:skill:)?([\w-]*)$/.exec(text)?.[1]?.toLowerCase();
-    const matches =
-        typed === undefined || dismissed === text
+    const skillsByName =
+        typed === undefined
             ? []
             : [
                   ...skills.filter((skill) => skill.name.toLowerCase().startsWith(typed)),
@@ -148,11 +157,27 @@ export function Composer({
                                 skill.name.toLowerCase().includes(typed),
                         )),
               ];
-    const pick = (skill: SkillInfo): void => {
-        const next = `/skill:${skill.name} `;
-
-        setComposerDraft(sessionId, next);
-        setText(next);
+    const matches: Candidate[] =
+        typed === undefined || dismissed === text
+            ? []
+            : [
+                  ...COMMANDS.filter((command) => command.name.startsWith(typed)).map(
+                      (command): Candidate => ({
+                          label: `/${command.name}`,
+                          description: command.description,
+                          insert: `/${command.name}${command.takesArgs ? " " : ""}`,
+                      }),
+                  ),
+                  ...skillsByName.map((skill): Candidate => ({
+                      label: `/skill:${skill.name}`,
+                      description: skill.description,
+                      insert: `/skill:${skill.name} `,
+                  })),
+              ];
+    const pick = (candidate: Candidate): void => {
+        setComposerDraft(sessionId, candidate.insert);
+        setText(candidate.insert);
+        setDismissed(candidate.insert);
     };
 
     // An Interrupt is for the run it was chosen in; the next run starts on Steer again.
@@ -337,8 +362,8 @@ export function Composer({
             >
                 {matches.length === 0 ? null : (
                     <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 flex max-h-64 flex-col overflow-y-auto border p-1 shadow-lg">
-                        {matches.map((skill, index) => (
-                            <li key={skill.name}>
+                        {matches.map((candidate, index) => (
+                            <li key={candidate.label}>
                                 <button
                                     type="button"
                                     aria-current={index === marked}
@@ -355,17 +380,17 @@ export function Composer({
                                         event.preventDefault();
                                     }}
                                     onClick={() => {
-                                        pick(skill);
+                                        pick(candidate);
                                     }}
                                     className={`rounded-control hover:bg-raised flex w-full min-w-0 items-baseline gap-2 px-2 py-1.5 text-left ${
                                         index === marked ? "bg-raised" : ""
                                     }`}
                                 >
                                     <span className="text-interface text-ink shrink-0 font-mono">
-                                        /skill:{skill.name}
+                                        {candidate.label}
                                     </span>
                                     <span className="text-meta text-faint min-w-0 truncate">
-                                        {skill.description}
+                                        {candidate.description}
                                     </span>
                                 </button>
                             </li>
@@ -401,9 +426,9 @@ export function Composer({
                         setText(value);
                     }}
                     onKeyDown={(event) => {
-                        const chosenSkill = matches[Math.min(marked, matches.length - 1)];
+                        const chosen = matches[Math.min(marked, matches.length - 1)];
 
-                        if (chosenSkill !== undefined && !event.nativeEvent.isComposing) {
+                        if (chosen !== undefined && !event.nativeEvent.isComposing) {
                             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                                 event.preventDefault();
                                 setMarked(
@@ -418,7 +443,7 @@ export function Composer({
 
                             if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
                                 event.preventDefault();
-                                pick(chosenSkill);
+                                pick(chosen);
 
                                 return;
                             }
