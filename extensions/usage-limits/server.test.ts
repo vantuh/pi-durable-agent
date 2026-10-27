@@ -4,9 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import type { Host } from "../../server/extensions.ts";
 import type { ResolveModelAuth } from "../../server/model-requests.ts";
 import { collect, readCodex, toMs, type Fetch } from "./readers.ts";
 import { readerFor } from "./refs.ts";
+import { actions } from "./server.ts";
+import { readSettings } from "./settings.ts";
 
 const signal = new AbortController().signal;
 
@@ -68,7 +71,7 @@ void test("collect reads Anthropic and OpenCode Go, marks the session window, sk
         auth({ anthropic: "sk-ant-oat-x", "opencode-go": "key" }),
         fetch,
         signal,
-        home,
+        { codexHome: home },
     );
 
     assert.deepEqual(
@@ -92,7 +95,9 @@ void test("collect reads Anthropic and OpenCode Go, marks the session window, sk
     );
 
     seen.length = 0;
-    const apiKey = await collect(auth({ anthropic: "sk-ant-api-x" }), fetch, signal, home);
+    const apiKey = await collect(auth({ anthropic: "sk-ant-api-x" }), fetch, signal, {
+        codexHome: home,
+    });
 
     assert.deepEqual(apiKey, []);
     assert.deepEqual(seen, []);
@@ -101,7 +106,9 @@ void test("collect reads Anthropic and OpenCode Go, marks the session window, sk
 void test("a failing provider becomes an error row without leaking the token", async () => {
     const fetch: Fetch = () => Promise.resolve(json({ secret: "sk-ant-oat-x" }, 500));
     const home = await mkdtemp(join(tmpdir(), "usage-"));
-    const result = await collect(auth({ anthropic: "sk-ant-oat-x" }), fetch, signal, home);
+    const result = await collect(auth({ anthropic: "sk-ant-oat-x" }), fetch, signal, {
+        codexHome: home,
+    });
 
     assert.deepEqual(result, [
         { id: "anthropic", name: "Anthropic", buckets: [], error: "HTTP 500" },
@@ -143,4 +150,67 @@ void test("Codex uses the Codex CLI sign-in and is absent without one", async ()
         ],
     );
     assert.deepEqual(headers, { authorization: "Bearer a", "chatgpt-account-id": "b" });
+});
+
+void test("a hidden provider is not asked", async () => {
+    const seen: string[] = [];
+    const fetch: Fetch = (input) => {
+        seen.push(input instanceof Request ? input.url : input.toString());
+
+        return Promise.resolve(json({ usage: { rolling: { percent: 1 } } }));
+    };
+    const home = await mkdtemp(join(tmpdir(), "usage-"));
+    const result = await collect(
+        auth({ anthropic: "sk-ant-oat-x", "opencode-go": "key" }),
+        fetch,
+        signal,
+        { codexHome: home, hidden: ["anthropic", "codex"] },
+    );
+
+    assert.deepEqual(
+        result.map((each) => each.id),
+        ["opencode-go"],
+    );
+    assert.equal(seen.length, 1);
+    assert.match(seen[0] ?? "", /opencode/);
+});
+
+void test("settings: missing or broken file shows everything; actions validate and persist", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "usage-"));
+
+    assert.deepEqual(await readSettings(dir), { hidden: [] });
+
+    await writeFile(join(dir, "usage-limits.json"), "{ not json");
+
+    assert.deepEqual(await readSettings(dir), { hidden: [] });
+
+    const host: Host = {
+        name: "usage-limits",
+        cwd: ".",
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: () => undefined,
+        onDispose: () => undefined,
+        shapeModelRequests: () => undefined,
+        resolveModelAuth: auth({}),
+        wrapModelFetch: () => undefined,
+    };
+    const { setShown, settings } = actions(host);
+    const call = async (action: typeof setShown | undefined, args: unknown) =>
+        await action?.({ args, session: null });
+
+    await assert.rejects(call(setShown, { id: "nope", shown: false }), /args must be/);
+    await assert.rejects(call(setShown, { id: "codex" }), /args must be/);
+
+    // Quick toggles in a row must not lose one.
+    await Promise.all([
+        call(setShown, { id: "codex", shown: false }),
+        call(setShown, { id: "anthropic", shown: false }),
+    ]);
+
+    assert.deepEqual(await call(settings, undefined), { hidden: ["codex", "anthropic"] });
+    assert.deepEqual(await call(setShown, { id: "codex", shown: true }), {
+        hidden: ["anthropic"],
+    });
+    assert.deepEqual(await readSettings(dir), { hidden: ["anthropic"] });
 });

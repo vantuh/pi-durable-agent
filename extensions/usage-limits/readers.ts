@@ -8,7 +8,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type { ResolveModelAuth } from "../../server/model-requests.ts";
-import type { Bucket, ProviderUsage } from "./refs.ts";
+import { PROVIDERS, type Bucket, type ProviderUsage } from "./refs.ts";
 
 /** Anthropic reports limit resets only to the Claude Code CLI surface. */
 const CLAUDE_CLI_UA = "claude-cli/2.19.1 (external, cli)";
@@ -228,13 +228,17 @@ export async function collect(
     resolveAuth: ResolveModelAuth,
     fetch: Fetch,
     signal: AbortSignal,
-    codexHome?: string,
+    options: { codexHome?: string; hidden?: readonly string[] } = {},
 ): Promise<ProviderUsage[]> {
-    const jobs: [string, string, Promise<ProviderUsage | undefined>][] = [
-        ["anthropic", "Anthropic", readAnthropic(resolveAuth, fetch, signal)],
-        ["opencode-go", "OpenCode Go", readOpencodeGo(resolveAuth, fetch, signal)],
-        ["codex", "OpenAI Codex", readCodex(fetch, signal, codexHome)],
-    ];
+    const readers: Record<string, () => Promise<ProviderUsage | undefined>> = {
+        anthropic: () => readAnthropic(resolveAuth, fetch, signal),
+        "opencode-go": () => readOpencodeGo(resolveAuth, fetch, signal),
+        codex: () => readCodex(fetch, signal, options.codexHome),
+    };
+    // A hidden provider is not asked at all.
+    const jobs = PROVIDERS.filter((each) => !(options.hidden ?? []).includes(each.id)).map(
+        (each) => [each.id, each.name, readers[each.id]?.() ?? Promise.resolve(undefined)] as const,
+    );
     const settled = await Promise.allSettled(jobs.map(([, , job]) => job));
     const out: ProviderUsage[] = [];
 

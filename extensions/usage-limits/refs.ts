@@ -19,6 +19,16 @@ export type ProviderUsage = {
     error?: string;
 };
 
+/** The providers this extension can read, in the order the popover lists them. */
+export const PROVIDERS = [
+    { id: "anthropic", name: "Anthropic" },
+    { id: "opencode-go", name: "OpenCode Go" },
+    { id: "codex", name: "OpenAI Codex" },
+] as const;
+
+/** The owner's choice: provider ids that are not shown (and not asked). Everything else is on. */
+export type Settings = { hidden: string[] };
+
 export type UsageResult = { providers: ProviderUsage[]; at: number };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -66,6 +76,27 @@ function parse(value: unknown): UsageResult {
     }
     throw new Error("Invalid usage result");
 }
+
+function parseSettings(value: unknown): Settings {
+    if (
+        isRecord(value) &&
+        Array.isArray(value["hidden"]) &&
+        value["hidden"].every((id) => typeof id === "string")
+    ) {
+        return { hidden: value["hidden"] };
+    }
+    throw new Error("Invalid usage settings");
+}
+
+export const settings = actionRef<undefined, Settings>("usage-limits", "settings", parseSettings);
+export const setShown = actionRef<{ id: string; shown: boolean }, Settings>(
+    "usage-limits",
+    "setShown",
+    parseSettings,
+);
+
+/** The details toggles tell the status item to read again at once. */
+export const SETTINGS_CHANGED = "usage-limits:settings-changed";
 
 export const providers = actionRef<{ fresh?: boolean } | undefined, UsageResult>(
     "usage-limits",

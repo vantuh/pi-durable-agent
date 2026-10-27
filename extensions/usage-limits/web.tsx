@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { providers, readerFor, type Bucket, type UsageResult } from "./refs.ts";
+import { providers, readerFor, SETTINGS_CHANGED, type Bucket, type UsageResult } from "./refs.ts";
 
 const REFRESH_MS = 60_000;
 const POPOVER_WIDTH = 288;
@@ -102,6 +102,15 @@ function useUsage(session: StatusProps["session"]) {
         setLoading(true);
         setTick((previous) => previous + 1);
     }, []);
+
+    // The toggles in the Extensions dialog change what the server asks: read again at once.
+    useEffect(() => {
+        window.addEventListener(SETTINGS_CHANGED, refresh);
+
+        return () => {
+            window.removeEventListener(SETTINGS_CHANGED, refresh);
+        };
+    }, [refresh]);
 
     return { data, loading, failure, refresh };
 }

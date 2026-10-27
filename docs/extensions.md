@@ -473,3 +473,8 @@ windows and reset times; the current provider is highlighted. It is hidden below
   CLI's own sign-in from `$CODEX_HOME/auth.json` (`~/.codex/auth.json`). Without it Codex is absent.
 - The server caches the answer for 60 s; the browser asks every 60 s and when a run ends. The
   refresh button bypasses the cache.
+- **Which providers.** The row in the Extensions dialog expands (`details.tsx`) to one switch per
+  provider. The choice is stored in `usage-limits.json` in the data directory
+  (`{ "hidden": ["codex"] }`; a missing or broken file shows all). A hidden provider is not asked at
+  all and is not in the popover; if it is the current one, the status bar shows only the gauge icon.
+  Changes apply at once.
