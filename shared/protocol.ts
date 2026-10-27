@@ -118,6 +118,7 @@ export type ExtensionNotice = { level: "success" | "error"; message: string };
 
 export type ServerEvent = { session: number } & (
     | { type: "hello"; entries: ClientEntry[]; live: ClientLive; model: string }
+    /** `replace` says the server rewrote the active view; the browser adds by id either way, it never swaps. */
     | { type: "entries"; entries: ClientEntry[]; replace: boolean }
     | { type: "live"; live: ClientLive }
     | { type: "extension-notice"; notice: ExtensionNotice }
