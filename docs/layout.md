@@ -61,6 +61,8 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       prompt, and output and cost summed over its responses); it ticks while the run is live.
     - Thinking and tool calls between two of Pi's words fold into one activity line
       (`Thought, read 2 files and ran 1 command · 1 failed · 12s`), across answers, closed by default.
+      A `git commit` among the calls is its own word (`Ran 2 commands and committed`) and is not
+      counted among the commands.
       Opened, it is a timeline: a line per step with its status, name, subject and time; a step opens
       to its arguments and output. The grouping is `web/src/lib/turns.ts`, after Pi Pocket's `turns.js`.
       An opened `edit` is a diff card (`details.diff` of its result, line numbers, the changed words

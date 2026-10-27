@@ -119,6 +119,9 @@ function editCounts(args: unknown): { added: number; removed: number } | undefin
 /** Commands that run tests, by the words in them. */
 const TESTS = /\b(?:test|tests|spec|jest|vitest|pytest|mocha|ava|tap|rspec|phpunit|ctest)\b/i;
 
+/** A command that makes a commit: `commit` as git's own subcommand, not a word inside another argument. */
+const COMMITS = /\bgit\b[^|;&\n]*\scommit\b/;
+
 /**
  * A test run's outcome from what it printed, as in "48 passed · 1 failed · 3.1s": for a command that runs tests, or
  * output with a runner's own summary. After Pi Pocket's `testOutcome` (`web/turns.js`, MIT).
@@ -268,7 +271,10 @@ export function summarize(steps: Step[], thinking: boolean): string {
         const kind =
             step.kind === "thinking"
                 ? { verb: "thought" }
-                : (DID[step.name] ?? { verb: `used ${step.name}` });
+                : step.name === "bash" && COMMITS.test(argOf(step.args, "command") ?? "")
+                  ? // The commit is a command, but a group that folded one should say so by itself.
+                    { verb: "committed" }
+                  : (DID[step.name] ?? { verb: `used ${step.name}` });
         const nouns = did.get(kind.verb) ?? new Map<string, Set<string>>();
 
         did.set(kind.verb, nouns);

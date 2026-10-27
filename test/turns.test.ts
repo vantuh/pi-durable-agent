@@ -192,3 +192,25 @@ void describe("testOutcome", () => {
         assert.deepEqual(outcomeOf(step), { text: "46 passed · 2 failed", tone: "danger" });
     });
 });
+
+void describe("summarize", () => {
+    const bash = (key: string, command: string) =>
+        ({ kind: "tool", key, id: key, name: "bash", args: { command }, status: "done" }) as const;
+
+    void it("says a group committed, and leaves that command out of the plain runs", () => {
+        assert.equal(
+            summarize(
+                [bash("a", "git add -A && git commit -m 'x'"), bash("b", "pnpm test")],
+                false,
+            ),
+            "Committed and ran 1 command",
+        );
+    });
+
+    void it("does not read the word in another argument as a commit", () => {
+        assert.equal(
+            summarize([bash("a", "git log --grep=commit -1"), bash("b", "cat commit.md")], false),
+            "Ran 2 commands",
+        );
+    });
+});
