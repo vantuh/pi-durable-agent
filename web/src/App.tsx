@@ -319,7 +319,8 @@ export function App() {
             </div>
 
             <StatusBar
-                connected={current === null ? connected : state.connected}
+                // The session list streams the whole time; a conversation's own stream starts over at each switch.
+                connected={connected}
                 session={activeSession}
                 status={state.live.status ?? []}
                 busy={state.live.busy}
