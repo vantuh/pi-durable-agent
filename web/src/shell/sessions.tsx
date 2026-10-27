@@ -25,11 +25,17 @@ import {
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
+import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { toast } from "../lib/toast.ts";
+import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
 
 type Props = {
     sessions: SessionSummary[];
+    /** Null on the home page. */
     current: number | null;
+    /** The folder the list shows: the open session's, or the last one's on the home page. */
+    folder: string | null;
+    onHome: () => void;
     onArchive: (id: number, archived: boolean) => Promise<void>;
     /** Out of the list for good: the row disappears, the transcript is never shown again. */
     onDelete: (id: number) => Promise<void>;
@@ -43,33 +49,6 @@ type Props = {
     open: boolean;
     onClose: () => void;
 };
-
-const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-/** Elapsed time as one short unit: "now", "5m", "2h", "3d"; a date past a week. */
-function ago(at: number, now: number): string {
-    const elapsed = Math.max(0, now - at);
-
-    if (elapsed < MINUTE) {
-        return "now";
-    }
-
-    if (elapsed < HOUR) {
-        return `${String(Math.floor(elapsed / MINUTE))}m`;
-    }
-
-    if (elapsed < DAY) {
-        return `${String(Math.floor(elapsed / HOUR))}h`;
-    }
-
-    if (elapsed < 7 * DAY) {
-        return `${String(Math.floor(elapsed / DAY))}d`;
-    }
-
-    return new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
 
 const GROUPS = ["Today", "Yesterday", "This week", "Older"] as const;
 
@@ -90,16 +69,6 @@ function groupOf(at: number | null, now: number): (typeof GROUPS)[number] {
     }
 
     return at >= midnight - 6 * DAY ? "This week" : "Older";
-}
-
-function folderName(cwd: string | null): string {
-    if (cwd === null || cwd === "") {
-        return "no folder";
-    }
-
-    const parts = cwd.split("/");
-
-    return parts[parts.length - 1] ?? cwd;
 }
 
 const COLLAPSED_KEY = "sidebarCollapsed";
@@ -196,6 +165,8 @@ function ResizeHandle() {
 export function Sessions({
     sessions,
     current,
+    folder,
+    onHome,
     onSelect,
     onArchive,
     onDelete,
@@ -205,7 +176,6 @@ export function Sessions({
     open: sheet,
     onClose,
 }: Props) {
-    const active = sessions.find((session) => session.id === current);
     const [open, setOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
@@ -296,7 +266,6 @@ export function Sessions({
         };
     }, []);
 
-    const folder = active?.cwd ?? null;
     const folders = new Map<string, number>();
 
     for (const session of sessions) {
@@ -334,7 +303,7 @@ export function Sessions({
             }`}
         >
             <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
-                <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:gap-0 lg:group-data-[collapsed]/side:px-[6px]">
+                <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-[6px]">
                     <button
                         type="button"
                         onClick={() => {
@@ -351,6 +320,21 @@ export function Sessions({
                             <PanelLeftClose className="size-4" />
                         )}
                     </button>
+                    <a
+                        href={sessionHref(null)}
+                        onClick={(event) => {
+                            if (isPlainClick(event)) {
+                                event.preventDefault();
+                                onHome();
+                            }
+                        }}
+                        title="Home: every session"
+                        aria-label="Home"
+                        aria-current={current === null ? "page" : undefined}
+                        className={`rounded-control flex size-6 shrink-0 items-center justify-center ${current === null ? "bg-raised" : "hover:bg-raised"}`}
+                    >
+                        <img src="/favicon.png" alt="" className="size-4" />
+                    </a>
                     <h2
                         className={`text-sidebar text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap ${FADE}`}
                     >
@@ -535,36 +519,28 @@ export function Sessions({
                                     </div>
 
                                     {rows.map((session) => {
-                                        const { unseen } = session;
-
                                         return (
                                             <div
                                                 key={session.id}
                                                 className={`session-row group rounded-control relative flex items-center ${session.id === current ? "bg-raised" : "hover:bg-raised/50"}`}
                                             >
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
+                                                <a
+                                                    href={sessionHref(session.id)}
+                                                    onClick={(event) => {
+                                                        if (!isPlainClick(event)) {
+                                                            return;
+                                                        }
+
+                                                        event.preventDefault();
                                                         onSelect(session.id);
                                                         stopSearch();
                                                     }}
+                                                    aria-current={
+                                                        session.id === current ? "page" : undefined
+                                                    }
                                                     className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
                                                 >
-                                                    <span
-                                                        role={
-                                                            session.busy || unseen
-                                                                ? "status"
-                                                                : undefined
-                                                        }
-                                                        aria-label={
-                                                            session.busy
-                                                                ? "Working"
-                                                                : unseen
-                                                                  ? "Finished, not viewed"
-                                                                  : undefined
-                                                        }
-                                                        className={`state-mark ${session.busy ? "working text-accent" : unseen ? "fresh text-ok" : "idle text-faint"}`}
-                                                    />
+                                                    <StateMark session={session} />
                                                     <span
                                                         className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}
                                                     >
@@ -591,7 +567,7 @@ export function Sessions({
                                                             ? null
                                                             : ago(session.activeAt, now)}
                                                     </span>
-                                                </button>
+                                                </a>
                                                 <DropdownMenu modal={false}>
                                                     <DropdownMenuTrigger asChild>
                                                         <button

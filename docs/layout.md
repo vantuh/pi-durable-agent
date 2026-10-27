@@ -25,9 +25,18 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 (`raised`): the selected session row, a person's message, a hover on a control. Borders are
 `edge-soft` inside a panel and never on the page. See [theme.md](theme.md).
 
+## Home
+
+`/` is the home page, in place of the conversation and composer: every session from every folder
+that is not archived, under `Working`, `Not viewed`, and `Recent` (the newest 20). A row shows its
+mark, title, folder and time. `?session=N` is a session; moving between them adds a history step,
+so Back returns home. There is no router: two places do not need one, and these are the links
+pushes already send. See [sessions-live.md](sessions-live.md).
+
 ## Sidebar
 
-- **Top**: `Sessions`, and a pill with the folder the conversation works in. The pill opens a list of the folders
+- **Top**: the app icon, which goes home, `Sessions`, and a pill with the folder the conversation
+  works in; on the home page, the folder of the last session opened. The pill opens a list of the folders
   that sessions use, with the session count of each; choosing one opens its latest session. The
   `+` (new session) button opens `FolderPicker`: it browses the server's folders (hidden ones
   optional), lists recent folders and favourites (kept through `/api/favourites`), and creates a
@@ -40,6 +49,8 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
   a person last wrote to it (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
   was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each
   with its count; a session with no known time is under `Older` and shows no time.
+- **Rows are links** (`?session=N`): a plain click opens the session in place, a modified or middle
+  click opens it in a new tab.
 - **Where the time comes from**: the `app.clock` document of each conversation (`activeAt`), set when
   the session is created and on every message sent. A session older than the document takes the start
   time of its newest message once, then keeps it.

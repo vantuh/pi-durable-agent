@@ -17,11 +17,12 @@ import {
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
-import { sessionFromSearch } from "./lib/deep-link.ts";
+import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
+import { Home } from "./shell/home.tsx";
 import { PanelButtons, PanelHost, panelKey } from "./shell/panels.tsx";
 import { Sessions } from "./shell/sessions.tsx";
 import { Settings } from "./shell/settings.tsx";
@@ -42,8 +43,8 @@ function shortName(model: string | null): string {
 
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
-    const [sessions, setSessions] = useSessionList();
-    const [current, setCurrent] = useState<number | null>(null);
+    const { sessions, setSessions, connected } = useSessionList();
+    const [current, go] = useRoute();
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
@@ -58,17 +59,11 @@ export function App() {
         let alive = true;
 
         void (async () => {
-            const [info, rows] = await Promise.all([getHealth(), listSessions()]);
+            const info = await getHealth();
 
-            if (!alive) {
-                return;
+            if (alive) {
+                setHealth(info);
             }
-
-            setHealth(info);
-            const linked = rows.find((row) => row.id === sessionFromSearch(location.search));
-            const saved = rows.find((row) => String(row.id) === localStorage.getItem(SESSION_KEY));
-
-            setCurrent(linked?.id ?? saved?.id ?? rows[0]?.id ?? info?.session ?? null);
         })();
 
         return () => {
@@ -88,6 +83,11 @@ export function App() {
     };
 
     const active = sessions.find((session) => session.id === current);
+    // The home page has no session; the sidebar keeps showing the folder of the last one opened.
+    const last = sessions.find(
+        (session) => String(session.id) === localStorage.getItem(SESSION_KEY),
+    );
+    const folder = (active ?? last)?.cwd ?? health?.cwd ?? null;
 
     useSeen(current, active?.unseen === true, (id) => {
         setSessions((rows) => rows.map((row) => (row.id === id ? { ...row, unseen: false } : row)));
@@ -112,7 +112,7 @@ export function App() {
             const id = await createSession(path);
 
             if (id !== 0) {
-                setCurrent(id);
+                go(id);
                 setSheet(false);
             }
 
@@ -126,6 +126,11 @@ export function App() {
                 <Sessions
                     sessions={sessions}
                     current={current}
+                    folder={folder}
+                    onHome={() => {
+                        go(null);
+                        setSheet(false);
+                    }}
                     onArchive={async (id, archived) => {
                         await setSessionArchived(id, archived);
                         setSessions((rows) =>
@@ -134,12 +139,10 @@ export function App() {
                     }}
                     onDelete={async (id) => {
                         await deleteSession(id);
-                        const rows = (await listSessions()).filter((row) => row.id !== id);
-
-                        setSessions(rows);
+                        setSessions((rows) => rows.filter((row) => row.id !== id));
 
                         if (id === current) {
-                            setCurrent(rows[0]?.id ?? null);
+                            go(null);
                         }
                     }}
                     onRename={async (id, name) => {
@@ -147,10 +150,10 @@ export function App() {
                         setSessions(await listSessions());
                     }}
                     onSelect={(id) => {
-                        setCurrent(id);
+                        go(id);
                         setSheet(false);
                     }}
-                    onFolder={setCurrent}
+                    onFolder={go}
                     onNew={() => {
                         setPicker(true);
                     }}
@@ -161,100 +164,120 @@ export function App() {
                 />
 
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]">
-                    <Transcript
-                        key={current}
-                        title={active?.title ?? null}
-                        entries={state.entries}
-                        live={state.live}
-                        loadingOlder={state.loadingOlder}
-                        exhausted={state.exhausted}
-                        onLoadOlder={loadOlder}
-                        tools={
-                            <>
-                                <HeaderItems session={activeSession} />
-                                <PanelButtons
-                                    panels={panels}
-                                    open={panelOpen}
-                                    onToggle={(key) => {
-                                        setPanelOpen((open) => (open === key ? null : key));
-                                    }}
-                                />
-                            </>
-                        }
-                        onSettings={() => {
-                            setSettings(true);
-                        }}
-                        onSessions={() => {
-                            setSheet(true);
-                        }}
-                    />
-
-                    <div className="relative">
-                        {menu ? (
-                            <ModelMenu
-                                scoped={models.scoped}
-                                all={models.all}
-                                current={active?.model ?? null}
-                                level={active?.thinkingLevel ?? null}
-                                defaultModel={models.default}
-                                onClose={() => {
-                                    setMenu(false);
-                                }}
-                                onMakeDefault={(choice, level) => {
-                                    void (async () => {
-                                        await setDefaultModel({
-                                            provider: choice.provider,
-                                            modelId: choice.id,
-                                            thinkingLevel: level,
-                                        });
-                                        setModels(await listModels());
-                                    })();
-                                }}
-                                onPick={(choice, level) => {
-                                    void (async () => {
-                                        if (current !== null) {
-                                            await setAgent(current, {
-                                                model: {
-                                                    provider: choice.provider,
-                                                    modelId: choice.id,
-                                                },
-                                                thinkingLevel: level,
-                                            });
-                                        }
-
-                                        await reload();
-                                    })();
-                                }}
-                            />
-                        ) : null}
-
-                        <Composer
-                            key={current}
-                            sessionId={String(current)}
-                            session={activeSession}
-                            busy={state.live.busy}
-                            queued={state.live.queued ?? []}
-                            model={model}
-                            level={active?.thinkingLevel ?? null}
-                            menuOpen={menu}
-                            onToggleMenu={() => {
-                                void (async () => {
-                                    if (!menu) {
-                                        setModels(await listModels());
-                                    }
-
-                                    setMenu((open) => !open);
-                                })();
+                    {current === null ? (
+                        <Home
+                            sessions={sessions}
+                            onOpen={go}
+                            onNew={() => {
+                                setPicker(true);
                             }}
-                            onSend={send}
-                            onStop={() => {
-                                void stop();
+                            onSessions={() => {
+                                setSheet(true);
                             }}
-                            onNewSession={() => {
-                                openSession(active?.cwd ?? health?.cwd ?? health?.home ?? "/");
+                            onSettings={() => {
+                                setSettings(true);
                             }}
                         />
-                    </div>
+                    ) : (
+                        <>
+                            <Transcript
+                                key={current}
+                                title={active?.title ?? null}
+                                entries={state.entries}
+                                live={state.live}
+                                loadingOlder={state.loadingOlder}
+                                exhausted={state.exhausted}
+                                onLoadOlder={loadOlder}
+                                tools={
+                                    <>
+                                        <HeaderItems session={activeSession} />
+                                        <PanelButtons
+                                            panels={panels}
+                                            open={panelOpen}
+                                            onToggle={(key) => {
+                                                setPanelOpen((open) => (open === key ? null : key));
+                                            }}
+                                        />
+                                    </>
+                                }
+                                onSettings={() => {
+                                    setSettings(true);
+                                }}
+                                onSessions={() => {
+                                    setSheet(true);
+                                }}
+                            />
+
+                            <div className="relative">
+                                {menu ? (
+                                    <ModelMenu
+                                        scoped={models.scoped}
+                                        all={models.all}
+                                        current={active?.model ?? null}
+                                        level={active?.thinkingLevel ?? null}
+                                        defaultModel={models.default}
+                                        onClose={() => {
+                                            setMenu(false);
+                                        }}
+                                        onMakeDefault={(choice, level) => {
+                                            void (async () => {
+                                                await setDefaultModel({
+                                                    provider: choice.provider,
+                                                    modelId: choice.id,
+                                                    thinkingLevel: level,
+                                                });
+                                                setModels(await listModels());
+                                            })();
+                                        }}
+                                        onPick={(choice, level) => {
+                                            void (async () => {
+                                                if (current !== null) {
+                                                    await setAgent(current, {
+                                                        model: {
+                                                            provider: choice.provider,
+                                                            modelId: choice.id,
+                                                        },
+                                                        thinkingLevel: level,
+                                                    });
+                                                }
+
+                                                await reload();
+                                            })();
+                                        }}
+                                    />
+                                ) : null}
+
+                                <Composer
+                                    key={current}
+                                    sessionId={String(current)}
+                                    session={activeSession}
+                                    busy={state.live.busy}
+                                    queued={state.live.queued ?? []}
+                                    model={model}
+                                    level={active?.thinkingLevel ?? null}
+                                    menuOpen={menu}
+                                    onToggleMenu={() => {
+                                        void (async () => {
+                                            if (!menu) {
+                                                setModels(await listModels());
+                                            }
+
+                                            setMenu((open) => !open);
+                                        })();
+                                    }}
+                                    onSend={send}
+                                    onStop={() => {
+                                        void stop();
+                                    }}
+                                    onNewSession={() => {
+                                        openSession(
+                                            active?.cwd ?? health?.cwd ?? health?.home ?? "/",
+                                        );
+                                    }}
+                                />
+                            </div>
+                        </>
+                    )}
                 </main>
 
                 {panel === undefined ? null : (
@@ -280,8 +303,8 @@ export function App() {
             </div>
 
             <StatusBar
-                connected={state.connected}
-                cwd={active?.cwd ?? health?.cwd ?? ""}
+                connected={current === null ? connected : state.connected}
+                cwd={folder ?? ""}
                 home={health?.home ?? ""}
                 session={activeSession}
                 usage={state.live.usage}
@@ -292,7 +315,7 @@ export function App() {
 
             {picker ? (
                 <FolderPicker
-                    start={active?.cwd ?? health?.cwd ?? health?.home ?? "/"}
+                    start={folder ?? health?.home ?? "/"}
                     recent={sessions.map((session) => session.cwd).filter((cwd) => cwd !== null)}
                     onClose={() => {
                         setPicker(false);
