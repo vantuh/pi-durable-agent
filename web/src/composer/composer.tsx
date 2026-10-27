@@ -1,12 +1,14 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { listSkills, runCommand, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { toast } from "../lib/toast.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
+import type { StatusProps } from "../sdk/types.ts";
 import { Attachments, type Pending } from "../ui/attachments.tsx";
+import { ComposerItems } from "./items.tsx";
 import { Queued } from "./queued.tsx";
 
 const MODES: { mode: SendMode; label: string; hint: string }[] = [
@@ -52,6 +54,7 @@ function remember(sessionId: string, text: string): void {
 
 type Props = {
     sessionId: string;
+    session: StatusProps["session"];
     busy: boolean;
     queued: ClientQueued[];
     model: string;
@@ -85,6 +88,7 @@ function pendingOf(file: ClientAttachment): Pending {
 
 export function Composer({
     sessionId,
+    session,
     busy,
     queued,
     model,
@@ -109,6 +113,14 @@ export function Composer({
     const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
     const field = useRef<HTMLTextAreaElement>(null);
+    const sentListeners = useRef(new Set<() => void>());
+    const onSent = useCallback((listener: () => void) => {
+        sentListeners.current.add(listener);
+
+        return () => {
+            sentListeners.current.delete(listener);
+        };
+    }, []);
     const [skills, setSkills] = useState<SkillInfo[]>([]);
     const [marked, setMarked] = useState(0);
     // The list closes on Escape and opens again when the text changes.
@@ -241,6 +253,10 @@ export function Composer({
 
         if (body === "" && paths.length === 0) {
             return;
+        }
+
+        for (const listener of sentListeners.current) {
+            listener();
         }
 
         // A command is not a message: it never enters the transcript, and its arguments are not files.
@@ -526,6 +542,16 @@ export function Composer({
                                 <Square className="size-3 fill-current" />
                             </button>
                         ) : null}
+                        <ComposerItems
+                            session={session}
+                            field={field}
+                            setText={(value) => {
+                                browse.current = null;
+                                setComposerDraft(sessionId, value);
+                                setText(value);
+                            }}
+                            onSent={onSent}
+                        />
                         <div
                             className="relative flex items-center"
                             onBlur={(event) => {

@@ -1,6 +1,6 @@
 /**
- * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items
- * settings sections, side panels and tool icons.
+ * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
+ * composer controls, settings sections, side panels and tool icons.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -9,13 +9,21 @@
 import { useEffect, useState } from "react";
 
 import { listExtensions } from "./lib/api.ts";
-import type { HeaderItem, PanelItem, SettingsSection, StatusItem, ToolIcon } from "./sdk/types.ts";
+import type {
+    ComposerItem,
+    HeaderItem,
+    PanelItem,
+    SettingsSection,
+    StatusItem,
+    ToolIcon,
+} from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
 export type FolderSettingsSection = SettingsSection & { folder: string };
 export type FolderPanel = PanelItem & { folder: string };
 
 export type FolderHeaderItem = HeaderItem & { folder: string };
+export type FolderComposerItem = ComposerItem & { folder: string };
 export type FolderToolIcon = ToolIcon & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end"]);
@@ -43,6 +51,10 @@ function isHeaderItem(value: unknown): value is HeaderItem {
         typeof Reflect.get(value, "id") === "string" &&
         typeof Reflect.get(value, "component") === "function"
     );
+}
+
+function isComposerItem(value: unknown): value is ComposerItem {
+    return isHeaderItem(value);
 }
 
 function isSection(value: unknown): value is SettingsSection {
@@ -135,6 +147,7 @@ function collect<T extends { id: string }>(
 type Loaded = {
     status: FolderStatusItem[];
     header: FolderHeaderItem[];
+    composer: FolderComposerItem[];
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
     tools: FolderToolIcon[];
@@ -157,12 +170,20 @@ const listeners = new Set<() => void>();
 const modules = new Map<string, Promise<Loaded>>();
 
 async function loadFolder(folder: string, importModule: () => Promise<unknown>): Promise<Loaded> {
-    const loaded: Loaded = { status: [], header: [], settings: [], panels: [], tools: [] };
+    const loaded: Loaded = {
+        status: [],
+        header: [],
+        composer: [],
+        settings: [],
+        panels: [],
+        tools: [],
+    };
 
     try {
         const module = await importModule();
 
         collect(folder, "header", module, isHeaderItem, loaded.header);
+        collect(folder, "composer", module, isComposerItem, loaded.composer);
         collect(folder, "status", module, isStatusItem, loaded.status);
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
@@ -269,6 +290,13 @@ const pickHeader = (loaded: Loaded): FolderHeaderItem[] => loaded.header;
 /** Arbitrary extension controls in the conversation header. */
 export function useHeaderItems(): readonly FolderHeaderItem[] {
     return useLoaded(pickHeader);
+}
+
+const pickComposer = (loaded: Loaded): FolderComposerItem[] => loaded.composer;
+
+/** Controls extensions add to the composer's row, beside Send. */
+export function useComposerItems(): readonly FolderComposerItem[] {
+    return useLoaded(pickComposer);
 }
 
 const pickTools = (loaded: Loaded): FolderToolIcon[] => loaded.tools;

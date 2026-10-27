@@ -244,6 +244,7 @@ export function App() {
                         <Composer
                             key={current}
                             sessionId={String(current)}
+                            session={activeSession}
                             busy={state.live.busy}
                             queued={state.live.queued ?? []}
                             model={model}
