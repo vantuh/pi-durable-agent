@@ -3,7 +3,7 @@
  * extensions, and the core grows only when it must.
  */
 
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
@@ -665,7 +665,6 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         const hidden = url.searchParams.get("hidden") === "1";
 
         try {
-            const { readdir } = await import("node:fs/promises");
             const entries = await readdir(path, { withFileTypes: true });
             const dirs = entries
                 .filter((entry) => entry.isDirectory())
@@ -884,8 +883,6 @@ async function main(): Promise<void> {
         throw new Error(`MODEL must be "provider/modelId", not "${MODEL}"`);
     }
 
-    const { mkdir } = await import("node:fs/promises");
-
     await mkdir(UPLOAD_DIR, { recursive: true });
 
     models = await ModelRuntime.create();
@@ -931,7 +928,7 @@ async function main(): Promise<void> {
     });
 
     rootId = Number(root.id);
-    sessions = new Sessions({ harness, model: { provider, modelId }, cwd, context });
+    sessions = new Sessions({ harness, model: { provider, modelId }, context });
     extensions.onChange(() => {
         for (const { opened, view } of latest.values()) {
             publish(opened, view);

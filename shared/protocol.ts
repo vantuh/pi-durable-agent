@@ -143,8 +143,3 @@ export type DefaultModel = {
     modelId: string;
     thinkingLevel: string;
 };
-
-export type SendRequest = {
-    text: string;
-    mode?: SendMode;
-};

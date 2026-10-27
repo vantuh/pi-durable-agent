@@ -83,25 +83,17 @@ export type Opened = {
 export class Sessions {
     readonly #harness: Harness;
     readonly #model: { provider: string; modelId: string };
-    readonly #cwd: string;
     readonly #context: Context;
     readonly #open = new Map<ConversationId, Opened>();
 
     constructor(options: {
         harness: Harness;
         model: { provider: string; modelId: string };
-        cwd: string;
         context: Context;
     }) {
         this.#harness = options.harness;
         this.#model = options.model;
-        this.#cwd = options.cwd;
         this.#context = options.context;
-    }
-
-    /** The reserved root conversation: the one this app started with. */
-    async root(): Promise<Conversation> {
-        return this.#harness.root(this.#context, { agent: { model: this.#model, cwd: this.#cwd } });
     }
 
     async create(cwd: string): Promise<Conversation> {

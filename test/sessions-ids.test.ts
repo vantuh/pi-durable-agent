@@ -30,7 +30,6 @@ void describe("Sessions.ids", () => {
             const sessions = new Sessions({
                 harness,
                 model,
-                cwd: dir,
                 context: BACKGROUND_CONTEXT,
             });
 
@@ -51,7 +50,6 @@ void describe("Sessions.ids", () => {
             const reopened = new Sessions({
                 harness,
                 model,
-                cwd: dir,
                 context: BACKGROUND_CONTEXT,
             });
             assert.equal(
