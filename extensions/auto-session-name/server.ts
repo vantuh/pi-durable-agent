@@ -1,19 +1,4 @@
-/**
- * Names a session from its conversation, the way Pi Web's "generate name" button does: the whole
- * transcript under a character budget, the session model, strict title parsing, and no fallback. A
- * failed run leaves the session unnamed instead of naming it after a fragment of the user's own
- * message, which is what pi-autoname did whenever its model call failed.
- *
- * Copied from the Pi extension `auto-session-name`, with three seams of this app in place of Pi's:
- * `host.sessionRequest` for the model and the request, `host.sessionName` and `host.setSessionTitle`
- * for the name, and `host.onCommit` for the settle Pi reports as `agent_settled`.
- *
- * Auto-naming runs after a settled run and only while the session has no name of its own, so a name
- * someone chose is left alone, by hand or by an earlier run of this extension. The item in the
- * session list's menu regenerates the name.
- *
- * The transcript and title cleanup live in ./lib.ts.
- */
+/** Adapted from the Pi extension `auto-session-name`: automatic runs preserve names; the menu regenerates. */
 import { randomUUID } from "node:crypto";
 
 import {
@@ -49,11 +34,8 @@ Requirements:
 - Do not call any tools.
 - Return only the title as plain text, with no quotes, label, markdown, or explanation.`;
 
-/**
- * Naming is a short classification task, so thinking only adds latency and tokens: use the cheapest
- * level the model supports. Gemini rejects "minimal" and its SDK emits that level when thinking is
- * disabled, so it skips to the next supported level instead.
- */
+// Use the cheapest level. Gemini's SDK emits unsupported "minimal" when thinking is off,
+// so Gemini needs the next supported level instead.
 function resolveTitleThinkingLevel(model: Model<Api>): ModelThinkingLevel {
     if (!model.reasoning) {
         return "off";
@@ -100,10 +82,7 @@ async function generateTitle(host: Host, session: number): Promise<string> {
 
     const thinking = resolveTitleThinkingLevel(request.model);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-        controller.abort();
-    }, TITLE_TIMEOUT_MS);
+    const signal = AbortSignal.timeout(TITLE_TIMEOUT_MS);
     try {
         const answer = await request.send(
             [
@@ -113,7 +92,7 @@ async function generateTitle(host: Host, session: number): Promise<string> {
                     timestamp: Date.now(),
                 },
             ],
-            controller.signal,
+            signal,
             {
                 systemPrompt: TITLE_SYSTEM_PROMPT,
                 maxTokens: TITLE_MAX_TOKENS,
@@ -121,17 +100,15 @@ async function generateTitle(host: Host, session: number): Promise<string> {
                 // cache nobody will read.
                 cacheRetention: "none",
                 sessionId: randomUUID(),
-                ...(thinking === "off" ? {} : { reasoning: thinking }),
+                reasoning: thinking,
             },
         );
         return titleFromAssistant(answer);
     } catch (error) {
-        if (controller.signal.aborted) {
+        if (signal.aborted) {
             throw new Error("Session title generation timed out", { cause: error });
         }
         throw error;
-    } finally {
-        clearTimeout(timer);
     }
 }
 

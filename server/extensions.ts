@@ -17,7 +17,7 @@ import type {
     CacheRetention,
     Message,
     Model,
-    ThinkingLevel,
+    ModelThinkingLevel,
 } from "@earendil-works/pi-ai";
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
@@ -77,7 +77,8 @@ export type SessionSendOptions = {
     /** Defaults to the long cache a conversation's own requests use. */
     readonly cacheRetention?: CacheRetention;
     readonly sessionId?: string;
-    readonly reasoning?: ThinkingLevel;
+    /** Absent inherits the conversation's level; "off" explicitly disables thinking. */
+    readonly reasoning?: ModelThinkingLevel;
 };
 
 /** One conversation's next request: the model, the context it would send, and one request on top. */
