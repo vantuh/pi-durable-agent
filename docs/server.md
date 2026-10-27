@@ -99,7 +99,8 @@ The proxy must preserve the public `Host` for extension origin checks.
 ## Beyond the first conversation
 
 ```text
-GET  /api/sessions           the list: title, folder, model, thinking level, busy, activeAt
+GET  /api/sessions           the list: name (null while the first question names it), title (what the row shows),
+                             folder, model, thinking level, busy, activeAt
 POST /api/sessions           { cwd } → a new conversation with the default model
 POST /api/sessions/archive   { session, archived }  sidebar visibility only
 POST /api/sessions/delete    { session }  gone from every list; see [session-delete.md](session-delete.md)
