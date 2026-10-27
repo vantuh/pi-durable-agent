@@ -12,6 +12,12 @@ pnpm fix     # format and auto-fix what can be fixed
 
 `pnpm check` is the only gate. It fails on **warnings** too, so nothing accumulates as "later".
 
+## Commit messages
+
+`pnpm install` enables `.githooks` through the `prepare` script. The `commit-msg` hook runs
+commitlint with `@commitlint/config-conventional`, rejecting messages that do not follow
+Conventional Commits, for example `fix(ui): keep the composer visible`.
+
 ## What each guard catches
 
 Verified by writing the mistake and watching it fail.

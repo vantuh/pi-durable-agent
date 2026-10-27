@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "prepare": "git config core.hooksPath .githooks",
         "dev": "vite",
         "serve": "node --watch server/main.ts",
         "start": "pnpm build && node server/main.ts",
@@ -35,6 +36,8 @@
         "web-push": "3.6.7"
     },
     "devDependencies": {
+        "@commitlint/cli": "^21.2.4",
+        "@commitlint/config-conventional": "^21.2.4",
         "@tailwindcss/vite": "^4.3.3",
         "@types/node": "^26.6.5",
         "@types/react": "^19.3.0",
