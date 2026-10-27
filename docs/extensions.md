@@ -499,7 +499,7 @@ see [Git history and embedded review](git-history.md).
 ## Usage limits
 
 `extensions/usage-limits` shows the five-hour limit of the current conversation's provider as a
-meter in the `start` slot of the status bar (`5h ▮▮▯ 13%`, warn above 70%, danger above 90%). It
+meter in the `end` slot of the status bar (`5h ▮▮▯ 13%`, warn above 70%, danger above 90%). It
 follows `session.model` (`provider/modelId`, in `StatusProps`), so a new session or a model change
 shows the new provider's window. A click opens a popover above the button with every provider's
 windows and reset times; the current provider is highlighted.

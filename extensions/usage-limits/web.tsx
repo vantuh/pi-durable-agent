@@ -292,5 +292,5 @@ function UsageLimits({ session }: StatusProps) {
 }
 
 export default {
-    status: [{ id: "five-hour", slot: "start", component: UsageLimits }],
+    status: [{ id: "five-hour", slot: "end", component: UsageLimits }],
 } satisfies WebExtension;
