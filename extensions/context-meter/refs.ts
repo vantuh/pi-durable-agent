@@ -6,6 +6,8 @@ export type Breakdown = {
     model: string;
     used: number;
     window: number;
+    /** Sizes are scaled to the model's own count of the first request; otherwise raw estimates. */
+    calibrated: boolean;
     sections: Part[];
     tools: Part[];
 };
@@ -32,6 +34,7 @@ function isBreakdown(value: unknown): value is Breakdown {
         typeof Reflect.get(value, "model") === "string" &&
         typeof Reflect.get(value, "used") === "number" &&
         typeof Reflect.get(value, "window") === "number" &&
+        typeof Reflect.get(value, "calibrated") === "boolean" &&
         Array.isArray(sections) &&
         sections.every(isPart) &&
         Array.isArray(tools) &&

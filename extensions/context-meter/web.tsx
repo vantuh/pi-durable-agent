@@ -92,7 +92,11 @@ function Popup({ data, left, bottom }: { data: Breakdown; left: number; bottom: 
                 </div>
                 <Group title="system prompt" unit="sections" parts={data.sections} />
                 <Group title="tools" unit="tools" parts={data.tools} />
-                <p className="text-faint">Estimates at 3.5 characters per token.</p>
+                <p className="text-faint">
+                    {data.calibrated
+                        ? "Estimates, scaled to this model's own count of the first request."
+                        : "Estimates at 3.5 characters per token."}
+                </p>
             </div>
         </div>
     );
