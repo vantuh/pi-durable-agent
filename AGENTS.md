@@ -74,17 +74,21 @@ server/            core      HTTP, SSE, harness, extension loader
 shared/            core      protocol.ts — the only contract the browser sees
 extensions/<name>/ extension server.ts · web.tsx · api.ts
 web/               core      React shell
-  src/shell/                 sidebar, conversation frame, drawer
+  src/shell/                 sidebar, conversation frame, status bar, settings
   src/transcript/            turns, tool-call folding
   src/composer/              input, model chip, send and stop
+  src/ui/                    renderers two of the three share: markdown, diff, attachments,
+                             the error boundary around one item
   src/sdk/                   event store, host calls
+  src/lib/                   what the folders call: api.ts, conversation.ts, turns.ts, event.ts
+  src/components/ui/         shadcn primitives, imported through the `@/` alias
   src/styles/                catppuccin.css, styles.css
 agents/            later     subagent definitions, Markdown with frontmatter
 docs/                        decisions, written before code
 ```
 
-The browser folders under `web/src/` are a target: today the code is in `parts/` (panels), `lib/`,
-`components/ui/`, `sdk/` and `styles/`.
+A file goes in `shell/`, `transcript/` or `composer/` when one of them owns it. When two of them do,
+it goes in `ui/` rather than making a feature import another feature.
 
 Today `server/`, `shared/`, `web/src/` and `extensions/` exist: `server/` runs several conversations,
 and `extensions/` holds `prompt`, `cache-hit`, `context-meter`, `tokens-per-second` and `git-branch`.
@@ -141,9 +145,9 @@ second mechanism.
 4. ~~**The shell, transcript and composer.**~~ **Done**: three panels with gaps, a status bar,
    the stream rendered, `Enter` sends, Stop aborts ([docs/layout.md](docs/layout.md)).
 5. ~~**Tool calls** folded into one line per group, with the answer statistics.~~ **Done**:
-   `web/src/lib/turns.ts` groups, `web/src/parts/activity.tsx` folds. Answers render as Markdown (`web/src/parts/markdown.tsx`).
+   `web/src/lib/turns.ts` groups, `web/src/transcript/activity.tsx` folds. Answers render as Markdown (`web/src/ui/markdown.tsx`).
 6. ~~**Sessions**: more than one conversation, titles and times stored, a real list, a folder
-   picker.~~ **Done**: `web/src/parts/sessions.tsx`, `web/src/parts/folder-picker.tsx`,
+   picker.~~ **Done**: `web/src/shell/sessions.tsx`, `web/src/shell/folder-picker.tsx`,
    `GET`/`POST /api/sessions` ([docs/server.md](docs/server.md)).
 7. **Features**, each a new `extensions/<name>/` folder; the planned ones and their sources are in
    [docs/extensions.md](docs/extensions.md).
@@ -167,7 +171,7 @@ pnpm fix       # repairs formatting and anything auto-fixable
 - [ ] **No colour is ever invented.** Every colour is a `--role-*` name from the theme. No hex,
       no `rgb()`, no `oklch()`, no Tailwind palette class, no inline `style={{ color }}`, not
       even once and not even in dev. A colour that is missing gets a role added to
-      `web/src/styles.css` and a palette name in `styles/catppuccin.css` first, then the
+      `web/src/styles/styles.css` and a palette name in `styles/catppuccin.css` first, then the
       component uses it.
 - [ ] No new dependency without the reason in the commit message.
 - [ ] `@earendil-works/*` packages are pinned exactly: Pi Durable is experimental.

@@ -132,7 +132,7 @@ export function workerFacets(dir: string): string[] {
 
 export function pwa(): Plugin {
     const read = (path: string): string => readFileSync(new URL(path, import.meta.url), "utf8");
-    const stylesCss = read("./web/src/styles.css");
+    const stylesCss = read("./web/src/styles/styles.css");
     const paletteCss = read("./web/src/styles/catppuccin.css");
     // The theme boots in Mocha unless the user picked another flavour (web/src/lib/flavour.ts).
     const colour = (role: string): string => roleColor(stylesCss, paletteCss, role, "mocha");

@@ -56,7 +56,7 @@ Latte and Frappé, which is unreadable at 12–13px; `text`, `subtext1`, and `su
   instead of an unstyled page.
 - Every block carries `color-scheme`, so scrollbars, form controls, and the window chrome follow.
 - `main.tsx` reads `localStorage.flavour` once, before render.
-- The switch is the **Appearance** modal (`web/src/parts/appearance-dialog.tsx`), opened by the
+- The switch is the **Appearance** modal (`web/src/shell/appearance-dialog.tsx`), opened by the
   palette icon in the Settings footer. It shows one card per flavour: a small preview, the name,
   and six colour dots. A click calls `applyFlavour`, which sets the attribute and the key.
 

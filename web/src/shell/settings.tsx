@@ -4,9 +4,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { useSettingsSections } from "../extensions.ts";
 import type { SettingsProps } from "../sdk/types.ts";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { AppearanceButton } from "./appearance-dialog.tsx";
 import { ExtensionsButton } from "./extensions-dialog.tsx";
-import { ItemBoundary } from "./item-boundary.tsx";
 
 type Props = {
     model: string;

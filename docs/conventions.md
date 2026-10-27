@@ -46,7 +46,7 @@ One rule, no exceptions: **a colour comes from the theme or it does not exist.**
 
 - A component names a role: `text-muted`, `bg-panel`, `border-edge-soft`, or `var(--role-accent)`.
 - A colour the themes lacks is added to `web/src/styles/catppuccin.css` (a palette name) and
-  `web/src/styles.css` (a role), then used. Never a hex, `rgb()`, `oklch()`, Tailwind palette class,
+  `web/src/styles/styles.css` (a role), then used. Never a hex, `rgb()`, `oklch()`, Tailwind palette class,
   or inline `style` — not in a component, not in a dev page, not in a one-off border.
 - Tailwind's own palette is deleted, so the wrong way does not compile to anything.
 

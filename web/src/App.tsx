@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
+import { Composer } from "./composer/composer.tsx";
+import { ModelMenu } from "./composer/model-menu.tsx";
 import { usePanels } from "./extensions.ts";
 import {
     type Health,
@@ -16,15 +18,13 @@ import {
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
 import { sessionFromSearch } from "./lib/deep-link.ts";
-import { Composer } from "./parts/composer.tsx";
-import { FolderPicker } from "./parts/folder-picker.tsx";
-import { HeaderItems } from "./parts/header-items.tsx";
-import { ModelMenu } from "./parts/model-menu.tsx";
-import { PanelButtons, PanelHost, panelKey } from "./parts/panels.tsx";
-import { Sessions } from "./parts/sessions.tsx";
-import { Settings } from "./parts/settings.tsx";
-import { StatusBar } from "./parts/status-bar.tsx";
-import { Transcript } from "./parts/transcript.tsx";
+import { FolderPicker } from "./shell/folder-picker.tsx";
+import { HeaderItems } from "./shell/header-items.tsx";
+import { PanelButtons, PanelHost, panelKey } from "./shell/panels.tsx";
+import { Sessions } from "./shell/sessions.tsx";
+import { Settings } from "./shell/settings.tsx";
+import { StatusBar } from "./shell/status-bar.tsx";
+import { Transcript } from "./transcript/transcript.tsx";
 
 const SESSION_KEY = "session";
 

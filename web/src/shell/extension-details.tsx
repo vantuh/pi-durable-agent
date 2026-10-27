@@ -1,7 +1,7 @@
 import { type ComponentType, lazy, Suspense } from "react";
 
 import type { ExtensionDetailsProps } from "../sdk/types.ts";
-import { ItemBoundary } from "./item-boundary.tsx";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 function isComponent(value: unknown): value is ComponentType<ExtensionDetailsProps> {
     return typeof value === "function";

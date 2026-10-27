@@ -4,7 +4,7 @@ import { type PointerEvent as ReactPointerEvent, useEffect } from "react";
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
 import type { PanelProps } from "../sdk/types.ts";
-import { ItemBoundary } from "./item-boundary.tsx";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 

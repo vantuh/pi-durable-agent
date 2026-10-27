@@ -7,9 +7,9 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
 import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
+import { Attachments } from "../ui/attachments.tsx";
+import { Markdown } from "../ui/markdown.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
-import { Attachments } from "./attachments.tsx";
-import { Markdown } from "./markdown.tsx";
 
 type Props = {
     title: string | null;

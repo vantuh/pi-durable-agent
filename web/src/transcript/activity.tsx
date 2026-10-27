@@ -30,8 +30,8 @@ import {
     subjectOf,
     summarize,
 } from "../lib/turns.ts";
-import { Counts, DiffCard } from "./diff.tsx";
-import { CodeBlock } from "./markdown.tsx";
+import { Counts, DiffCard } from "../ui/diff.tsx";
+import { CodeBlock } from "../ui/markdown.tsx";
 
 /** The current time, every second while `live`; a settled clock never redraws. */
 export function useNow(live: boolean): number {

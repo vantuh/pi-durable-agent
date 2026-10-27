@@ -5,7 +5,7 @@ import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { listSkills, type SkillInfo, uploadFile } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
-import { Attachments, type Pending } from "./attachments.tsx";
+import { Attachments, type Pending } from "../ui/attachments.tsx";
 
 const MODES: { mode: SendMode; label: string; hint: string }[] = [
     { mode: "steer", label: "Steer", hint: "read after the current step" },

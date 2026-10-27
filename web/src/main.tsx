@@ -7,7 +7,7 @@ import { applyFlavour, currentFlavour } from "./lib/flavour.ts";
 import { registerWorker } from "./lib/register-worker.ts";
 import { applyWidth, currentWidth } from "./lib/width.ts";
 
-import "./styles.css";
+import "./styles/styles.css";
 
 applyFlavour(currentFlavour());
 applyWidth(currentWidth());

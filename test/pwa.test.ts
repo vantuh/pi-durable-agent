@@ -153,7 +153,7 @@ void describe("service worker", () => {
 
 void describe("pwa build helpers", () => {
     void it("resolves roles through the real theme files, per flavour", () => {
-        const styles = read("../web/src/styles.css");
+        const styles = read("../web/src/styles/styles.css");
         const palette = read("../web/src/styles/catppuccin.css");
         const paletteValue = (flavour: string, name: string) =>
             palette

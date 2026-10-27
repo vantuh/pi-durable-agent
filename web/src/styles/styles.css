@@ -1,10 +1,10 @@
 @import "tailwindcss";
-@import "./styles/catppuccin.css";
+@import "./catppuccin.css";
 @source "../../extensions";
 
 @font-face {
     font-family: "JetBrains Mono";
-    src: url("./fonts/JetBrainsMono.woff2") format("woff2");
+    src: url("../fonts/JetBrainsMono.woff2") format("woff2");
     font-weight: 100 800;
     font-style: normal;
     font-display: swap;
@@ -12,7 +12,7 @@
 
 @font-face {
     font-family: "JetBrains Mono";
-    src: url("./fonts/JetBrainsMono-Italic.woff2") format("woff2");
+    src: url("../fonts/JetBrainsMono-Italic.woff2") format("woff2");
     font-weight: 100 800;
     font-style: italic;
     font-display: swap;

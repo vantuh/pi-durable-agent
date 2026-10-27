@@ -1,7 +1,7 @@
 import type { ClientStatus, ClientUsage } from "../../../shared/protocol.ts";
 import { useStatusItems } from "../extensions.ts";
 import type { StatusProps } from "../sdk/types.ts";
-import { ItemBoundary } from "./item-boundary.tsx";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 type Props = {
     connected: boolean;

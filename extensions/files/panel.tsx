@@ -10,9 +10,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { langOfPath } from "@/lib/highlight.ts";
-import { CodeBlock } from "@/parts/markdown.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { CodeBlock } from "@/ui/markdown.tsx";
 
 import { type File, type Folder, list, read } from "./refs.ts";
 
