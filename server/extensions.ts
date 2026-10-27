@@ -11,6 +11,7 @@ import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
 import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
@@ -42,6 +43,20 @@ export type Host = {
     readonly resolveModelAuth: ResolveModelAuth;
     /** The context window of a model in the catalog, in tokens. */
     readonly contextWindow: (provider: string, modelId: string) => number | undefined;
+    /**
+     * What one conversation would send next and one request on top of it, for keeping its provider
+     * cache warm without adding to its transcript. Undefined for a session the server does not know.
+     */
+    readonly sessionRequest: (session: number) => Promise<SessionRequest | undefined>;
+};
+
+/** One conversation's next request: the model, the context it would send, and one request on top. */
+export type SessionRequest = {
+    readonly model: { readonly provider: string; readonly modelId: string };
+    /** The model context of the next request, its system messages included. */
+    readonly messages: readonly Message[];
+    /** One request with these messages on the long cache; nothing reaches the transcript. */
+    readonly send: (messages: readonly Message[], signal: AbortSignal) => Promise<AssistantMessage>;
 };
 
 /** One conversation after a commit: what a commit listener may read. */
@@ -293,6 +308,7 @@ export class Extensions {
     readonly #fetchWrappers = new Set<FetchWrapper>();
     readonly #resolveModelAuth: ResolveModelAuth;
     readonly #contextWindow: Host["contextWindow"];
+    readonly #sessionRequest: Host["sessionRequest"];
 
     get fetchWrappers(): readonly FetchWrapper[] {
         return [...this.#fetchWrappers];
@@ -320,6 +336,7 @@ export class Extensions {
         notify?: (notice: ExtensionNotice) => void;
         resolveModelAuth?: ResolveModelAuth;
         contextWindow?: Host["contextWindow"];
+        sessionRequest?: Host["sessionRequest"];
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
@@ -329,6 +346,7 @@ export class Extensions {
         this.#notify = options.notify ?? (() => undefined);
         this.#resolveModelAuth = options.resolveModelAuth ?? (() => Promise.resolve(undefined));
         this.#contextWindow = options.contextWindow ?? (() => undefined);
+        this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -739,6 +757,7 @@ export class Extensions {
             },
             resolveModelAuth: this.#resolveModelAuth,
             contextWindow: this.#contextWindow,
+            sessionRequest: (session) => this.#sessionRequest(session),
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
                 attempt.push(() => {

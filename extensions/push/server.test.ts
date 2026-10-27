@@ -388,6 +388,7 @@ void describe("push", () => {
                 wrapModelFetch: () => undefined,
                 resolveModelAuth: () => Promise.resolve(undefined),
                 contextWindow: () => undefined,
+                sessionRequest: () => Promise.resolve(undefined),
             };
             const sends: string[] = [];
 

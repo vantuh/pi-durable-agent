@@ -7,6 +7,7 @@ export {
     type CommitView,
     type Host,
     type HttpHandler,
+    type SessionRequest,
     type StatusProvider,
 } from "./extensions.ts";
 export type { FetchWrapper, ModelFetch, RequestModel, ResolveModelAuth } from "./model-requests.ts";

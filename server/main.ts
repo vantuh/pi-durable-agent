@@ -22,7 +22,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
-import { Extensions } from "./extensions.ts";
+import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import { answer, type Route } from "./http.ts";
 import { shapeModelRequests } from "./model-requests.ts";
@@ -44,6 +44,11 @@ const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = join(process.cwd(), "data");
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
+/**
+ * The hour-long provider cache, for every conversation and for the requests extensions send on top
+ * of one (keep-warm renews it). A short cache is gone before a ping can renew it, so the two agree.
+ */
+const STREAM = { cacheRetention: "long" } as const;
 
 type Client = { response: ServerResponse; session: number };
 
@@ -53,6 +58,7 @@ const endedAt = new Map<number, number>();
 const latest = new Map<number, { opened: Opened; view: View }>();
 
 let models: ModelRuntime;
+let runtime: ModelRuntime;
 let extensions: Extensions;
 let sessions: Sessions;
 let harness: Harness;
@@ -80,6 +86,54 @@ function entriesOf(view: View): ClientEntry[] {
 function windowOf(provider: string, modelId: string): number | undefined {
     return models.getModels().find((model) => model.provider === provider && model.id === modelId)
         ?.contextWindow;
+}
+
+/**
+ * One conversation's next request, for an extension that must reuse its cache and add nothing: the
+ * context the next request would send, and a request on top through the same model runtime, so the
+ * installed fetch wrappers shape both.
+ */
+async function sessionRequestOf(session: number): Promise<SessionRequest | undefined> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
+    const opened = await sessions.open(session as ConversationId);
+
+    if (opened === undefined) {
+        return undefined;
+    }
+
+    const agent = await opened.conversation.agent(context);
+    const ref = agent.model;
+
+    if (ref === undefined) {
+        return undefined;
+    }
+
+    const model = runtime.getModel(ref.provider, ref.modelId);
+
+    if (model === undefined) {
+        return undefined;
+    }
+
+    const { messages } = await opened.conversation.context(context);
+
+    return {
+        model: ref,
+        messages,
+        send: (next, signal) =>
+            runtime
+                .streamSimple(
+                    model,
+                    { messages: [...next] },
+                    {
+                        ...STREAM,
+                        signal,
+                        ...(agent.thinkingLevel === "off"
+                            ? {}
+                            : { reasoning: agent.thinkingLevel }),
+                    },
+                )
+                .result(),
+    };
 }
 
 function liveOf(view: View): ClientLive {
@@ -260,6 +314,7 @@ async function main(): Promise<void> {
         contextWindow: windowOf,
         resolveModelAuth: async (providerId, signal) =>
             (await models.getAuth(providerId, { signal }))?.auth,
+        sessionRequest: sessionRequestOf,
         registry,
         dir: join(cwd, "extensions"),
         cwd,
@@ -273,15 +328,17 @@ async function main(): Promise<void> {
 
     const storage = await openNodeSqliteStorage(join(DATA_DIR, "state.sqlite"));
 
+    runtime = shapeModelRequests(
+        models,
+        () => extensions.requestShapers,
+        () => extensions.fetchWrappers,
+    );
     harness = await Harness.open(
         storage,
         {
-            models: shapeModelRequests(
-                models,
-                () => extensions.requestShapers,
-                () => extensions.fetchWrappers,
-            ),
+            models: runtime,
             registry,
+            settings: { stream: STREAM },
             env: () => new NodeExecutionEnv({ cwd }),
         },
         context,
