@@ -1,4 +1,4 @@
-/** One conversation: its event stream, what is said to it, stopping it, its model, and its skills. */
+/** One conversation: its event stream, what is said to it, stopping it, its model, its skills, and its commands. */
 
 import { readFile, stat } from "node:fs/promises";
 import type { ServerResponse } from "node:http";
@@ -7,6 +7,7 @@ import { basename, extname } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 
+import { runCommand } from "../commands.ts";
 import { historyPage } from "../history.ts";
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
@@ -284,6 +285,47 @@ export function conversationRoutes(deps: {
                     context,
                 );
                 answer(response, 202, { ok: true });
+            },
+        },
+        {
+            method: "POST",
+            path: /^\/api\/commands$/,
+            handle: async (request, response) => {
+                const payload = record(await readJson(request));
+                const name = string(payload?.["name"]) ?? "";
+                const args = string(payload?.["args"]) ?? "";
+                const id = sessionFrom(payload?.["session"]);
+
+                if (id === undefined) {
+                    badSession(response);
+
+                    return;
+                }
+
+                const opened = await attach(id);
+
+                if (opened === undefined) {
+                    answer(response, 404, { error: "no such session" });
+
+                    return;
+                }
+
+                try {
+                    answer(
+                        response,
+                        200,
+                        await runCommand(name, {
+                            conversation: opened.conversation,
+                            harness: deps.harness,
+                            context,
+                            args,
+                        }),
+                    );
+                } catch (error) {
+                    answer(response, 400, {
+                        error: error instanceof Error ? error.message : "the command failed",
+                    });
+                }
             },
         },
         {

@@ -162,6 +162,9 @@ export type ModelChoice = {
 /** How a message goes while the agent works: after the next tool round, after the answer, or now. */
 export type SendMode = "steer" | "followUp" | "interrupt";
 
+/** What a slash command did: `empty` means there was nothing for it to do, and the screen says so. */
+export type CommandResult = { status: "started" } | { status: "empty" };
+
 /** The model and thinking level a new session starts with. */
 export type DefaultModel = {
     provider: string;

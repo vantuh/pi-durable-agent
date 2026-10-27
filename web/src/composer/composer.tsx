@@ -2,7 +2,7 @@ import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide
 import { useEffect, useRef, useState } from "react";
 
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
-import { listSkills, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
+import { listSkills, runCommand, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { toast } from "../lib/toast.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
@@ -240,6 +240,32 @@ export function Composer({
         );
 
         if (body === "" && paths.length === 0) {
+            return;
+        }
+
+        // A command is not a message: it never enters the transcript, and its arguments are not files.
+        const command = /^\/(\w+)(?:\s+([\s\S]*))?$/.exec(body);
+
+        if (command !== null && command[1] === "compact" && paths.length === 0) {
+            setComposerDraft(sessionId, "");
+            browse.current = null;
+            setText("");
+            void (async () => {
+                try {
+                    const result = await runCommand(
+                        Number(sessionId),
+                        "compact",
+                        command[2]?.trim() ?? "",
+                    );
+
+                    if (result === "empty") {
+                        toast.warning("Nothing to compact: the conversation is too short");
+                    }
+                } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Could not compact");
+                }
+            })();
+
             return;
         }
 

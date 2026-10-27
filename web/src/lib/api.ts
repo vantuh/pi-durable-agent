@@ -1,6 +1,7 @@
 import type {
     ClientHistory,
     ClientUsage,
+    CommandResult,
     DefaultModel,
     ModelChoice,
     SendMode,
@@ -251,6 +252,33 @@ export async function setAgent(
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ session, ...change }),
     });
+}
+
+/**
+ * Runs a slash command. `empty` says it had nothing to do, so the screen can say so; a failure throws with the
+ * server's message.
+ */
+export async function runCommand(
+    session: number,
+    name: string,
+    args: string,
+): Promise<CommandResult["status"]> {
+    const response = await fetch("/api/commands", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session, name, args }),
+    });
+    const body: unknown = await response.json().catch(() => undefined);
+    const error: unknown =
+        typeof body === "object" && body !== null ? Reflect.get(body, "error") : undefined;
+
+    if (!response.ok) {
+        throw new Error(typeof error === "string" ? error : `/api/commands: ${response.status}`);
+    }
+
+    return typeof body === "object" && body !== null && Reflect.get(body, "status") === "empty"
+        ? "empty"
+        : "started";
 }
 
 export async function sendMessage(
