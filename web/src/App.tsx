@@ -107,7 +107,12 @@ export function App() {
     const activeSession =
         current === null
             ? null
-            : { id: current, cwd: active?.cwd ?? health?.cwd ?? null, busy: state.live.busy };
+            : {
+                  id: current,
+                  cwd: active?.cwd ?? health?.cwd ?? null,
+                  busy: state.live.busy,
+                  model: active?.model ?? null,
+              };
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
 

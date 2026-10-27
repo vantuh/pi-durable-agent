@@ -1,7 +1,13 @@
 import type { ComponentType, ReactNode } from "react";
 
 export type StatusProps = {
-    session: { id: number; cwd: string | null; busy: boolean } | null;
+    session: {
+        id: number;
+        cwd: string | null;
+        busy: boolean;
+        /** `provider/modelId` of the conversation's agent, or null when the server has not said. */
+        model: string | null;
+    } | null;
 };
 
 export type StatusItem = {
