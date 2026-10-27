@@ -67,7 +67,7 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
                 live: event.live,
                 model: event.model,
                 loadingOlder: false,
-                exhausted: false,
+                exhausted: !event.more,
             };
 
         case "entries":

@@ -109,17 +109,27 @@ const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1"
  * Where a compaction cut the context: a line, and the summary the model was handed instead of everything above it.
  * The messages above stay on screen — they are the conversation, they are just no longer what is sent.
  */
-function CompactionMark({ summary, above }: { summary?: string; above: number }) {
+function CompactionMark({
+    summary,
+    above,
+    whole,
+}: {
+    summary?: string;
+    above: number;
+    /** The conversation's start is on screen, so the count above the cut is the whole truth. */
+    whole: boolean;
+}) {
     const label = (
         <span className="text-meta text-ink">
             earlier messages were compacted
-            {above === 0 ? "" : ` · ${String(above)}`}
+            {whole && above > 0 ? ` · ${String(above)}` : ""}
         </span>
     );
     const pill = (
         <span className="border-edge bg-raised hover:border-muted flex shrink-0 items-center gap-2 rounded-full border px-3 py-1">
             <Layers className="size-3.5 shrink-0" />
             {label}
+            {whole ? null : <Spinner className="size-3 shrink-0" />}
             {summary === undefined ? null : (
                 <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
             )}
@@ -164,10 +174,12 @@ function TurnItem({ item }: { item: Item }) {
     return <Markdown text={item.text} streaming={item.streaming} />;
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+function TurnView({ turn, whole }: { turn: Turn; whole: boolean }) {
     return (
         <div className="flex flex-col gap-3">
-            {turn.compacted === undefined ? null : <CompactionMark {...turn.compacted} />}
+            {turn.compacted === undefined ? null : (
+                <CompactionMark {...turn.compacted} whole={whole} />
+            )}
             {turn.user === undefined ? null : (
                 <div className="flex justify-end">
                     <div className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2">
@@ -354,7 +366,7 @@ export function Transcript({
                     ) : null}
 
                     {turns.map((turn) => (
-                        <TurnView key={turn.key} turn={turn} />
+                        <TurnView key={turn.key} turn={turn} whole={exhausted} />
                     ))}
 
                     {entries.length === 0 && live.blocks === undefined ? (

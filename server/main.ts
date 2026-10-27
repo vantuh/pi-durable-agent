@@ -23,6 +23,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions } from "./extensions.ts";
+import { hasOlder } from "./history.ts";
 import { answer, type Route } from "./http.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
@@ -180,12 +181,20 @@ async function stream(response: ServerResponse, opened: Opened): Promise<void> {
     client.response.on("close", () => {
         clients.delete(client);
     });
+
+    const entries = entriesOf(view.value);
+    const first = entries[0];
+
     send(client, {
         type: "hello",
         session: id,
-        entries: entriesOf(view.value),
+        entries,
         live: liveOf(view.value),
         model: MODEL,
+        more:
+            first === undefined
+                ? false
+                : await hasOlder({ conversation: opened.conversation, context, id: first.id }),
     });
 }
 

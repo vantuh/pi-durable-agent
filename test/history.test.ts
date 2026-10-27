@@ -10,7 +10,7 @@ import { type Conversation, createRegistry, Harness } from "@earendil-works/pi-d
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 
-import { historyPage } from "../server/history.ts";
+import { hasOlder, historyPage } from "../server/history.ts";
 
 /** One conversation of a throwaway session, with the entries `write` appends. */
 async function withConversation(
@@ -209,6 +209,29 @@ void describe("historyPage", () => {
                     kind: "compaction",
                     summary: "## Goal\nship it",
                 });
+            },
+        );
+    });
+
+    void it("says whether the screen is missing the start, so a spinner is not shown for nothing", async () => {
+        await withConversation(
+            async (conversation) => {
+                await appendTurn(conversation, "question");
+                await appendTurn(conversation, "another question");
+            },
+            async (conversation) => {
+                const [first, , , fourth] = await logOf(conversation);
+
+                assert.equal(
+                    await hasOlder({ conversation, context: BACKGROUND_CONTEXT, id: first ?? 0 }),
+                    false,
+                    "the first entry on screen is the conversation's first entry",
+                );
+                assert.equal(
+                    await hasOlder({ conversation, context: BACKGROUND_CONTEXT, id: fourth ?? 0 }),
+                    true,
+                    "an entry further in leaves older entries to ask for",
+                );
             },
         );
     });

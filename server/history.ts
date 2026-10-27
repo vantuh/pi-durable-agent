@@ -14,6 +14,23 @@ import { projectEntry } from "./projection.ts";
 const CHUNK = 40;
 const PAGE_MAX = 400;
 
+/** Whether the log keeps entries older than `id`: what `hello` answers the screen about paging. */
+export async function hasOlder(options: {
+    conversation: Conversation;
+    context: Context;
+    id: number;
+}): Promise<boolean> {
+    const oldest = await options.conversation.entries(
+        { order: "ascending" },
+        1,
+        undefined,
+        options.context,
+    );
+    const first = oldest.items[0];
+
+    return first !== undefined && Number(first.id) < options.id;
+}
+
 export async function historyPage(options: {
     conversation: Conversation;
     context: Context;

@@ -126,7 +126,14 @@ export type ClientHistory = {
 export type ExtensionNotice = { level: "success" | "error"; message: string };
 
 export type ServerEvent = { session: number } & (
-    | { type: "hello"; entries: ClientEntry[]; live: ClientLive; model: string }
+    | {
+          type: "hello";
+          entries: ClientEntry[];
+          live: ClientLive;
+          model: string;
+          /** The log holds entries older than these, so the screen has a start still to ask for. */
+          more: boolean;
+      }
     /** `replace` says the server rewrote the active view; the browser adds by id either way, it never swaps. */
     | { type: "entries"; entries: ClientEntry[]; replace: boolean }
     | { type: "live"; live: ClientLive }

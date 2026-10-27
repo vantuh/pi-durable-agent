@@ -59,9 +59,28 @@ void describe("withEvent", () => {
             entries: [said(1, "hallo")],
             live: START.live,
             model: "m1",
+            more: false,
         };
 
         assert.deepEqual(idsOf(withEvent(read, hello).entries), [1]);
         assert.equal(withEvent(read, hello).session, 1);
+    });
+
+    void it("knows from hello whether the start is still to be asked for", () => {
+        const hello = (more: boolean): ServerEvent => ({
+            type: "hello",
+            session: 1,
+            entries: [said(9, "the tail")],
+            live: START.live,
+            model: "m1",
+            more,
+        });
+
+        assert.equal(withEvent(START, hello(true)).exhausted, false, "older entries are still out");
+        assert.equal(
+            withEvent(START, hello(false)).exhausted,
+            true,
+            "the screen holds the whole conversation, so nothing is asked for",
+        );
     });
 });
