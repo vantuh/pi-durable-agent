@@ -30,7 +30,7 @@ export function ExtensionsButton() {
                     <Puzzle className="size-4" />
                 </button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:h-[min(36rem,80dvh)] sm:max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Extensions</DialogTitle>
                     <DialogDescription>
