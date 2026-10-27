@@ -350,6 +350,16 @@ export function parseEvent(raw: string): ServerEvent | undefined {
         return { session, type: "live", live: live(event?.["live"]) };
     }
 
+    if (type === "extension-notice") {
+        const notice = record(event?.["notice"]);
+        const level = notice?.["level"];
+        const message = str(notice?.["message"]);
+        if ((level === "success" || level === "error") && message !== undefined) {
+            return { session, type, notice: { level, message } };
+        }
+        return undefined;
+    }
+
     if (type === "error") {
         return { session, type: "error", message: str(event?.["message"]) ?? "the run failed" };
     }

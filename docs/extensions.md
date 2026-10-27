@@ -210,12 +210,17 @@ gets a wrench. The core's own tools (`bash`, `read`, `edit`, …) keep the core'
 
 ## Live, without a restart
 
-The loader watches `extensions/` and reloads on a change, at most once per 150 ms of quiet:
+The loader watches `extensions/` and reloads only the changed folders after 150 ms of quiet:
 
 - **added** → installed, and the next request uses it;
 - **changed** → the old one is replaced in place; a running tool call finishes on the old code;
 - **broken** → the previous version stays installed, and the folder is listed as failed;
 - **removed** → uninstalled, and its disposers run.
+
+Connected conversation tabs show a toast after a live load, reload, removal or failure. A failure
+says when the previous version is still active. Initial startup loads are silent; disabled folders
+stay off. These notices report the server half, not whether the browser half finished its Vite HMR
+update. Browser HMR is available in development only; production serves the last built UI.
 
 Disposers follow the version that registered them:
 

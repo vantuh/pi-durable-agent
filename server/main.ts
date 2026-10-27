@@ -888,6 +888,11 @@ async function main(): Promise<void> {
     registry.install(CodingTools);
 
     extensions = new Extensions({
+        notify: (notice) => {
+            for (const client of clients) {
+                send(client, { type: "extension-notice", session: client.session, notice });
+            }
+        },
         contextWindow: windowOf,
         resolveModelAuth: async (providerId, signal) =>
             (await models.getAuth(providerId, { signal }))?.auth,

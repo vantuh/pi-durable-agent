@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
-import type { ClientStatus } from "../shared/protocol.ts";
+import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
 import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
 
 /** What an extension's `server.ts` receives. It grows only when a feature needs more. */
@@ -275,6 +275,8 @@ export class Extensions {
     readonly #cwd: string;
     readonly #dataDir: string;
     readonly #log: (message: string) => void;
+    readonly #notify: (notice: ExtensionNotice) => void;
+    readonly #pending = new Set<string>();
     readonly #installed = new Map<string, Extension>();
     readonly #status = new Map<string, StatusProvider>();
     readonly #actions = new Map<string, ReadonlyMap<string, Action>>();
@@ -315,6 +317,7 @@ export class Extensions {
         cwd: string;
         dataDir: string;
         log: (message: string) => void;
+        notify?: (notice: ExtensionNotice) => void;
         resolveModelAuth?: ResolveModelAuth;
         contextWindow?: Host["contextWindow"];
     }) {
@@ -323,6 +326,7 @@ export class Extensions {
         this.#cwd = options.cwd;
         this.#dataDir = options.dataDir;
         this.#log = options.log;
+        this.#notify = options.notify ?? (() => undefined);
         this.#resolveModelAuth = options.resolveModelAuth ?? (() => Promise.resolve(undefined));
         this.#contextWindow = options.contextWindow ?? (() => undefined);
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
@@ -462,9 +466,9 @@ export class Extensions {
         this.#listeners.add(listener);
     }
 
-    /** Loads every folder. A load already running is finished first, so two saves never interleave. */
-    load(): Promise<void> {
-        const run = this.#queue.then(() => this.#load());
+    /** Loads all folders silently, or reports results for a changed set. Loads never interleave. */
+    load(changed?: ReadonlySet<string>): Promise<void> {
+        const run = this.#queue.then(() => this.#load(changed));
 
         // The caller gets its own rejection; the queue itself must stay usable for later loads.
         this.#queue = run.catch(() => undefined);
@@ -474,14 +478,24 @@ export class Extensions {
 
     /** Loads again whenever anything under `extensions/` changes. */
     watch(): void {
-        this.#watcher = watch(this.#dir, { recursive: true }, () => {
+        this.#watcher = watch(this.#dir, { recursive: true }, (_event, filename) => {
+            if (filename === null) {
+                return;
+            }
+            const folder = filename.split(sep)[0];
+            if (folder === undefined || folder.startsWith(".") || folder.startsWith("_")) {
+                return;
+            }
+            this.#pending.add(folder);
             if (this.#timer !== undefined) {
                 clearTimeout(this.#timer);
             }
 
             this.#timer = setTimeout(() => {
                 this.#timer = undefined;
-                void this.load().catch((error: unknown) => {
+                const changed = new Set(this.#pending);
+                this.#pending.clear();
+                void this.load(changed).catch((error: unknown) => {
                     this.#log(`extensions: ${reasonOf(error)}`);
                 });
             }, SETTLE_MS);
@@ -509,16 +523,22 @@ export class Extensions {
         }
     }
 
-    async #load(): Promise<void> {
+    async #load(changed?: ReadonlySet<string>): Promise<void> {
         this.#generation += 1;
 
         const present = new Set<string>();
-        const failed: LoadFailure[] = [];
+        const notices: ExtensionNotice[] = [];
+        const failed: LoadFailure[] =
+            changed === undefined ? [] : this.#failed.filter(({ folder }) => !changed.has(folder));
 
         this.#disabled = await this.#readDisabled();
 
         for (const folder of await this.#folders()) {
             present.add(folder);
+            if (changed !== undefined && !changed.has(folder)) {
+                continue;
+            }
+            const loaded = this.#disposers.has(folder);
 
             const attempt: Disposer[] = [];
             const commits: CommitListener[] = [];
@@ -550,8 +570,20 @@ export class Extensions {
                 }
 
                 await this.#swap(folder, attempt);
+                if (changed !== undefined && built !== "disabled") {
+                    notices.push({
+                        level: "success",
+                        message: `Extension “${folder}” ${loaded ? "reloaded" : "loaded"}`,
+                    });
+                }
             } catch (error) {
                 failed.push({ folder, reason: reasonOf(error) });
+                if (changed !== undefined && !this.#disabled.has(folder)) {
+                    notices.push({
+                        level: "error",
+                        message: `Could not load extension “${folder}”: ${reasonOf(error)}${loaded ? ". Previous version is still active." : ""}`,
+                    });
+                }
                 await this.#run(folder, attempt);
 
                 if (this.#disabled.has(folder)) {
@@ -567,10 +599,13 @@ export class Extensions {
                 this.#drop(folder, "removed");
                 this.#commits.delete(folder);
                 await this.#release(folder);
+                if (changed !== undefined) {
+                    notices.push({ level: "success", message: `Extension “${folder}” removed` });
+                }
             }
         }
 
-        this.#failed = failed;
+        this.#failed = failed.filter(({ folder }) => present.has(folder));
 
         for (const folder of [...this.#known.keys()]) {
             if (!present.has(folder)) {
@@ -584,6 +619,9 @@ export class Extensions {
 
         for (const listener of this.#listeners) {
             listener();
+        }
+        for (const notice of notices) {
+            this.#notify(notice);
         }
     }
 

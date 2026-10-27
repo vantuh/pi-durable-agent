@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { ClientEntry, ClientLive, SendMode, ServerEvent } from "../../../shared/protocol.ts";
+import { refreshExtensions } from "../extensions.ts";
 import { sendMessage, stopRun } from "./api.ts";
 import { parseEvent } from "./event.ts";
+import { toast } from "./toast.ts";
 
 export type ConversationState = {
     session: number | null;
@@ -45,6 +47,9 @@ function withEvent(state: ConversationState, event: ServerEvent): ConversationSt
         case "live":
             return { ...state, live: event.live };
 
+        case "extension-notice":
+            return state;
+
         case "error":
             return { ...state, issue: event.message };
 
@@ -77,7 +82,12 @@ export function useConversation(session: number | null): {
             const event = parseEvent(message.data);
 
             if (event !== undefined && event.session === session) {
-                setState((current) => withEvent(current, event));
+                if (event.type === "extension-notice") {
+                    toast[event.notice.level](event.notice.message);
+                    void refreshExtensions();
+                } else {
+                    setState((current) => withEvent(current, event));
+                }
             }
         };
 

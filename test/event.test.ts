@@ -4,6 +4,22 @@ import { describe, it } from "node:test";
 import { parseEvent } from "../web/src/lib/event.ts";
 
 void describe("parseEvent", () => {
+    void it("validates extension notices before they reach the toaster", () => {
+        const event = {
+            session: 1,
+            type: "extension-notice",
+            notice: { level: "success", message: "Reloaded" },
+        };
+        assert.deepEqual(parseEvent(JSON.stringify(event)), event);
+        for (const notice of [
+            null,
+            {},
+            { level: "unknown", message: "Reloaded" },
+            { level: "error", message: 1 },
+        ]) {
+            assert.equal(parseEvent(JSON.stringify({ ...event, notice })), undefined);
+        }
+    });
     void it("keeps an answer's stats, a result's times and diff, and the stream's start", () => {
         const stats = {
             model: "m1",

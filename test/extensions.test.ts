@@ -3,10 +3,12 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { setTimeout } from "node:timers/promises";
 
 import { createRegistry } from "@earendil-works/pi-durable";
 
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "../server/extensions.ts";
+import type { ExtensionNotice } from "../shared/protocol.ts";
 
 const CALLS = "__extensionTestCalls";
 
@@ -44,6 +46,7 @@ void describe("Extensions disposers", () => {
     let root: string;
     let dir: string;
     let logs: string[];
+    let notices: ExtensionNotice[];
     let extensions: Extensions;
 
     async function write(folder: string, text: string): Promise<void> {
@@ -85,9 +88,13 @@ void describe("Extensions disposers", () => {
         root = await mkdtemp(join(tmpdir(), "extensions-test-"));
         dir = join(root, "extensions");
         logs = [];
+        notices = [];
         await mkdir(dir);
         Reflect.set(globalThis, CALLS, []);
         extensions = new Extensions({
+            notify: (notice) => {
+                notices.push(notice);
+            },
             registry: createRegistry(),
             dir,
             cwd: root,
@@ -101,6 +108,68 @@ void describe("Extensions disposers", () => {
     afterEach(async () => {
         await extensions.dispose();
         await rm(root, { recursive: true, force: true });
+    });
+
+    void it("watches only the changed folder and reports reload, failure, recovery and removal", async () => {
+        async function nextNotice(count: number): Promise<ExtensionNotice | undefined> {
+            const deadline = Date.now() + 5000;
+            while (notices.length < count && Date.now() < deadline) {
+                await setTimeout(20);
+            }
+            assert.equal(notices.length, count);
+            return notices[count - 1];
+        }
+
+        await write("alpha", source({ tags: ["alpha-v1"] }));
+        await write("beta", source({ tags: ["beta"] }));
+        await extensions.load();
+        assert.deepEqual(notices, []);
+        extensions.watch();
+
+        await write("alpha", source({ tags: ["alpha-v2"] }));
+        assert.deepEqual(await nextNotice(1), {
+            level: "success",
+            message: "Extension “alpha” reloaded",
+        });
+        assert.deepEqual(calls(), ["alpha-v1"]);
+
+        await write("alpha", source({ tags: ["failed"], throwAfter: true }));
+        assert.deepEqual(await nextNotice(2), {
+            level: "error",
+            message: "Could not load extension “alpha”: broken. Previous version is still active.",
+        });
+        assert.ok(extensions.names.includes("alpha"));
+        assert.deepEqual(calls(), ["alpha-v1", "failed"]);
+
+        await write("alpha", source({ tags: ["alpha-v3"] }));
+        assert.deepEqual(await nextNotice(3), {
+            level: "success",
+            message: "Extension “alpha” reloaded",
+        });
+        assert.deepEqual(extensions.failed, []);
+        assert.deepEqual(calls(), ["alpha-v1", "failed", "alpha-v2"]);
+
+        await rm(join(dir, "alpha", "server.ts"));
+        assert.deepEqual(await nextNotice(4), {
+            level: "success",
+            message: "Extension “alpha” removed",
+        });
+        assert.deepEqual(extensions.names, ["beta"]);
+        assert.deepEqual(calls(), ["alpha-v1", "failed", "alpha-v2", "alpha-v3"]);
+
+        await write("alpha", source({ tags: ["alpha-new"] }));
+        assert.deepEqual(await nextNotice(5), {
+            level: "success",
+            message: "Extension “alpha” loaded",
+        });
+    });
+
+    void it("keeps failures from untouched folders during a targeted reload", async () => {
+        await write("alpha", source({ tags: [], throwAfter: true }));
+        await write("beta", source({ tags: [] }));
+        await extensions.load();
+        await extensions.load(new Set(["beta"]));
+        assert.deepEqual(extensions.failed, [{ folder: "alpha", reason: "broken" }]);
     });
 
     void it("runs the old disposer once on reload and not the new one", async () => {
