@@ -195,6 +195,7 @@ void test("settings: missing or broken file shows everything; actions validate a
         resolveModelAuth: auth({}),
         contextWindow: () => undefined,
         sessionRequest: () => Promise.resolve(undefined),
+        sessionTitle: () => Promise.resolve(null),
         wrapModelFetch: () => undefined,
     };
     const { setShown, settings } = actions(host);

@@ -337,6 +337,11 @@ export class Sessions {
         return stamp;
     }
 
+    /** The name the sidebar shows: the one set by hand, else the first question. */
+    async title(id: ConversationId): Promise<string | null> {
+        return await this.#title(id);
+    }
+
     /** A session is named after what it was first asked, until titles are documents of their own. */
     async #title(id: ConversationId): Promise<string | null> {
         const chosen = await this.#harness.commit(

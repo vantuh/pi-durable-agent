@@ -88,6 +88,12 @@ function windowOf(provider: string, modelId: string): number | undefined {
         ?.contextWindow;
 }
 
+/** The name the sidebar shows for a session, for an extension that has to name it too. */
+async function sessionTitleOf(session: number): Promise<string | null> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
+    return await sessions.title(session as ConversationId);
+}
+
 /**
  * One conversation's next request, for an extension that must reuse its cache and add nothing: the
  * context the next request would send, and a request on top through the same model runtime, so the
@@ -315,6 +321,7 @@ async function main(): Promise<void> {
         resolveModelAuth: async (providerId, signal) =>
             (await models.getAuth(providerId, { signal }))?.auth,
         sessionRequest: sessionRequestOf,
+        sessionTitle: sessionTitleOf,
         registry,
         dir: join(cwd, "extensions"),
         cwd,

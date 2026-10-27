@@ -389,6 +389,7 @@ void describe("push", () => {
                 resolveModelAuth: () => Promise.resolve(undefined),
                 contextWindow: () => undefined,
                 sessionRequest: () => Promise.resolve(undefined),
+                sessionTitle: () => Promise.resolve(null),
             };
             const sends: string[] = [];
 

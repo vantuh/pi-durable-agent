@@ -48,6 +48,11 @@ export type Host = {
      * cache warm without adding to its transcript. Undefined for a session the server does not know.
      */
     readonly sessionRequest: (session: number) => Promise<SessionRequest | undefined>;
+    /**
+     * The name the sidebar shows for a session, as the owner set it or as its first question gives
+     * it; null while it has neither. The core owns titles, so an extension that shows a session asks.
+     */
+    readonly sessionTitle: (session: number) => Promise<string | null>;
 };
 
 /** One conversation's next request: the model, the context it would send, and one request on top. */
@@ -309,6 +314,7 @@ export class Extensions {
     readonly #resolveModelAuth: ResolveModelAuth;
     readonly #contextWindow: Host["contextWindow"];
     readonly #sessionRequest: Host["sessionRequest"];
+    readonly #sessionTitle: Host["sessionTitle"];
 
     get fetchWrappers(): readonly FetchWrapper[] {
         return [...this.#fetchWrappers];
@@ -337,6 +343,7 @@ export class Extensions {
         resolveModelAuth?: ResolveModelAuth;
         contextWindow?: Host["contextWindow"];
         sessionRequest?: Host["sessionRequest"];
+        sessionTitle?: Host["sessionTitle"];
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
@@ -347,6 +354,7 @@ export class Extensions {
         this.#resolveModelAuth = options.resolveModelAuth ?? (() => Promise.resolve(undefined));
         this.#contextWindow = options.contextWindow ?? (() => undefined);
         this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
+        this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -758,6 +766,7 @@ export class Extensions {
             resolveModelAuth: this.#resolveModelAuth,
             contextWindow: this.#contextWindow,
             sessionRequest: (session) => this.#sessionRequest(session),
+            sessionTitle: (session) => this.#sessionTitle(session),
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
                 attempt.push(() => {
