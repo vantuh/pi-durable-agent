@@ -539,10 +539,11 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   (`anthropic-subscription`) shape it like any other.
 - **Never twice.** The attempt is stored as `interrupted` before the request is sent, so a crash
   mid-request counts as a failure; a failure blocks further pings until the conversation's next real
-  request, so an outage or a rate limit is never retried in a loop. The switch and the last ping are
-  in `keep-warm.json` in the data directory (`{ "off": true, "last": { "3": { … } } }`); the user's
-  last input and the last cached answer come from the commits, and a restart recovers them from the
-  baseline views the loader hands over.
+  request, so an outage or a rate limit is never retried in a loop. The switch, the conversations the
+  user stopped and the last ping are in `keep-warm.json` in the data directory
+  (`{ "off": true, "stop": { "3": 1793… }, "last": { "3": { … } } }`); the user's last input and the
+  last cached answer come from the commits, and a restart recovers them from the baseline views the
+  loader hands over.
 - **What it costs.** A ping's tokens are not in `pi.usage`: they belong to no entry, so the status
   bar's spend does not include them. The popover shows what the last ping read and wrote.
 - **The chip.** `warm` in the `end` slot: an ember flame (`--role-ember`, Catppuccin's peach) while

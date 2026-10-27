@@ -20,8 +20,18 @@ export type Seen = {
     busy: boolean;
 };
 
-/** What the state file holds: the switch, and the last ping of every conversation. */
-export type Stored = { off?: true; last?: Record<string, Ping> };
+/** What the state file holds: the switch, the stopped conversations, and the last ping of each. */
+export type Stored = { off?: true; stop?: Record<string, number>; last?: Record<string, Ping> };
+
+/**
+ * A conversation the user stopped in the popover: no pings until they write in it again. The stop
+ * time is what lifts it — a newer input — so nothing has to be turned back on by hand.
+ */
+export function stopped(stored: Stored, session: number, inputAt: number | undefined): boolean {
+    const at = stored.stop?.[String(session)];
+
+    return at !== undefined && (inputAt === undefined || inputAt <= at);
+}
 
 /** An answer that came back and used the cache. A failed answer or one without cache tokens renewed nothing. */
 export function cached(message: AssistantMessage): boolean {
@@ -135,7 +145,7 @@ export function warming(stored: Stored, seen: Map<number, Seen>, now: number): W
     for (const [id, known] of seen) {
         const { inputAt } = known;
 
-        if (inputAt === undefined || now - inputAt >= IDLE_STOP) {
+        if (inputAt === undefined || now - inputAt >= IDLE_STOP || stopped(stored, id, inputAt)) {
             continue;
         }
 

@@ -1,4 +1,4 @@
-/** The state file: the switch and the last ping of every conversation. A missing or broken file means on. */
+/** The state file: the switch, the stopped conversations and the last ping of each. A missing or broken file means on. */
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -42,7 +42,17 @@ export async function readStore(dir: string): Promise<Stored> {
 
         const off: unknown = Reflect.get(parsed, "off");
         const stored: unknown = Reflect.get(parsed, "last");
+        const stops: unknown = Reflect.get(parsed, "stop");
         const last: Record<string, Ping> = {};
+        const stop: Record<string, number> = {};
+
+        if (typeof stops === "object" && stops !== null) {
+            for (const [session, value] of Object.entries(stops)) {
+                if (typeof value === "number") {
+                    stop[session] = value;
+                }
+            }
+        }
 
         if (typeof stored === "object" && stored !== null) {
             for (const [session, value] of Object.entries(stored)) {
@@ -56,6 +66,7 @@ export async function readStore(dir: string): Promise<Stored> {
 
         return {
             ...(off === true ? { off: true as const } : {}),
+            ...(Object.keys(stop).length === 0 ? {} : { stop }),
             ...(Object.keys(last).length === 0 ? {} : { last }),
         };
     } catch {

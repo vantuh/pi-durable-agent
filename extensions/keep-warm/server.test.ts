@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
@@ -11,6 +11,7 @@ import type { EntryRecord } from "@earendil-works/pi-durable";
 import type { CommitListener, CommitView, Host } from "../../server/sdk.ts";
 import { due, IDLE_STOP, LEAD, TTL } from "./due.ts";
 import keepWarm, { actions } from "./server.ts";
+import { readStore } from "./store.ts";
 import {
     activityOf,
     cached,
@@ -18,6 +19,7 @@ import {
     nextOf,
     observe,
     open,
+    stopped,
     warming,
     type Seen,
 } from "./warm.ts";
@@ -210,6 +212,36 @@ void test("lists the conversations a ping is coming for, the one asked last firs
         { id: 3, label: "newer question", nextAt: now - minutes(4) + LEAD },
         { id: 1, label: "older question", nextAt: now - minutes(56) + LEAD },
     ]);
+});
+
+void test("stops warming the conversations the user turned off, until they write in one", () => {
+    const seen = new Map<number, Seen>([
+        [
+            1,
+            {
+                inputAt: now - minutes(70),
+                cached: { at: now - minutes(56), model: "opus" },
+                label: "a question",
+                busy: false,
+            },
+        ],
+    ]);
+
+    assert.equal(warming({ stop: { "1": now - minutes(60) } }, seen, now).length, 0);
+    // A newer input lifts the stop: the user is back, so the hour is worth renewing again.
+    assert.equal(warming({ stop: { "1": now - minutes(80) } }, seen, now).length, 1);
+    assert.equal(stopped({}, 1, now), false);
+});
+
+void test("keeps the stopped conversations it reads, and drops the ones it cannot", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    await writeFile(
+        join(dir, "keep-warm.json"),
+        JSON.stringify({ stop: { "3": 1_700, "4": "soon" }, last: {} }),
+    );
+
+    assert.deepEqual(await readStore(dir), { stop: { "3": 1_700 } });
+    await rm(dir, { recursive: true, force: true });
 });
 
 void test("a ping counts as the last request only when it succeeded on this model", () => {

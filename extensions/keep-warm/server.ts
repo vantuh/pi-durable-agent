@@ -11,7 +11,16 @@ import { type Action, ActionError, type Host, type SessionRequest } from "../../
 import { due, PROVIDER } from "./due.ts";
 import { type Ping, type WarmSession, type WarmState } from "./refs.ts";
 import { readStore, writeStore } from "./store.ts";
-import { activityOf, nextOf, observe, open, warming, type Seen, type Stored } from "./warm.ts";
+import {
+    activityOf,
+    nextOf,
+    observe,
+    open,
+    stopped,
+    warming,
+    type Seen,
+    type Stored,
+} from "./warm.ts";
 
 export const meta = {
     title: "Keep warm",
@@ -118,7 +127,11 @@ async function tick(host: Host): Promise<void> {
 
         const activity = activityOf(stored, session, known, request.model.modelId, Date.now());
 
-        if (activity.lastRequest === undefined || !due(activity)) {
+        if (
+            activity.lastRequest === undefined ||
+            !due(activity) ||
+            stopped(stored, session, activity.inputAt)
+        ) {
             continue;
         }
 
@@ -211,6 +224,18 @@ export const actions = (host: Host): Record<string, Action> => ({
             stored = { ...stored, off: true };
         }
 
+        await writeStore(host.dataDir, stored);
+
+        return await stateOf(host, session?.id);
+    },
+    stop: async ({ args, session }) => {
+        const id = typeof args === "object" && args !== null ? Reflect.get(args, "id") : undefined;
+
+        if (typeof id !== "number") {
+            throw new ActionError("args must be { id: number }");
+        }
+
+        stored = { ...stored, stop: { ...stored.stop, [String(id)]: Date.now() } };
         await writeStore(host.dataDir, stored);
 
         return await stateOf(host, session?.id);

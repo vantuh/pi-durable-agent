@@ -88,3 +88,8 @@ function parseState(value: unknown): WarmState {
 export const state = actionRef<undefined, WarmState>("keep-warm", "state", parseState);
 /** User-only `{ on }`: keep the conversation's cache warm, or stop. Returns the state. */
 export const set = actionRef<{ on: boolean }, WarmState>("keep-warm", "set", parseState);
+/**
+ * User-only `{ id }`: stop pinging that conversation until the user writes in it again, which lifts
+ * the stop on its own. Returns the state.
+ */
+export const stop = actionRef<{ id: number }, WarmState>("keep-warm", "stop", parseState);

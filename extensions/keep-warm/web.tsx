@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Flame, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -10,6 +10,7 @@ import { TTL } from "./due.ts";
 import {
     set as setAction,
     state as stateAction,
+    stop as stopAction,
     type WarmSession,
     type WarmState,
 } from "./refs.ts";
@@ -78,6 +79,7 @@ function Panel({
     anchor,
     now,
     onToggle,
+    onStop,
     onClose,
 }: {
     warm: WarmState;
@@ -86,6 +88,7 @@ function Panel({
     anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
+    onStop: (session: number) => void;
     onClose: () => void;
 }) {
     const ref = useRef<HTMLDialogElement>(null);
@@ -163,9 +166,20 @@ function Panel({
                 <div className="border-edge-soft mt-2 border-t pt-2">
                     <div className="text-faint mb-1">Also warming</div>
                     {others.map((row) => (
-                        <div key={row.id} className="flex items-baseline justify-between gap-2">
+                        <div key={row.id} className="flex items-center justify-between gap-2">
                             <span className="text-muted truncate">{row.label}</span>
                             <span className="text-faint shrink-0">{clock(row.nextAt)}</span>
+                            <button
+                                type="button"
+                                aria-label={`Stop warming ${row.label}`}
+                                title={`Stop warming ${row.label} until you write in it again`}
+                                onClick={() => {
+                                    onStop(row.id);
+                                }}
+                                className="text-faint hover:text-ink shrink-0"
+                            >
+                                <X className="size-3" />
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -220,6 +234,13 @@ function KeepWarm({ session }: StatusProps) {
             .catch(() => undefined);
     };
 
+    const stopWarming = (sessionId: number) => {
+        callAction(stopAction, { id: sessionId }, id)
+            .then(setWarm)
+            // A failure leaves the row where it was; the next poll asks again.
+            .catch(() => undefined);
+    };
+
     return (
         <>
             <button
@@ -246,6 +267,7 @@ function KeepWarm({ session }: StatusProps) {
                     anchor={anchor}
                     now={now}
                     onToggle={toggle}
+                    onStop={stopWarming}
                     onClose={close}
                 />
             ) : null}
