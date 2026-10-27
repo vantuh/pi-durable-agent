@@ -33,15 +33,15 @@ export function Settings({ model, cwd, session, onClose }: Props) {
             </header>
 
             <ScrollArea className="min-h-0 flex-1">
-                <div className="flex flex-col gap-4 p-3">
-                    <section className="flex flex-col gap-1.5">
+                <div className="divide-edge-soft flex flex-col divide-y">
+                    <section className="flex flex-col gap-1.5 p-3">
                         <h3 className="text-meta text-faint">Session</h3>
                         <Row label="model" value={model} />
                         <Row label="folder" value={cwd} />
                     </section>
 
                     {sections.map(({ folder, id, title, component: Section }) => (
-                        <section key={`${folder}:${id}`} className="flex flex-col gap-1.5">
+                        <section key={`${folder}:${id}`} className="flex flex-col gap-1.5 p-3">
                             <h3 className="text-meta text-faint">{title}</h3>
                             <ItemBoundary name={`${folder}:${id}`}>
                                 <Section session={session} />
