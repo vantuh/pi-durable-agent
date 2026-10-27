@@ -25,7 +25,13 @@ void it("starts a session on a thinking level its model supports", async () => {
     try {
         assert.equal(models.getModel(model.provider, model.modelId)?.thinkingLevelMap?.off, null);
 
-        const sessions = new Sessions({ harness, model, models, context: BACKGROUND_CONTEXT });
+        const sessions = new Sessions({
+            harness,
+            model,
+            models,
+            context: BACKGROUND_CONTEXT,
+            dataDir: dir,
+        });
         const conversation = await sessions.create(dir);
 
         assert.equal((await conversation.agent(BACKGROUND_CONTEXT)).thinkingLevel, "low");

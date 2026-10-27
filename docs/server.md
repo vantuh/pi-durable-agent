@@ -75,6 +75,8 @@ The proxy must preserve the public `Host` for extension origin checks.
 ```text
 GET  /api/sessions           the list: title, folder, model, thinking level, busy, activeAt
 POST /api/sessions           { cwd } → a new conversation with the default model
+POST /api/sessions/archive   { session, archived }  sidebar visibility only
+POST /api/sessions/delete    { session }  gone for good; see [session-delete.md](session-delete.md)
 POST /api/messages           { session, text, files, mode? }  mode: steer | followUp | interrupt
 POST /api/agent              { session, model?, thinkingLevel? }
 GET  /api/models             { scoped, all, default }

@@ -15,6 +15,7 @@ import {
 } from "@earendil-works/pi-durable";
 
 import { projectEntry } from "./projection.ts";
+import { queue } from "./purge.ts";
 
 /** When a person last wrote to a session, or created it. 0 until something sets it. */
 const ClockDoc = defineDoc({
@@ -103,18 +104,22 @@ export class Sessions {
     readonly #model: ModelRef;
     readonly #models: ModelCatalog;
     readonly #context: Context;
+    readonly #dataDir: string;
     readonly #open = new Map<ConversationId, Opened>();
+    readonly #deleted = new Set<number>();
 
     constructor(options: {
         harness: Harness;
         model: ModelRef;
         models: ModelCatalog;
         context: Context;
+        dataDir: string;
     }) {
         this.#harness = options.harness;
         this.#model = options.model;
         this.#models = options.models;
         this.#context = options.context;
+        this.#dataDir = options.dataDir;
     }
 
     async create(cwd: string): Promise<Conversation> {
@@ -183,6 +188,15 @@ export class Sessions {
         }, this.#context);
     }
 
+    /**
+     * Hides the session at once and queues its rows for the next start; the harness has no delete of its own.
+     */
+    async delete(id: ConversationId): Promise<void> {
+        await queue(this.#dataDir, Number(id));
+        this.#deleted.add(Number(id));
+        this.#open.delete(id);
+    }
+
     /** Names the session by hand; an empty name goes back to the automatic one. */
     async setTitle(id: ConversationId, title: string): Promise<void> {
         await this.#harness.commit(async (tx) => {
@@ -192,6 +206,10 @@ export class Sessions {
 
     /** The conversation with its state attached, opened once and then kept. */
     async open(id: ConversationId): Promise<Opened | undefined> {
+        if (this.#deleted.has(Number(id))) {
+            return undefined;
+        }
+
         const known = this.#open.get(id);
 
         if (known !== undefined) {
@@ -237,6 +255,10 @@ export class Sessions {
         const summaries: SessionSummary[] = [];
 
         for (const id of await this.ids()) {
+            if (this.#deleted.has(Number(id))) {
+                continue;
+            }
+
             const conversation = await this.#harness.conversation(id, this.#context);
 
             if (conversation === undefined) {

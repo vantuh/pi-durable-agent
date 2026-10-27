@@ -26,6 +26,7 @@ import { Extensions } from "./extensions.ts";
 import { answer, type Route } from "./http.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
+import { purge, queued } from "./purge.ts";
 import { conversationRoutes } from "./routes/conversation.ts";
 import { extensionRoutes } from "./routes/extensions.ts";
 import { fileRoutes } from "./routes/files.ts";
@@ -234,6 +235,8 @@ async function main(): Promise<void> {
     }
 
     await mkdir(join(DATA_DIR, "uploads"), { recursive: true });
+    // Sessions deleted while the server ran: their rows can go only now, with no harness holding them.
+    await purge(DATA_DIR, await queued(DATA_DIR));
 
     models = await ModelRuntime.create();
 
@@ -287,7 +290,13 @@ async function main(): Promise<void> {
     });
 
     rootId = Number(root.id);
-    sessions = new Sessions({ harness, model: { provider, modelId }, models, context });
+    sessions = new Sessions({
+        harness,
+        model: { provider, modelId },
+        models,
+        context,
+        dataDir: DATA_DIR,
+    });
     extensions.onChange(() => {
         for (const { opened, view } of latest.values()) {
             publish(opened, view);
@@ -308,6 +317,18 @@ async function main(): Promise<void> {
             attach,
             busy: (id) => busy.get(id) === true,
             endedAt: (id) => endedAt.get(id),
+            forget: (id) => {
+                for (const client of clients) {
+                    if (client.session === id) {
+                        client.response.end();
+                        clients.delete(client);
+                    }
+                }
+
+                busy.delete(id);
+                endedAt.delete(id);
+                latest.delete(id);
+            },
         }),
         ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
         ...fileRoutes({ dataDir: DATA_DIR }),
