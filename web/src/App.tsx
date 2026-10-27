@@ -324,6 +324,12 @@ export function App() {
                 status={state.live.status ?? []}
                 busy={state.live.busy}
                 issue={state.issue}
+                sessions={sessions}
+                current={current}
+                onOpen={(id) => {
+                    go(id);
+                    setSheet(false);
+                }}
             />
 
             {picker ? (

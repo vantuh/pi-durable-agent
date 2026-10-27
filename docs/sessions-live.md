@@ -8,7 +8,8 @@ This is the plan to see every session's state from anywhere, in four steps, each
    Reached from a favicon button in the sidebar header; `/` is home, `?session=N` is a session,
    kept in sync with `history.pushState` so Back on a phone goes home.
 3. **In-app notifications**: a toast when another session finishes; a click opens it.
-4. **The status bar counts the others**: `ready · 2 working`, a click lists them.
+4. **The status bar counts the others**: `ready · 2 working · 1 new`, a click lists them, the open
+   session highlighted. See [layout.md](layout.md).
 
 All of it is core: the session list and the sidebar are core, and an extension's web half has no
 access to the list.

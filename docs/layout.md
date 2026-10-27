@@ -148,6 +148,11 @@ under the composer, and its branch beside its title.
 | warm             | `extensions/keep-warm`       | end slot                    |
 | extension fields | `status` export of a folder  | only with that extension on |
 
+The state is a button: after it, how many other sessions work (`· 2 working`) and finished unseen
+(`· 1 new`), counted from the session list stream. A click opens a menu above it: the open session
+first, on `raised`, then the working and the unseen ones (`sunken` under the pointer), each a link
+that opens it, then `All sessions` for the home page.
+
 The bar has three slots (`start`, `center`, `end`) that extensions fill.
 
 ## Under the composer

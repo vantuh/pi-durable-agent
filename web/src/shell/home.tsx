@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
-import { ago, folderName, MINUTE, StateMark } from "./session-parts.tsx";
+import { MINUTE, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
     sessions: SessionSummary[];
@@ -43,18 +43,7 @@ function Row({
             }}
             className="rounded-control hover:bg-raised/50 flex items-center gap-3 px-2 py-2"
         >
-            <StateMark session={session} />
-            <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-sidebar text-ink truncate">
-                    {session.title ?? "New session"}
-                </span>
-                <span className="text-meta text-faint truncate font-mono">
-                    {folderName(session.cwd)}
-                </span>
-            </span>
-            <span className="text-meta text-faint min-w-7 shrink-0 text-right">
-                {session.activeAt === null ? null : ago(session.activeAt, now)}
-            </span>
+            <SessionRowContent session={session} now={now} />
         </a>
     );
 }

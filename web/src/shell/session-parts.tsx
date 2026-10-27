@@ -49,3 +49,23 @@ export function StateMark({ session }: { session: SessionSummary }) {
         />
     );
 }
+
+/** A row of a list across folders: mark, title over folder, and time. The caller makes it a link. */
+export function SessionRowContent({ session, now }: { session: SessionSummary; now: number }) {
+    return (
+        <>
+            <StateMark session={session} />
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sidebar text-ink truncate">
+                    {session.title ?? "New session"}
+                </span>
+                <span className="text-meta text-faint truncate font-mono">
+                    {folderName(session.cwd)}
+                </span>
+            </span>
+            <span className="text-meta text-faint min-w-7 shrink-0 text-right">
+                {session.activeAt === null ? null : ago(session.activeAt, now)}
+            </span>
+        </>
+    );
+}
