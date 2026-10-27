@@ -304,22 +304,6 @@ export function Sessions({
         >
             <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
                 <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-[6px]">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
-                            setCollapsed(!collapsed);
-                        }}
-                        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink hidden size-6 shrink-0 items-center justify-center lg:flex"
-                    >
-                        {collapsed ? (
-                            <PanelLeftOpen className="size-4" />
-                        ) : (
-                            <PanelLeftClose className="size-4" />
-                        )}
-                    </button>
                     <a
                         href={sessionHref(null)}
                         onClick={(event) => {
@@ -331,16 +315,36 @@ export function Sessions({
                         title="Home: every session"
                         aria-label="Home"
                         aria-current={current === null ? "page" : undefined}
-                        className={`rounded-control flex size-6 shrink-0 items-center justify-center ${current === null ? "bg-raised" : "hover:bg-raised"}`}
+                        className={`rounded-control -my-1 -ml-1 flex size-8 shrink-0 items-center justify-center lg:group-data-[collapsed]/side:my-0 lg:group-data-[collapsed]/side:ml-0 lg:group-data-[collapsed]/side:size-6 ${current === null ? "bg-raised" : "hover:bg-raised"}`}
                     >
-                        <img src="/favicon.png" alt="" className="size-4" />
+                        <img
+                            src="/favicon.png"
+                            alt=""
+                            className="size-6 lg:group-data-[collapsed]/side:size-5"
+                        />
                     </a>
                     <h2
-                        className={`text-sidebar text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap ${FADE}`}
+                        className={`text-sidebar text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
                     >
                         Sessions
                     </h2>
                     <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
+                                setCollapsed(!collapsed);
+                            }}
+                            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            className="rounded-control text-muted hover:bg-raised hover:text-ink hidden size-6 shrink-0 items-center justify-center lg:flex"
+                        >
+                            {collapsed ? (
+                                <PanelLeftOpen className="size-4" />
+                            ) : (
+                                <PanelLeftClose className="size-4" />
+                            )}
+                        </button>
                         <button
                             type="button"
                             onClick={onClose}

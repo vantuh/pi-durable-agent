@@ -35,7 +35,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 
 ## Sidebar
 
-- **Top**: the app icon, which goes home, `Sessions`, and a pill with the folder the conversation
+- **Top**: the app icon at the left edge, which goes home, `Sessions`, the collapse button at the
+  right edge, and a pill with the folder the conversation
   works in; on the home page, the folder of the last session opened. The pill opens a list of the folders
   that sessions use, with the session count of each; choosing one opens its latest session. The
   `+` (new session) button opens `FolderPicker`: it browses the server's folders (hidden ones
