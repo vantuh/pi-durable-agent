@@ -457,3 +457,19 @@ Browser extensions may call `appendComposerDraft(sessionId, text, optionalUnique
 keeps inactive-session drafts separate. An optional ID deduplicates repeated delivery during the
 page lifetime. It never submits a message. `extensions/git-history` uses both seams;
 see [Git history and embedded review](git-history.md).
+
+## Usage limits
+
+`extensions/usage-limits` shows the five-hour limit of the current conversation's provider as a
+meter in the `center` slot of the status bar (`5h ▮▮▯ 13%`, warn above 70%, danger above 90%). It
+follows `session.model` (`provider/modelId`, in `StatusProps`), so a new session or a model change
+shows the new provider's window. A click opens a popover above the button with every provider's
+windows and reset times; the current provider is highlighted. It is hidden below `sm`.
+
+- Providers: Anthropic (OAuth only), OpenCode Go, and OpenAI Codex. These are undocumented
+  endpoints; a failing provider is an error row, never a crash.
+- Anthropic and OpenCode Go tokens come from `host.resolveModelAuth` and never leave the server.
+- Pi's OpenAI token is refused by the ChatGPT usage endpoint (HTTP 401), so Codex reads the Codex
+  CLI's own sign-in from `$CODEX_HOME/auth.json` (`~/.codex/auth.json`). Without it Codex is absent.
+- The server caches the answer for 60 s; the browser asks every 60 s and when a run ends. The
+  refresh button bypasses the cache.
