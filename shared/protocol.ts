@@ -16,6 +16,8 @@ export type ClientAnswerStats = {
     stopReason: string;
     /** Prompt tokens, cache reads and writes included: the context the response was sent with. */
     input: number;
+    /** How much of `input` the provider served from its cache. */
+    cached: number;
     output: number;
     cost: number;
     /** Unix milliseconds when the request started. */

@@ -44,6 +44,8 @@ export type TurnStats = {
     responses: number;
     /** The newest response's prompt: the context the turn has grown to. */
     context: number;
+    /** How much of `context` the provider served from its cache. */
+    cached: number;
     output: number;
     cost: number;
     startedAt?: number;
@@ -506,6 +508,7 @@ function statsOf(turn: Turn, answers: AnswerEntry[]): TurnStats | undefined {
         model: last.stats.model,
         responses: measured.length,
         context: last.stats.input,
+        cached: last.stats.cached,
         output: 0,
         cost: 0,
     };

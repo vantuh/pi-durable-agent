@@ -33,6 +33,7 @@ void describe("parseEvent", () => {
                         model: "m1",
                         stopReason: "stop",
                         input: 10,
+                        cached: 4,
                         output: 2,
                         cost: 0.1,
                         startedAt: 1000,

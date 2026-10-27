@@ -84,8 +84,10 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.
     - A person's message: a `raised` card on the right, at most 80% wide.
     - An answer: plain prose at 15px, no card, no name. Above it, one mono line of statistics:
-      `model · level` on the left, `↑context ↓output · $cost · time` on the right (the turn's newest
-      prompt, and output and cost summed over its responses); it ticks while the run is live.
+      `model · level` on the left, `↻cached% · ↑context ↓output · $cost · time` on the right (the
+      turn's newest prompt, how much of it the provider served from its cache, and output and cost
+      summed over its responses); it ticks while the run is live. The arrow is left out when nothing
+      was cached.
     - Thinking and tool calls between two of Pi's words fold into one activity line
       (`Thought, read 2 files and ran 1 command · 1 failed · 12s`), across answers, closed by default.
       A `git commit` among the calls is its own word (`Ran 2 commands and committed`) and is not

@@ -52,10 +52,16 @@ function AnswerHeader({ turn }: { turn: Turn }) {
     const startedAt = stats?.startedAt ?? turn.user?.at;
     const until = turn.live ? now : stats?.endedAt;
     const time = startedAt === undefined || until === undefined ? undefined : until - startedAt;
+    // Nothing cached is the common case for a first answer; the marker is worth the room only when it says something.
+    const cachedPercent =
+        stats === undefined || stats.context <= 0 || stats.cached <= 0
+            ? undefined
+            : Math.round((stats.cached / stats.context) * 100);
     const spend =
         stats === undefined
             ? []
             : [
+                  ...(cachedPercent === undefined ? [] : [`↻${String(cachedPercent)}%`]),
                   `↑${tokens(stats.context)} ↓${tokens(stats.output)}`,
                   ...(stats.cost > 0 ? [dollars(stats.cost)] : []),
               ];
@@ -65,6 +71,11 @@ function AnswerHeader({ turn }: { turn: Turn }) {
             : [
                   `${String(stats.responses)} ${stats.responses === 1 ? "response" : "responses"}`,
                   `context ${stats.context.toLocaleString()} tokens`,
+                  ...(cachedPercent === undefined
+                      ? []
+                      : [
+                            `${String(cachedPercent)}% of it came from the cache (${stats.cached.toLocaleString()} tokens)`,
+                        ]),
                   `output ${stats.output.toLocaleString()} tokens`,
                   ...(stats.cost > 0 ? [`cost ${dollars(stats.cost)}`] : []),
               ].join(" · ");

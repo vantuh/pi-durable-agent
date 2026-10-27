@@ -142,6 +142,7 @@ function statsOf(message: Record<string, unknown> | undefined): ClientAnswerStat
         stopReason: stringOf(message, "stopReason") ?? "stop",
         input:
             numberAt(usage, "input") + numberAt(usage, "cacheRead") + numberAt(usage, "cacheWrite"),
+        cached: numberAt(usage, "cacheRead"),
         output: numberAt(usage, "output"),
         cost: numberAt(recordOf(usage?.["cost"]), "total"),
         startedAt,
