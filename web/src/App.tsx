@@ -51,7 +51,7 @@ export function App() {
     const [panelOpen, setPanelOpen] = useState<string | null>(null);
     const panels = usePanels();
 
-    const { state, send, stop } = useConversation(current);
+    const { state, send, stop, loadOlder } = useConversation(current);
 
     useEffect(() => {
         let alive = true;
@@ -179,6 +179,9 @@ export function App() {
                         title={active?.title ?? null}
                         entries={state.entries}
                         live={state.live}
+                        loadingOlder={state.loadingOlder}
+                        exhausted={state.exhausted}
+                        onLoadOlder={loadOlder}
                         tools={
                             <>
                                 <HeaderItems session={activeSession} />

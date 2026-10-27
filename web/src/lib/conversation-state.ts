@@ -5,7 +5,12 @@
  * still the conversation — dropping them is what made a long session lose its start.
  */
 
-import type { ClientEntry, ClientLive, ServerEvent } from "../../../shared/protocol.ts";
+import type {
+    ClientEntry,
+    ClientHistory,
+    ClientLive,
+    ServerEvent,
+} from "../../../shared/protocol.ts";
 
 export type ConversationState = {
     session: number | null;
@@ -14,6 +19,10 @@ export type ConversationState = {
     entries: ClientEntry[];
     live: ClientLive;
     issue: string | null;
+    /** A page of older entries is being fetched for the top of the transcript. */
+    loadingOlder: boolean;
+    /** The conversation's first entry is on screen: there is nothing older to ask for. */
+    exhausted: boolean;
 };
 
 export const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
@@ -25,6 +34,8 @@ export const START: ConversationState = {
     entries: [],
     live: IDLE,
     issue: null,
+    loadingOlder: false,
+    exhausted: false,
 };
 
 export function mergeEntries(
@@ -55,6 +66,8 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
                 entries: mergeEntries([], event.entries),
                 live: event.live,
                 model: event.model,
+                loadingOlder: false,
+                exhausted: false,
             };
 
         case "entries":
@@ -72,4 +85,14 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
         default:
             return state;
     }
+}
+
+/** A page of older entries, from `/api/history`: added in front, and the end of the conversation is where it says. */
+export function withOlder(state: ConversationState, page: ClientHistory): ConversationState {
+    return {
+        ...state,
+        entries: mergeEntries(state.entries, page.entries),
+        loadingOlder: false,
+        exhausted: !page.more,
+    };
 }

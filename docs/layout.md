@@ -55,6 +55,15 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 - **Header**: the session title and the settings gear. The branch item of `extensions/git-branch` lives in the status bar only. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
+    - **What is loaded**: the event stream carries the active view, which starts at the newest
+      compaction; the entries before it are asked for as the reader scrolls up. Within 240px of the
+      top, `web/src/lib/conversation.ts` calls `/api/history?before=<oldest id>`
+      ([server.md](server.md)), and the page is added in front. The spinner (`earlier messages`)
+      sits at the top of the transcript and sticks there while a page is on its way. The scroll
+      position is kept by measuring the height before and after a page that arrives in front: the
+      words the reader was looking at do not move. Nothing is asked for once the first entry is on
+      screen, and nothing the server rewrites can take loaded entries away: the list is an upsert by
+      id (`web/src/lib/conversation-state.ts`).
     - A person's message: a `raised` card on the right, at most 80% wide.
     - An answer: plain prose at 15px, no card, no name. Above it, one mono line of statistics:
       `model · level` on the left, `↑context ↓output · $cost · time` on the right (the turn's newest

@@ -19,7 +19,15 @@ type Props = {
     tools?: ReactNode;
     onSettings: () => void;
     onSessions: () => void;
+    /** Asks the server for the page older than what is on screen. */
+    onLoadOlder: () => Promise<void>;
+    loadingOlder: boolean;
+    /** The conversation's first entry is on screen: scrolling up asks for nothing more. */
+    exhausted: boolean;
 };
+
+/** How close to the top the reader is when the older page is asked for. */
+const OLDER_AT = 240;
 
 const tokens = (count: number): string =>
     count < 1000 ? String(count) : `${(count / 1000).toFixed(count < 10_000 ? 1 : 0)}k`;
@@ -131,22 +139,33 @@ function TurnView({ turn }: { turn: Turn }) {
     );
 }
 
-export function Transcript({ title, entries, live, tools, onSettings, onSessions }: Props) {
+export function Transcript({
+    title,
+    entries,
+    live,
+    tools,
+    onSettings,
+    onSessions,
+    onLoadOlder,
+    loadingOlder,
+    exhausted,
+}: Props) {
     const scroller = useRef<HTMLDivElement>(null);
     const content = useRef<HTMLDivElement>(null);
     const following = useRef(true);
     const lastTop = useRef(0);
-    const turns = useMemo(() => turnsOf(entries, live), [entries, live]);
-    const grown = (live.blocks ?? []).reduce(
-        (size, block) => size + (block.type === "toolCall" ? 0 : block.text.length),
-        0,
+    /** The height and position before the last commit: a page added in front must not move what is read. */
+    const measured = useRef<{ first: number | undefined; height: number; top: number } | null>(
+        null,
     );
+    const turns = useMemo(() => turnsOf(entries, live), [entries, live]);
     const sent = entries.at(-1)?.kind === "user";
     const counted = useRef(entries.length);
-    const signature = `${String(entries.length)}:${String(grown)}`;
+    const first = entries[0]?.id;
 
     useLayoutEffect(() => {
         const target = scroller.current;
+        const previous = measured.current;
 
         // A message just sent: go down to it from wherever the reader was.
         if (sent && entries.length > counted.current) {
@@ -155,11 +174,24 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
 
         counted.current = entries.length;
 
-        if (target !== null && following.current) {
+        if (target === null) {
+            return;
+        }
+
+        const height = target.scrollHeight;
+        const top = target.scrollTop;
+        const prepended =
+            previous !== null && previous.first !== undefined && previous.first !== first;
+
+        measured.current = { first, height, top };
+
+        if (prepended) {
+            // An older page arrived above: keep the words the reader was looking at where they were.
+            target.scrollTop = height - previous.height + previous.top;
+        } else if (following.current) {
             target.scrollTop = target.scrollHeight;
         }
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- entries and streamed text are the trigger: follow the answer as it grows
-    }, [signature, sent, entries.length]);
+    });
 
     // Rows that grow between renders (code highlighting, images) keep the bottom in view while following.
     useEffect(() => {
@@ -244,6 +276,10 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                         }
 
                         lastTop.current = el.scrollTop;
+
+                        if (el.scrollTop < OLDER_AT && !exhausted) {
+                            void onLoadOlder();
+                        }
                     },
                 }}
             >
@@ -251,6 +287,15 @@ export function Transcript({ title, entries, live, tools, onSettings, onSessions
                     ref={content}
                     className="mx-auto flex max-w-[var(--chat-width)] flex-col gap-4"
                 >
+                    {loadingOlder ? (
+                        <div className="sticky top-0 z-10 flex justify-center">
+                            <span className="bg-raised text-meta text-muted flex items-center gap-1.5 rounded-full px-2.5 py-1">
+                                <Spinner className="size-3" />
+                                earlier messages
+                            </span>
+                        </div>
+                    ) : null}
+
                     {turns.map((turn) => (
                         <TurnView key={turn.key} turn={turn} />
                     ))}

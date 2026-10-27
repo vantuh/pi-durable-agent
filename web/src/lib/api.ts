@@ -1,10 +1,12 @@
 import type {
+    ClientHistory,
     ClientUsage,
     DefaultModel,
     ModelChoice,
     SendMode,
     SessionSummary,
 } from "../../../shared/protocol.ts";
+import { parseHistory } from "./event.ts";
 
 export type Health = {
     model: string;
@@ -139,6 +141,16 @@ export async function createSession(cwd: string): Promise<number> {
     );
 
     return num(body?.["session"], 0);
+}
+
+/** Older entries, older than `before`: the start of a conversation the event stream no longer carries. */
+export async function fetchHistory(
+    session: number,
+    before: number,
+): Promise<ClientHistory | undefined> {
+    return parseHistory(
+        await json(`/api/history?session=${String(session)}&before=${String(before)}`),
+    );
 }
 
 export type SkillInfo = { name: string; description: string };

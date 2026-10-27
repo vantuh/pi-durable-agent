@@ -4,7 +4,7 @@
  * here: a type this version does not know is dropped instead of breaking the page.
  */
 
-import type { ServerEvent } from "../../../shared/protocol.ts";
+import type { ClientHistory, ServerEvent } from "../../../shared/protocol.ts";
 
 const TYPES: readonly unknown[] = ["hello", "entries", "live", "extension-notice", "error"];
 
@@ -30,4 +30,20 @@ export function parseEvent(raw: string): ServerEvent | undefined {
     }
 
     return isEvent(value) ? value : undefined;
+}
+
+/** A page of older entries with a flag: the rest of the shape is `ClientHistory` by the same contract. */
+function isPage(value: object): value is ClientHistory {
+    const entries: unknown = Reflect.get(value, "entries");
+    const more: unknown = Reflect.get(value, "more");
+
+    return Array.isArray(entries) && typeof more === "boolean";
+}
+
+export function parseHistory(value: unknown): ClientHistory | undefined {
+    if (typeof value !== "object" || value === null) {
+        return undefined;
+    }
+
+    return isPage(value) ? value : undefined;
 }

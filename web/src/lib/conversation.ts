@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SendMode } from "../../../shared/protocol.ts";
 import { refreshExtensions } from "../extensions.ts";
-import { sendMessage, stopRun } from "./api.ts";
-import { type ConversationState, START, withEvent } from "./conversation-state.ts";
+import { fetchHistory, sendMessage, stopRun } from "./api.ts";
+import { type ConversationState, START, withEvent, withOlder } from "./conversation-state.ts";
 import { parseEvent } from "./event.ts";
 import { toast } from "./toast.ts";
 
@@ -11,8 +11,11 @@ export function useConversation(session: number | null): {
     state: ConversationState;
     send: (text: string, files: string[], mode?: SendMode) => Promise<void>;
     stop: () => Promise<void>;
+    /** Fetches the page older than the oldest entry on screen; nothing happens while one is on its way. */
+    loadOlder: () => Promise<void>;
 } {
     const [state, setState] = useState<ConversationState>(START);
+    const asking = useRef(false);
 
     useEffect(() => {
         if (session === null) {
@@ -72,6 +75,35 @@ export function useConversation(session: number | null): {
         [session],
     );
 
+    const loadOlder = useCallback(async () => {
+        const before = state.entries[0]?.id;
+
+        if (session === null || before === undefined || state.exhausted || asking.current) {
+            return;
+        }
+
+        asking.current = true;
+        setState((current) => ({ ...current, loadingOlder: true }));
+
+        try {
+            const page = await fetchHistory(session, before);
+
+            setState((current) =>
+                current.session === session && page !== undefined
+                    ? withOlder(current, page)
+                    : { ...current, loadingOlder: false },
+            );
+        } catch {
+            setState((current) => ({
+                ...current,
+                loadingOlder: false,
+                issue: "the older messages did not arrive",
+            }));
+        } finally {
+            asking.current = false;
+        }
+    }, [session, state.entries, state.exhausted]);
+
     const stop = useCallback(async () => {
         if (session === null) {
             return;
@@ -84,5 +116,5 @@ export function useConversation(session: number | null): {
         }
     }, [session]);
 
-    return { state: shown, send, stop };
+    return { state: shown, send, stop, loadOlder };
 }
