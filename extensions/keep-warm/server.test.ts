@@ -75,7 +75,7 @@ void test("counts only answers that came back from the provider with cache token
 void test("a commit gives the user's latest input, the newest cached answer and the run", () => {
     const seen = new Map<number, Seen>();
     const view = (entries: CommitView["entries"], busy = false): CommitView => ({
-        session: { id: 7, cwd: null },
+        session: { id: 7, cwd: "/work/pi-durable-agent" },
         entries,
         busy,
     });
@@ -112,7 +112,7 @@ void test("a commit gives the user's latest input, the newest cached answer and 
     assert.deepEqual(seen.get(7), {
         inputAt: now - minutes(10),
         cached: { at: now - minutes(9), model: "claude-opus-5-5" },
-        label: "why does the fold close",
+        label: "pi-durable-agent",
         busy: false,
     });
 
@@ -124,21 +124,13 @@ void test("a commit gives the user's latest input, the newest cached answer and 
     assert.deepEqual(seen.get(7), {
         inputAt: now - minutes(5),
         cached: { at: now - minutes(9), model: "claude-opus-5-5" },
-        label: "why does the fold close",
+        label: "pi-durable-agent",
         busy: true,
     });
 
-    // A later question does not rename the session: the first one names it, as the sidebar does.
-    observe(seen, view([user(now - minutes(1))]));
-    assert.equal(seen.get(7)?.label, "why does the fold close");
-
-    // A session asked nothing yet is named after its folder.
-    observe(seen, { session: { id: 8, cwd: "/work/pi-durable-agent" }, entries: [], busy: false });
-    assert.equal(seen.get(8)?.label, "pi-durable-agent");
-
-    // The folder outlives the questions the view no longer holds, so the name does not flicker.
-    observe(seen, { session: { id: 7, cwd: "/work/pi-durable-agent" }, entries: [], busy: false });
-    assert.equal(seen.get(7)?.label, "why does the fold close");
+    // The folder is all this layer knows: the name a person reads comes from the core, through sessionTitle.
+    observe(seen, { session: { id: 8, cwd: "/work/other" }, entries: [], busy: false });
+    assert.equal(seen.get(8)?.label, "other");
 });
 
 void test("lists the conversations a ping is coming for, the one asked last first", () => {
@@ -275,7 +267,7 @@ void test("names the warmed conversations with the titles the core keeps", async
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,
         sessionRequest: () => Promise.resolve(undefined),
-        // Session 3 has no title yet, so the label the commits alone give it has to stand.
+        // Session 3 has no title yet, so the folder the commits alone name it by has to stand.
         sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
     };
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a written entry, without the harness that brands its ids
@@ -333,7 +325,7 @@ void test("names the warmed conversations with the titles the core keeps", async
             on: true,
             sessions: [
                 { id: 2, label: "mcp plugin", nextAt: at - minutes(9) + LEAD },
-                { id: 3, label: "a renamed one", nextAt: at - minutes(9) + LEAD },
+                { id: 3, label: "other", nextAt: at - minutes(9) + LEAD },
             ],
         });
     } finally {

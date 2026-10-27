@@ -554,8 +554,8 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   data the tick reads — so the list never promises a ping the tick will not send. A conversation
   whose cache is already cold is not listed: it is not being warmed, and a ping would only pay to
   rebuild it. Each row is named through `sessionTitle`, so it says what the sidebar says, a rename
-  included; when the core has no name yet the row falls back to the conversation's first question
-  and then to its folder, so two sessions in the same folder are never told apart by it.
+  included; when the core has no name yet — nothing asked, nothing written — the row falls back to
+  the folder the conversation works in, and to nothing else.
 
 The host members it uses are the two core seams: `sessionRequest(session)` answers the
 conversation's model, the messages its next request would send, and `send(messages, signal)`, one
