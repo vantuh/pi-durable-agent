@@ -166,9 +166,7 @@ function CompactionFailedMark({ error }: { error: string }) {
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>
-                <div className="rounded-card border-edge-soft bg-panel border px-3 py-2.5">
-                    <ErrorNotice text={error} />
-                </div>
+                <p className="text-meta text-danger text-center break-words">{error}</p>
             </CollapsibleContent>
         </Collapsible>
     );
