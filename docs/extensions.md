@@ -199,14 +199,15 @@ gets a wrench. The core's own tools (`bash`, `read`, `edit`, …) keep the core'
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
 
-| Member      | Is                                                                                                                                                                                                                                                                     |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`      | The folder's name; use it as the extension's name                                                                                                                                                                                                                      |
-| `cwd`       | The folder the app was started in                                                                                                                                                                                                                                      |
-| `dataDir`   | Where the app keeps its state                                                                                                                                                                                                                                          |
-| `log`       | One line to the server's output                                                                                                                                                                                                                                        |
-| `onDispose` | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                  |
-| `onCommit`  | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd }, entries, busy }`. It is removed when this version is replaced, turned off or deleted; a throw is logged without data |
+| Member           | Is                                                                                                                                                                                                                                                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`           | The folder's name; use it as the extension's name                                                                                                                                                                                                                                                                 |
+| `cwd`            | The folder the app was started in                                                                                                                                                                                                                                                                                 |
+| `dataDir`        | Where the app keeps its state                                                                                                                                                                                                                                                                                     |
+| `log`            | One line to the server's output                                                                                                                                                                                                                                                                                   |
+| `onDispose`      | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                                                             |
+| `onCommit`       | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd }, entries, busy }`. It is removed when this version is replaced, turned off or deleted; a throw is logged without data                                            |
+| `sessionRequest` | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm) |
 
 ## Live, without a restart
 
@@ -292,7 +293,6 @@ to the watcher. What happens in `pnpm dev`:
 | `web`       | The page the agent is working on, beside the conversation                          | Pi Pocket core, adapted                 |
 | `subagents` | Agents the conversation can hand work to, and the `agents` count in the status bar | Ultimate, rewritten                     |
 | `dictation` | Local speech to text in the composer                                               | Pi Pocket's dictation extension, ported |
-| `warm`      | The session warm-up toggle from Ultimate's drawer                                  | Ultimate, rewritten                     |
 
 None of these exist yet. A folder is added when its feature is built, never as a placeholder.
 
@@ -491,3 +491,39 @@ windows and reset times; the current provider is highlighted. It is hidden below
   (`{ "hidden": ["codex"] }`; a missing or broken file shows all). A hidden provider is not asked at
   all and is not in the popover; if it is the current one, the status bar shows only the gauge icon.
   Changes apply at once.
+
+## Keep warm
+
+`extensions/keep-warm` renews the conversation's prompt cache while you are away, so your next
+message reads the whole context at a tenth of the input price instead of writing it again. Ported
+from Ultimate's `extensions/keep-warm`, with the harness seam below instead of theirs.
+
+- **Why an hour.** Anthropic writes the prompt cache with `cache_control.ttl: "1h"` only when the
+  request asks for it. The core opens the harness with `stream: { cacheRetention: "long" }`, so every
+  request of every conversation asks; without it the cache dies after five minutes and no ping can
+  renew it. A cache read costs 0.1× the input price and renews the hour, a write costs 1.25× (five
+  minutes) or 2× (an hour), and only the new suffix is written.
+- **When it pings.** A timer outside the task scheduler looks once a minute. A ping is due when the
+  conversation's own last cache request is 55–60 minutes old, it has no run, it is on `anthropic`,
+  and your latest input to it is under 8 hours old. A cache already past its hour is cold: a ping
+  then would only pay to rebuild it.
+- **What it sends.** The conversation's next context exactly as the harness would send it — pi-durable
+  keeps the system sections and tool declarations inside the message stream — plus one user line
+  asking for `ok`. Nothing is written to the transcript, and nothing is queued: the request goes
+  straight through the model runtime, so `shapeModelRequests` and every installed fetch wrapper
+  (`anthropic-subscription`) shape it like any other.
+- **Never twice.** The attempt is stored as `interrupted` before the request is sent, so a crash
+  mid-request counts as a failure; a failure blocks further pings until the conversation's next real
+  request, so an outage or a rate limit is never retried in a loop. The switch and the last ping are
+  in `keep-warm.json` in the data directory (`{ "off": true, "last": { "3": { … } } }`); the user's
+  last input and the last cached answer come from the commits, and a restart recovers them from the
+  baseline views the loader hands over.
+- **What it costs.** A ping's tokens are not in `pi.usage`: they belong to no entry, so the status
+  bar's spend does not include them. The popover shows what the last ping read and wrote.
+- **The chip.** `warm` in the `end` slot: amber while the cache is warm, dim while it is cold or off,
+  red after a failed ping. The popover has the switch, "Warm until 14:52" or "Cold since …", the next
+  ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
+
+The host member it uses, `sessionRequest(session)`, is the one new core seam: it answers the
+conversation's model, the messages its next request would send, and `send(messages, signal)`, one
+request through the same model runtime. `busy` comes from `onCommit`, not from the seam.

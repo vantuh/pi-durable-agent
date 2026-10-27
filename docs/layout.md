@@ -132,6 +132,7 @@ One bar across the bottom, always visible:
 | context meter      | `extensions/context-meter`   | centre slot, once an answer exists |
 | cache hit          | `extensions/cache-hit`       | start slot, once an answer exists  |
 | agents             | the subagents extension      | only with that extension on        |
+| warm               | `extensions/keep-warm`       | end slot, `sm` and wider           |
 
 The bar has three slots (`start`, `center`, `end`) that extensions fill. `tok/s` is an `end` field: `extensions/tokens-per-second`. Below `sm` the path and the branch item of `extensions/git-branch`
 are dropped and the model name truncates, so the bar never widens the page.
