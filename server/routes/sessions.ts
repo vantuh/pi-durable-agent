@@ -2,13 +2,15 @@
 
 import type { ServerResponse } from "node:http";
 
+import type { SessionSummary } from "../../shared/protocol.ts";
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
 
 export function sessionRoutes(deps: {
     sessions: Sessions;
     attach: (id: number) => Promise<Opened | undefined>;
-    busy: (id: number) => boolean;
+    /** The session rows as the browser reads them: their marks come from extensions. */
+    list: () => Promise<SessionSummary[]>;
     watch: (response: ServerResponse) => Promise<void>;
 }): Route[] {
     const { sessions, attach } = deps;
@@ -18,7 +20,7 @@ export function sessionRoutes(deps: {
             method: "GET",
             path: /^\/api\/sessions$/,
             handle: async (_request, response) => {
-                answer(response, 200, { sessions: await sessions.list(deps.busy) });
+                answer(response, 200, { sessions: await deps.list() });
             },
         },
         {

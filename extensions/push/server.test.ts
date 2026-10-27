@@ -392,6 +392,7 @@ void describe("push", () => {
                 sessionTitle: () => Promise.resolve(null),
                 sessionName: () => Promise.resolve(null),
                 setSessionTitle: () => Promise.resolve(),
+                setSessionMark: () => undefined,
             };
             const sends: string[] = [];
 

@@ -88,6 +88,7 @@ function setup() {
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        setSessionMark: () => undefined,
         wrapModelFetch: (wrap) => {
             wrappers.push(wrap);
         },

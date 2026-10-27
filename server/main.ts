@@ -21,7 +21,13 @@ import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import type { ClientEntry, ClientLive, ServerEvent, SessionsEvent } from "../shared/protocol.ts";
+import type {
+    ClientEntry,
+    ClientLive,
+    ServerEvent,
+    SessionSummary,
+    SessionsEvent,
+} from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
@@ -94,8 +100,19 @@ function isBusy(id: number): boolean {
     return busy.get(id) === true;
 }
 
+/** The rows the browser reads, with the mark an extension put on a session; one list, one place. */
+async function sessionRows(): Promise<SessionSummary[]> {
+    const rows = await sessions.list(isBusy);
+
+    return rows.map((row) => {
+        const mark = extensions.markOf(row.id);
+
+        return mark === undefined ? row : { ...row, mark };
+    });
+}
+
 async function sendList(watchers: Iterable<ServerResponse>): Promise<void> {
-    const list: SessionsEvent = { type: "sessions", sessions: await sessions.list(isBusy) };
+    const list: SessionsEvent = { type: "sessions", sessions: await sessionRows() };
     const event = `data: ${JSON.stringify(list)}\n\n`;
 
     for (const watcher of watchers) {
@@ -410,6 +427,7 @@ async function boot(): Promise<void> {
         sessionTitle: sessionTitleOf,
         sessionName: sessionNameOf,
         setSessionTitle: setSessionTitleOf,
+        sessionListChanged: listChanged,
         registry,
         dir: join(cwd, "extensions"),
         cwd,
@@ -482,7 +500,7 @@ async function boot(): Promise<void> {
         ...sessionRoutes({
             sessions,
             attach,
-            busy: isBusy,
+            list: sessionRows,
             watch: watchList,
         }),
         ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),

@@ -104,6 +104,7 @@ export function sessionsOf(value: unknown): SessionSummary[] {
             model: typeof row?.["model"] === "string" ? row["model"] : null,
             thinkingLevel: typeof row?.["thinkingLevel"] === "string" ? row["thinkingLevel"] : null,
             busy: row?.["busy"] === true,
+            ...(typeof row?.["mark"] === "string" ? { mark: row["mark"] } : {}),
             archived: row?.["archived"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
             unseen: row?.["unseen"] === true,

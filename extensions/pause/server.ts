@@ -43,7 +43,24 @@ function named(call: { readonly session: { readonly id: number } | null }): numb
     return call.session.id;
 }
 
-export const actions: Record<string, Action> = {
+/** What a held session's row says: the working pulse would claim it works. */
+const MARK = "Paused";
+/** Sessions whose row carries the mark, so a commit does not push the session list for nothing. */
+const marked = new Set<number>();
+
+function setMark(host: Host, session: number, mark: string | undefined): void {
+    if (mark === undefined) {
+        if (!marked.delete(session)) {
+            return;
+        }
+    } else {
+        marked.add(session);
+    }
+
+    host.setSessionMark(session, mark);
+}
+
+export const actions = (host: Host): Record<string, Action> => ({
     pause(call) {
         const session = named(call);
 
@@ -53,18 +70,22 @@ export const actions: Record<string, Action> = {
         }
 
         gateOf(session).pause();
+        setMark(host, session, MARK);
 
         return { paused: true };
     },
     resume(call) {
-        gateOf(named(call)).resume();
+        const session = named(call);
+
+        gateOf(session).resume();
+        setMark(host, session, undefined);
 
         return { paused: false };
     },
     state(call) {
         return { paused: gates.get(named(call))?.paused === true };
     },
-};
+});
 
 export default function pause(host: Host) {
     host.onCommit((view) => {
@@ -73,6 +94,7 @@ export default function pause(host: Host) {
         // Nothing is left to hold once a run ends, so the next one starts unpaused.
         if (!view.busy) {
             gates.get(view.session.id)?.resume();
+            setMark(host, view.session.id, undefined);
         }
     });
 

@@ -221,6 +221,7 @@ function hostOf(options: {
 
             return Promise.resolve();
         },
+        setSessionMark: () => undefined,
         sessionRequest: () =>
             Promise.resolve({
                 model: options.model ?? model,

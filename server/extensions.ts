@@ -67,6 +67,11 @@ export type Host = {
     readonly sessionName: (session: number) => Promise<string | null>;
     /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
     readonly setSessionTitle: (session: number, title: string) => Promise<void>;
+    /**
+     * What the session's row says instead of the working pulse, for as long as this version is
+     * installed; `undefined` takes it back. Dropped with the version that set it.
+     */
+    readonly setSessionMark: (session: number, mark: string | undefined) => void;
 };
 
 /** What one request on top of a conversation may ask for beyond its own messages. */
@@ -347,6 +352,9 @@ export class Extensions {
     readonly #sessionTitle: Host["sessionTitle"];
     readonly #sessionName: Host["sessionName"];
     readonly #setSessionTitle: Host["setSessionTitle"];
+    readonly #sessionListChanged: () => void;
+    /** Per folder, the marks its live version put on session rows; dropped with that version. */
+    readonly #marks = new Map<string, Map<number, string>>();
 
     get fetchWrappers(): readonly FetchWrapper[] {
         return [...this.#fetchWrappers];
@@ -378,6 +386,7 @@ export class Extensions {
         sessionTitle?: Host["sessionTitle"];
         sessionName?: Host["sessionName"];
         setSessionTitle?: Host["setSessionTitle"];
+        sessionListChanged?: () => void;
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
@@ -391,6 +400,7 @@ export class Extensions {
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
+        this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -472,6 +482,19 @@ export class Extensions {
         }
 
         return fields;
+    }
+
+    /** A session's mark from any installed folder, in folder order; undefined when none has one. */
+    markOf(session: number): string | undefined {
+        for (const folder of [...this.#marks.keys()].sort()) {
+            const mark = this.#marks.get(folder)?.get(session);
+
+            if (mark !== undefined) {
+                return mark;
+            }
+        }
+
+        return undefined;
     }
 
     /** Runs one action of an installed folder. Throws `ActionNotFound` when either is missing. */
@@ -805,6 +828,17 @@ export class Extensions {
             sessionTitle: (session) => this.#sessionTitle(session),
             sessionName: (session) => this.#sessionName(session),
             setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
+            setSessionMark: (session, mark) => {
+                const marks = this.#marks.get(folder) ?? new Map<number, string>();
+
+                this.#marks.set(folder, marks);
+                if (mark === undefined) {
+                    marks.delete(session);
+                } else {
+                    marks.set(session, mark);
+                }
+                this.#sessionListChanged();
+            },
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
                 attempt.push(() => {
@@ -883,6 +917,7 @@ export class Extensions {
         const old = this.#disposers.get(folder) ?? [];
 
         this.#disposers.set(folder, next);
+        this.#dropMarks(folder);
         await this.#run(folder, old);
     }
 
@@ -891,7 +926,15 @@ export class Extensions {
         const old = this.#disposers.get(folder) ?? [];
 
         this.#disposers.delete(folder);
+        this.#dropMarks(folder);
         await this.#run(folder, old);
+    }
+
+    /** A version that goes away takes its marks with it; a session row must not keep saying "Paused". */
+    #dropMarks(folder: string): void {
+        if (this.#marks.delete(folder)) {
+            this.#sessionListChanged();
+        }
     }
 
     /** One that throws or rejects is logged; the rest still run. */

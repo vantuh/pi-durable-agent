@@ -198,6 +198,7 @@ void test("settings: missing or broken file shows everything; actions validate a
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        setSessionMark: () => undefined,
         wrapModelFetch: () => undefined,
     };
     const { setShown, settings } = actions(host);

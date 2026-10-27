@@ -7,6 +7,8 @@ aborted entry. Pause gives up nothing; it only declines to start the next step.
 The button sits in the composer's row beside Stop, and appears only while the session runs: ⏸ to
 hold, ▶ (yellow) to let go. The same two commands are in a session's menu in the sidebar — "Pause
 after this step" and "Resume" — so one conversation can be held while another is open on screen.
+While a session is held, its row in the sidebar shows a filled square in the warning colour instead
+of the working pulse, and says "Paused" to a screen reader or on hover.
 
 ## Where a pause lands
 

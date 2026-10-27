@@ -196,7 +196,9 @@ body {
 }
 
 /* Finished while nobody was looking. */
-.state-mark.fresh {
+.state-mark.fresh,
+/* Held where it stopped, which only an extension can say. */
+.state-mark.held {
     background: currentColor;
 }
 

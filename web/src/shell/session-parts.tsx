@@ -37,15 +37,25 @@ export function folderName(cwd: string | null): string {
     return parts[parts.length - 1] ?? cwd;
 }
 
-/** Working, finished and not seen yet, or idle: the same mark in every list. */
+/** Working, held by an extension, finished and not seen yet, or idle: the same mark in every list. */
 export function StateMark({ session }: { session: SessionSummary }) {
-    const { busy, unseen } = session;
+    const { busy, unseen, mark } = session;
+    const label = mark ?? (busy ? "Working" : unseen ? "Finished, not viewed" : undefined);
 
     return (
         <span
-            role={busy || unseen ? "status" : undefined}
-            aria-label={busy ? "Working" : unseen ? "Finished, not viewed" : undefined}
-            className={`state-mark ${busy ? "working text-accent" : unseen ? "fresh text-ok" : "idle text-faint"}`}
+            role={label === undefined ? undefined : "status"}
+            aria-label={label}
+            title={mark}
+            className={`state-mark ${
+                mark !== undefined
+                    ? "held text-warn"
+                    : busy
+                      ? "working text-accent"
+                      : unseen
+                        ? "fresh text-ok"
+                        : "idle text-faint"
+            }`}
         />
     );
 }

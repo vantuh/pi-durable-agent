@@ -330,6 +330,7 @@ void test("names the warmed conversations with the titles the core keeps", async
         sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        setSessionMark: () => undefined,
     };
     const at = Date.now();
 
@@ -397,6 +398,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        setSessionMark: () => undefined,
     };
     const at = Date.now();
     const sessions = async (): Promise<unknown> =>
