@@ -287,12 +287,11 @@ to the watcher. What happens in `pnpm dev`:
 
 ## Planned, with where each comes from
 
-| Folder      | What it is                                                                         | Source                                  |
-| ----------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
-| `files`     | File browser in the drawer                                                         | Pi Pocket's file browser, rewritten     |
-| `web`       | The page the agent is working on, beside the conversation                          | Pi Pocket core, adapted                 |
-| `subagents` | Agents the conversation can hand work to, and the `agents` count in the status bar | Ultimate, rewritten                     |
-| `dictation` | Local speech to text in the composer                                               | Pi Pocket's dictation extension, ported |
+| Folder      | What it is                                                                         | Source                              |
+| ----------- | ---------------------------------------------------------------------------------- | ----------------------------------- |
+| `files`     | File browser in the drawer                                                         | Pi Pocket's file browser, rewritten |
+| `web`       | The page the agent is working on, beside the conversation                          | Pi Pocket core, adapted             |
+| `subagents` | Agents the conversation can hand work to, and the `agents` count in the status bar | Ultimate, rewritten                 |
 
 None of these exist yet. A folder is added when its feature is built, never as a placeholder.
 
@@ -308,8 +307,8 @@ Deleting the folder is the whole removal, tests included.
 
 ## Not built
 
-The browser has no panel or drawer that an extension can fill, and no composer action that an
-extension can add. Only status items and settings sections exist. They wait for a real user: the
+The browser has no panel or drawer that an extension can fill. Only status items and settings
+sections exist. They wait for a real user: the
 first extension that needs one (such as `files`) defines it.
 
 ## Header items and Git statistics
@@ -332,6 +331,26 @@ has its own error boundary. The shell knows no feature by name.
   upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
 - Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
   beforehand. Failures are shown in the header popover and can be dismissed.
+
+## Composer items and Dictation
+
+`web.tsx` may export `composer: [{ id, component }]`. The component renders in the composer's row,
+before Send, inside its own error boundary, and follows the extension's enabled switch. Its
+props are `StatusProps` plus `field` (a ref to the message box), `setText(value)` (replaces the
+text as typing would, so the draft keeps it) and `onSent(listener)` (runs just before a message is
+sent; returns the way to stop listening). The shell knows no feature by name.
+
+`extensions/dictation` uses this slot for a mic, ported from Pi Pocket's `web/voice.js`. It uses
+the browser's Web Speech API, so Chrome sends the audio to Google, Safari has it too, and Firefox
+has none: there, and off https or localhost, the mic does not show.
+
+- Words show as they are heard and stay once the browser settles on them: at the caret while the
+  box has the focus, after its text when it does not. Text typed meanwhile stays, and a phrase
+  still being heard when you type or move the caret finishes where it is.
+- It never sends. Tap the mic again or press Alt+V to stop. Sending, leaving the conversation and
+  switching away from the tab stop it too, dropping words not yet settled.
+- The text-merging logic is in `dictate.ts` with no React in it; its tests drive a stand-in
+  recognizer. `server.ts` only gives the owner a title and a switch.
 
 ## Provider request shaping
 
