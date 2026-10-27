@@ -50,7 +50,7 @@ function Rows({
                 <DropdownMenuItem
                     key={session.id}
                     asChild
-                    className={`data-[highlighted]:bg-sunken ${ROW}`}
+                    className={`data-[highlighted]:bg-raised/50 ${ROW}`}
                 >
                     <a
                         href={sessionHref(session.id)}
