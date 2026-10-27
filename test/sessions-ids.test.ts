@@ -16,10 +16,11 @@ void describe("Sessions.ids", () => {
     void it("lists every conversation, past one page of 100", async () => {
         const dir = await mkdtemp(join(tmpdir(), "sessions-ids-"));
         const model = { provider: "p", modelId: "m" };
+        const models = await ModelRuntime.create();
         const harness = await Harness.open(
             await openNodeSqliteStorage(join(dir, "state.sqlite")),
             {
-                models: await ModelRuntime.create(),
+                models,
                 registry: createRegistry(),
                 env: () => new NodeExecutionEnv({ cwd: dir }),
             },
@@ -30,6 +31,7 @@ void describe("Sessions.ids", () => {
             const sessions = new Sessions({
                 harness,
                 model,
+                models,
                 context: BACKGROUND_CONTEXT,
             });
 
@@ -50,6 +52,7 @@ void describe("Sessions.ids", () => {
             const reopened = new Sessions({
                 harness,
                 model,
+                models,
                 context: BACKGROUND_CONTEXT,
             });
             assert.equal(

@@ -27,7 +27,7 @@ import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./exte
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { knownHost, sameOrigin } from "./same-origin.ts";
-import { type Opened, Sessions, THINKING_LEVELS } from "./sessions.ts";
+import { type Opened, Sessions, supportedLevel, THINKING_LEVELS } from "./sessions.ts";
 import { expandSkillCommand, skillsFor } from "./skills.ts";
 import { serveStatic } from "./static.ts";
 
@@ -607,17 +607,14 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 
         const stored = await sessions.defaults();
         const [fallbackProvider = "", ...fallbackId] = MODEL.split("/");
+        const fallback = { provider: fallbackProvider, modelId: fallbackId.join("/") };
 
         answer(response, 200, {
             scoped: scoped.map(modelInfo),
             all: list.map(modelInfo),
             default:
                 stored === undefined
-                    ? {
-                          provider: fallbackProvider,
-                          modelId: fallbackId.join("/"),
-                          thinkingLevel: "off",
-                      }
+                    ? { ...fallback, thinkingLevel: supportedLevel(models, fallback, "off") }
                     : { ...stored.model, thinkingLevel: stored.thinkingLevel },
         });
 
@@ -924,11 +921,15 @@ async function main(): Promise<void> {
     );
 
     const root = await harness.root(context, {
-        agent: { model: { provider, modelId }, cwd },
+        agent: {
+            model: { provider, modelId },
+            cwd,
+            thinkingLevel: supportedLevel(models, { provider, modelId }, "off"),
+        },
     });
 
     rootId = Number(root.id);
-    sessions = new Sessions({ harness, model: { provider, modelId }, context });
+    sessions = new Sessions({ harness, model: { provider, modelId }, models, context });
     extensions.onChange(() => {
         for (const { opened, view } of latest.values()) {
             publish(opened, view);

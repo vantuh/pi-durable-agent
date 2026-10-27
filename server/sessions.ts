@@ -5,6 +5,7 @@
  */
 
 import type { Context } from "@earendil-works/chord/context";
+import { type Api, clampThinkingLevel, type Model } from "@earendil-works/pi-ai";
 import {
     type Conversation,
     type ConversationId,
@@ -80,31 +81,56 @@ export type Opened = {
     watched: boolean;
 };
 
+type ModelRef = { provider: string; modelId: string };
+
+export type ModelCatalog = {
+    getModel: (provider: string, modelId: string) => Model<Api> | undefined;
+};
+
+/** The level Pi would use for the model: a level it does not support is not sent at all, so the provider picks. */
+export function supportedLevel(
+    models: ModelCatalog,
+    model: ModelRef,
+    level: ThinkingLevel,
+): ThinkingLevel {
+    const known = models.getModel(model.provider, model.modelId);
+
+    return known === undefined ? level : clampThinkingLevel(known, level);
+}
+
 export class Sessions {
     readonly #harness: Harness;
-    readonly #model: { provider: string; modelId: string };
+    readonly #model: ModelRef;
+    readonly #models: ModelCatalog;
     readonly #context: Context;
     readonly #open = new Map<ConversationId, Opened>();
 
     constructor(options: {
         harness: Harness;
-        model: { provider: string; modelId: string };
+        model: ModelRef;
+        models: ModelCatalog;
         context: Context;
     }) {
         this.#harness = options.harness;
         this.#model = options.model;
+        this.#models = options.models;
         this.#context = options.context;
     }
 
     async create(cwd: string): Promise<Conversation> {
         const chosen = await this.defaults();
+        const model = chosen?.model ?? this.#model;
         const conversation = await this.#harness.createConversation(
             {
                 ownership: { kind: "ownerless" },
                 agent: {
-                    model: chosen === undefined ? this.#model : chosen.model,
+                    model,
                     cwd,
-                    ...(chosen === undefined ? {} : { thinkingLevel: chosen.thinkingLevel }),
+                    thinkingLevel: supportedLevel(
+                        this.#models,
+                        model,
+                        chosen?.thinkingLevel ?? "off",
+                    ),
                 },
             },
             this.#context,
