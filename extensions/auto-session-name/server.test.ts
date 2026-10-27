@@ -43,6 +43,18 @@ void test("rejects an answer that is not a title", () => {
     }
 });
 
+void test("rejects malformed JSON and JSON without a string title", () => {
+    for (const raw of [
+        '{"title":42}',
+        '{"title":null}',
+        '{"error":"not a title"}',
+        "{broken json",
+        '```json\n{"error":"not a title"}\n```',
+    ]) {
+        assert.throws(() => parseGeneratedSessionTitle(raw), raw);
+    }
+});
+
 function user(text: string): Message {
     return { role: "user", content: text, timestamp: 0 };
 }

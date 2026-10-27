@@ -177,15 +177,15 @@ export function parseGeneratedSessionTitle(raw: string): string {
     }
 
     if (value.startsWith("{")) {
-        try {
-            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- read by key, and `title` is checked before it is used
-            const parsed = JSON.parse(value) as { title?: unknown };
-            if (typeof parsed.title === "string") {
-                value = parsed.title.trim();
-            }
-        } catch {
-            // Not JSON after all; the plain-text cleanup below still applies.
+        const parsed: unknown = JSON.parse(value);
+        const title: unknown =
+            typeof parsed === "object" && parsed !== null
+                ? Reflect.get(parsed, "title")
+                : undefined;
+        if (typeof title !== "string") {
+            throw new Error("The model did not return a usable session title");
         }
+        value = title.trim();
     }
 
     value = value.split(/\r?\n/, 1)[0] ?? "";
