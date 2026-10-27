@@ -262,7 +262,7 @@ function KeepWarm({ session }: StatusProps) {
                     setNow(Date.now());
                     setOpen((previous) => !previous);
                 }}
-                className={`hover:text-ink hover:bg-sunken aria-expanded:bg-sunken hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono sm:flex ${
+                className={`hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono ${
                     warm.on ? "text-ember" : "text-faint/60"
                 }`}
             >

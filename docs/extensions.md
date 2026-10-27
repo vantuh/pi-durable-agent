@@ -499,10 +499,10 @@ see [Git history and embedded review](git-history.md).
 ## Usage limits
 
 `extensions/usage-limits` shows the five-hour limit of the current conversation's provider as a
-meter in the `center` slot of the status bar (`5h ▮▮▯ 13%`, warn above 70%, danger above 90%). It
+meter in the `start` slot of the status bar (`5h ▮▮▯ 13%`, warn above 70%, danger above 90%). It
 follows `session.model` (`provider/modelId`, in `StatusProps`), so a new session or a model change
 shows the new provider's window. A click opens a popover above the button with every provider's
-windows and reset times; the current provider is highlighted. It is hidden below `sm`.
+windows and reset times; the current provider is highlighted.
 
 - Providers: Anthropic (OAuth only), OpenCode Go, and OpenAI Codex. These are undocumented
   endpoints; a failing provider is an error row, never a crash.
@@ -546,11 +546,11 @@ from Ultimate's `extensions/keep-warm`, with the harness seam below instead of t
   (`{ "off": true, "stop": { "3": 1793… }, "last": { "3": { … } } }`); the user's last input and the
   last cached answer come from the commits, and a restart recovers them from the baseline views the
   loader hands over.
-- **What it costs.** A ping's tokens are not in `pi.usage`: they belong to no entry, so the status
-  bar's spend does not include them. The popover shows what the last ping read and wrote.
+- **What it costs.** A ping's tokens are not in `pi.usage`: they belong to no entry, so the
+  conversation's spend does not include them. The popover shows what the last ping read and wrote.
 - **The chip.** `warm` in the `end` slot: an ember flame (`--role-ember`, Catppuccin's peach) while
   it is on, dim while it is off. The popover has the switch, "Warm until 14:52" or "Cold since …",
-  the next ping or why none is coming, and the last ping's read and write. Hidden below `sm`.
+  the next ping or why none is coming, and the last ping's read and write.
 - **The switch is one for every conversation.** A ping is a spend, so the popover also lists what it
   is spent on: "Also warming", one row per other conversation with a ping coming, the most recently
   asked first, with the time of that ping. Rows come from the commits and the state file — the same

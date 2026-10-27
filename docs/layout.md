@@ -144,8 +144,8 @@ under the composer, and its branch beside its title.
 | Field            | Source                       | Shown when                  |
 | ---------------- | ---------------------------- | --------------------------- |
 | state            | `pi.live.run` and the stream | always                      |
-| 5-hour limit     | `extensions/usage-limits`    | centre slot                 |
-| warm             | `extensions/keep-warm`       | end slot, `sm` and wider    |
+| 5-hour limit     | `extensions/usage-limits`    | start slot, after the state |
+| warm             | `extensions/keep-warm`       | end slot                    |
 | extension fields | `status` export of a folder  | only with that extension on |
 
 The bar has three slots (`start`, `center`, `end`) that extensions fill.

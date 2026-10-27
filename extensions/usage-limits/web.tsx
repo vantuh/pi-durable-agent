@@ -264,7 +264,7 @@ function UsageLimits({ session }: StatusProps) {
 
                     setOpen((previous) => !previous);
                 }}
-                className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono sm:flex"
+                className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono"
             >
                 {bucket === undefined ? (
                     <Gauge className="size-3.5" />
@@ -292,5 +292,5 @@ function UsageLimits({ session }: StatusProps) {
 }
 
 export default {
-    status: [{ id: "five-hour", slot: "center", component: UsageLimits }],
+    status: [{ id: "five-hour", slot: "start", component: UsageLimits }],
 } satisfies WebExtension;
