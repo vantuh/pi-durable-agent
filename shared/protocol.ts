@@ -80,12 +80,15 @@ export type ClientUsage = {
     cost: number;
 };
 
-/** One field an extension adds to the status bar; it exists only while that extension is installed. */
+/** One field an extension adds to a status place; it exists only while that extension is installed. */
 export type ClientStatus = {
     /** The folder name of the extension that wrote it. */
     source: string;
-    /** Where in the bar it sits: after the folder, in the middle, or at the right end. */
-    slot: "start" | "center" | "end";
+    /**
+     * Where it sits. `start`, `center`, `end`: the status bar, for what is about the app. `composer`: beside the
+     * model chip, for what one conversation used. `title`: right after the conversation's title.
+     */
+    slot: "start" | "center" | "end" | "composer" | "title";
     text: string;
     /** A word before the meter and the text. */
     label?: string;

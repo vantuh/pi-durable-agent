@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType, ReactNode, RefObject } from "react";
 
+import type { ClientStatus } from "../../../shared/protocol.ts";
+
 export type StatusProps = {
     session: {
         id: number;
@@ -13,7 +15,8 @@ export type StatusProps = {
 
 export type StatusItem = {
     id: string;
-    slot: "start" | "center" | "end";
+    /** The same places as a server field's `slot`. */
+    slot: ClientStatus["slot"];
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
     component: ComponentType<StatusProps>;
 };

@@ -27,6 +27,8 @@ type Props = {
     tools?: ReactNode;
     onSettings: () => void;
     onSessions: () => void;
+    /** What sits right after the title: the branch, as extensions add it. */
+    beside: ReactNode;
     /** Asks the server for the page older than what is on screen. */
     onLoadOlder: () => Promise<void>;
     loadingOlder: boolean;
@@ -276,6 +278,7 @@ export function Transcript({
     tools,
     onSettings,
     onSessions,
+    beside,
     onLoadOlder,
     loadingOlder,
     exhausted,
@@ -348,7 +351,7 @@ export function Transcript({
     return (
         <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
             <header className="border-edge-soft flex items-center justify-between gap-3 border-b px-3 py-2.5">
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                     <button
                         type="button"
                         title="Sessions"
@@ -360,6 +363,7 @@ export function Transcript({
                     <h1 className="text-interface text-ink truncate font-medium">
                         {title ?? "New session"}
                     </h1>
+                    {beside}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     {tools}

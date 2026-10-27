@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Composer } from "./composer/composer.tsx";
+import { SessionMeta } from "./composer/meta.tsx";
 import { ModelMenu } from "./composer/model-menu.tsx";
 import { usePanels } from "./extensions.ts";
 import {
@@ -29,6 +30,7 @@ import { Sessions } from "./shell/sessions.tsx";
 import { Settings } from "./shell/settings.tsx";
 import { StatusBar } from "./shell/status-bar.tsx";
 import { Transcript } from "./transcript/transcript.tsx";
+import { StatusItems } from "./ui/status-fields.tsx";
 
 const SESSION_KEY = "session";
 
@@ -213,6 +215,7 @@ export function App() {
                                 onSessions={() => {
                                     setSheet(true);
                                 }}
+                                beside={<StatusItems slot="title" session={activeSession} />}
                             />
 
                             <div className="relative">
@@ -283,6 +286,12 @@ export function App() {
                                     }}
                                 />
                             </div>
+
+                            <SessionMeta
+                                session={activeSession}
+                                status={state.live.status ?? []}
+                                usage={state.live.usage}
+                            />
                         </>
                     )}
                 </main>
@@ -311,10 +320,7 @@ export function App() {
 
             <StatusBar
                 connected={current === null ? connected : state.connected}
-                cwd={folder ?? ""}
-                home={health?.home ?? ""}
                 session={activeSession}
-                usage={state.live.usage}
                 status={state.live.status ?? []}
                 busy={state.live.busy}
                 issue={state.issue}

@@ -26,7 +26,7 @@ export type FolderHeaderItem = HeaderItem & { folder: string };
 export type FolderComposerItem = ComposerItem & { folder: string };
 export type FolderToolIcon = ToolIcon & { folder: string };
 
-const SLOTS = new Set(["start", "center", "end"]);
+const SLOTS = new Set(["start", "center", "end", "composer", "title"]);
 
 function isStatusItem(value: unknown): value is StatusItem {
     if (typeof value !== "object" || value === null) {

@@ -64,7 +64,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 
 ## Conversation
 
-- **Header**: the session title and the settings gear. The branch item of `extensions/git-branch` lives in the status bar only. The mockup's other three
+- **Header**: the session title, the `title` slot right after it (the branch badge of
+  `extensions/git-branch`, from `sm`), and the settings gear. The folder is the sidebar's. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - **What is loaded**: the event stream carries the active view, which starts at the newest
@@ -137,24 +138,27 @@ their content scrolls.
 
 ## Status bar
 
-One bar across the bottom, always visible:
+One bar across the bottom, always visible, for the state of the app; what one conversation used sits
+under the composer, and its branch beside its title.
 
-| Field              | Source                       | Shown when                         |
-| ------------------ | ---------------------------- | ---------------------------------- |
-| state              | `pi.live.run` and the stream | always                             |
-| `↑in ↓out · $cost` | `pi.usage` document          | always                             |
-| folder             | `/api/health`                | `sm` and wider                     |
-| branch             | `extensions/git-branch`      | `sm` and wider, in a git folder    |
-| extension fields   | `status` export of a folder  | only with that extension on        |
-| context meter      | `extensions/context-meter`   | centre slot, once an answer exists |
-| cache hit          | `extensions/cache-hit`       | start slot, once an answer exists  |
-| agents             | the subagents extension      | only with that extension on        |
-| warm               | `extensions/keep-warm`       | end slot, `sm` and wider           |
+| Field            | Source                       | Shown when                  |
+| ---------------- | ---------------------------- | --------------------------- |
+| state            | `pi.live.run` and the stream | always                      |
+| 5-hour limit     | `extensions/usage-limits`    | centre slot                 |
+| warm             | `extensions/keep-warm`       | end slot, `sm` and wider    |
+| extension fields | `status` export of a folder  | only with that extension on |
 
-The bar has three slots (`start`, `center`, `end`) that extensions fill. `tok/s` is an `end` field: `extensions/tokens-per-second`. Below `sm` the path and the branch item of `extensions/git-branch`
-are dropped and the model name truncates, so the bar never widens the page.
+The bar has three slots (`start`, `center`, `end`) that extensions fill.
+
+## Under the composer
+
+One centred line under the composer card, about the open conversation: the `composer` slot. The
+context meter (`extensions/context-meter`), then the fields (`cache` from `extensions/cache-hit`,
+`tok/s` from `extensions/tokens-per-second`), then `↑in ↓out · $cost` from the `pi.usage` document.
+It never grows a second line: what does not fit wraps out of sight whole, so on a phone the last ones
+go first.
 
 ## Stacking
 
 `lg` (1024px) is the line. Wider: three panels, the drawer inside the row. Narrower: the sidebar
-goes, the drawer becomes a full-screen overlay, the status bar drops the path.
+goes, the drawer becomes a full-screen overlay, the header drops the branch.

@@ -10,7 +10,7 @@ extensions/git-branch/
   server.ts       default export (host) => Extension | undefined; may export `status` and `actions`
   server.test.ts  its tests, run by `pnpm test`; never loaded
   refs.ts         action refs and types shared with `web.tsx`
-  web.tsx         status-bar items and settings sections (the browser loads it)
+  web.tsx         status items and settings sections (the browser loads it)
   sw.js           optional: plain script the build appends to the production service worker
 ```
 
@@ -78,7 +78,7 @@ export const meta = {
 ## Status fields
 
 A folder may also export `status` next to its default export. It receives the conversation's active
-entries on every commit and returns one field for the status bar, or nothing:
+entries on every commit and returns one field, or nothing:
 
 ```ts
 import type { StatusProvider } from "../../server/sdk.ts";
@@ -89,10 +89,12 @@ export const status: StatusProvider = ({ entries, contextWindow }) => ({
 });
 ```
 
-The field may name a `slot` (`start`: after the folder, `center`, or `end`, the default), a
+The field may name a `slot`: `start`, `center`, or `end` (the default) of the status bar, for what is
+about the app; `composer`, the line under the composer, for what one conversation used; or `title`,
+right after the conversation's title. It may also have a
 `label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
 model's window from the catalog. Below `sm`, `end` fields are hidden and a `center` field loses its label.
-`extensions/context-meter` draws its own `center` item in `web.tsx` instead, because it opens a popup on hover; its server half serves the breakdown as an action and reads `host.contextWindow`.
+`extensions/context-meter` draws its own `composer` item in `web.tsx` instead, because it opens a popup on hover; its server half serves the breakdown as an action and reads `host.contextWindow`.
 
 The field travels in `live.status` of the event stream, keyed by the folder's name. The core knows no
 field by name: install the folder and it appears, remove the folder and the next event drops it.
@@ -147,7 +149,7 @@ function Item({ session }: StatusProps) {
 export default { status: [{ id: "cwd", slot: "start", component: Item }] } satisfies WebExtension;
 ```
 
-- **Status items** fill the status bar's `start`, `center`, or `end` slot, before the fields that
+- **Status items** fill the same places (`start`, `center`, `end`, `composer`, `title`), before the fields that
   `status` providers send. `session` is `{ id, cwd, busy }`, or `null` before one is open. The item
   draws its own markup (`hidden sm:flex` and so on) and uses theme roles for colour.
 - `component` must be a plain function component; a `memo` or `forwardRef` object is rejected.
