@@ -170,7 +170,8 @@ function Context({ session }: StatusProps) {
                     setAt(null);
                 }}
                 onClick={open}
-                className="text-faint flex cursor-default items-center gap-1.5 font-mono"
+                aria-expanded={at !== null}
+                className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono"
             >
                 <span className="max-sm:hidden">context</span>
                 <span className="w-9">
