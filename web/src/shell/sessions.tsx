@@ -9,10 +9,11 @@ import {
     PanelLeftOpen,
     Pencil,
     Plus,
+    Search,
     Trash2,
     X,
 } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useEffect, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -23,6 +24,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
+import { fuzzyScore } from "../lib/fuzzy.ts";
 import { toast } from "../lib/toast.ts";
 
 type Props = {
@@ -220,6 +222,16 @@ export function Sessions({
     const [open, setOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
+    const [searching, setSearching] = useState(false);
+    const [query, setQuery] = useState("");
+    const searchBox = useRef<HTMLInputElement>(null);
+    const searchTrigger = useRef<HTMLButtonElement>(null);
+    const stopSearch = (): void => {
+        setSearching(false);
+        setQuery("");
+        // The box is only hidden, not unmounted, so it would keep the keys pressed after Escape.
+        searchTrigger.current?.focus();
+    };
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
     const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
@@ -309,6 +321,12 @@ export function Sessions({
     }, []);
 
     useEffect(() => {
+        if (searching) {
+            searchBox.current?.focus();
+        }
+    }, [searching]);
+
+    useEffect(() => {
         const tick = setInterval(() => {
             setNow(Date.now());
         }, MINUTE);
@@ -332,7 +350,20 @@ export function Sessions({
             .filter((session) => session.cwd === cwd)
             .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
 
-    const shown = latest(folder).filter((session) => session.archived === archived);
+    const matches = latest(folder)
+        .filter((session) => session.archived === archived)
+        .flatMap((session) => {
+            const score = fuzzyScore(session.title ?? "New session", query);
+
+            return score === null ? [] : [{ session, score }];
+        })
+        // Without a query every score is equal, so the newest stays first either way.
+        .toSorted(
+            (left, right) =>
+                right.score - left.score ||
+                (right.session.activeAt ?? 0) - (left.session.activeAt ?? 0),
+        );
+    const shown = matches.map((match) => match.session);
 
     return (
         <aside
@@ -423,20 +454,79 @@ export function Sessions({
                     ) : null}
                 </div>
 
-                <div className={`px-3 pt-3 ${FADE} ${FOLD}`}>
+                <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
+                    <div className="relative min-w-0 flex-1">
+                        <button
+                            type="button"
+                            onClick={onNew}
+                            tabIndex={searching ? -1 : undefined}
+                            className={`rounded-control border-edge bg-sunken text-ink hover:bg-raised flex w-full items-center justify-center gap-2 border py-2.5 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
+                        >
+                            <Plus className="size-4" />
+                            <span className="text-sidebar">New session</span>
+                        </button>
+                        <div
+                            className={`absolute inset-0 transition-[opacity,transform] duration-200 ${searching ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"}`}
+                        >
+                            <Search className="text-faint pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
+                            <input
+                                ref={searchBox}
+                                type="search"
+                                value={query}
+                                aria-label="Search sessions"
+                                placeholder={`Search in ${folderName(folder)}`}
+                                tabIndex={searching ? undefined : -1}
+                                onChange={(event) => {
+                                    setQuery(event.target.value);
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Escape") {
+                                        event.preventDefault();
+                                        stopSearch();
+                                    }
+                                }}
+                                className="rounded-control border-edge-soft bg-sunken text-sidebar text-ink placeholder:text-faint focus:border-accent h-full w-full border pr-7 pl-7 outline-none [&::-webkit-search-cancel-button]:hidden"
+                            />
+                            <button
+                                type="button"
+                                onClick={stopSearch}
+                                title="Close search"
+                                aria-label="Close search"
+                                tabIndex={searching ? undefined : -1}
+                                className="rounded-control text-muted hover:bg-raised hover:text-ink absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center"
+                            >
+                                <X className="size-3.5" />
+                            </button>
+                        </div>
+                    </div>
                     <button
+                        ref={searchTrigger}
                         type="button"
-                        onClick={onNew}
-                        className="rounded-control border-edge bg-sunken text-ink hover:bg-raised flex w-full items-center justify-center gap-2 border py-2.5"
+                        onClick={() => {
+                            if (searching) {
+                                stopSearch();
+                            } else {
+                                setSearching(true);
+                            }
+                        }}
+                        title="Search sessions"
+                        aria-label="Search sessions"
+                        aria-expanded={searching}
+                        aria-hidden={searching ? true : undefined}
+                        tabIndex={searching ? -1 : undefined}
+                        className={`rounded-control border-edge-soft bg-sunken text-muted hover:bg-raised hover:text-ink flex shrink-0 items-center justify-center overflow-hidden border transition-[width,opacity] duration-200 ${searching ? "pointer-events-none w-0 border-transparent opacity-0" : "w-9 opacity-100"}`}
                     >
-                        <Plus className="size-4" />
-                        <span className="text-sidebar">New session</span>
+                        <Search className="size-4" />
                     </button>
                 </div>
 
                 <div className={`flex items-center justify-between px-3 pt-2 ${FADE} ${FOLD}`}>
                     <span className="text-meta text-muted">
-                        {archived ? "Archive" : "Sessions"}
+                        {archived
+                            ? "Archive"
+                            : query.trim() === ""
+                              ? "Sessions"
+                              : `${String(shown.length)} found`}
                     </span>
                     <button
                         type="button"
@@ -459,7 +549,11 @@ export function Sessions({
                     <nav className="p-1.5">
                         {shown.length === 0 ? (
                             <p className="text-meta text-faint px-2 py-3">
-                                {archived ? "No archived sessions" : "No sessions"}
+                                {archived
+                                    ? "No archived sessions"
+                                    : query.trim() === ""
+                                      ? "No sessions"
+                                      : "No sessions match"}
                             </p>
                         ) : null}
                         {GROUPS.map((group) => {
@@ -495,6 +589,7 @@ export function Sessions({
                                                     type="button"
                                                     onClick={() => {
                                                         onSelect(session.id);
+                                                        stopSearch();
                                                     }}
                                                     className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
                                                 >
