@@ -6,6 +6,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import type { Action, Host } from "../../server/extensions.ts";
 import { ActionError } from "../../server/extensions.ts";
+import { createKeeper } from "./keeper.ts";
 import { collect } from "./readers.ts";
 import { PROVIDERS, type UsageResult } from "./refs.ts";
 import { readSettings, writeSettings } from "./settings.ts";
@@ -27,13 +28,16 @@ export const actions = (host: Host): Record<string, Action> => {
     // Changes to the file run one after another, so two quick toggles cannot lose one.
     let queue: Promise<unknown> = Promise.resolve();
 
+    const keep = createKeeper();
     const load = (): Promise<UsageResult> => {
         // One lookup serves every caller that arrives while it runs.
         inflight ??= readSettings(host.dataDir)
             .then(({ hidden }) =>
-                collect(host.resolveModelAuth, globalThis.fetch, AbortSignal.timeout(30_000), {
-                    hidden,
-                }),
+                keep(hidden, (skip) =>
+                    collect(host.resolveModelAuth, globalThis.fetch, AbortSignal.timeout(30_000), {
+                        hidden: skip,
+                    }),
+                ),
             )
             .then((providers) => (cache = { providers, at: Date.now() }))
             .finally(() => {

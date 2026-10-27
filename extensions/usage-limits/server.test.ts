@@ -6,8 +6,9 @@ import { test } from "node:test";
 
 import type { Host } from "../../server/extensions.ts";
 import type { ResolveModelAuth } from "../../server/model-requests.ts";
+import { createKeeper } from "./keeper.ts";
 import { collect, readCodex, toMs, type Fetch } from "./readers.ts";
-import { readerFor } from "./refs.ts";
+import { readerFor, type ProviderUsage } from "./refs.ts";
 import { actions } from "./server.ts";
 import { readSettings } from "./settings.ts";
 
@@ -213,4 +214,46 @@ void test("settings: missing or broken file shows everything; actions validate a
         hidden: ["anthropic"],
     });
     assert.deepEqual(await readSettings(dir), { hidden: ["anthropic"] });
+});
+
+void test("a rate-limited provider keeps its last reading and is left alone for a while", async () => {
+    let time = 0;
+    const keep = createKeeper(() => time);
+    const reading = (pct: number): ProviderUsage => ({
+        id: "anthropic",
+        name: "Anthropic",
+        buckets: [{ label: "5 hours", session: true, pct, resetsAt: null }],
+    });
+    const asked: (readonly string[])[] = [];
+    let answer: ProviderUsage = reading(10);
+    const collectFn = (skip: readonly string[]) => {
+        asked.push(skip);
+
+        return Promise.resolve(skip.includes("anthropic") ? [] : [answer]);
+    };
+
+    assert.equal((await keep([], collectFn))[0]?.buckets[0]?.pct, 10);
+
+    answer = { id: "anthropic", name: "Anthropic", buckets: [], error: "HTTP 429" };
+    time = 1000;
+
+    const limited = (await keep([], collectFn))[0];
+
+    assert.equal(limited?.buckets[0]?.pct, 10);
+    assert.match(limited?.error ?? "", /Rate limited.*last reading/);
+
+    time = 60_000;
+
+    const backedOff = (await keep([], collectFn))[0];
+
+    assert.deepEqual(asked.at(-1), ["anthropic"]);
+    assert.equal(backedOff?.buckets[0]?.pct, 10);
+
+    time = 400_000;
+    answer = reading(12);
+
+    const recovered = (await keep([], collectFn))[0];
+
+    assert.equal(recovered?.error, undefined);
+    assert.equal(recovered?.buckets[0]?.pct, 12);
 });
