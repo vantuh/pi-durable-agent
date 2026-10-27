@@ -69,7 +69,7 @@ function RestartButton() {
             type="button"
             title="Restart the server: running work resumes"
             aria-label="Restart the server"
-            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2"
+            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent ml-auto flex size-7 items-center justify-center outline-none focus-visible:ring-2"
             onClick={() => {
                 void restart();
             }}
