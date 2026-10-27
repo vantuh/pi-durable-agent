@@ -106,7 +106,7 @@ export function ModelMenu({
                                             model,
                                             model.levels.includes(level ?? "")
                                                 ? (level ?? "off")
-                                                : "off",
+                                                : (model.levels[0] ?? "off"),
                                         );
                                     }}
                                     className={`rounded-control flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${

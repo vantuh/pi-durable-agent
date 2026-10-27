@@ -9,6 +9,7 @@ import { homedir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import {
     type Conversation,
@@ -859,20 +860,14 @@ function badBody(error: unknown): never {
     throw new ActionError(error instanceof Error ? error.message : "the body is not valid");
 }
 
-function modelInfo(model: {
-    provider: string;
-    id: string;
-    name: string;
-    contextWindow: number;
-    reasoning: boolean;
-}) {
+function modelInfo(model: Model<Api>) {
     return {
         provider: model.provider,
         id: model.id,
         name: model.name,
         contextWindow: model.contextWindow,
         reasoning: model.reasoning,
-        levels: model.reasoning ? ["off", "low", "medium", "high", "max"] : ["off"],
+        levels: getSupportedThinkingLevels(model),
     };
 }
 
