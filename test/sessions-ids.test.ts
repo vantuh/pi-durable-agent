@@ -67,6 +67,7 @@ void describe("Sessions.ids", () => {
 
             assert.equal(ids.length, 121);
             assert.equal(new Set(ids).size, 121);
+            assert.equal((await sessions.list(() => false)).length, 121);
         } finally {
             await harness.close(BACKGROUND_CONTEXT);
             await rm(dir, { recursive: true, force: true });

@@ -208,14 +208,10 @@ export class Sessions {
         busy: (id: ConversationId) => boolean,
         endedAt: (id: ConversationId) => number | undefined = () => undefined,
     ): Promise<SessionSummary[]> {
-        const page = await this.#harness.commit(
-            (tx) => tx.scanConversations({}, 100),
-            this.#context,
-        );
         const summaries: SessionSummary[] = [];
 
-        for (const record of page.items) {
-            const conversation = await this.#harness.conversation(record.id, this.#context);
+        for (const id of await this.ids()) {
+            const conversation = await this.#harness.conversation(id, this.#context);
 
             if (conversation === undefined) {
                 continue;
@@ -224,23 +220,23 @@ export class Sessions {
             const agent = await conversation.agent(this.#context);
             const cwd = agent.cwd ?? null;
 
-            const ended = endedAt(record.id);
+            const ended = endedAt(id);
 
             summaries.push({
-                id: record.id,
-                title: await this.#title(record.id),
+                id,
+                title: await this.#title(id),
                 cwd,
                 model:
                     agent.model === undefined
                         ? null
                         : `${agent.model.provider}/${agent.model.modelId}`,
                 thinkingLevel: agent.thinkingLevel,
-                busy: busy(record.id),
+                busy: busy(id),
                 archived: await this.#harness.commit(
-                    async (tx) => (await tx.doc(ArchiveDoc, record.id)).archived,
+                    async (tx) => (await tx.doc(ArchiveDoc, id)).archived,
                     this.#context,
                 ),
-                activeAt: await this.#activeAt(record.id),
+                activeAt: await this.#activeAt(id),
                 ...(ended === undefined ? {} : { endedAt: ended }),
             });
         }
