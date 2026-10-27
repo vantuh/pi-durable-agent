@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { fuzzyScore } from "../web/src/lib/fuzzy.ts";
+import { fuzzyMatch, fuzzyScore, segments } from "../web/src/lib/fuzzy.ts";
 
 void describe("fuzzyScore", () => {
     void it("matches everything on an empty query", () => {
@@ -37,5 +37,48 @@ void describe("fuzzyScore", () => {
     void it("needs every word of the query, in any order", () => {
         assert.notEqual(fuzzyScore("Fix login button", "log fix"), null);
         assert.equal(fuzzyScore("Fix login button", "log fix deploy"), null);
+    });
+});
+
+void describe("fuzzyMatch ranges", () => {
+    void it("points at the substring it found", () => {
+        assert.deepEqual(fuzzyMatch("Fix login", "login")?.ranges, [[4, 9]]);
+    });
+
+    void it("merges neighbouring letters into one range", () => {
+        assert.deepEqual(fuzzyMatch("fx button", "fx")?.ranges, [[0, 2]]);
+    });
+
+    void it("marks each letter of a spread-out match", () => {
+        assert.deepEqual(fuzzyMatch("fix button", "fbtn")?.ranges, [
+            [0, 1],
+            [4, 5],
+            [6, 7],
+            [9, 10],
+        ]);
+    });
+
+    void it("marks nothing for an empty query", () => {
+        assert.deepEqual(fuzzyMatch("Fix login", "")?.ranges, []);
+    });
+});
+
+void describe("segments", () => {
+    void it("cuts the title at the ranges, hits apart from the rest", () => {
+        assert.deepEqual(segments("Fix login", fuzzyMatch("Fix login", "log")?.ranges ?? []), [
+            { text: "Fix ", hit: false },
+            { text: "log", hit: true },
+            { text: "in", hit: false },
+        ]);
+    });
+
+    void it("returns the whole title untouched when nothing matched", () => {
+        assert.deepEqual(segments("Fix login", []), [{ text: "Fix login", hit: false }]);
+    });
+
+    void it("returns one hit when the whole title matched", () => {
+        assert.deepEqual(segments("fix", fuzzyMatch("fix", "fix")?.ranges ?? []), [
+            { text: "fix", hit: true },
+        ]);
     });
 });

@@ -24,7 +24,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
-import { fuzzyScore } from "../lib/fuzzy.ts";
+import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { toast } from "../lib/toast.ts";
 
 type Props = {
@@ -353,9 +353,9 @@ export function Sessions({
     const matches = latest(folder)
         .filter((session) => session.archived === archived)
         .flatMap((session) => {
-            const score = fuzzyScore(session.title ?? "New session", query);
+            const match = fuzzyMatch(session.title ?? "New session", query);
 
-            return score === null ? [] : [{ session, score }];
+            return match === null ? [] : [{ session, score: match.score, ranges: match.ranges }];
         })
         // Without a query every score is equal, so the newest stays first either way.
         .toSorted(
@@ -364,6 +364,7 @@ export function Sessions({
                 (right.session.activeAt ?? 0) - (left.session.activeAt ?? 0),
         );
     const shown = matches.map((match) => match.session);
+    const hits = new Map(matches.map((match) => [match.session.id, match.ranges]));
 
     return (
         <aside
@@ -611,7 +612,21 @@ export function Sessions({
                                                     <span
                                                         className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}
                                                     >
-                                                        {session.title ?? "New session"}
+                                                        {segments(
+                                                            session.title ?? "New session",
+                                                            hits.get(session.id) ?? [],
+                                                        ).map((part, index) => (
+                                                            <span
+                                                                key={`${String(index)}-${part.text}`}
+                                                                className={
+                                                                    part.hit
+                                                                        ? "bg-warn/30 text-ink rounded-[2px]"
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                {part.text}
+                                                            </span>
+                                                        ))}
                                                     </span>
                                                     <span
                                                         className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
