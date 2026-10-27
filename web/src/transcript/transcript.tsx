@@ -1,4 +1,10 @@
-import { ChevronRight, CircleAlert, PanelLeft, Settings as SettingsIcon } from "lucide-react";
+import {
+    ChevronRight,
+    CircleAlert,
+    Layers,
+    PanelLeft,
+    Settings as SettingsIcon,
+} from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -103,14 +109,28 @@ const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1"
  * Where a compaction cut the context: a line, and the summary the model was handed instead of everything above it.
  * The messages above stay on screen — they are the conversation, they are just no longer what is sent.
  */
-function CompactionMark({ summary }: { summary?: string }) {
-    const label = <span className="text-meta text-faint">earlier messages were compacted</span>;
+function CompactionMark({ summary, above }: { summary?: string; above: number }) {
+    const label = (
+        <span className="text-meta text-ink">
+            earlier messages were compacted
+            {above === 0 ? "" : ` · ${String(above)}`}
+        </span>
+    );
+    const pill = (
+        <span className="border-edge bg-raised hover:border-muted flex shrink-0 items-center gap-2 rounded-full border px-3 py-1">
+            <Layers className="size-3.5 shrink-0" />
+            {label}
+            {summary === undefined ? null : (
+                <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
+            )}
+        </span>
+    );
 
     if (summary === undefined) {
         return (
             <div className="flex items-center gap-3">
                 <Rule />
-                {label}
+                {pill}
                 <Rule />
             </div>
         );
@@ -118,12 +138,9 @@ function CompactionMark({ summary }: { summary?: string }) {
 
     return (
         <Collapsible className="group/fold flex flex-col gap-2">
-            <CollapsibleTrigger className="text-muted hover:text-ink flex items-center gap-3 text-left">
+            <CollapsibleTrigger className="flex items-center gap-3 text-left">
                 <Rule />
-                <span className="flex shrink-0 items-center gap-1.5">
-                    <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
-                    {label}
-                </span>
+                {pill}
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>

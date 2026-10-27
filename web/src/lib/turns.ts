@@ -57,7 +57,11 @@ export type Turn = {
     live: boolean;
     stats?: TurnStats;
     /** The boundary a compaction left: what the model was handed instead of everything above it. */
-    compacted?: { summary?: string };
+    compacted?: {
+        summary?: string;
+        /** The person's messages above this point, as far as the screen has loaded them. */
+        above: number;
+    };
 };
 
 const DID: Record<string, { verb: string; noun?: string; by?: string }> = {
@@ -350,6 +354,7 @@ export function turnsOf(entries: ClientEntry[], live: ClientLive): Turn[] {
     let group: Extract<Item, { type: "activity" }> | undefined;
     let groups = 0;
     let replies = 0;
+    let asked = 0;
 
     const begin = (key: string, user?: UserEntry): Turn => {
         const next: Turn = { key, items: [], live: false };
@@ -452,13 +457,17 @@ export function turnsOf(entries: ClientEntry[], live: ClientLive): Turn[] {
 
     for (const entry of entries) {
         if (entry.kind === "user") {
+            asked += 1;
             turn = begin(`t${String(entry.id)}`, entry);
         } else if (entry.kind === "assistant") {
             turn ??= begin("t0");
             answer(turn, entry, entry.blocks, false);
         } else if (entry.kind === "compaction") {
             turn = begin(`c${String(entry.id)}`);
-            turn.compacted = entry.summary === undefined ? {} : { summary: entry.summary };
+            turn.compacted = {
+                ...(entry.summary === undefined ? {} : { summary: entry.summary }),
+                above: asked,
+            };
         }
     }
 
