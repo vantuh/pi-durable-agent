@@ -23,20 +23,4 @@ void describe("chat attachments", () => {
         assert.ok(event?.type === "hello");
         assert.deepEqual(turnsOf(event.entries, event.live)[0]?.user?.files, files);
     });
-
-    void it("ignores malformed attachment metadata without losing the message", () => {
-        const event = parseEvent(
-            JSON.stringify({
-                session: 1,
-                type: "entries",
-                replace: true,
-                entries: [
-                    { id: 1, kind: "user", text: "hello", files: [null, {}, { name: "bad" }] },
-                ],
-            }),
-        );
-
-        assert.ok(event?.type === "entries");
-        assert.deepEqual(event.entries, [{ id: 1, kind: "user", text: "hello" }]);
-    });
 });

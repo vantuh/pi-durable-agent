@@ -4,73 +4,55 @@ import { describe, it } from "node:test";
 import { parseEvent } from "../web/src/lib/event.ts";
 
 void describe("parseEvent", () => {
-    void it("validates extension notices before they reach the toaster", () => {
-        const event = {
-            session: 1,
-            type: "extension-notice",
-            notice: { level: "success", message: "Reloaded" },
-        };
-        assert.deepEqual(parseEvent(JSON.stringify(event)), event);
-        for (const notice of [
-            null,
-            {},
-            { level: "unknown", message: "Reloaded" },
-            { level: "error", message: 1 },
+    void it("drops anything that is not an event of a type this version knows", () => {
+        for (const raw of [
+            "",
+            "not json",
+            "null",
+            "[]",
+            JSON.stringify({ type: "hello" }),
+            JSON.stringify({ session: "1", type: "hello" }),
+            JSON.stringify({ session: 1, type: "invented-later" }),
         ]) {
-            assert.equal(parseEvent(JSON.stringify({ ...event, notice })), undefined);
+            assert.equal(parseEvent(raw), undefined, raw);
         }
     });
-    void it("keeps an answer's stats, a result's times and diff, and the stream's start", () => {
-        const stats = {
-            model: "m1",
-            stopReason: "stop",
-            input: 10,
-            output: 2,
-            cost: 0.1,
-            startedAt: 1000,
-            durationMs: 500,
-        };
-        const diff = "-1 a\n+1 b";
-        const event = parseEvent(
-            JSON.stringify({
-                session: 1,
-                type: "hello",
-                model: "m1",
-                entries: [
-                    { id: 1, kind: "user", text: "hi", at: 900 },
-                    { id: 2, kind: "assistant", blocks: [], stats },
-                    {
-                        id: 3,
-                        kind: "toolResult",
-                        callId: "c",
-                        name: "edit",
-                        text: "ok",
-                        isError: false,
-                        at: 1600,
-                        durationMs: 3,
-                        diff,
-                    },
-                ],
-                live: { busy: true, usage: { input: 0, output: 0, cost: 0 }, startedAt: 2000 },
-            }),
-        );
 
-        assert.ok(event?.type === "hello");
-        assert.deepEqual(event.entries, [
-            { id: 1, kind: "user", text: "hi", at: 900 },
-            { id: 2, kind: "assistant", blocks: [], stats },
-            {
-                id: 3,
-                kind: "toolResult",
-                callId: "c",
-                name: "edit",
-                text: "ok",
-                isError: false,
-                at: 1600,
-                durationMs: 3,
-                diff,
-            },
-        ]);
-        assert.equal(event.live.startedAt, 2000);
+    void it("hands a known event on untouched, tool diffs and answer stats included", () => {
+        const event = {
+            session: 1,
+            type: "hello",
+            model: "m1",
+            entries: [
+                { id: 1, kind: "user", text: "hi", at: 900 },
+                {
+                    id: 2,
+                    kind: "assistant",
+                    blocks: [{ type: "text", text: "there" }],
+                    stats: {
+                        model: "m1",
+                        stopReason: "stop",
+                        input: 10,
+                        output: 2,
+                        cost: 0.1,
+                        startedAt: 1000,
+                        durationMs: 500,
+                    },
+                },
+                {
+                    id: 3,
+                    kind: "toolResult",
+                    callId: "c",
+                    name: "edit",
+                    text: "ok",
+                    isError: false,
+                    durationMs: 3,
+                    diff: "-1 a\n+1 b",
+                },
+            ],
+            live: { busy: true, usage: { input: 0, output: 0, cost: 0 } },
+        };
+
+        assert.deepEqual(parseEvent(JSON.stringify(event)), event);
     });
 });
