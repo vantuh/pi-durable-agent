@@ -1,4 +1,4 @@
-/** The session list: rows, a new session, archiving and renaming. */
+/** The session list: rows, a new session, archiving, deleting and renaming. */
 
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
@@ -52,6 +52,29 @@ export function sessionRoutes(deps: {
                 }
 
                 await sessions.setArchived(opened.id, archived);
+                answer(response, 200, { ok: true });
+            },
+        },
+        {
+            method: "POST",
+            path: /^\/api\/sessions\/delete$/,
+            handle: async (request, response) => {
+                const payload = record(await readJson(request));
+                const id = sessionIdOf(payload?.["session"]);
+
+                if (id === undefined) {
+                    answer(response, 400, { error: "Expected a session id" });
+                    return;
+                }
+
+                const opened = await attach(id);
+
+                if (opened === undefined) {
+                    answer(response, 404, { error: "Session not found" });
+                    return;
+                }
+
+                await sessions.delete(opened.id);
                 answer(response, 200, { ok: true });
             },
         },

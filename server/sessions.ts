@@ -38,6 +38,17 @@ const ArchiveDoc = defineDoc({
     checkpointWhen: () => true,
 });
 
+/** Gone from the list for good. The rows stay where they are; only the sidebar forgets the session. */
+const DeletedDoc = defineDoc({
+    kind: "app.deleted",
+    version: 1,
+    scope: "conversation",
+    history: "latest",
+    fork: "initial",
+    initial: (): { deleted: boolean } => ({ deleted: false }),
+    checkpointWhen: () => true,
+});
+
 /** A name chosen by hand. Empty means none: the session is named after its first question. */
 const TitleDoc = defineDoc({
     kind: "app.title",
@@ -183,6 +194,14 @@ export class Sessions {
         }, this.#context);
     }
 
+    /** Deleting only marks the session: the transcript stays in storage, out of every list. */
+    async delete(id: ConversationId): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(DeletedDoc, id)).deleted = true;
+        }, this.#context);
+        this.#open.delete(id);
+    }
+
     /** Names the session by hand; an empty name goes back to the automatic one. */
     async setTitle(id: ConversationId, title: string): Promise<void> {
         await this.#harness.commit(async (tx) => {
@@ -198,6 +217,10 @@ export class Sessions {
             return known;
         }
 
+        if (await this.#isDeleted(id)) {
+            return undefined;
+        }
+
         const conversation = await this.#harness.conversation(id, this.#context);
 
         if (conversation === undefined) {
@@ -211,7 +234,7 @@ export class Sessions {
         return opened;
     }
 
-    /** The id of every conversation, read page by page. Nothing else about them is loaded. */
+    /** The id of every conversation that was not deleted, read page by page. Nothing else about them is loaded. */
     async ids(): Promise<ConversationId[]> {
         const ids: ConversationId[] = [];
         let cursor: Cursor | undefined;
@@ -223,7 +246,12 @@ export class Sessions {
                 this.#context,
             );
 
-            ids.push(...page.items.map((record) => record.id));
+            for (const { id } of page.items) {
+                if (!(await this.#isDeleted(id))) {
+                    ids.push(id);
+                }
+            }
+
             cursor = page.next;
         } while (cursor !== undefined);
 
@@ -268,6 +296,14 @@ export class Sessions {
         }
 
         return summaries;
+    }
+
+    /** A deleted session is out of the lists for good; its rows stay in storage. */
+    async #isDeleted(id: ConversationId): Promise<boolean> {
+        return this.#harness.commit(
+            async (tx) => (await tx.doc(DeletedDoc, id)).deleted,
+            this.#context,
+        );
     }
 
     /**

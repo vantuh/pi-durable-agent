@@ -120,6 +120,15 @@ export async function setSessionTitle(session: number, title: string): Promise<v
     });
 }
 
+/** Out of the sidebar for good: only a note says it is deleted, the transcript stays on disk. */
+export async function deleteSession(session: number): Promise<void> {
+    await json("/api/sessions/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session }),
+    });
+}
+
 export async function createSession(cwd: string): Promise<number> {
     const body = record(
         await json("/api/sessions", {
