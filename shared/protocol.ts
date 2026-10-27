@@ -153,6 +153,8 @@ export type ServerEvent = { session: number } & (
 export type SessionSummary = {
     id: number;
     archived: boolean;
+    /** The name set by hand; null while the first question still names the session. */
+    name: string | null;
     title: string | null;
     cwd: string | null;
     model: string | null;

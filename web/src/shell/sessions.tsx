@@ -657,7 +657,7 @@ export function Sessions({
                                                             onSelect={() => {
                                                                 setRenaming({
                                                                     id: session.id,
-                                                                    name: session.title ?? "",
+                                                                    name: session.name ?? "",
                                                                 });
                                                             }}
                                                         >

@@ -93,6 +93,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
 
         rows.push({
             id,
+            name: typeof row?.["name"] === "string" ? row["name"] : null,
             title: typeof row?.["title"] === "string" ? row["title"] : null,
             cwd: typeof row?.["cwd"] === "string" ? row["cwd"] : null,
             model: typeof row?.["model"] === "string" ? row["model"] : null,

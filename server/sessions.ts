@@ -75,6 +75,8 @@ export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 export type SessionSummary = {
     id: ConversationId;
+    /** The name set by hand; null while the first question still names the session. */
+    name: string | null;
     title: string | null;
     cwd: string | null;
     model: string | null;
@@ -275,10 +277,12 @@ export class Sessions {
             const cwd = agent.cwd ?? null;
 
             const ended = endedAt(id);
+            const name = await this.#name(id);
 
             summaries.push({
                 id,
-                title: await this.#title(id),
+                name,
+                title: name ?? (await this.#question(id)),
                 cwd,
                 model:
                     agent.model === undefined
@@ -339,20 +343,21 @@ export class Sessions {
 
     /** The name the sidebar shows: the one set by hand, else the first question. */
     async title(id: ConversationId): Promise<string | null> {
-        return await this.#title(id);
+        return (await this.#name(id)) ?? (await this.#question(id));
     }
 
-    /** A session is named after what it was first asked, until titles are documents of their own. */
-    async #title(id: ConversationId): Promise<string | null> {
+    /** The name set by hand, or null while the first question still names the session. */
+    async #name(id: ConversationId): Promise<string | null> {
         const chosen = await this.#harness.commit(
             async (tx) => (await tx.doc(TitleDoc, id)).title,
             this.#context,
         );
 
-        if (chosen !== "") {
-            return chosen;
-        }
+        return chosen === "" ? null : chosen;
+    }
 
+    /** The first question, cut: what a session is called until someone names it. */
+    async #question(id: ConversationId): Promise<string | null> {
         const page = await this.#harness.commit(
             (tx) => tx.scanEntries({ conversationId: id, order: "ascending" }, 5),
             this.#context,
