@@ -101,7 +101,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
             busy: row?.["busy"] === true,
             archived: row?.["archived"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
-            ...(typeof row?.["endedAt"] === "number" ? { endedAt: row["endedAt"] } : {}),
+            unseen: row?.["unseen"] === true,
         });
     }
 
@@ -121,6 +121,14 @@ export async function setSessionTitle(session: number, title: string): Promise<v
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ session, title }),
+    });
+}
+
+export async function markSeen(session: number): Promise<void> {
+    await json("/api/sessions/seen", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session }),
     });
 }
 

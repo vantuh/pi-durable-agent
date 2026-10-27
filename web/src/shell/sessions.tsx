@@ -102,19 +102,6 @@ function folderName(cwd: string | null): string {
     return parts[parts.length - 1] ?? cwd;
 }
 
-const SEEN_KEY = "sessionsSeen";
-
-/** Per session, the `endedAt` of the run last looked at; the server's clock, so this device's clock never matters. */
-function savedSeen(): Record<number, number> {
-    try {
-        const parsed: unknown = JSON.parse(localStorage.getItem(SEEN_KEY) ?? "{}");
-
-        return typeof parsed === "object" && parsed !== null ? { ...parsed } : {};
-    } catch {
-        return {};
-    }
-}
-
 const COLLAPSED_KEY = "sidebarCollapsed";
 /** Hides everything but the status marks and the toggle once the sidebar is a narrow rail. */
 const FADE =
@@ -288,33 +275,6 @@ export function Sessions({
         }
     };
     const [now, setNow] = useState(() => Date.now());
-    // Read each render: the effect below writes it, and leaving a session must see what it wrote.
-    const seen = savedSeen();
-    const [visible, setVisible] = useState(() => document.visibilityState === "visible");
-    const currentEnded = active?.endedAt;
-
-    useEffect(() => {
-        const change = (): void => {
-            setVisible(document.visibilityState === "visible");
-        };
-
-        document.addEventListener("visibilitychange", change);
-
-        return () => {
-            document.removeEventListener("visibilitychange", change);
-        };
-    }, []);
-
-    // A run that ends in the open session, on a visible page, is seen as it ends.
-    useEffect(() => {
-        if (current === null || currentEnded === undefined || !visible) {
-            return;
-        }
-
-        const next = { ...savedSeen(), [current]: currentEnded };
-
-        localStorage.setItem(SEEN_KEY, JSON.stringify(next));
-    }, [current, currentEnded, visible]);
 
     useEffect(() => {
         setWidth(savedWidth(), false);
@@ -575,11 +535,7 @@ export function Sessions({
                                     </div>
 
                                     {rows.map((session) => {
-                                        const unseen =
-                                            !session.busy &&
-                                            !(session.id === current && visible) &&
-                                            session.endedAt !== undefined &&
-                                            session.endedAt > (seen[session.id] ?? 0);
+                                        const { unseen } = session;
 
                                         return (
                                             <div

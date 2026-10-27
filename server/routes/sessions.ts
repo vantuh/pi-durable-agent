@@ -1,4 +1,4 @@
-/** The session list: rows, a new session, archiving, deleting and renaming. */
+/** The session list: rows, a new session, archiving, deleting, renaming and marking seen. */
 
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
@@ -7,7 +7,6 @@ export function sessionRoutes(deps: {
     sessions: Sessions;
     attach: (id: number) => Promise<Opened | undefined>;
     busy: (id: number) => boolean;
-    endedAt: (id: number) => number | undefined;
 }): Route[] {
     const { sessions, attach } = deps;
 
@@ -16,7 +15,7 @@ export function sessionRoutes(deps: {
             method: "GET",
             path: /^\/api\/sessions$/,
             handle: async (_request, response) => {
-                answer(response, 200, { sessions: await sessions.list(deps.busy, deps.endedAt) });
+                answer(response, 200, { sessions: await sessions.list(deps.busy) });
             },
         },
         {
@@ -99,6 +98,29 @@ export function sessionRoutes(deps: {
                 }
 
                 await sessions.setTitle(opened.id, title.trim().slice(0, 80));
+                answer(response, 200, { ok: true });
+            },
+        },
+        {
+            method: "POST",
+            path: /^\/api\/sessions\/seen$/,
+            handle: async (request, response) => {
+                const payload = record(await readJson(request));
+                const id = sessionIdOf(payload?.["session"]);
+
+                if (id === undefined) {
+                    answer(response, 400, { error: "Expected a session id" });
+                    return;
+                }
+
+                const opened = await attach(id);
+
+                if (opened === undefined) {
+                    answer(response, 404, { error: "Session not found" });
+                    return;
+                }
+
+                await sessions.seen(opened.id);
                 answer(response, 200, { ok: true });
             },
         },

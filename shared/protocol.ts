@@ -162,8 +162,8 @@ export type SessionSummary = {
     busy: boolean;
     /** When a person last wrote to the session, or created it; null while unknown. */
     activeAt: number | null;
-    /** When the latest run ended, on the server's clock; absent until one ends while the server is up. */
-    endedAt?: number;
+    /** A run ended after the session was last seen, on any device; never while it works or is archived. */
+    unseen: boolean;
 };
 
 /** One model the picker offers. */

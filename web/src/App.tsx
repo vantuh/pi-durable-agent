@@ -19,6 +19,7 @@ import {
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
 import { sessionFromSearch } from "./lib/deep-link.ts";
+import { useSeen } from "./lib/seen.ts";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { PanelButtons, PanelHost, panelKey } from "./shell/panels.tsx";
@@ -120,6 +121,11 @@ export function App() {
     }, [someBusy]);
 
     const active = sessions.find((session) => session.id === current);
+
+    useSeen(current, active?.unseen === true, (id) => {
+        setSessions((rows) => rows.map((row) => (row.id === id ? { ...row, unseen: false } : row)));
+    });
+
     const model = shortName(active?.model ?? null);
     const activeSession =
         current === null

@@ -61,7 +61,6 @@ type Client = { response: ServerResponse; session: number };
 
 const clients = new Set<Client>();
 const busy = new Map<number, boolean>();
-const endedAt = new Map<number, number>();
 const latest = new Map<number, { opened: Opened; view: View }>();
 
 let models: ModelRuntime;
@@ -181,8 +180,9 @@ function publish(opened: Opened, view: View): void {
     const live = liveOf(view);
 
     latest.set(opened.id, { opened, view });
+    // Taken before the browsers hear of it, so a `seen` sent the moment it ends is later.
     if (busy.get(opened.id) === true && !live.busy) {
-        endedAt.set(opened.id, Date.now());
+        void sessions.ended(opened.id, Date.now());
     }
 
     busy.set(opened.id, live.busy);
@@ -416,7 +416,6 @@ async function boot(): Promise<void> {
             sessions,
             attach,
             busy: (id) => busy.get(id) === true,
-            endedAt: (id) => endedAt.get(id),
         }),
         ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
         ...fileRoutes({ dataDir: DATA_DIR }),

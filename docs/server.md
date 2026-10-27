@@ -127,10 +127,11 @@ and nothing else.
 
 ```text
 GET  /api/sessions           the list: name (null while the first question names it), title (what the row shows),
-                             folder, model, thinking level, busy, activeAt
+                             folder, model, thinking level, busy, activeAt, unseen
 POST /api/sessions           { cwd } → a new conversation with the default model
 POST /api/sessions/archive   { session, archived }  sidebar visibility only
 POST /api/sessions/delete    { session }  gone from every list; see [session-delete.md](session-delete.md)
+POST /api/sessions/seen      { session }  its latest run is seen; see [sessions-live.md](sessions-live.md)
 POST /api/messages           { session, text, files, mode? }  mode: steer | followUp | interrupt
 POST /api/queued/withdraw    { session, id } → { result }  result: aborted | already_placed | settled | not_found
                              deletes the `pi.inbox` item; 400 bad id (an unknown session is a 500, as everywhere)

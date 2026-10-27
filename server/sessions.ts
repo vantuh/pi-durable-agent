@@ -38,6 +38,17 @@ const ArchiveDoc = defineDoc({
     checkpointWhen: () => true,
 });
 
+/** When the latest run ended and when a person last saw the session, both on the server's clock. */
+const AttentionDoc = defineDoc({
+    kind: "app.attention",
+    version: 1,
+    scope: "conversation",
+    history: "latest",
+    fork: "initial",
+    initial: () => ({ endedAt: 0, seenAt: 0 }),
+    checkpointWhen: () => true,
+});
+
 /** Gone from the list for good. The rows stay where they are; only the sidebar forgets the session. */
 const DeletedDoc = defineDoc({
     kind: "app.deleted",
@@ -84,7 +95,8 @@ export type SessionSummary = {
     busy: boolean;
     archived: boolean;
     activeAt: number | null;
-    endedAt?: number;
+    /** A run ended after the session was last seen. */
+    unseen: boolean;
 };
 
 export type Opened = {
@@ -195,6 +207,18 @@ export class Sessions {
         }, this.#context);
     }
 
+    async ended(id: ConversationId, at: number): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(AttentionDoc, id)).endedAt = at;
+        }, this.#context);
+    }
+
+    async seen(id: ConversationId): Promise<void> {
+        await this.#harness.commit(async (tx) => {
+            (await tx.doc(AttentionDoc, id)).seenAt = Date.now();
+        }, this.#context);
+    }
+
     async setArchived(id: ConversationId, archived: boolean): Promise<void> {
         await this.#harness.commit(async (tx) => {
             (await tx.doc(ArchiveDoc, id)).archived = archived;
@@ -265,10 +289,7 @@ export class Sessions {
         return ids;
     }
 
-    async list(
-        busy: (id: ConversationId) => boolean,
-        endedAt: (id: ConversationId) => number | undefined = () => undefined,
-    ): Promise<SessionSummary[]> {
+    async list(busy: (id: ConversationId) => boolean): Promise<SessionSummary[]> {
         const summaries: SessionSummary[] = [];
 
         for (const id of await this.ids()) {
@@ -281,8 +302,17 @@ export class Sessions {
             const agent = await conversation.agent(this.#context);
             const cwd = agent.cwd ?? null;
 
-            const ended = endedAt(id);
             const name = await this.#name(id);
+            const working = busy(id);
+            const { archived, endedAt, seenAt } = await this.#harness.commit(async (tx) => {
+                const attention = await tx.doc(AttentionDoc, id);
+
+                return {
+                    archived: (await tx.doc(ArchiveDoc, id)).archived,
+                    endedAt: attention.endedAt,
+                    seenAt: attention.seenAt,
+                };
+            }, this.#context);
 
             summaries.push({
                 id,
@@ -294,13 +324,10 @@ export class Sessions {
                         ? null
                         : `${agent.model.provider}/${agent.model.modelId}`,
                 thinkingLevel: agent.thinkingLevel,
-                busy: busy(id),
-                archived: await this.#harness.commit(
-                    async (tx) => (await tx.doc(ArchiveDoc, id)).archived,
-                    this.#context,
-                ),
+                busy: working,
+                archived,
                 activeAt: await this.#activeAt(id),
-                ...(ended === undefined ? {} : { endedAt: ended }),
+                unseen: !working && !archived && endedAt > seenAt,
             });
         }
 
