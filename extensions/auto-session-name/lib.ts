@@ -1,60 +1,32 @@
-/**
- * Pure helpers behind the session namer: the transcript the title model reads and the cleanup applied
- * to its answer. No runtime imports, so tests can exercise them without the Pi runtime.
- *
- * The policy mirrors Pi Web's lib/session-title.ts.
- *
- * Copied from the Pi extension `auto-session-name`, which reads Pi's whole session record. This app
- * reads the model context, so the roles that only a session record has — `bashExecution`,
- * `compactionSummary`, `branchSummary`, `custom` — are dropped along with their branches: here a
- * compaction reaches the model as the user message that carries it, and nothing else exists. The
- * type comes from `@earendil-works/pi-ai`, so a changed message shape breaks this file instead of
- * passing it silently.
- */
+/** Adapted from the Pi extension `auto-session-name` and Pi Web's title policy, using model context. */
 
 import type { Message } from "@earendil-works/pi-ai";
 
 const MAX_TITLE_LENGTH = 80;
 
-// Per-message caps: every user turn carries the goal, only the newest reply
-// needs its body, and the replies between them only need their opening line.
-// Tool calls and their results are dropped outright, because they dominate the
-// token count while saying nothing about what the user wanted.
+// User turns carry the goal; older replies need less detail. Tools add cost without naming the goal.
 const USER_CHARS = 800;
 const ASSISTANT_CHARS = 300;
 const LAST_ASSISTANT_CHARS = 600;
-// Total budget across all messages, so a long session does not cost more to
-// name than a short one.
+// Keep naming cost bounded regardless of session length.
 const TRANSCRIPT_CHARS = 6000;
-// Share reserved for the opening turns: a session states its goal early and
-// then drifts into routine follow-ups, and naming it after its last chore is
-// worse than naming it after the work it started with.
+// Reserve the opening goal so routine follow-ups do not displace it.
 const TRANSCRIPT_HEAD_CHARS = Math.round(TRANSCRIPT_CHARS * 0.4);
 
 const ELISION = "[…]";
 const IMAGE_PLACEHOLDER = "[image]";
 
-function textOf(content: unknown): string {
+function textOf(content: Message["content"]): string {
     if (typeof content === "string") {
         return content;
-    }
-    if (!Array.isArray(content)) {
-        return "";
     }
 
     const parts: string[] = [];
     let images = 0;
-    for (const block of content as readonly unknown[]) {
-        if (typeof block !== "object" || block === null) {
-            continue;
-        }
-        const { type } = block as { type?: unknown };
-        if (type === "text") {
-            const { text } = block as { text?: unknown };
-            if (typeof text === "string") {
-                parts.push(text);
-            }
-        } else if (type === "image") {
+    for (const block of content) {
+        if (block.type === "text") {
+            parts.push(block.text);
+        } else if (block.type === "image") {
             images += 1;
         }
     }

@@ -94,6 +94,28 @@ void test("drops a tool result and clips a long user turn", () => {
     assert.ok(userLine?.endsWith("…"));
 });
 
+void test("keeps text and image markers but drops reasoning and tool calls", () => {
+    const image = { type: "image", mimeType: "image/png", data: "image payload" } as const;
+    const transcript = buildTitleTranscript([
+        {
+            role: "user",
+            content: [{ type: "text", text: "Review screenshots" }, image, image],
+            timestamp: 0,
+        },
+        { role: "user", content: [image], timestamp: 0 },
+        answer([
+            { type: "thinking", thinking: "private reasoning" },
+            { type: "toolCall", id: "1", name: "read", arguments: { path: "private path" } },
+            { type: "text", text: "Fixed the layout" },
+        ]),
+    ]);
+
+    assert.equal(
+        transcript,
+        "User: Review screenshots\n[image] ×2\n\nUser: [image]\n\nAssistant: Fixed the layout",
+    );
+});
+
 void test("clips an intermediate reply at 300 and keeps the newest at 600", () => {
     const long = "x".repeat(500);
     const transcript = buildTitleTranscript([
