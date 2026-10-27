@@ -188,7 +188,7 @@ export function App() {
                         }}
                     />
 
-                    <div className="relative mx-auto w-full max-w-[var(--chat-width)]">
+                    <div className="relative">
                         {menu ? (
                             <ModelMenu
                                 scoped={models.scoped}

@@ -99,7 +99,7 @@ function WidthPicker() {
             <div className="flex min-w-0 flex-col">
                 <span className="text-interface text-ink">Width</span>
                 <span className="text-meta text-faint">
-                    Wide screens: how much room the conversation and message box take.
+                    Wide screens: how much room the conversation takes.
                 </span>
             </div>
             <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
