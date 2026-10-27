@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -21,8 +22,9 @@ const POPOVER_WIDTH = 256;
 const tokens = (count = 0) =>
     count >= 1000 ? `${String(Math.round(count / 1000))}k` : String(count);
 
+/** Local time on a 24-hour dial, as the rest of the app writes it: 21:43, never 09:43 PM. */
 const clock = (at: number) =>
-    new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 /** How long ago, in the words the rest of the shell uses. */
 function ago(at: number): string {
@@ -88,7 +90,7 @@ function Panel({
     anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
-    onStop: (session: number) => void;
+    onStop: (session: number, label: string) => void;
     onClose: () => void;
 }) {
     const ref = useRef<HTMLDialogElement>(null);
@@ -166,15 +168,17 @@ function Panel({
                 <div className="border-edge-soft mt-2 border-t pt-2">
                     <div className="text-faint mb-1">Also warming</div>
                     {others.map((row) => (
-                        <div key={row.id} className="flex items-center justify-between gap-2">
-                            <span className="text-muted truncate">{row.label}</span>
-                            <span className="text-faint shrink-0">{clock(row.nextAt)}</span>
+                        <div key={row.id} className="flex items-center gap-2">
+                            <span className="text-muted min-w-0 flex-1 truncate">{row.label}</span>
+                            <span className="text-faint shrink-0 text-right tabular-nums">
+                                {clock(row.nextAt)}
+                            </span>
                             <button
                                 type="button"
                                 aria-label={`Stop warming ${row.label}`}
                                 title={`Stop warming ${row.label} until you write in it again`}
                                 onClick={() => {
-                                    onStop(row.id);
+                                    onStop(row.id, row.label);
                                 }}
                                 className="text-faint hover:text-ink shrink-0"
                             >
@@ -234,11 +238,16 @@ function KeepWarm({ session }: StatusProps) {
             .catch(() => undefined);
     };
 
-    const stopWarming = (sessionId: number) => {
-        callAction(stopAction, { id: sessionId }, id)
-            .then(setWarm)
-            // A failure leaves the row where it was; the next poll asks again.
-            .catch(() => undefined);
+    const stopWarming = (sessionId: number, label: string) => {
+        void (async () => {
+            try {
+                setWarm(await callAction(stopAction, { id: sessionId }, id));
+                toast.success(`Stopped warming “${label}”`);
+            } catch {
+                // The row stays where it was; the next poll asks again.
+                toast.error("Could not stop warming that session. Please try again.");
+            }
+        })();
     };
 
     return (
