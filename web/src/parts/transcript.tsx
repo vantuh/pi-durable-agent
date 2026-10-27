@@ -1,10 +1,11 @@
-import { PanelLeft, Settings as SettingsIcon } from "lucide-react";
+import { CircleAlert, PanelLeft, Settings as SettingsIcon } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
+import { readProviderError } from "../lib/provider-error.ts";
 import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { Attachments } from "./attachments.tsx";
@@ -69,13 +70,31 @@ function AnswerHeader({ turn }: { turn: Turn }) {
     );
 }
 
+function ErrorNotice({ text }: { text: string }) {
+    const { title, detail, requestId } = readProviderError(text);
+
+    return (
+        <div className="bg-danger/10 text-meta flex items-start gap-2 rounded-lg px-3 py-2">
+            <CircleAlert className="text-danger mt-0.5 size-3.5 shrink-0" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-danger break-words">{title}</span>
+                {detail === undefined && requestId === undefined ? null : (
+                    <span className="text-faint font-mono break-all">
+                        {[detail, requestId].filter((part) => part !== undefined).join(" · ")}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function TurnItem({ item }: { item: Item }) {
     if (item.type === "activity") {
         return <ActivityGroup item={item} />;
     }
 
     if (item.type === "error") {
-        return <p className="text-meta text-danger">{item.text}</p>;
+        return <ErrorNotice text={item.text} />;
     }
 
     return <Markdown text={item.text} streaming={item.streaming} />;
