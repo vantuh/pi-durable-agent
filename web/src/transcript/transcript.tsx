@@ -106,32 +106,71 @@ function ErrorNotice({ text }: { text: string }) {
 
 const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1" />;
 
-/** The mark's pill: a filled chip on the line between messages, interactive when it opens the summary. */
-function CompactionPill({ children, interactive }: { children: ReactNode; interactive?: boolean }) {
+/** The mark's pill, in the tone of what it says: a chip on the line between messages. */
+const PILL_TONES = {
+    raised: "border-edge bg-raised text-ink",
+    warn: "border-warn/30 bg-warn/10 text-warn",
+    danger: "border-danger/30 bg-danger/10 text-danger",
+} as const;
+
+function CompactionPill({
+    children,
+    tone = "raised",
+    interactive,
+}: {
+    children: ReactNode;
+    tone?: keyof typeof PILL_TONES;
+    interactive?: boolean;
+}) {
     return (
         <span
             className={cn(
-                "border-edge bg-raised flex shrink-0 items-center gap-2 rounded-full border px-3 py-1",
+                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1",
+                PILL_TONES[tone],
                 interactive === true && "hover:border-muted",
             )}
         >
-            <Layers className="size-3.5 shrink-0" />
             {children}
         </span>
     );
 }
 
 /** A compaction that is running now, at the end of the transcript: where its marker lands once it is done. */
-function CompactingMark() {
+function CompactingMark({ retrying }: { retrying: boolean }) {
     return (
         <div className="flex items-center gap-3">
             <Rule />
-            <CompactionPill>
-                <span className="text-meta text-ink">compacting earlier messages</span>
+            <CompactionPill tone={retrying ? "warn" : "raised"}>
+                <Layers className="size-3.5 shrink-0" />
+                <span className="text-meta">
+                    {retrying ? "compaction failed, retrying" : "compacting earlier messages"}
+                </span>
                 <Spinner className="size-3 shrink-0" />
             </CompactionPill>
             <Rule />
         </div>
+    );
+}
+
+/** A compaction that gave up: what came before is still what the model is sent, and the reason is worth reading. */
+function CompactionFailedMark({ error }: { error: string }) {
+    return (
+        <Collapsible className="group/failed flex flex-col gap-2">
+            <CollapsibleTrigger className="flex items-center gap-3 text-left">
+                <Rule />
+                <CompactionPill tone="danger">
+                    <CircleAlert className="size-3.5 shrink-0" />
+                    <span className="text-meta">compaction failed</span>
+                    <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/failed:rotate-90" />
+                </CompactionPill>
+                <Rule />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <div className="rounded-card border-edge-soft bg-panel border px-3 py-2.5">
+                    <ErrorNotice text={error} />
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
@@ -157,6 +196,7 @@ function CompactionMark({
     );
     const pill = (
         <CompactionPill interactive={summary !== undefined}>
+            <Layers className="size-3.5 shrink-0" />
             {label}
             {whole ? null : <Spinner className="size-3 shrink-0" />}
             {summary === undefined ? null : (
@@ -398,7 +438,11 @@ export function Transcript({
                         <TurnView key={turn.key} turn={turn} whole={exhausted} />
                     ))}
 
-                    {live.compacting === true ? <CompactingMark /> : null}
+                    {live.compacting === true ? (
+                        <CompactingMark retrying={live.compactionRetrying === true} />
+                    ) : live.compactionFailed === undefined ? null : (
+                        <CompactionFailedMark error={live.compactionFailed.error} />
+                    )}
 
                     {entries.length === 0 && live.blocks === undefined ? (
                         <p className="text-prose text-faint">Nothing here yet. Ask something.</p>

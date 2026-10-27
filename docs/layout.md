@@ -74,7 +74,11 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
       transcript — `compacting earlier messages` and a spinner, nothing to open. That is exactly where
       the marker lands when the summary commits, so the spinner turns into the mark in place. It comes
       from the harness's live document (`pi.live.compactions`, projected as `live.compacting`), which
-      covers a `/compact` as well as the threshold compaction a run does on its own. The pill is a role, not a colour's meaning: filling it with `accent` or `warn` would
+      covers a `/compact` as well as the threshold compaction a run does on its own.
+    - **When it fails**: an attempt waiting to try again says `compaction failed, retrying` in the `warn`
+      tone and keeps its spinner; one that gave up turns the pill `danger`, `compaction failed`, with the
+      error under it. The red pill stays until a compaction succeeds — the harness keeps the failure until
+      then, and it is true: what came before is still what the model is sent. The pill is a role, not a colour's meaning: filling it with `accent` or `warn` would
       read as "live" or "broken", and a compaction is neither. The messages above it stay on screen:
       they are the conversation, they are just no longer what the model is sent. The mark is
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.

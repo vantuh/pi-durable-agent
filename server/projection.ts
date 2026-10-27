@@ -396,6 +396,15 @@ export function projectLive(value: unknown, usage: unknown, inbox: unknown): Cli
 
     if (Array.isArray(compactions) && compactions.length > 0) {
         out.compacting = true;
+        out.compactionRetrying = compactions.some(
+            (status) => recordOf(status)?.["retry"] !== undefined,
+        );
+    }
+
+    const failed = stringOf(recordOf(live["compactionFailure"]), "error");
+
+    if (failed !== undefined && failed !== "") {
+        out.compactionFailed = { error: failed };
     }
 
     return out;

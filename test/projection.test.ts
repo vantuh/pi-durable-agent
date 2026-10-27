@@ -21,8 +21,54 @@ void describe("live compaction", () => {
         );
 
         assert.equal(running.compacting, true, "the mark can spin while the summary is written");
+        assert.equal(
+            running.compactionRetrying,
+            false,
+            "a first attempt is not a retry, so the pill stays quiet",
+        );
         assert.equal(projectLive({ compactions: [] }, undefined, undefined).compacting, undefined);
         assert.equal(projectLive({}, undefined, undefined).compacting, undefined);
+    });
+
+    void it("says a waiting attempt is a retry", () => {
+        const live = projectLive(
+            {
+                compactions: [
+                    {
+                        taskId: 4,
+                        reason: "manual",
+                        blocking: false,
+                        attempt: 2,
+                        retry: { at: 1, error: "429" },
+                    },
+                ],
+            },
+            undefined,
+            undefined,
+        );
+
+        assert.equal(live.compacting, true);
+        assert.equal(live.compactionRetrying, true);
+    });
+
+    void it("keeps the failure the harness keeps, until a compaction succeeds", () => {
+        const failed = projectLive(
+            { compactionFailure: { taskId: 5, reason: "manual", error: "Compaction failed: 429" } },
+            undefined,
+            undefined,
+        );
+
+        assert.deepEqual(failed.compactionFailed, { error: "Compaction failed: 429" });
+        assert.equal(failed.compacting, undefined, "nothing is running any more");
+        assert.equal(
+            projectLive(
+                { compactionFailure: { taskId: 5, reason: "manual" } },
+                undefined,
+                undefined,
+            ).compactionFailed,
+            undefined,
+            "no text to show, so no mark",
+        );
     });
 });
 

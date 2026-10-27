@@ -110,6 +110,10 @@ export type ClientLive = {
     tools?: ClientTool[];
     /** A compaction is running now: the model is being handed a summary of what came before. */
     compacting?: boolean;
+    /** That compaction's last attempt failed and it waits before trying again. */
+    compactionRetrying?: boolean;
+    /** The newest failure since a compaction last succeeded: what came before is still what is sent. */
+    compactionFailed?: { error: string };
     usage: ClientUsage;
     queued?: ClientQueued[];
     status?: ClientStatus[];
