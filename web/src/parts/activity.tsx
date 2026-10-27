@@ -168,7 +168,7 @@ function argsText(name: string, args: unknown): string {
 
 function ThoughtBody({ text }: { text: string }) {
     return (
-        <p className="rounded-control border-spark/30 bg-sunken text-meta text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
+        <p className="rounded-control border-spark/30 bg-sunken text-tool text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
             {text}
         </p>
     );
