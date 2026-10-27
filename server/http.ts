@@ -6,6 +6,18 @@ import { ActionError, ActionNotFound } from "./extensions.ts";
 
 const MAX_BODY = 100_000_000;
 
+/** One API route: `path` must match the whole pathname; `method` "*" takes every method. */
+export type Route = {
+    method: string;
+    path: RegExp;
+    handle: (
+        request: IncomingMessage,
+        response: ServerResponse,
+        url: URL,
+        match: RegExpExecArray,
+    ) => Promise<void> | void;
+};
+
 export function readBytes(request: IncomingMessage): Promise<Buffer> {
     return new Promise((done, reject) => {
         const chunks: Buffer[] = [];

@@ -3,13 +3,12 @@
  * extensions, and the core grows only when it must.
  */
 
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { homedir } from "node:os";
-import { basename, extname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import {
     type Conversation,
@@ -23,61 +22,25 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { ClientEntry, ClientLive, ServerEvent } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
-import { ActionError, ActionNotFound, Extensions, parseActionBody } from "./extensions.ts";
-import { answer, answerError, readBytes, readJson, record, sessionIdOf, string } from "./http.ts";
+import { Extensions } from "./extensions.ts";
+import { answer, type Route } from "./http.ts";
 import { shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
+import { conversationRoutes } from "./routes/conversation.ts";
+import { extensionRoutes } from "./routes/extensions.ts";
+import { fileRoutes } from "./routes/files.ts";
+import { modelRoutes } from "./routes/models.ts";
+import { sessionRoutes } from "./routes/sessions.ts";
 import { knownHost, sameOrigin } from "./same-origin.ts";
-import { type Opened, Sessions, supportedLevel, THINKING_LEVELS } from "./sessions.ts";
-import { expandSkillCommand, skillsFor } from "./skills.ts";
+import { type Opened, Sessions, supportedLevel } from "./sessions.ts";
 import { serveStatic } from "./static.ts";
 
-async function readFavourites(): Promise<string[]> {
-    try {
-        const parsed: unknown = JSON.parse(await readFile(FAVOURITES_FILE, "utf8"));
-
-        return Array.isArray(parsed)
-            ? parsed.filter((entry): entry is string => typeof entry === "string")
-            : [];
-    } catch {
-        return [];
-    }
-}
-
-async function enabledModels(): Promise<string[] | undefined> {
-    try {
-        const raw = await readFile(join(homedir(), ".pi/agent/settings.json"), "utf8");
-        const parsed: unknown = JSON.parse(raw);
-        const list =
-            typeof parsed === "object" && parsed !== null && "enabledModels" in parsed
-                ? parsed.enabledModels
-                : undefined;
-
-        return Array.isArray(list)
-            ? list.filter((entry): entry is string => typeof entry === "string")
-            : undefined;
-    } catch {
-        return undefined;
-    }
-}
-
 type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
-type Content = Extract<Parameters<Conversation["submit"]>[0], { type: "input" }>["content"];
-
-const IMAGE_TYPES: Record<string, string> = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-};
 
 const context = BACKGROUND_CONTEXT;
 const DIST = resolve(import.meta.dirname, "../dist");
 const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = join(process.cwd(), "data");
-const UPLOAD_DIR = join(DATA_DIR, "uploads");
-const FAVOURITES_FILE = join(DATA_DIR, "favourites.json");
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
 
@@ -93,6 +56,7 @@ let extensions: Extensions;
 let sessions: Sessions;
 let harness: Harness;
 let rootId: number;
+let routes: Route[] = [];
 
 function send(client: Client, event: ServerEvent): void {
     client.response.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -200,42 +164,29 @@ async function attach(id: number): Promise<Opened | undefined> {
     return opened;
 }
 
-/** The session a request names, the root one when it names none, `undefined` when the id is not valid. */
-function sessionFrom(value: unknown): number | undefined {
-    return value === undefined || value === null ? rootId : sessionIdOf(value);
-}
+/** Starts the event stream of a session: the whole state first, then every change. */
+async function stream(response: ServerResponse, opened: Opened): Promise<void> {
+    const view = await opened.conversation.viewState(context);
+    const id = Number(opened.id);
 
-function querySession(url: URL): number | undefined {
-    const raw = url.searchParams.get("session");
+    response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-store",
+        connection: "keep-alive",
+    });
+    const client: Client = { response, session: id };
 
-    return sessionFrom(raw === null ? undefined : Number(raw));
-}
-
-function contentOf(files: readonly string[], text: string): Promise<Content> {
-    return (async () => {
-        const images: { type: "image"; data: string; mimeType: string }[] = [];
-        const mentioned: string[] = [];
-
-        for (const file of files) {
-            const mime = IMAGE_TYPES[extname(file).toLowerCase()];
-
-            if (mime === undefined) {
-                mentioned.push(file);
-
-                continue;
-            }
-
-            images.push({
-                type: "image",
-                data: (await readFile(file)).toString("base64"),
-                mimeType: mime,
-            });
-        }
-
-        const said = mentioned.reduce((whole, file) => `${whole}\n\nAttached file: ${file}`, text);
-
-        return [{ type: "text", text: said }, ...images];
-    })();
+    clients.add(client);
+    client.response.on("close", () => {
+        clients.delete(client);
+    });
+    send(client, {
+        type: "hello",
+        session: id,
+        entries: entriesOf(view.value),
+        live: liveOf(view.value),
+        model: MODEL,
+    });
 }
 
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -247,550 +198,32 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         return;
     }
 
-    if (url.pathname.startsWith("/api/") && !sameOrigin(request.headers)) {
-        answer(response, 403, { error: "cross-origin requests are not allowed" });
-
-        return;
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/events") {
-        const id = querySession(url);
-
-        if (id === undefined) {
-            answer(response, 400, { error: "session must be a positive integer" });
-
-            return;
-        }
-
-        const opened = await attach(id);
-
-        if (opened === undefined) {
-            answer(response, 404, { error: "no such session" });
-
-            return;
-        }
-
-        const view = await opened.conversation.viewState(context);
-
-        response.writeHead(200, {
-            "content-type": "text/event-stream",
-            "cache-control": "no-store",
-            connection: "keep-alive",
-        });
-        const client: Client = { response, session: id };
-
-        clients.add(client);
-        client.response.on("close", () => {
-            clients.delete(client);
-        });
-        send(client, {
-            type: "hello",
-            session: id,
-            entries: entriesOf(view.value),
-            live: liveOf(view.value),
-            model: MODEL,
-        });
-
-        return;
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/messages") {
-        const payload = record(await readJson(request));
-        const text = string(payload?.["text"]) ?? "";
-        const id = sessionFrom(payload?.["session"]);
-
-        if (id === undefined) {
-            answer(response, 400, { error: "session must be a positive integer" });
-
-            return;
-        }
-
-        const opened = await attach(id);
-        const files = Array.isArray(payload?.["files"])
-            ? payload["files"].filter((file): file is string => typeof file === "string")
-            : [];
-
-        if (opened === undefined) {
-            answer(response, 404, { error: "no such session" });
-
-            return;
-        }
-
-        if (text.trim() === "" && files.length === 0) {
-            answer(response, 400, { error: "text is required" });
-
-            return;
-        }
-
-        const mode = string(payload?.["mode"]);
-        // `/skill:name request` carries the skill's instructions; the screen keeps showing what was typed.
-        const cwd = (await opened.conversation.agent(context))?.cwd ?? process.cwd();
-        const expanded = text.startsWith("/skill:")
-            ? expandSkillCommand(text, skillsFor(cwd))
-            : text;
-
-        if (mode === "interrupt") {
-            await opened.conversation.abort(context);
-        }
-
-        await opened.conversation.submit(
-            {
-                type: "input",
-                content: await contentOf(files, expanded),
-                ...(files.length === 0 && expanded === text
-                    ? {}
-                    : {
-                          entry: {
-                              kind: "chat.user",
-                              data: {
-                                  text,
-                                  files: await Promise.all(
-                                      files.map(async (path) => ({
-                                          path,
-                                          name: basename(path).replace(/^\d+-/, ""),
-                                          size: (await stat(path)).size,
-                                          image:
-                                              IMAGE_TYPES[extname(path).toLowerCase()] !==
-                                              undefined,
-                                      })),
-                                  ),
-                              },
-                          },
-                      }),
-                ...(mode === "steer" || mode === "followUp" ? { whenBusy: mode } : {}),
-            },
-            context,
-        );
-        await sessions.touch(opened.id);
-        answer(response, 202, { ok: true });
-
-        return;
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/abort") {
-        const payload = record(await readJson(request));
-        const id = sessionFrom(payload?.["session"]);
-
-        if (id === undefined) {
-            answer(response, 400, { error: "session must be a positive integer" });
-
-            return;
-        }
-
-        const opened = await attach(id);
-
-        if (opened !== undefined) {
-            await opened.conversation.abort(context);
-        }
-
-        answer(response, 202, { ok: true });
-
-        return;
-    }
-
-    if (url.pathname === "/api/sessions" && request.method === "GET") {
-        const list = await sessions.list(
-            (id) => busy.get(id) === true,
-            (id) => endedAt.get(id),
-        );
-
-        answer(response, 200, { sessions: list });
-        return;
-    }
-
-    if (url.pathname === "/api/sessions" && request.method === "POST") {
-        const payload = record(await readJson(request));
-        const cwd = string(payload?.["cwd"]);
-        const conversation = await sessions.create(cwd ?? process.cwd());
-
-        await attach(Number(conversation.id));
-        answer(response, 201, { session: Number(conversation.id) });
-
-        return;
-    }
-
-    if (url.pathname === "/api/sessions/archive" && request.method === "POST") {
-        const payload = record(await readJson(request));
-        const id = sessionIdOf(payload?.["session"]);
-        const archived = payload?.["archived"];
-
-        if (id === undefined || typeof archived !== "boolean") {
-            answer(response, 400, { error: "Expected a session id and archived boolean" });
-            return;
-        }
-
-        const opened = await attach(id);
-
-        if (opened === undefined) {
-            answer(response, 404, { error: "Session not found" });
-            return;
-        }
-
-        await sessions.setArchived(opened.id, archived);
-        answer(response, 200, { ok: true });
-        return;
-    }
-
-    if (url.pathname === "/api/sessions/title" && request.method === "POST") {
-        const payload = record(await readJson(request));
-        const id = sessionIdOf(payload?.["session"]);
-        const title = payload?.["title"];
-
-        if (id === undefined || typeof title !== "string") {
-            answer(response, 400, { error: "Expected a session id and a title string" });
-            return;
-        }
-
-        const opened = await attach(id);
-
-        if (opened === undefined) {
-            answer(response, 404, { error: "Session not found" });
-            return;
-        }
-
-        await sessions.setTitle(opened.id, title.trim().slice(0, 80));
-        answer(response, 200, { ok: true });
-        return;
-    }
-
-    if (url.pathname === "/api/agent" && request.method === "POST") {
-        const payload = record(await readJson(request));
-        const id = sessionFrom(payload?.["session"]);
-
-        if (id === undefined) {
-            answer(response, 400, { error: "session must be a positive integer" });
-
-            return;
-        }
-
-        const opened = await attach(id);
-        const model = record(payload?.["model"]);
-        const provider = string(model?.["provider"]);
-        const modelId = string(model?.["modelId"]);
-        const level = string(payload?.["thinkingLevel"]);
-        const thinkingLevel = THINKING_LEVELS.find((known) => known === level);
-
-        if (opened === undefined) {
-            answer(response, 404, { error: "no such session" });
-
-            return;
-        }
-
-        await opened.conversation.configure(
-            {
-                ...(provider === undefined || modelId === undefined
-                    ? {}
-                    : { model: { provider, modelId } }),
-                ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
-            },
-            context,
-        );
-        answer(response, 202, { ok: true });
-
-        return;
-    }
-
-    if (url.pathname === "/api/favourites" && request.method === "GET") {
-        answer(response, 200, { folders: await readFavourites() });
-
-        return;
-    }
-
-    if (url.pathname === "/api/favourites" && request.method === "PUT") {
-        const raw = record(await readJson(request))?.["folders"];
-        const folders = Array.isArray(raw)
-            ? raw.filter((entry): entry is string => typeof entry === "string")
-            : [];
-
-        await writeFile(FAVOURITES_FILE, JSON.stringify(folders));
-        answer(response, 200, { folders });
-
-        return;
-    }
-
-    if (url.pathname === "/api/skills" && request.method === "GET") {
-        const id = querySession(url);
-
-        if (id === undefined) {
-            answer(response, 400, { error: "session must be a positive integer" });
-
-            return;
-        }
-
-        const opened = await attach(id);
-        const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
-
-        answer(response, 200, {
-            skills: skillsFor(cwd).map((skill) => ({
-                name: skill.name,
-                description: skill.description,
-            })),
-        });
-
-        return;
-    }
-
-    if (url.pathname === "/api/models" && request.method === "GET") {
-        const available = await models.getAvailable();
-        const list = models.getModels();
-        const enabled = await enabledModels();
-        const scoped =
-            enabled === undefined
-                ? available
-                : available.filter((model) => {
-                      const key = `${model.provider}/${model.id}`;
-
-                      return enabled.some(
-                          (entry) =>
-                              entry === key || entry.slice(0, entry.lastIndexOf(":")) === key,
-                      );
-                  });
-
-        const stored = await sessions.defaults();
-        const [fallbackProvider = "", ...fallbackId] = MODEL.split("/");
-        const fallback = { provider: fallbackProvider, modelId: fallbackId.join("/") };
-
-        answer(response, 200, {
-            scoped: scoped.map(modelInfo),
-            all: list.map(modelInfo),
-            default:
-                stored === undefined
-                    ? { ...fallback, thinkingLevel: supportedLevel(models, fallback, "off") }
-                    : { ...stored.model, thinkingLevel: stored.thinkingLevel },
-        });
-
-        return;
-    }
-
-    if (url.pathname === "/api/default" && request.method === "POST") {
-        const payload = record(await readJson(request));
-        const model = record(payload?.["model"]);
-        const provider = string(model?.["provider"]);
-        const modelId = string(model?.["modelId"]);
-        const thinkingLevel = THINKING_LEVELS.find((known) => known === payload?.["thinkingLevel"]);
-
-        if (provider === undefined || modelId === undefined || thinkingLevel === undefined) {
-            answer(response, 400, { error: "model and thinkingLevel are required" });
-
-            return;
-        }
-
-        await sessions.setDefaults({ provider, modelId }, thinkingLevel);
-        answer(response, 200, { provider, modelId, thinkingLevel });
-
-        return;
-    }
-
-    if (url.pathname === "/api/files" && request.method === "POST") {
-        const raw = request.headers["x-filename"];
-        const name = basename(decodeURIComponent(typeof raw === "string" ? raw : "file"));
-        const saved = join(UPLOAD_DIR, `${String(Date.now())}-${name}`);
-        const data = await readBytes(request);
-
-        await writeFile(saved, data);
-        answer(response, 201, {
-            path: saved,
-            name,
-            size: data.length,
-            mime: IMAGE_TYPES[extname(name).toLowerCase()] ?? null,
-        });
-
-        return;
-    }
-
-    if (url.pathname === "/api/fs" && request.method === "GET") {
-        const wanted = url.searchParams.get("path") ?? homedir();
-        const path = resolve(wanted.startsWith("~") ? join(homedir(), wanted.slice(1)) : wanted);
-        const hidden = url.searchParams.get("hidden") === "1";
-
-        try {
-            const entries = await readdir(path, { withFileTypes: true });
-            const dirs = entries
-                .filter((entry) => entry.isDirectory())
-                .filter((entry) => hidden || !entry.name.startsWith("."))
-                .map((entry) => ({ name: entry.name, path: join(path, entry.name) }))
-                .sort((left, right) => left.name.localeCompare(right.name));
-
-            answer(response, 200, {
-                path,
-                parent: path === "/" ? null : resolve(path, ".."),
-                home: homedir(),
-                dirs,
-            });
-        } catch {
-            answer(response, 400, { error: "cannot read that folder" });
-        }
-
-        return;
-    }
-
-    if (url.pathname === "/api/uploads" && request.method === "GET") {
-        const wanted = resolve(url.searchParams.get("path") ?? "");
-
-        if (!wanted.startsWith(UPLOAD_DIR)) {
-            answer(response, 403, { error: "not an uploaded file" });
-
-            return;
-        }
-
-        try {
-            const data = await readFile(wanted);
-
-            response.writeHead(200, {
-                "content-type":
-                    IMAGE_TYPES[extname(wanted).toLowerCase()] ?? "application/octet-stream",
-                "cache-control": "private, max-age=3600",
-            });
-            response.end(data);
-        } catch {
-            answer(response, 404, { error: "no such file" });
-        }
-
-        return;
-    }
-
-    const httpRoute = /^\/api\/extensions\/([^/]+)\/http(\/.*)$/.exec(url.pathname);
-    if (httpRoute !== null) {
-        try {
-            await extensions.serveHttp(decodeURIComponent(httpRoute[1] ?? ""), {
-                request,
-                response,
-                path: (httpRoute[2] ?? "/") + url.search,
-            });
-        } catch (error) {
-            if (response.headersSent) {
-                response.destroy();
-            } else {
-                answer(response, error instanceof ActionNotFound ? 404 : 500, {
-                    error: error instanceof Error ? error.message : "extension HTTP failed",
-                });
-            }
-        }
-        return;
-    }
-
-    const actionRoute = /^\/api\/extensions\/([^/]+)\/actions\/([^/]+)$/.exec(url.pathname);
-
-    if (request.method === "POST" && actionRoute !== null) {
-        await runAction(request, response, actionRoute[1] ?? "", actionRoute[2] ?? "");
-
-        return;
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/extensions") {
-        answer(response, 200, {
-            installed: extensions.names,
-            failed: extensions.failed,
-            extensions: extensions.list,
-        });
-        return;
-    }
-
-    const toggleRoute = /^\/api\/extensions\/([^/]+)$/.exec(url.pathname);
-
-    if (request.method === "PUT" && toggleRoute !== null) {
-        await toggleExtension(request, response, toggleRoute[1] ?? "");
-
-        return;
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/health") {
-        answer(response, 200, {
-            ok: true,
-            model: MODEL,
-            cwd: process.cwd(),
-            home: homedir(),
-            session: rootId,
-        });
-
-        return;
-    }
-
     if (!url.pathname.startsWith("/api/")) {
         await serveStatic(DIST, request, response);
 
         return;
     }
 
+    if (!sameOrigin(request.headers)) {
+        answer(response, 403, { error: "cross-origin requests are not allowed" });
+
+        return;
+    }
+
+    for (const route of routes) {
+        const match =
+            route.method === "*" || route.method === request.method
+                ? route.path.exec(url.pathname)
+                : null;
+
+        if (match !== null) {
+            await route.handle(request, response, url, match);
+
+            return;
+        }
+    }
+
     answer(response, 404, { error: "not found" });
-}
-
-/** 400 for a body that is not `{ enabled: boolean }`, 404 for an unknown folder. */
-async function toggleExtension(
-    request: IncomingMessage,
-    response: ServerResponse,
-    name: string,
-): Promise<void> {
-    try {
-        const parsed: unknown = await readJson(request).catch(badBody);
-        const enabled: unknown =
-            typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-                ? Reflect.get(parsed, "enabled")
-                : undefined;
-
-        if (typeof enabled !== "boolean") {
-            throw new ActionError("the body must be { enabled: boolean }");
-        }
-
-        answer(response, 200, await extensions.setEnabled(decodeURIComponent(name), enabled));
-    } catch (error) {
-        answerError(response, error, "the change failed");
-    }
-}
-
-/** 400 for bad input, 404 for an unknown extension, action or session, 500 for any other failure. */
-async function runAction(
-    request: IncomingMessage,
-    response: ServerResponse,
-    extension: string,
-    action: string,
-): Promise<void> {
-    try {
-        const parsed = parseActionBody(await readJson(request).catch(badBody));
-        let session: { id: number; cwd: string | null } | null = null;
-
-        if (parsed.session !== undefined) {
-            const opened = await attach(parsed.session);
-
-            if (opened === undefined) {
-                answer(response, 404, { error: "no such session" });
-
-                return;
-            }
-
-            const agent = await opened.conversation.agent(context);
-
-            session = { id: parsed.session, cwd: agent.cwd ?? null };
-        }
-
-        const result = await extensions.call(
-            decodeURIComponent(extension),
-            decodeURIComponent(action),
-            {
-                args: parsed.args,
-                session,
-            },
-        );
-
-        answer(response, 200, { result });
-    } catch (error) {
-        answerError(response, error, "the action failed");
-    }
-}
-
-function badBody(error: unknown): never {
-    throw new ActionError(error instanceof Error ? error.message : "the body is not valid");
-}
-
-function modelInfo(model: Model<Api>) {
-    return {
-        provider: model.provider,
-        id: model.id,
-        name: model.name,
-        contextWindow: model.contextWindow,
-        reasoning: model.reasoning,
-        levels: getSupportedThinkingLevels(model),
-    };
 }
 
 async function main(): Promise<void> {
@@ -800,7 +233,7 @@ async function main(): Promise<void> {
         throw new Error(`MODEL must be "provider/modelId", not "${MODEL}"`);
     }
 
-    await mkdir(UPLOAD_DIR, { recursive: true });
+    await mkdir(join(DATA_DIR, "uploads"), { recursive: true });
 
     models = await ModelRuntime.create();
 
@@ -867,6 +300,32 @@ async function main(): Promise<void> {
     for (const id of await sessions.ids()) {
         await attach(Number(id));
     }
+
+    routes = [
+        ...conversationRoutes({ sessions, attach, rootId: () => rootId, stream }),
+        ...sessionRoutes({
+            sessions,
+            attach,
+            busy: (id) => busy.get(id) === true,
+            endedAt: (id) => endedAt.get(id),
+        }),
+        ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
+        ...fileRoutes({ dataDir: DATA_DIR }),
+        ...extensionRoutes({ extensions, attach }),
+        {
+            method: "GET",
+            path: /^\/api\/health$/,
+            handle: (_request, response) => {
+                answer(response, 200, {
+                    ok: true,
+                    model: MODEL,
+                    cwd: process.cwd(),
+                    home: homedir(),
+                    session: rootId,
+                });
+            },
+        },
+    ];
 
     harness.resume();
 
