@@ -178,7 +178,6 @@ export function Sessions({
     open: sheet,
     onClose,
 }: Props) {
-    const [open, setOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
     const [searching, setSearching] = useState(false);
@@ -370,51 +369,49 @@ export function Sessions({
                     </div>
                 </header>
 
-                <div className={`border-edge-soft relative border-b ${FADE} ${FOLD}`}>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setOpen(!open);
-                        }}
-                        className="hover:bg-raised flex w-full items-center gap-1.5 px-3 py-2"
-                    >
-                        <Folder className="text-faint size-3 shrink-0" />
-                        <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
-                            {folderName(folder)}
-                        </span>
-                        <ChevronDown className="text-faint size-3.5 shrink-0" />
-                    </button>
+                <div className={`border-edge-soft border-b ${FADE} ${FOLD}`}>
+                    <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className="hover:bg-raised flex w-full items-center gap-1.5 px-3 py-2"
+                            >
+                                <Folder className="text-faint size-3 shrink-0" />
+                                <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
+                                    {folderName(folder)}
+                                </span>
+                                <ChevronDown className="text-faint size-3.5 shrink-0" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                            align="start"
+                            className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto"
+                        >
+                            {[...folders].map(([cwd, count]) => (
+                                <DropdownMenuItem
+                                    key={cwd}
+                                    title={cwd}
+                                    onSelect={() => {
+                                        const [first] = latest(cwd);
 
-                    {open ? (
-                        <div className="rounded-card border-edge-soft bg-panel absolute inset-x-1.5 top-full z-10 mt-1 border shadow-lg">
-                            <ScrollArea viewportProps={{ className: "max-h-72 p-1" }}>
-                                {[...folders].map(([cwd, count]) => (
-                                    <button
-                                        key={cwd}
-                                        type="button"
-                                        title={cwd}
-                                        onClick={() => {
-                                            const [first] = latest(cwd);
-
-                                            if (first !== undefined) {
-                                                onFolder(first.id);
-                                            }
-
-                                            setOpen(false);
-                                        }}
-                                        className={`rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-left ${
-                                            cwd === folder ? "bg-raised" : "hover:bg-raised/50"
-                                        }`}
-                                    >
-                                        <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
-                                            {folderName(cwd)}
-                                        </span>
-                                        <span className="text-faint text-meta">{count}</span>
-                                    </button>
-                                ))}
-                            </ScrollArea>
-                        </div>
-                    ) : null}
+                                        if (first !== undefined) {
+                                            onFolder(first.id);
+                                        }
+                                    }}
+                                    className={
+                                        cwd === folder
+                                            ? "bg-raised"
+                                            : "data-[highlighted]:bg-raised/50"
+                                    }
+                                >
+                                    <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
+                                        {folderName(cwd)}
+                                    </span>
+                                    <span className="text-faint text-meta">{count}</span>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
