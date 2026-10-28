@@ -256,7 +256,10 @@ function publish(opened: Opened, view: View): void {
     latest.set(opened.id, { opened, view });
     // Taken before the browsers hear of it, so a `seen` sent the moment it ends is later.
     if (busy.get(opened.id) === true && !live.busy) {
-        void sessions.ended(opened.id, Date.now()).then(listChanged);
+        // An unhandled rejection would end the process, and every conversation in it.
+        void sessions.ended(opened.id, Date.now()).then(listChanged, (error: unknown) => {
+            console.error(error);
+        });
     }
 
     busy.set(opened.id, live.busy);
