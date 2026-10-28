@@ -1,12 +1,31 @@
-import { Bot } from "lucide-react";
+import { Bot, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+    DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
-import type { AboveComposerProps, SidebarBottomProps, WebExtension } from "@/sdk/types.ts";
+import type {
+    AboveComposerProps,
+    SidebarBottomProps,
+    StatusItemProps,
+    StatusRowProps,
+    WebExtension,
+} from "@/sdk/types.ts";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
-import { agentsOf, areaParent, endedAtOf, finishedAgo } from "./area.ts";
+import {
+    agentsOf,
+    areaParent,
+    endedAtOf,
+    finishedAgo,
+    hasWorkingAgent,
+    workingAgentCount,
+} from "./area.ts";
 import { agents, type NamedAgent, type Strip, strip, type StripAgent } from "./refs.ts";
 
 const WARN_ABOVE = 70;
@@ -318,6 +337,88 @@ function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
     );
 }
 
+// After the session counts, as in the approved mockup. The open agent is not counted.
+function AgentsWorking({ session, sessions }: StatusItemProps) {
+    const count = workingAgentCount(sessions, session?.id ?? null);
+
+    if (count === 0) {
+        return null;
+    }
+
+    return (
+        <span className="text-warn shrink-0">
+            · {count} {count === 1 ? "agent" : "agents"} working
+        </span>
+    );
+}
+
+// Mounted only while the submenu is open, so the names are asked for when somebody looks.
+function WorkingAgents({
+    parent,
+    kids,
+    openSession,
+}: {
+    parent: SessionSummary;
+    kids: SessionSummary[];
+    openSession: (id: number) => void;
+}) {
+    const names = useNames(parent.id, kids);
+
+    return (
+        <>
+            <p className="text-meta text-faint flex items-center gap-2 px-2 py-1">
+                <span className="min-w-0 flex-1 truncate">
+                    <b className="text-muted font-medium">{parent.title ?? "New session"}</b>
+                </span>
+                <span className="shrink-0">{kids.length} working</span>
+            </p>
+            {kids.map((kid) => {
+                const name = names.get(kid.id)?.name ?? kid.title ?? "Agent";
+
+                return (
+                    <DropdownMenuItem key={kid.id} asChild className="gap-2 px-2 py-1.5">
+                        <a
+                            href={sessionHref(kid.id)}
+                            onClick={(event) => {
+                                // A modified click is the browser's: a new tab, and the menu stays.
+                                if (isPlainClick(event)) {
+                                    event.preventDefault();
+                                    openSession(kid.id);
+                                }
+                            }}
+                        >
+                            <span className="state-mark working text-warn" aria-hidden />
+                            <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
+                                {name}
+                            </span>
+                        </a>
+                    </DropdownMenuItem>
+                );
+            })}
+        </>
+    );
+}
+
+function AgentsMarker({ session, sessions, openSession }: StatusRowProps) {
+    const kids = agentsOf(session.id, sessions).filter((kid) => kid.busy);
+
+    return (
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger
+                aria-label={`${String(kids.length)} ${kids.length === 1 ? "agent" : "agents"} working in ${session.title ?? "New session"}`}
+                className="border-edge-soft text-muted data-[highlighted]:text-ink mr-1 min-h-8 shrink-0 gap-1.5 border px-2 py-0 font-mono text-[12px] max-lg:min-h-11"
+            >
+                <span className="state-mark working text-warn" aria-hidden />
+                <span>{kids.length}</span>
+                <ChevronRight className="text-faint !size-3" aria-hidden />
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[min(220px,45vh)] min-w-52 overflow-y-auto">
+                <WorkingAgents parent={session} kids={kids} openSession={openSession} />
+            </DropdownMenuSubContent>
+        </DropdownMenuSub>
+    );
+}
+
 export default {
     tools: ["agent_spawn", "agent_send", "agent_stop", "agent_status"].map((id) => ({
         id,
@@ -325,4 +426,6 @@ export default {
     })),
     aboveComposer: [{ id: "agents", component: Agents }],
     sidebarBottom: [{ id: "agents", component: AgentsArea }],
+    status: [{ id: "agents-working", slot: "start", component: AgentsWorking }],
+    statusRow: [{ id: "agents", has: hasWorkingAgent, component: AgentsMarker }],
 } satisfies WebExtension;

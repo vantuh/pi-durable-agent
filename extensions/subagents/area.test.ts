@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
-import { age, agentsOf, areaParent, endedAtOf, finishedAgo } from "./area.ts";
+import {
+    age,
+    agentsOf,
+    areaParent,
+    endedAtOf,
+    finishedAgo,
+    hasWorkingAgent,
+    workingAgentCount,
+} from "./area.ts";
 
 function session(id: number, extra: Partial<SessionSummary> = {}): SessionSummary {
     return {
@@ -109,5 +117,29 @@ void describe("endedAtOf", () => {
         ]);
 
         assert.deepEqual([...ended], [[2, 50]]);
+    });
+});
+
+void describe("working agents", () => {
+    const all = [
+        session(1),
+        session(2, { parent: 1, busy: true }),
+        session(3, { parent: 1, busy: false }),
+        session(4, { parent: 5, busy: true }),
+        session(5, { busy: true }),
+        session(6),
+    ];
+
+    void it("counts the busy sessions that have a parent, over every parent, not the open one", () => {
+        assert.equal(workingAgentCount(all, null), 2);
+        assert.equal(workingAgentCount(all, 2), 1);
+        assert.equal(workingAgentCount([session(1, { busy: true })], null), 0);
+    });
+
+    void it("marks a session that has an agent working, not one whose agents are all done", () => {
+        const marked = all.filter((one) => hasWorkingAgent(one, all)).map((one) => one.id);
+
+        assert.deepEqual(marked, [1, 5]);
+        assert.equal(hasWorkingAgent(session(7), [session(8, { parent: 7 })]), false);
     });
 });

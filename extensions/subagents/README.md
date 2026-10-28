@@ -253,7 +253,37 @@ agent styling. It can be withdrawn, but not edited and resent as the person's ow
 Withdrawing a queued report does not cause the reporter to send it again.
 
 `web.tsx` registers the bot icon for all four `agent_*` tools in the activity timeline. It adds
-no panel, settings controls, or agents count in the status bar.
+the strip, the agents area, the agents count and the popover marker below, and no panel or
+settings controls.
+
+### Agents area in the sidebar
+
+Under the session list (the `sidebarBottom` slot, with the core's resize handle) the area lists
+every agent of the open session, or of the session that started the open one, so the siblings
+stay visible while one is open. It is absent when there are none, and for an agent whose parent
+is not in the list (that agent is a row of the main list). Working agents come first, then
+finished ones, newest first. A row has the working mark, the agent's name and `working`, or a
+dimmed name with `finished 4m ago`. The open agent has the selected row's background. A plain
+click opens the agent in the app; a modified click is the browser's.
+
+Names and profiles come from the `agents` action, which reads the parent's `subagents.agents`
+document once; an agent with no record shows its session title.
+
+**The time in `finished 4m ago`.** The session list has no time for the end of a run:
+`SessionSummary.activeAt` is when a person last wrote to the session or created it, and for an
+agent it stays near the moment it was started. So the `agents` action reports `endedAt`, the
+moment this process saw the agent's run end in a commit. It is lost on a restart: an agent that
+ended before the last start shows `finished` with no time, and sorts by `activeAt`.
+
+### Status bar and popover
+
+- A status item in the `start` slot, right after the session counts: `· 2 agents working`, in the
+  warn colour. It counts the working agents of every parent, except the open one, and is absent
+  at 0.
+- In the status popover (the list behind the "working" count), a parent row with an agent
+  working has a marker with the working mark and the count. It opens a submenu of that parent's
+  working agents; a click opens the agent. The popover has no row of its own for an agent. The
+  marker's count includes the open agent: the core does not tell a marker which session is open.
 
 ### Working-agents strip
 
@@ -317,8 +347,9 @@ child process is created here.
 | ---------------- | --------------------------------------------------------------------------------------- |
 | `profiles.ts`    | Profile discovery, frontmatter parsing, and precedence.                                 |
 | `server.ts`      | Four tools, `agents` prompt section, durable agent document, anchor and reporter tasks. |
-| `refs.ts`        | The `strip` action ref and its result type, shared by `server.ts` and `web.tsx`.        |
-| `web.tsx`        | Bot icons and the working-agents strip above the composer.                              |
+| `refs.ts`        | The `strip` and `agents` action refs and their types, shared by `server.ts`, `web.tsx`. |
+| `area.ts`        | Pure helpers for the area: parent, order, "ago", counts. Tested in `area.test.ts`.      |
+| `web.tsx`        | Bot icons, the strip, the agents area, the status count and the popover marker.         |
 | `server.test.ts` | Real-Harness integration tests with a faux model and disposable SQLite storage.         |
 | `README.md`      | Current usage, behavior, constraints, and maintenance guide.                            |
 | `HANDOFF.md`     | Remaining proposals and historical implementation/verification context.                 |

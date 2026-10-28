@@ -342,8 +342,8 @@ Remaining proposals and historical verification notes are in its
 - **Stopping:** the parent's foreground Stop does not stop its background agents. `agent_stop`
   suppresses the unanswered result of a stopped run, keeps its context, and permits a later send.
   Direct input in the child creates no new reporter and therefore no automatic report to the parent.
-- **Current limits:** reports have no length bound; child sessions are top-level list rows. There
-  is no agent-count status item, full-result status parameter, model mapping, `ask_question` tool, or
+- **Current limits:** reports have no length bound; a child session is a main-list row only when
+  its parent is gone. There is no full-result status parameter, model mapping, `ask_question` tool, or
   per-profile skill selection. See the local README before relying on stop/delete behavior.
 
 ## Planned, with where each comes from
@@ -430,8 +430,8 @@ session) and `openSession(id)`, the app's own navigation. On a phone it also clo
 | Area cap, no saved h | 224       | 296        |
 
 The values come from the approved agents-area mockup (`docs/mockups/`); the arithmetic is
-`web/src/lib/sidebar-bottom.ts`. `extensions/subagents` is meant to use this slot for the agents
-of the open session.
+`web/src/lib/sidebar-bottom.ts`. `extensions/subagents` uses this slot for the agents of the open
+session.
 
 ## Markers in the status popover
 

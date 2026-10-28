@@ -78,3 +78,24 @@ export function finishedAgo(at: number | null, now: number): string {
 
     return now - at < MINUTE ? "finished just now" : `finished ${age(at, now)} ago`;
 }
+
+/** Whether a session has an agent working now: the marker in the status popover. */
+export function hasWorkingAgent(
+    session: SessionSummary,
+    sessions: readonly SessionSummary[],
+): boolean {
+    return sessions.some((other) => other.parent === session.id && other.busy);
+}
+
+/**
+ * The agents working now, over every session. The open one is left out, as the open session is
+ * left out of the status bar's session counts.
+ */
+export function workingAgentCount(
+    sessions: readonly SessionSummary[],
+    open: number | null,
+): number {
+    return sessions.filter(
+        (session) => session.parent !== undefined && session.busy && session.id !== open,
+    ).length;
+}

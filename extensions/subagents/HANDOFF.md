@@ -135,11 +135,11 @@ follow-ups through `agent_send` delivered.
 agents among the main session rows. Step one, the compact working-agents strip above the composer
 (the approved [mockup](../../docs/mockups/README.md), version 2, without tok/s), is built: the
 core `aboveComposer` slot, the `strip` action, and `web.tsx` (see the README's UI section). Stop
-for the owner's verification of it before anything below. Not built, and still open: a
-height-resizable lower sidebar area with all agents of the selected parent, including finished
-ones, and removing children from the main list. The lower area must be absent for a parent with no
-agents; visiting a child already keeps a "← Back to" link to its parent. Deletion semantics still
-need a decision. The original options below are investigation context, not the current approved UI
+for the owner's verification of it before anything below. Since built (see 1b and the
+README): the lower sidebar area with all agents of the selected parent, children left out of the
+main list, the status count and the popover marker. The area is absent for a parent with no
+agents; visiting a child keeps a "← Back to" link to its parent. Deletion semantics still need a
+decision (1a). The original options below are investigation context, not the current approved UI
 direction.
 
 **Strip: how it knows (third revision).** The first version learned the child-to-parent link from
@@ -250,8 +250,8 @@ conversation; a normal session is created `ownerless` (`server/sessions.ts`). Pl
 have `parent`. It names no extension, so it passes the core rule; give the reason in the commit
 body. Archiving is not the marker: it is manual and a different meaning.
 
-**Core half implemented** (commits `74c4b78`, `2dccbeb`, `08be6f6`). The extension side is not
-built. What the core now gives `web.tsx` (types in `web/src/sdk/types.ts`, contract in
+**Implemented.** The core half is `74c4b78`, `2dccbeb`, `08be6f6`; the extension half is the
+agents area, the status count and the popover marker (see the README). What the core gives `web.tsx` (types in `web/src/sdk/types.ts`, contract in
 [docs/extensions.md](../../docs/extensions.md)):
 
 - The sidebar list leaves out a session whose `parent` is in the full list; the parent's row is
@@ -343,7 +343,6 @@ the owner's app.
   `prompt` extension by name, which breaks the rule that extensions do not know each other. The
   profile body is always appended.
 - **`skills`** in profiles: ignored; the child sees the same skills section as the parent.
-- **The `agents` count in the status bar** that `docs/extensions.md` mentions: not built.
 
 ## Smaller things noticed
 
