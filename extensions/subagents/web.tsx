@@ -1,11 +1,13 @@
 import { Bot } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
-import type { AboveComposerProps, WebExtension } from "@/sdk/types.ts";
+import type { AboveComposerProps, SidebarBottomProps, WebExtension } from "@/sdk/types.ts";
 
-import { type Strip, strip, type StripAgent } from "./refs.ts";
+import type { SessionSummary } from "../../shared/protocol.ts";
+import { agentsOf, areaParent, endedAtOf, finishedAgo } from "./area.ts";
+import { agents, type NamedAgent, type Strip, strip, type StripAgent } from "./refs.ts";
 
 const WARN_ABOVE = 70;
 
@@ -151,10 +153,176 @@ function Agents({ session, openSession }: AboveComposerProps) {
     );
 }
 
+// The records change only when an agent is added; the key also moves when one finishes, which
+// heals a list that arrived before the record did.
+function useNames(parent: number | null, kids: readonly SessionSummary[]): Map<number, NamedAgent> {
+    const [found, setFound] = useState<{ parent: number; named: NamedAgent[] } | null>(null);
+    const key = kids.map((kid) => `${String(kid.id)}${kid.busy ? "+" : "-"}`).join();
+
+    useEffect(() => {
+        if (parent === null) {
+            return undefined;
+        }
+
+        let alive = true;
+
+        void (async () => {
+            try {
+                const named = await callAction(agents, undefined, parent);
+
+                if (alive) {
+                    setFound({ parent, named });
+                }
+            } catch {
+                // The titles stand in for the names.
+            }
+        })();
+
+        return () => {
+            alive = false;
+        };
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- the key stands for the children
+    }, [parent, key]);
+
+    return new Map(
+        (found !== null && found.parent === parent ? found.named : []).map((named) => [
+            named.session,
+            named,
+        ]),
+    );
+}
+
+// The times in the rows are read off this, so they move on while nothing else does.
+function useMinute(): number {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const tick = setInterval(() => {
+            setNow(Date.now());
+        }, 60_000);
+
+        return () => {
+            clearInterval(tick);
+        };
+    }, []);
+
+    return now;
+}
+
+function AgentRow({
+    kid,
+    name,
+    profile,
+    endedAt,
+    current,
+    now,
+    openSession,
+}: {
+    kid: SessionSummary;
+    name: string;
+    profile: string | undefined;
+    endedAt: number | null;
+    current: boolean;
+    now: number;
+    openSession: (id: number) => void;
+}) {
+    const status = kid.busy ? "working" : finishedAgo(endedAt, now);
+
+    return (
+        <li>
+            <a
+                href={sessionHref(kid.id)}
+                data-session={kid.id}
+                title={[name, profile, status].filter((part) => part !== undefined).join(" · ")}
+                aria-current={current ? "page" : undefined}
+                onClick={(event) => {
+                    if (isPlainClick(event)) {
+                        event.preventDefault();
+                        openSession(kid.id);
+                    }
+                }}
+                className={`rounded-control flex h-8 items-center gap-2 px-2 no-underline max-lg:h-11 ${current ? "bg-raised" : "hover:bg-raised/50"}`}
+            >
+                <span
+                    className={`state-mark ${kid.busy ? "working text-warn" : kid.unseen ? "fresh text-ok" : "idle text-faint"}`}
+                    aria-hidden
+                />
+                <span
+                    className={`text-sidebar min-w-0 flex-1 truncate ${kid.busy ? "text-ink" : "text-muted"}`}
+                >
+                    {name}
+                </span>
+                <span
+                    className={`text-meta shrink-0 whitespace-nowrap ${kid.busy ? "text-muted" : "text-faint"}`}
+                >
+                    {status}
+                </span>
+            </a>
+        </li>
+    );
+}
+
+// Every agent of the open session, or of the session that started the open one. Nothing while there is none.
+function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
+    const open = session?.id ?? null;
+    const parent = areaParent(open, sessions);
+    const children = parent === undefined ? [] : agentsOf(parent.id, sessions);
+    const names = useNames(parent?.id ?? null, children);
+    const kids =
+        parent === undefined ? [] : agentsOf(parent.id, sessions, endedAtOf(names.values()));
+    const now = useMinute();
+    const list = useRef<HTMLUListElement>(null);
+
+    const shown = kids.length > 0;
+
+    useEffect(() => {
+        if (shown) {
+            list.current
+                ?.querySelector(`[data-session="${String(open)}"]`)
+                ?.scrollIntoView({ block: "nearest" });
+        }
+    }, [open, shown]);
+
+    if (parent === undefined || !shown) {
+        return null;
+    }
+
+    const title = parent.title ?? "New session";
+
+    return (
+        <section aria-label={`Agents of ${title}`} className="flex min-h-0 flex-1 flex-col">
+            <h2 className="text-meta text-faint flex h-7 shrink-0 items-center gap-2 px-3 font-normal">
+                <span className="min-w-0 flex-1 truncate">
+                    Agents of <b className="text-muted font-medium">{title}</b>
+                </span>
+                <span className="font-mono">{kids.length}</span>
+            </h2>
+            <ul
+                ref={list}
+                className="m-0 min-h-0 flex-1 [scrollbar-width:thin] list-none overflow-y-auto px-1.5 pb-1"
+            >
+                {kids.map((kid) => (
+                    <AgentRow
+                        key={kid.id}
+                        kid={kid}
+                        name={names.get(kid.id)?.name ?? kid.title ?? "Agent"}
+                        profile={names.get(kid.id)?.profile}
+                        endedAt={names.get(kid.id)?.endedAt ?? null}
+                        current={kid.id === open}
+                        now={now}
+                        openSession={openSession}
+                    />
+                ))}
+            </ul>
+        </section>
+    );
+}
+
 export default {
     tools: ["agent_spawn", "agent_send", "agent_stop", "agent_status"].map((id) => ({
         id,
         icon: Bot,
     })),
     aboveComposer: [{ id: "agents", component: Agents }],
+    sidebarBottom: [{ id: "agents", component: AgentsArea }],
 } satisfies WebExtension;

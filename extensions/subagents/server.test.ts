@@ -28,7 +28,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { CommitListener, Host } from "../../server/sdk.ts";
-import { strip as stripRef } from "./refs.ts";
+import { agents as agentsRef, strip as stripRef } from "./refs.ts";
 import subagents, { actions } from "./server.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -701,6 +701,117 @@ void describe("subagents", () => {
                 ],
             );
             assert.equal(wiring.reads, 1, "the parent's record is read once for all its children");
+        });
+
+        void it("names every agent the parent started from its record, with one read", async () => {
+            await writeFile(
+                join(dir, ".pi", "agents", "checker.md"),
+                `---\nname: checker\ndescription: Checks things\nmodel: ${profileModel}\n---\n\nYou check.\n`,
+            );
+            faux.setResponses(
+                Array.from({ length: 10 }, () =>
+                    scripted(
+                        () => Promise.resolve(fauxAssistantMessage("done")),
+                        (said) =>
+                            said === "first"
+                                ? call("agent_spawn", {
+                                      agent: "counter",
+                                      name: "Alpha",
+                                      task: "a",
+                                  })
+                                : said === "second"
+                                  ? call("agent_spawn", { agent: "checker", task: "b" })
+                                  : fauxAssistantMessage("ok"),
+                    ),
+                ),
+            );
+
+            for (const text of ["first", "second"]) {
+                await (
+                    await parent.submit({ type: "input", content: text }, context)
+                ).wait(context);
+                await reportersDone();
+                await parent.waitForIdle(context);
+            }
+
+            const children = [...titles.keys()]
+                .filter((id) => id !== parent.id)
+                .toSorted((a, b) => a - b);
+
+            assert.equal(children.length, 2);
+            wiring.reads = 0;
+
+            const named = async (session: number) =>
+                agentsRef.parse(
+                    await actions(host)["agents"]?.({
+                        args: undefined,
+                        session: { id: session, cwd: dir },
+                    }),
+                );
+
+            assert.deepEqual(await named(parent.id), [
+                { session: children[0], name: "Alpha", profile: "counter", endedAt: null },
+                { session: children[1], name: "Checker", profile: "checker", endedAt: null },
+            ]);
+            assert.equal(wiring.reads, 1, "one read of the parent's record serves all its agents");
+
+            const view = (id: number, busy: boolean) =>
+                wiring.listeners[0]?.({
+                    session: { id, cwd: dir, owner: parent.id },
+                    entries: [],
+                    busy,
+                });
+            const endedAt = async () =>
+                (await named(parent.id)).map((agent) => [agent.name, agent.endedAt] as const);
+            const first = children[0] ?? 0;
+
+            await view(first, true);
+            assert.deepEqual(
+                await endedAt(),
+                [
+                    ["Alpha", null],
+                    ["Checker", null],
+                ],
+                "working",
+            );
+
+            const before = Date.now();
+
+            await view(first, false);
+
+            const [alpha, checker] = await endedAt();
+
+            assert.ok(alpha?.[1] !== null && alpha?.[1] !== undefined && alpha[1] >= before);
+            assert.equal(checker?.[1], null, "an agent whose end was not seen has no time");
+
+            await view(first, false);
+            assert.equal((await endedAt())[0]?.[1], alpha?.[1], "a later commit does not move it");
+            await view(first, true);
+            assert.equal((await endedAt())[0]?.[1], null, "working again clears it");
+            assert.deepEqual(await named(children[0] ?? 0), [], "an agent started none");
+            assert.deepEqual(
+                await named(parent.id + 1000),
+                [],
+                "a session that is not a conversation",
+            );
+
+            const none = await harness.createConversation(
+                {
+                    ownership: { kind: "ownerless" },
+                    agent: {
+                        model: { provider: faux.provider.id, modelId: faux.getModel().id },
+                        thinkingLevel: "high",
+                        cwd: dir,
+                    },
+                },
+                context,
+            );
+
+            assert.deepEqual(await named(none.id), [], "a parent that started no agent");
+            assert.deepEqual(
+                await actions(host)["agents"]?.({ args: undefined, session: null }),
+                [],
+            );
         });
 
         void it("is empty for a session with no agents and for none at all", async () => {

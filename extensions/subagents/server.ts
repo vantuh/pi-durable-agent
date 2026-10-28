@@ -27,7 +27,7 @@ import { Type } from "typebox";
 
 import type { Action, CommitView, Host } from "../../server/sdk.ts";
 import { type Profile, readProfiles } from "./profiles.ts";
-import type { Strip, StripAgent } from "./refs.ts";
+import type { NamedAgent, Strip, StripAgent } from "./refs.ts";
 
 export const meta = {
     title: "Subagents",
@@ -299,6 +299,8 @@ type Seen = {
     owner: number;
     cwd: string | null;
     busy: boolean;
+    /** When this process saw the run end: null while it works, and until the first run it saw end. */
+    endedAt: number | null;
     answer: AssistantMessage | undefined;
 };
 
@@ -343,6 +345,22 @@ async function stripAgent(
 }
 
 export const actions = (host: Host): Record<string, Action> => ({
+    async agents({ session }): Promise<NamedAgent[]> {
+        if (session === null) {
+            return [];
+        }
+
+        const { agents } = await host.readDoc(AgentsDoc, session.id);
+
+        return Object.entries(agents)
+            .map(([name, record]) => ({
+                session: Number(record.conversationId),
+                name,
+                profile: record.agent,
+                endedAt: seen.get(Number(record.conversationId))?.endedAt ?? null,
+            }))
+            .toSorted((a, b) => a.session - b.session);
+    },
     async strip({ session }): Promise<Strip> {
         if (session === null) {
             return { parent: null, agents: [] };
@@ -393,10 +411,17 @@ export default function subagents(host: Host) {
 
         const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
 
+        const before = seen.get(id);
+
         seen.set(id, {
             owner,
             cwd,
             busy: view.busy,
+            endedAt: view.busy
+                ? null
+                : before?.busy === true
+                  ? Date.now()
+                  : (before?.endedAt ?? null),
             answer: answer?.role === "assistant" ? answer : undefined,
         });
         host.notifySessionChanged(owner);
