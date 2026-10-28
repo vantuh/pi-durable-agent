@@ -269,12 +269,16 @@ token counts are in the hover title, not on the chip. There is no speed figure.
 - When the open conversation is itself an agent's, the strip is replaced by one link,
   "← Back to <parent title>", with the same outer height, so the composer does not move between the
   two views. A plain click opens the conversation in the app; a modified click opens a new tab.
-- The `strip` action (`refs.ts`) feeds it. The server learns which conversations are agents from
-  the `subagents.instruction` entry (its `session` is the parent, `agent` and `profile` name the
-  agent) as commits arrive, and takes "working" from the commit's busy flag. An agent started
-  before `agent` and `profile` were recorded appears as "Agent" with no profile until it is sent a
-  new message. The browser asks again when the open session or its `busy` flag changes, and every
-  2 seconds while at least one agent is working, since agents do not keep the parent busy.
+- The `strip` action (`refs.ts`) feeds it. Which conversations are agents comes from the core's
+  owner link (`session.owner` in a commit view and in an action call), not from any entry: an agent
+  started before its instruction recorded `agent` and `profile` still has its parent. "Working" is
+  the commit's busy flag, and the latest answer gives the context fill. The name is the
+  instruction's `agent` field; without one, the part of the session name before the first `": "` (the
+  title set at spawn is `<Name>: <task>`); without that, "Agent". A profile the instruction did not
+  record leaves the profile and the model blank until the first answer.
+- Every commit of an agent calls `host.notifySessionChanged(parent)`. The core sends the parent's
+  browsers a new `session.revision` at most every 250 ms, and the strip asks again when it moves, so
+  an agent appears, fills and disappears without the person touching the page. Nothing polls.
 - The lower sidebar area with all agents, finished ones included, is not built; see
   [HANDOFF.md](HANDOFF.md).
 

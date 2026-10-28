@@ -142,7 +142,19 @@ agents; visiting a child already keeps a "← Back to" link to its parent. Delet
 need a decision. The original options below are investigation context, not the current approved UI
 direction.
 
-**Strip: what was and was not checked.** `pnpm check` and the `strip` tests (real Harness, faux
+**Strip: how it knows (second revision).** The first version learned the child-to-parent link from
+`subagents.instruction` entries and polled every 2 s while an agent worked. Three agents in the
+owner's database had no such entry, and a freshly spawned child was never observed at all (the server
+only watched conversations that existed at boot or that a person opened). Now: the core exposes the
+owner link (`session.owner`, `SessionSummary.parent`; commit `5d43568`), watches every new
+conversation, and lets an extension push (`host.notifySessionChanged`, a `revision` on the parent's
+`live` event, at most one per 250 ms; commit `be0df7a`, `b9529e5`). The extension keeps only a
+commit-fed record of the busy flag and latest answer, calls `notifySessionChanged(parent)` on every
+child commit, and `web.tsx` lists `session.revision` in its effect dependencies. The poll is gone: a
+dropped event stream starts over with `hello`, which carries the current revision. `SessionSummary.parent`
+exists but the sidebar does not use it yet (items 1 and 1b).
+
+**Strip, first revision: what was and was not checked.** `pnpm check` and the `strip` tests (real Harness, faux
 model) pass. In an isolated instance (temp data directory, own ports) with a real Chrome through
 the DevTools protocol and the `strip` response stubbed, desktop 1280x800 and mobile 390x844: chips
 36px and 40px tall, the back link the same height as the chips, composer top identical with no

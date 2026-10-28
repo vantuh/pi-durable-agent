@@ -7,11 +7,11 @@ import type { AboveComposerProps, WebExtension } from "@/sdk/types.ts";
 
 import { type Strip, strip, type StripAgent } from "./refs.ts";
 
-const POLL_MS = 2000;
 const WARN_ABOVE = 70;
 
-// Agents run in the background, so the parent is not busy while they work: poll while any does.
-function useStrip(session: number | null, busy: boolean): Strip | null {
+// Agents run in the background, so the parent never changes when one starts, works or ends. The
+// server says so through `revision` whenever one of its agents commits.
+function useStrip(session: number | null, revision: number): Strip | null {
     const [found, setFound] = useState<{ session: number; strip: Strip } | null>(null);
 
     useEffect(() => {
@@ -20,9 +20,8 @@ function useStrip(session: number | null, busy: boolean): Strip | null {
         }
 
         let alive = true;
-        let timer: ReturnType<typeof setTimeout> | undefined;
 
-        const load = async (): Promise<void> => {
+        void (async () => {
             let next: Strip | null = null;
 
             try {
@@ -31,25 +30,16 @@ function useStrip(session: number | null, busy: boolean): Strip | null {
                 next = null;
             }
 
-            if (!alive) {
-                return;
+            if (alive) {
+                setFound(next === null ? null : { session, strip: next });
             }
-
-            setFound(next === null ? null : { session, strip: next });
-
-            if (next !== null && next.agents.length > 0) {
-                timer = setTimeout(() => void load(), POLL_MS);
-            }
-        };
-
-        void load();
+        })();
 
         return () => {
             alive = false;
-            clearTimeout(timer);
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run starting or ending can add or finish an agent
-    }, [session, busy]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- the revision only says "ask again"
+    }, [session, revision]);
 
     return found !== null && found.session === session ? found.strip : null;
 }
@@ -107,7 +97,7 @@ function Chip({ agent, href, onOpen }: { agent: StripAgent; href: string; onOpen
 
 function Agents({ session, openSession }: AboveComposerProps) {
     const id = session?.id ?? null;
-    const data = useStrip(id, session?.busy ?? false);
+    const data = useStrip(id, session?.revision ?? 0);
 
     if (data?.parent) {
         const { parent } = data;

@@ -19,6 +19,7 @@ import {
     type Conversation,
     type ConversationId,
     createRegistry,
+    type EntryRecord,
     Harness,
     LiveDoc,
 } from "@earendil-works/pi-durable";
@@ -36,6 +37,7 @@ type Wiring = {
     listeners: CommitListener[];
     disposers: (() => void | Promise<void>)[];
     windowOf: () => number | undefined;
+    notified: number[];
 };
 
 function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host {
@@ -57,13 +59,15 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
         contextWindow: () => wiring.windowOf(),
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: (session) => Promise.resolve(titles.get(session) ?? null),
-        sessionName: () => Promise.resolve(null),
+        sessionName: (session) => Promise.resolve(titles.get(session) ?? null),
         setSessionTitle: (session, title) => {
             titles.set(session, title);
             return Promise.resolve();
         },
         setSessionMark: () => undefined,
-        notifySessionChanged: () => undefined,
+        notifySessionChanged: (session) => {
+            wiring.notified.push(session);
+        },
     };
 }
 
@@ -177,7 +181,7 @@ void describe("subagents", () => {
             auth: { apiKey: { name: "Locked", resolve: () => Promise.resolve(undefined) } },
         });
         titles = new Map();
-        wiring = { listeners: [], disposers: [], windowOf: () => undefined };
+        wiring = { listeners: [], disposers: [], windowOf: () => undefined, notified: [] };
         host = hostOf(dir, titles, wiring);
 
         const registry = createRegistry();
@@ -444,16 +448,33 @@ void describe("subagents", () => {
         assert.deepEqual(await userTexts(parent.id), ["count them", "stop it"]);
     });
     void describe("strip", () => {
-        const strip = async (session: number | null) =>
-            stripRef.parse(
+        /** What the core knows of a session: the conversation that started it, from its record. */
+        async function ownerOf(id: number): Promise<number | undefined> {
+            const page = await harness.commit((tx) => tx.scanConversations({}, 100), context);
+            const record = page.items.find((candidate) => candidate.id === id);
+
+            return record?.owner === undefined ? undefined : Number(record.owner.conversationId);
+        }
+
+        const strip = async (session: number | null) => {
+            const owner = session === null ? undefined : await ownerOf(session);
+
+            return stripRef.parse(
                 await actions(host)["strip"]?.({
                     args: undefined,
-                    session: session === null ? null : { id: session, cwd: dir },
+                    session:
+                        session === null
+                            ? null
+                            : { id: session, cwd: dir, ...(owner === undefined ? {} : { owner }) },
                 }),
             );
+        };
 
         /** Feeds the commit listeners the way the server does after each commit. */
-        async function observe(conversation: Conversation): Promise<void> {
+        async function observe(
+            conversation: Conversation,
+            entries?: readonly EntryRecord[],
+        ): Promise<void> {
             const page = await harness.commit(
                 (tx) =>
                     tx.scanEntries({ conversationId: conversation.id, order: "ascending" }, 100),
@@ -461,11 +482,16 @@ void describe("subagents", () => {
             );
             const busy =
                 (await harness.snapshot(LiveDoc, conversation.id, context))?.run !== undefined;
+            const owner = await ownerOf(conversation.id);
 
             for (const listener of wiring.listeners) {
                 await listener({
-                    session: { id: conversation.id, cwd: dir },
-                    entries: page.items,
+                    session: {
+                        id: conversation.id,
+                        cwd: dir,
+                        ...(owner === undefined ? {} : { owner }),
+                    },
+                    entries: entries ?? page.items,
                     busy,
                 });
             }
@@ -543,7 +569,13 @@ void describe("subagents", () => {
             const child = await childOfParent();
 
             await observe(parent);
+            wiring.notified.length = 0;
             await observe(child);
+            assert.deepEqual(
+                wiring.notified,
+                [parent.id],
+                "a commit of the agent tells its parent",
+            );
             assert.deepEqual(
                 await strip(parent.id),
                 { parent: null, agents: [] },
@@ -592,6 +624,53 @@ void describe("subagents", () => {
             await observe(child);
 
             assert.deepEqual(await strip(parent.id), { parent: null, agents: [] });
+        });
+
+        void it("gives a child with no instruction entry its parent, a name from its title, and a place in the strip", async () => {
+            faux.setResponses([
+                scripted(
+                    () => Promise.resolve(fauxAssistantMessage("never asked")),
+                    (said) =>
+                        said === "count them"
+                            ? call("agent_spawn", { agent: "counter", task: "Count the files." })
+                            : fauxAssistantMessage("ok"),
+                ),
+            ]);
+            await (
+                await parent.submit({ type: "input", content: "count them" }, context)
+            ).wait(context);
+            await reportersDone();
+            await parent.waitForIdle(context);
+            titles.set(parent.id, "Main work");
+
+            const child = await childOfParent();
+
+            // An agent from before the instruction recorded who it was: its entries name nothing.
+            wiring.notified.length = 0;
+            await wiring.listeners[0]?.({
+                session: { id: child.id, cwd: dir, owner: parent.id },
+                entries: [],
+                busy: true,
+            });
+
+            assert.deepEqual(wiring.notified, [parent.id]);
+            assert.deepEqual(await strip(child.id), {
+                parent: { id: parent.id, title: "Main work" },
+                agents: [],
+            });
+            assert.deepEqual(
+                (await strip(parent.id)).agents.map((agent) => [agent.name, agent.profile]),
+                [["Counter", ""]],
+                "named by the title the extension set at spawn",
+            );
+
+            titles.delete(child.id);
+
+            assert.deepEqual(
+                (await strip(parent.id)).agents.map((agent) => agent.name),
+                ["Agent"],
+                "a title that is not ours names nothing",
+            );
         });
 
         void it("is empty for a session with no agents and for none at all", async () => {

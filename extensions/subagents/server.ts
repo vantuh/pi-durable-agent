@@ -294,39 +294,54 @@ async function childAgent(
     };
 }
 
-type Child = { parent: number; name: string; profile: string };
-/** What the strip needs of an agent's conversation, as of its latest commit. */
-type Seen = { cwd: string | null; busy: boolean; answer: AssistantMessage | undefined };
+/**
+ * What the strip needs of a conversation something else started, as of its latest commit. The
+ * parent is the core's owner link; a commit is the only source of the rest. A name and a profile
+ * the active entries no longer show (a compaction sets the instruction aside) are kept.
+ */
+type Seen = {
+    owner: number;
+    cwd: string | null;
+    busy: boolean;
+    answer: AssistantMessage | undefined;
+    name: string | undefined;
+    profile: string | undefined;
+};
 
-// Actions cannot read documents, so the agents a conversation started are learned from commits:
-// the instruction an agent was given names its parent. The link is kept when a compaction later
-// sets that entry aside.
-const children = new Map<number, Child>();
 const seen = new Map<number, Seen>();
 
-function childOf(entries: readonly EntryRecord[]): Child | undefined {
-    const instructions = entries.filter((entry) => entry.kind === "subagents.instruction");
-    const field = (entry: EntryRecord | undefined, key: string): unknown =>
-        typeof entry?.data === "object" && entry.data !== null
+/** The agent name and profile the latest instruction that recorded them gives. */
+function namedBy(entries: readonly EntryRecord[]): { name?: string; profile?: string } {
+    const field = (entry: EntryRecord, key: string): unknown =>
+        typeof entry.data === "object" && entry.data !== null
             ? Reflect.get(entry.data, key)
             : undefined;
-    // Instructions sent before the agent's name was recorded name only the parent.
-    const named = instructions.findLast((entry) => typeof field(entry, "agent") === "string");
-    const parent = field(instructions[0], "session");
-    const name = field(named, "agent");
-    const profile = field(named, "profile");
+    const named = entries.findLast(
+        (entry) =>
+            entry.kind === "subagents.instruction" &&
+            typeof field(entry, "agent") === "string" &&
+            field(entry, "agent") !== "",
+    );
+    const name = named === undefined ? undefined : field(named, "agent");
+    const profile = named === undefined ? undefined : field(named, "profile");
 
-    return typeof parent === "number"
-        ? {
-              parent,
-              name: typeof name === "string" && name !== "" ? name : "Agent",
-              profile: typeof profile === "string" ? profile : "",
-          }
-        : undefined;
+    return {
+        ...(typeof name === "string" ? { name } : {}),
+        ...(typeof profile === "string" ? { profile } : {}),
+    };
 }
 
-async function stripAgent(host: Host, id: number, child: Child): Promise<StripAgent> {
-    const { answer, cwd } = seen.get(id) ?? { cwd: null, answer: undefined };
+/** An agent started before its name was recorded is still called by its title, "<Name>: <task>". */
+async function nameFromTitle(host: Host, id: number): Promise<string | undefined> {
+    const title = await host.sessionName(id);
+    const at = title?.indexOf(": ") ?? -1;
+
+    return title !== null && at > 0 ? title.slice(0, at) : undefined;
+}
+
+async function stripAgent(host: Host, id: number, child: Seen): Promise<StripAgent> {
+    const { answer, cwd } = child;
+    const profile = child.profile ?? "";
     const used =
         answer === undefined
             ? 0
@@ -339,12 +354,12 @@ async function stripAgent(host: Host, id: number, child: Child): Promise<StripAg
     // Before its first answer the profile is the only place that names the model.
     const model =
         answer === undefined
-            ? ((await readProfiles(cwd ?? host.cwd)).get(child.profile)?.model ?? "")
+            ? ((await readProfiles(cwd ?? host.cwd)).get(profile)?.model ?? "")
             : `${answer.provider}/${answer.model}`;
 
     return {
-        name: child.name,
-        profile: child.profile,
+        name: child.name ?? (await nameFromTitle(host, id)) ?? "Agent",
+        profile,
         model,
         session: id,
         fill: window > 0 ? Math.min(100, Math.round((used / window) * 100)) : 0,
@@ -360,16 +375,14 @@ export const actions = (host: Host): Record<string, Action> => ({
             return { parent: null, agents: [] };
         }
 
-        const link = children.get(session.id);
+        if (session.owner !== undefined) {
+            const title = await host.sessionTitle(session.owner);
 
-        if (link !== undefined) {
-            const title = await host.sessionTitle(link.parent);
-
-            return { parent: { id: link.parent, title: title ?? "New session" }, agents: [] };
+            return { parent: { id: session.owner, title: title ?? "New session" }, agents: [] };
         }
 
-        const working = [...children]
-            .filter(([id, child]) => child.parent === session.id && seen.get(id)?.busy === true)
+        const working = [...seen]
+            .filter(([, child]) => child.owner === session.id && child.busy)
             .toSorted(([a], [b]) => a - b);
 
         return {
@@ -381,27 +394,28 @@ export const actions = (host: Host): Record<string, Action> => ({
 
 export default function subagents(host: Host) {
     host.onDispose(() => {
-        children.clear();
         seen.clear();
     });
     host.onCommit((view: CommitView) => {
-        const id = view.session.id;
-        const link = childOf(view.entries);
+        const { id, owner, cwd } = view.session;
 
-        if (link !== undefined) {
-            children.set(id, link);
+        if (owner === undefined) {
+            return;
         }
 
-        if (children.has(id)) {
-            const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")
-                ?.model?.[0];
+        const before = seen.get(id);
+        const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
+        const named = namedBy(view.entries);
 
-            seen.set(id, {
-                cwd: view.session.cwd,
-                busy: view.busy,
-                answer: answer?.role === "assistant" ? answer : undefined,
-            });
-        }
+        seen.set(id, {
+            owner,
+            cwd,
+            busy: view.busy,
+            answer: answer?.role === "assistant" ? answer : undefined,
+            name: named.name ?? before?.name,
+            profile: named.profile ?? before?.profile,
+        });
+        host.notifySessionChanged(owner);
     });
 
     // Agents get no agents of their own: the extension is removed from them by name.
