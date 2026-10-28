@@ -168,13 +168,16 @@ function ExtensionList() {
                         const problem = failure?.name === row.name ? failure.message : row.error;
 
                         return (
-                            <li key={row.name} className="px-3 py-2.5">
+                            <li
+                                key={row.name}
+                                className={`relative px-3 py-2.5 ${hasExtensionDetails(row.name) ? "hover:bg-raised" : ""}`}
+                            >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex min-w-0 flex-col gap-0.5">
                                         {hasExtensionDetails(row.name) ? (
                                             <button
                                                 type="button"
-                                                className="text-interface text-ink focus-visible:ring-accent flex items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2"
+                                                className="text-interface text-ink focus-visible:ring-accent flex items-center gap-1.5 rounded text-left outline-none after:absolute after:inset-0 focus-visible:ring-2"
                                                 onClick={() => setSelected(row.name)}
                                             >
                                                 {row.title}
@@ -204,6 +207,7 @@ function ExtensionList() {
                                         )}
                                     </div>
                                     <Switch
+                                        className="relative z-10"
                                         checked={row.enabled}
                                         aria-label={`Enable ${row.title}`}
                                         aria-describedby={
