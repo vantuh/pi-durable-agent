@@ -1,0 +1,255 @@
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"server_tool_use","id":"srvtoolu_01UGCGCgyq3C2Fq1a8ubz2LX","name":"web_search","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"query"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"\": \"Nod"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"e.js la"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"test LT"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"S versi"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"on rele"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"ase\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: content_block_start
+data: {"type":"content_block_start","index":2,"content_block":{"type":"web_search_tool_result","tool_use_id":"srvtoolu_01UGCGCgyq3C2Fq1a8ubz2LX","content":[{"type":"web_search_result","title":"Node.js release blog","url":"https://nodejs.org/en/blog/release","encrypted_content":"…","page_age":"7 days ago"},{"type":"web_search_result","title":"Node.js — Download Node.js®","url":"https://nodejs.org/en/download","encrypted_content":"…","page_age":"175 days ago"},{"type":"web_search_result","title":"Releases · nodejs/node · GitHub","url":"https://github.com/nodejs/node/releases","encrypted_content":"…","page_age":"7 days ago"},{"type":"web_search_result","title":"Node.js Version Support: EOL Dates and Latest Releases (July 2026)","url":"https://www.herodevs.com/blog-posts/node-js-end-of-life-dates-you-should-be-aware-of","encrypted_content":"…","page_age":"15 days ago"},{"type":"web_search_result","title":"Node.js — Node.js 20.20.0 (LTS)","url":"https://nodejs.org/en/blog/release/v20.20.0","encrypted_content":"…","page_age":"288 days ago"},{"type":"web_search_result","title":"Node.js — Node.js 22.23.4 (LTS)","url":"https://nodejs.org/en/blog/release/v22.23.4","encrypted_content":"…","page_age":"7 days ago"},{"type":"web_search_result","title":"Node.js — Node.js 24.14.1 (LTS)","url":"https://nodejs.org/en/blog/release/v24.14.1","encrypted_content":"…","page_age":"218 days ago"},{"type":"web_search_result","title":"Node.js — Node.js 24.13.0 (LTS)","url":"https://nodejs.org/en/blog/release/v24.13.0","encrypted_content":"…","page_age":"288 days ago"},{"type":"web_search_result","title":"Node.js — Node.js 24.22.1 (LTS)","url":"https://nodejs.org/en/blog/release/v24.22.1","encrypted_content":"…","page_age":"7 days ago"},{"type":"web_search_result","title":"Node.js — Node.js 24.22.0 (LTS)","url":"https://nodejs.org/en/blog/release/v24.22.0","encrypted_content":"…","page_age":"14 days ago"}],"caller":{"type":"direct"}}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":2}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":3}
+
+event: content_block_start
+data: {"type":"content_block_start","index":4,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":"The"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":" latest Node.js L"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":"TS release app"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":"ears to be **24.22."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":"1 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":"(“"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":"Krypton”)**,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":" released October 21, 2026"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":4,"delta":{"type":"text_delta","text":". "}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":4}
+
+event: content_block_start
+data: {"type":"content_block_start","index":5,"content_block":{"citations":[],"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":5,"delta":{"type":"citations_delta","citation":{"type":"web_search_result_location","cited_text":"aduh95 Antoine du Hamel\n\n## 2026-10-21, Version 24.22.1 'Krypton' (LTS), @aduh95\n\n2026-10-21, Version 24.22.1 'Krypton' (LTS), @aduh95\n\n## No results ...","url":"https://github.com/nodejs/node/releases","title":"Releases · nodejs/node · GitHub","encrypted_index":"Eo8BCioIFRgCIiRjMTZkYzYxMC1iODg4LTQ3NmUtYjVhYS02YzZhZTlkZTUyYzESDARO/7UUAUagt7Y8mBoMz0zJoVCMQlaxtblzIjDgEikGrfTsgNQZlP5zyIpA7hsMtWJhau/hmIMHsM58ELGWYWhpFx2ayV9utuR159MqE/WaeeO+22rqdboa469UPiFHyKEYBA=="}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":5,"delta":{"type":"text_delta","text":"Version 24.22.1 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":5,"delta":{"type":"text_delta","text":"'Krypton' (L"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":5,"delta":{"type":"text_delta","text":"TS)"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":5}
+
+event: content_block_start
+data: {"type":"content_block_start","index":6,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":6,"delta":{"type":"text_delta","text":" is list"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":6,"delta":{"type":"text_delta","text":"ed alongside "}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":6}
+
+event: content_block_start
+data: {"type":"content_block_start","index":7,"content_block":{"citations":[],"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":7,"delta":{"type":"citations_delta","citation":{"type":"web_search_result_location","cited_text":"Windows 32-bit Installer: https://nodejs.org/dist/v22.23.4/node-v22.23.4-x86.msi Windows 64-bit Installer: https://nodejs.org/dist/v22.23.4/node-v22.2...","url":"https://nodejs.org/en/blog/release/v22.23.4","title":"Node.js — Node.js 22.23.4 (LTS)","encrypted_index":"Eo8BCioIFRgCIiRjMTZkYzYxMC1iODg4LTQ3NmUtYjVhYS02YzZhZTlkZTUyYzESDPn+CxU2eHvu9v6NdRoMEfuS6JhmulYLM2z3IjBJXE45X8bWqOYFtQOYRuc1MHaGGe+B/T3HzBOzWhrHgFS8ce976y3+/UQQI2VOAJoqE50fXRUOG03U+COi3BkmhI5LMXkYBA=="}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":7,"delta":{"type":"text_delta","text":"Node.js 22.23."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":7,"delta":{"type":"text_delta","text":"4 ("}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":7,"delta":{"type":"text_delta","text":"LTS)"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":7}
+
+event: content_block_start
+data: {"type":"content_block_start","index":8,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":8,"delta":{"type":"text_delta","text":", which was released"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":8,"delta":{"type":"text_delta","text":" the same day.\n\nThe Node"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":8,"delta":{"type":"text_delta","text":".js download page sh"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":8,"delta":{"type":"text_delta","text":"ows a"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":8,"delta":{"type":"text_delta","text":" different answer, "}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":8}
+
+event: content_block_start
+data: {"type":"content_block_start","index":9,"content_block":{"citations":[],"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":9,"delta":{"type":"citations_delta","citation":{"type":"web_search_result_location","cited_text":"# Download Node.js®\nGet Node.js® v26.13.0 LTS for Unknown using with npm\n\n Get the latest Node.js version instead and try the latest improvements!\n\n","url":"https://nodejs.org/en/download","title":"Node.js — Download Node.js®","encrypted_index":"Eo8BCioIFRgCIiRjMTZkYzYxMC1iODg4LTQ3NmUtYjVhYS02YzZhZTlkZTUyYzESDBtcaAw5ci/SHoKdgBoM1qxw6mnWrtO/KmsnIjBDcBc31aAPIf8rrAMwMP4aIJemjgK6jCtDbEgY5NM7v18Ves7H1bFDyHAOnXuSt34qE5xOdVbbDjqX9+ot5bwbBZLtv94YBA=="}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":9,"delta":{"type":"text_delta","text":"Node"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":9,"delta":{"type":"text_delta","text":".js®"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":9,"delta":{"type":"text_delta","text":" v26.13.0 L"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":9,"delta":{"type":"text_delta","text":"TS"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":9}
+
+event: content_block_start
+data: {"type":"content_block_start","index":10,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":". That page's"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" list"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"ing is"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"175 days old, though"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":", and the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" official"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" release bl"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"og and GitHub rele"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"ases from"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" October 21 don't mention"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"26.13.0. The"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" most recent Node "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"26 release I"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" found is "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"26.12.1"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":","}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" which is marked"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" Current."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" I"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"'d confirm on"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" nodejs.org before"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" relying on either"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":" answ"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":10,"delta":{"type":"text_delta","text":"er."}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":10}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

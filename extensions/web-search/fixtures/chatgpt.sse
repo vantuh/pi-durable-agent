@@ -1,0 +1,9 @@
+event: response.output_item.done
+data: {"type":"response.output_item.done","item":{"id":"ws_087363c6aa81016f016ae24f9ce2c487d2bae853b9d6eac040","type":"web_search_call","status":"completed","action":{"type":"search","queries":["site:nodejs.org latest Node.js LTS version"],"query":"site:nodejs.org latest Node.js LTS version","sources":[{"type":"url","url":"https://nodejs.org/en/download"},{"type":"url","url":"https://nodejs.org/en/download/current"},{"type":"url","url":"https://nodejs.org/en/download/alpha"},{"type":"url","url":"https://nodejs.org/en/download/current/"},{"type":"url","url":"https://nodejs.org/en/download?trk=public_profile__posts-text"},{"type":"url","url":"https://nodejs.org/en/blog/r"},{"type":"url","url":"https://nodejs.org/en/download?pubDate=20260119"},{"type":"url","url":"https://nodejs.org/en/about/previous-releases?jmp=dzone-ref"},{"type":"url","url":"https://nodejs.org/tr/download/current"}]}},"output_index":0,"sequence_number":6}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","item":{"id":"msg_087363c6aa81016f016ae24f9ffda887d2a9de1b21914e67d6","type":"message","status":"completed","content":[{"type":"output_text","annotations":[{"type":"url_citation","end_index":178,"start_index":83,"title":"Node.js — Download Node.js®","url":"https://nodejs.org/en/download?trk=public_profile__posts-text&utm_source=openai"}],"logprobs":[],"text":"The latest Node.js LTS is **v26.13.0**. The Node.js download page lists it as LTS. ([nodejs.org](https://nodejs.org/en/download?trk=public_profile__posts-text&utm_source=openai))"}],"phase":"final_answer","role":"assistant"},"output_index":1,"sequence_number":21}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed"}}
+
