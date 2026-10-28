@@ -1,6 +1,7 @@
 import { Mic } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Spinner } from "@/components/ui/spinner.tsx";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { ComposerProps, SettingsProps, WebExtension } from "@/sdk/types.ts";
@@ -14,7 +15,17 @@ import {
     transcribeRecording,
     warm,
 } from "./record.ts";
-import { isLanguage, language, LANGUAGES, setLanguage, type Language } from "./refs.ts";
+import {
+    isLanguage,
+    LANGUAGES,
+    MAX_IDLE_MINUTES,
+    MIN_IDLE_MINUTES,
+    saveSettings,
+    settings,
+    type Language,
+    type Settings,
+    type SettingsFields,
+} from "./refs.ts";
 
 /** A warm-up that answers sooner than this found the model already loaded: saying so would only flicker. */
 const LOADING_SHOWN_AFTER_MS = 300;
@@ -216,18 +227,26 @@ function MicButton({ field, setText }: ComposerProps) {
     );
 }
 
-function LanguageSetting(_props: SettingsProps) {
-    const [chosen, setChosen] = useState<Language>("uk");
+/** The same box for all three fields: the shell draws them this way everywhere. */
+const FIELD =
+    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2";
+
+function DictationSettings(_props: SettingsProps) {
+    const [current, setCurrent] = useState<Settings | undefined>();
+    const [idle, setIdle] = useState("");
+    // Saves go out in order but their answers need not arrive in order: only the last may draw.
+    const turn = useRef(0);
 
     useEffect(() => {
         let live = true;
 
         const read = async (): Promise<void> => {
             try {
-                const saved = await callAction(language, undefined, null);
+                const found = await callAction(settings, undefined, null);
 
                 if (live) {
-                    setChosen(saved.language);
+                    setCurrent(found);
+                    setIdle(String(found.idleMinutes));
                 }
             } catch (failure) {
                 if (live) {
@@ -243,30 +262,83 @@ function LanguageSetting(_props: SettingsProps) {
         };
     }, []);
 
-    const choose = (next: Language): void => {
-        const before = chosen;
+    /** One `saveSettings` for all three fields; a refusal puts the boxes back to what the server holds. */
+    const save = async (wanted: SettingsFields, before: Settings, mine: number): Promise<void> => {
+        try {
+            const answer = await callAction(saveSettings, wanted, null);
 
-        setChosen(next);
-        void callAction(setLanguage, { language: next }, null).catch((failure: unknown) => {
-            setChosen(before);
+            if (mine === turn.current) {
+                setCurrent(answer);
+                setIdle(String(answer.idleMinutes));
+            }
+        } catch (failure) {
+            if (mine === turn.current) {
+                setCurrent(before);
+                setIdle(String(before.idleMinutes));
+            }
+
             toast.error(messageOf(failure));
-        });
+        }
     };
+
+    const change = (next: Partial<SettingsFields>): void => {
+        if (current === undefined) {
+            return;
+        }
+
+        const before = current;
+        const typed = Number(idle.trim());
+        const wanted: SettingsFields = {
+            language: next.language ?? before.language,
+            model: next.model === undefined ? before.model : next.model,
+            // Whatever the box holds is what is saved, so changing the language keeps a typed idle time.
+            idleMinutes:
+                next.idleMinutes ??
+                (idle.trim() !== "" && Number.isFinite(typed) ? typed : before.idleMinutes),
+        };
+        const mine = ++turn.current;
+
+        setCurrent({ ...before, language: wanted.language, model: wanted.model });
+        void save(wanted, before, mine);
+    };
+
+    // A number is saved when it is done, never per keystroke: on Enter, and on leaving the box.
+    const commitIdle = (): void => {
+        if (current === undefined) {
+            return;
+        }
+
+        const text = idle.trim();
+
+        if (text === "" || Number(text) === current.idleMinutes) {
+            setIdle(String(current.idleMinutes));
+
+            return;
+        }
+
+        change({ idleMinutes: Number(text) });
+    };
+
+    if (current === undefined) {
+        return <Spinner className="text-faint" />;
+    }
+
+    const noModels = current.models.length === 0;
 
     return (
         <div className="flex flex-col gap-2">
             <label className="flex flex-col gap-1">
                 <span className="text-meta text-faint">Language</span>
                 <select
-                    value={chosen}
+                    value={current.language}
                     onChange={(event) => {
                         const next: string = event.target.value;
 
                         if (isLanguage(next)) {
-                            choose(next);
+                            change({ language: next });
                         }
                     }}
-                    className="rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2"
+                    className={FIELD}
                 >
                     {LANGUAGES.map((one) => (
                         <option key={one} value={one}>
@@ -278,11 +350,57 @@ function LanguageSetting(_props: SettingsProps) {
             <p className="text-meta text-muted">
                 Auto lets the model detect the language from the recording.
             </p>
+            <label className="flex flex-col gap-1">
+                <span className="text-meta text-faint">Model</span>
+                <select
+                    value={current.model ?? ""}
+                    disabled={noModels}
+                    onChange={(event) => {
+                        const chosen = event.target.value;
+
+                        change({ model: chosen === "" ? null : chosen });
+                    }}
+                    className={FIELD}
+                >
+                    <option value="">Auto (first Handy whisper found)</option>
+                    {current.models.map((one) => (
+                        <option key={one.path} value={one.path}>
+                            {`${one.name} (${String(one.megabytes)} MB)`}
+                        </option>
+                    ))}
+                </select>
+            </label>
+            {noModels ? (
+                <p className="text-meta text-muted">
+                    No Handy whisper GGUF under ~/.cache/huggingface/hub.
+                </p>
+            ) : null}
+            <label className="flex flex-col gap-1">
+                <span className="text-meta text-faint">Idle time (minutes)</span>
+                <input
+                    type="number"
+                    min={MIN_IDLE_MINUTES}
+                    max={MAX_IDLE_MINUTES}
+                    value={idle}
+                    onChange={(event) => {
+                        setIdle(event.target.value);
+                    }}
+                    onBlur={commitIdle}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitIdle();
+                        }
+                    }}
+                    className={FIELD}
+                />
+            </label>
+            <p className="text-meta text-muted">0 lets the model go right after each dictation.</p>
         </div>
     );
 }
 
 export default {
     composer: [{ id: "mic", component: MicButton }],
-    settings: [{ id: "language", title: "Dictation", component: LanguageSetting }],
+    settings: [{ id: "language", title: "Dictation", component: DictationSettings }],
 } satisfies WebExtension;

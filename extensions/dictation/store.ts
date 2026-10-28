@@ -1,17 +1,23 @@
 /**
- * The language setting, in `dictation.json` of the data directory. Modelled on `extensions/push/store.ts`:
+ * The settings, in `dictation.json` of the data directory. Modelled on `extensions/push/store.ts`:
  * a version field, and writes that never overlap, so a reload cannot work from a half-written file.
  */
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { isLanguage, type Language } from "./refs.ts";
+import {
+    checkIdleMinutes,
+    checkLanguage,
+    checkModel,
+    DEFAULT_IDLE_MINUTES,
+    type SettingsFields,
+} from "./refs.ts";
 
-export type DictationFile = { version: 1; language: Language };
+export type DictationFile = { version: 1 } & SettingsFields;
 
 /** What dictation uses until the owner chooses in Settings: `uk` is how they dictate. */
-const DEFAULT: Language = "uk";
+const DEFAULTS: SettingsFields = { language: "uk", model: null, idleMinutes: DEFAULT_IDLE_MINUTES };
 
 /**
  * Writes to one file run one after another across every store in the process: a reload makes a new
@@ -45,13 +51,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseFile(text: string): DictationFile {
     const raw: unknown = JSON.parse(text);
-    const saved = isRecord(raw) ? raw["language"] : undefined;
 
-    if (!isRecord(raw) || raw["version"] !== 1 || !isLanguage(saved)) {
+    if (!isRecord(raw) || raw["version"] !== 1) {
         throw new Error("dictation.json has an unknown shape");
     }
 
-    return { version: 1, language: saved };
+    try {
+        return {
+            version: 1,
+            language: checkLanguage(raw["language"]),
+            // A file written before the model and the idle time became settings takes the defaults.
+            model: raw["model"] === undefined ? DEFAULTS.model : checkModel(raw["model"]),
+            idleMinutes:
+                raw["idleMinutes"] === undefined
+                    ? DEFAULTS.idleMinutes
+                    : checkIdleMinutes(raw["idleMinutes"]),
+        };
+    } catch (error) {
+        throw new Error("dictation.json has an unknown shape", { cause: error });
+    }
 }
 
 export class DictationStore {
@@ -70,7 +88,7 @@ export class DictationStore {
             text = await readFile(this.#file, "utf8");
         } catch (error) {
             if (error instanceof Error && Reflect.get(error, "code") === "ENOENT") {
-                return { version: 1, language: DEFAULT };
+                return { version: 1, ...DEFAULTS };
             }
 
             throw new Error("dictation.json cannot be read", { cause: error });
@@ -79,10 +97,10 @@ export class DictationStore {
         return parseFile(text);
     }
 
-    /** Saves the language and nothing else: a file this store cannot read is never replaced. */
-    write(language: Language): Promise<void> {
+    /** Saves all three fields: a file this store cannot read is never replaced. */
+    write(settings: SettingsFields): Promise<void> {
         const all = writes();
-        const run = (all.get(this.#file) ?? Promise.resolve()).then(() => this.#save(language));
+        const run = (all.get(this.#file) ?? Promise.resolve()).then(() => this.#save(settings));
         const tail = run.catch(() => undefined);
 
         all.set(this.#file, tail);
@@ -98,9 +116,9 @@ export class DictationStore {
         return run;
     }
 
-    async #save(language: Language): Promise<void> {
+    async #save(settings: SettingsFields): Promise<void> {
         const temp = `${this.#file}.tmp`;
-        const body: DictationFile = { version: 1, language };
+        const body: DictationFile = { version: 1, ...settings };
 
         await mkdir(this.#dir, { recursive: true });
         await writeFile(temp, JSON.stringify(body), { mode: 0o600 });

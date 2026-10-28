@@ -3,12 +3,12 @@
  * transcribe.cpp on this machine, so no audio goes to a speech service.
  *
  * Ported from Pi Pocket's `local-dictation/server.ts` (MIT), rewritten for this core's seams: the
- * routes are raw HTTP, the language is a setting, and the model goes with the extension.
+ * routes are raw HTTP, the settings are a file, and the model goes with the extension.
  */
 
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 import type { TranscribeModel } from "transcribe-cpp";
@@ -16,7 +16,15 @@ import type { TranscribeModel } from "transcribe-cpp";
 import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
 import { answer, answerError, HttpError, readJson, record } from "./http.ts";
 import { Parts, toSamples } from "./parts.ts";
-import { isLanguage } from "./refs.ts";
+import {
+    checkIdleMinutes,
+    checkLanguage,
+    checkModel,
+    DEFAULT_IDLE_MINUTES,
+    type ModelChoice,
+    type Settings,
+    type SettingsFields,
+} from "./refs.ts";
 import { DictationStore } from "./store.ts";
 
 export const meta = {
@@ -27,52 +35,83 @@ export const meta = {
 /** What the browser sends and the model takes: 16 kHz mono 16-bit PCM. */
 const RATE = 16_000;
 
-/** The model holds ~900 MB with Metal, so it goes after this long without a dictation, and loads at the next. */
-const IDLE_MINUTES = Number(process.env["PI_DICTATION_IDLE_MINUTES"] ?? 10);
-const IDLE_MS = (Number.isFinite(IDLE_MINUTES) && IDLE_MINUTES > 0 ? IDLE_MINUTES : 10) * 60_000;
-
 /** The recording id the browser makes: `crypto.randomUUID()`, checked here because the body is unchecked JSON. */
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 
-/** The whisper GGUF that Handy downloaded, the Q8_0 large-v3-turbo first. */
-export function findModel(): string {
-    const configured = process.env["PI_DICTATION_MODEL"]?.trim();
+/** A take nobody sends back holds the model no longer than this, even with an idle time of 0. */
+const TAKEN_MS = 5 * 60_000;
 
-    if (configured) {
-        return configured;
+/** Where Handy keeps the whisper GGUFs it downloaded; a test points this somewhere of its own. */
+const HUB = join(homedir(), ".cache", "huggingface", "hub");
+
+/** The names in a folder, or none when it is not there: a machine without Handy has no models. */
+function names(dir: string): string[] {
+    try {
+        return readdirSync(dir);
+    } catch {
+        return [];
     }
+}
 
-    const hub = join(homedir(), ".cache", "huggingface", "hub");
-    const candidates: string[] = [];
+/**
+ * Every whisper GGUF that Handy downloaded, most wanted first: the Q8_0 large-v3-turbo, the rest of
+ * the turbo family, then everything else. The first one is the model `null` in the settings means.
+ */
+export function candidates(hub: string = HUB): string[] {
+    const found: string[] = [];
 
-    for (const repo of readdirSync(hub).filter((name) =>
+    for (const repo of names(hub).filter((name) =>
         name.startsWith("models--handy-computer--whisper-"),
     )) {
         const snapshots = join(hub, repo, "snapshots");
 
-        for (const revision of readdirSync(snapshots)) {
+        for (const revision of names(snapshots)) {
             const dir = join(snapshots, revision);
 
-            for (const file of readdirSync(dir)) {
+            for (const file of names(dir)) {
                 if (file.endsWith(".gguf")) {
-                    candidates.push(join(dir, file));
+                    found.push(join(dir, file));
                 }
             }
         }
     }
 
-    const turbo = candidates.filter((path) => path.includes("large-v3-turbo"));
-    const chosen = [turbo.find((path) => path.includes("Q8_0")), turbo[0], candidates[0]].find(
-        (path) => path !== undefined,
-    );
+    const turbo = found.filter((path) => path.includes("large-v3-turbo"));
+    const best = turbo.find((path) => path.includes("Q8_0"));
 
-    if (chosen === undefined) {
-        throw new Error(
-            "No Handy whisper GGUF under ~/.cache/huggingface/hub. Set PI_DICTATION_MODEL.",
-        );
+    return [
+        ...(best === undefined ? [] : [best]),
+        ...turbo.filter((path) => path !== best),
+        ...found.filter((path) => !path.includes("large-v3-turbo")),
+    ];
+}
+
+/** What the model dropdown lists: each candidate with its file name and size, in whole megabytes. */
+export function models(hub: string = HUB): ModelChoice[] {
+    const choices: ModelChoice[] = [];
+
+    for (const path of candidates(hub)) {
+        try {
+            const { size } = statSync(path);
+
+            choices.push({
+                path,
+                name: basename(path),
+                megabytes: Math.round(size / (1024 * 1024)),
+            });
+        } catch {
+            // A file that went between the listing and the stat is not offered.
+        }
     }
 
-    return chosen;
+    return choices;
+}
+
+/** The settings and the models to choose from: what both actions answer. */
+function settingsAnswer(settings: SettingsFields): Settings {
+    const { language, model, idleMinutes } = settings;
+
+    return { language, model, idleMinutes, models: models() };
 }
 
 /** One installed version's dictation: the model once warm, and the parts of recordings in flight. */
@@ -81,6 +120,8 @@ export class Dictation {
     readonly #store: DictationStore;
     #loading: Promise<TranscribeModel> | null = null;
     #idle: NodeJS.Timeout | undefined;
+    // From the settings the last load read: the model holds ~900 MB with Metal, so it goes when they say.
+    #idleMs = DEFAULT_IDLE_MINUTES * 60_000;
     #gone = false;
 
     constructor(dataDir: string) {
@@ -95,7 +136,9 @@ export class Dictation {
             throw this.#failed(failure);
         }
 
-        this.#rest();
+        // With an idle time of 0 the model goes when the dictation ends, not before it starts; a take
+        // that nobody finishes still cannot hold it past this.
+        this.#rest(this.#idleMs === 0 ? TAKEN_MS : this.#idleMs);
     }
 
     /** One whole recording as text, said in the language the setting names. */
@@ -150,14 +193,30 @@ export class Dictation {
         }
 
         const started = (async () => {
+            const saved = await this.#store.read();
+            const path = saved.model ?? candidates()[0];
+
+            if (path === undefined) {
+                throw new Error(
+                    "No Handy whisper GGUF under ~/.cache/huggingface/hub. Choose a model in the Dictation settings.",
+                );
+            }
+
+            if (!existsSync(path)) {
+                throw new Error(`The chosen model is not at ${path}.`);
+            }
+
             const { TranscribeModel } = await import("transcribe-cpp");
-            const loaded = await TranscribeModel.load(findModel());
+            const loaded = await TranscribeModel.load(path);
 
             if (this.#gone) {
                 loaded.dispose();
 
                 throw new Error("Local dictation was turned off.");
             }
+
+            // The idle time read with the model is the one this model keeps, until the next load.
+            this.#idleMs = saved.idleMinutes * 60_000;
 
             return loaded;
         })();
@@ -193,11 +252,19 @@ export class Dictation {
         }
     }
 
-    #rest(): void {
+    #rest(afterMs: number = this.#idleMs): void {
         clearTimeout(this.#idle);
+
+        if (afterMs === 0) {
+            // Zero minutes: the model goes as soon as the dictation that needed it ends.
+            this.#unload();
+
+            return;
+        }
+
         this.#idle = setTimeout(() => {
             this.#unload();
-        }, IDLE_MS);
+        }, afterMs);
         this.#idle.unref();
     }
 
@@ -316,23 +383,36 @@ export const actions = (host: Host): Record<string, Action> => {
     const store = new DictationStore(host.dataDir);
 
     return {
-        async language() {
-            return { language: (await store.read()).language };
+        async settings() {
+            return settingsAnswer(await store.read());
         },
 
-        async setLanguage({ args }) {
-            const wanted: unknown =
-                typeof args === "object" && args !== null
-                    ? Reflect.get(args, "language")
-                    : undefined;
-
-            if (!isLanguage(wanted)) {
-                throw new ActionError("the language must be auto, en or uk");
-            }
+        async saveSettings({ args }) {
+            const wanted = checkedSettings(args);
 
             await store.write(wanted);
 
-            return { language: wanted };
+            return settingsAnswer(wanted);
         },
     };
 };
+
+/** The arguments of one field of the unchecked body. */
+function field(args: unknown, name: string): unknown {
+    return typeof args === "object" && args !== null ? Reflect.get(args, name) : undefined;
+}
+
+/** All three fields by the rules the file is read with; a bad one names itself in the refusal. */
+function checkedSettings(args: unknown): SettingsFields {
+    try {
+        return {
+            language: checkLanguage(field(args, "language")),
+            model: checkModel(field(args, "model")),
+            idleMinutes: checkIdleMinutes(field(args, "idleMinutes")),
+        };
+    } catch (failure) {
+        throw new ActionError(
+            failure instanceof Error ? failure.message : "the dictation settings are malformed",
+        );
+    }
+}

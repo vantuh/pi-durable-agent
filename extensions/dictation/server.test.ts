@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import { MAX_BYTES, Parts, toSamples } from "./parts.ts";
-import { findModel, Dictation } from "./server.ts";
+import { candidates, Dictation, models } from "./server.ts";
 import { DictationStore } from "./store.ts";
 
 const run = promisify(execFile);
@@ -25,15 +25,13 @@ function skipReason(): string | undefined {
         return "macOS `say` is not here, so the recording cannot be made";
     }
 
-    let model: string;
+    const first = candidates()[0];
 
-    try {
-        model = findModel();
-    } catch {
-        return "no Handy whisper GGUF: set PI_DICTATION_MODEL";
+    if (first === undefined) {
+        return "no Handy whisper GGUF under ~/.cache/huggingface/hub";
     }
 
-    return existsSync(model) ? undefined : `the whisper model ${model} is not here`;
+    return existsSync(first) ? undefined : `the whisper model ${first} is not here`;
 }
 
 /** The mono 16-bit PCM of a WAV file: `say` writes a JUNK chunk first, so the data is not at a fixed offset. */
@@ -136,53 +134,190 @@ void describe("parts", () => {
     });
 });
 
-void describe("the language", () => {
+void describe("the settings", () => {
     let dir: string;
     let store: DictationStore;
 
     beforeEach(async () => {
-        dir = await tempDir("dictation-lang");
+        dir = await tempDir("dictation-settings");
         store = new DictationStore(dir);
     });
 
-    void it("is uk before anyone chose one", async () => {
-        assert.deepEqual(await store.read(), { version: 1, language: "uk" });
+    void it("is uk, the first model found and ten idle minutes before anyone chose", async () => {
+        assert.deepEqual(await store.read(), {
+            version: 1,
+            language: "uk",
+            model: null,
+            idleMinutes: 10,
+        });
     });
 
-    void it("comes back as it was saved", async () => {
-        await store.write("en");
+    void it("takes a file written before the model and the idle time were settings", async () => {
+        await writeFile(
+            join(dir, "dictation.json"),
+            JSON.stringify({ version: 1, language: "en" }),
+        );
 
-        assert.deepEqual(await store.read(), { version: 1, language: "en" });
+        assert.deepEqual(await store.read(), {
+            version: 1,
+            language: "en",
+            model: null,
+            idleMinutes: 10,
+        });
+    });
+
+    void it("comes back as all three fields were saved", async () => {
+        await store.write({
+            language: "en",
+            model: "/models/whisper-large-v3-turbo-Q8_0.gguf",
+            idleMinutes: 0,
+        });
+
         assert.deepEqual(JSON.parse(await readFile(join(dir, "dictation.json"), "utf8")), {
             version: 1,
             language: "en",
+            model: "/models/whisper-large-v3-turbo-Q8_0.gguf",
+            idleMinutes: 0,
+        });
+        assert.deepEqual(await store.read(), {
+            version: 1,
+            language: "en",
+            model: "/models/whisper-large-v3-turbo-Q8_0.gguf",
+            idleMinutes: 0,
         });
     });
 
     void it("takes auto, which leaves the language to the model", async () => {
-        await store.write("auto");
+        const saved = { version: 1, language: "auto", model: null, idleMinutes: 10 };
 
-        assert.deepEqual(await store.read(), { version: 1, language: "auto" });
+        await writeFile(join(dir, "dictation.json"), JSON.stringify(saved));
+
+        assert.deepEqual(await store.read(), saved);
     });
 
-    void it("refuses a file whose language it does not know", async () => {
+    void it("refuses a file whose language or version it does not know", async () => {
         await writeFile(
             join(dir, "dictation.json"),
-            JSON.stringify({ version: 1, language: "fr" }),
+            JSON.stringify({ version: 1, language: "fr", model: null, idleMinutes: 10 }),
         );
         await assert.rejects(store.read(), /unknown shape/);
 
         await writeFile(
             join(dir, "dictation.json"),
-            JSON.stringify({ version: 2, language: "uk" }),
+            JSON.stringify({ version: 2, language: "uk", model: null, idleMinutes: 10 }),
         );
         await assert.rejects(store.read(), /unknown shape/);
+    });
+
+    void it("refuses an idle time that is not 0 to 1440 minutes", async () => {
+        // `NaN` goes over the wire as `null`, which is what the browser sends for a half-typed number.
+        for (const idleMinutes of [-1, 1441, Number.NaN]) {
+            await writeFile(
+                join(dir, "dictation.json"),
+                JSON.stringify({ version: 1, language: "uk", model: null, idleMinutes }),
+            );
+            await assert.rejects(
+                store.read(),
+                /unknown shape/,
+                `idleMinutes ${String(idleMinutes)} is refused`,
+            );
+        }
+    });
+
+    void it("refuses a model that is not a .gguf path", async () => {
+        for (const model of ["", "/tmp/model.bin"]) {
+            await writeFile(
+                join(dir, "dictation.json"),
+                JSON.stringify({ version: 1, language: "uk", model, idleMinutes: 10 }),
+            );
+            await assert.rejects(store.read(), /unknown shape/, `model ${model} is refused`);
+        }
     });
 
     void it("lets the last of two writes win", async () => {
-        await Promise.all([store.write("en"), store.write("auto")]);
+        await Promise.all([
+            store.write({ language: "en", model: null, idleMinutes: 10 }),
+            store.write({ language: "auto", model: null, idleMinutes: 5 }),
+        ]);
 
-        assert.equal((await store.read()).language, "auto");
+        const saved = await store.read();
+
+        assert.equal(saved.language, "auto");
+        assert.equal(saved.idleMinutes, 5);
+    });
+});
+
+void describe("candidates", () => {
+    /** A GGUF in the shape Handy's cache keeps it: a repo, a snapshot, the file. */
+    async function handy(hub: string, repo: string, file: string): Promise<void> {
+        const dir = join(hub, `models--handy-computer--whisper-${repo}`, "snapshots", "5eaf945c");
+
+        await mkdir(dir, { recursive: true });
+        await writeFile(join(dir, file), "");
+    }
+
+    void it("answers nothing when there is no hub folder", () => {
+        assert.deepEqual(candidates(join(tmpdir(), "pi-durable-no-hub-at-all")), []);
+    });
+
+    void it("lists the whisper GGUFs, the large-v3-turbo Q8_0 first", async () => {
+        const hub = await tempDir("dictation-hub");
+
+        try {
+            await handy(hub, "small-gguf", "whisper-small-q5_1.gguf");
+            await handy(hub, "large-v3-turbo-gguf", "whisper-large-v3-turbo-Q5_K_M.gguf");
+            await handy(hub, "large-v3-turbo-gguf", "whisper-large-v3-turbo-Q8_0.gguf");
+            // Not a whisper GGUF, or not a GGUF at all: neither is offered.
+            await handy(hub, "small-gguf", "whisper-small.ggml");
+            await mkdir(join(hub, "models--mlx-community--whisper-large-v3-turbo"), {
+                recursive: true,
+            });
+            await mkdir(join(hub, "models--mlx-community--whisper-large-v3-turbo", "snapshots"), {
+                recursive: true,
+            });
+            await writeFile(
+                join(
+                    hub,
+                    "models--mlx-community--whisper-large-v3-turbo",
+                    "snapshots",
+                    "other.gguf",
+                ),
+                "",
+            );
+
+            assert.deepEqual(
+                candidates(hub).map((path) => basename(path)),
+                [
+                    "whisper-large-v3-turbo-Q8_0.gguf",
+                    "whisper-large-v3-turbo-Q5_K_M.gguf",
+                    "whisper-small-q5_1.gguf",
+                ],
+            );
+        } finally {
+            await rm(hub, { recursive: true, force: true });
+        }
+    });
+
+    void it("lists each candidate with its file name and size in whole megabytes", async () => {
+        const hub = await tempDir("dictation-models");
+
+        try {
+            const repo = join(
+                hub,
+                "models--handy-computer--whisper-large-v3-turbo-gguf",
+                "snapshots",
+            );
+            const path = join(repo, "5eaf945c", "whisper-large-v3-turbo-Q8_0.gguf");
+
+            await mkdir(join(repo, "5eaf945c"), { recursive: true });
+            await writeFile(path, Buffer.alloc(2 * 1024 * 1024));
+
+            assert.deepEqual(models(hub), [
+                { path, name: "whisper-large-v3-turbo-Q8_0.gguf", megabytes: 2 },
+            ]);
+        } finally {
+            await rm(hub, { recursive: true, force: true });
+        }
     });
 });
 
