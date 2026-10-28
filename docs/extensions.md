@@ -395,18 +395,28 @@ props are `StatusProps` plus `field` (a ref to the message box), `setText(value)
 text as typing would, so the draft keeps it) and `onSent(listener)` (runs just before a message is
 sent; returns the way to stop listening). The shell knows no feature by name.
 
-`extensions/dictation` uses this slot for a mic, ported from Pi Pocket's `web/voice.js`. It uses
-the browser's Web Speech API, so Chrome sends the audio to Google, Safari has it too, and Firefox
-has none: there, and off https or localhost, the mic does not show.
+`extensions/dictation` uses this slot for a mic, ported from Pi Pocket's `local-dictation`. The
+browser records with `MediaRecorder`, resamples what it heard to 16 kHz mono 16-bit PCM and posts it
+to this server's own routes, which transcribe it here with `transcribe-cpp` — a Handy whisper GGUF
+on Metal. The Web Speech API is gone: no audio reaches a speech service, and dictating needs no
+network. A browser without `MediaRecorder`, or a page off https or localhost, shows no mic.
 
-- Words show as they are heard and stay once the browser settles on them: at the caret while the
-  box has the focus, after its text when it does not. Text typed meanwhile stays, and a phrase
-  still being heard when you type or move the caret finishes where it is.
-- It never sends. Tap the mic again or press Alt+V to stop. Sending, leaving the conversation and
-  switching away from the tab stop it too, dropping words not yet settled.
-- A short rising tone marks the start and a falling one the end (`beep.ts`, Web Audio; no files).
-- The text-merging logic is in `dictate.ts` with no React in it; its tests drive a stand-in
-  recognizer. `server.ts` only gives the owner a title and a switch.
+- The model is `PI_DICTATION_MODEL`, else the Handy whisper GGUFs under
+  `~/.cache/huggingface/hub`, preferring `large-v3-turbo` `Q8_0`. It holds ~900 MB with Metal, so
+  it loads when a recording starts and goes after `PI_DICTATION_IDLE_MINUTES` (default 10) without
+  a dictation; a failed load is tried again at the next one.
+- The language is the Dictation settings section: Auto, English or Ukrainian, saved in
+  `dictation.json` in the data directory; `uk` stands in while that file does not exist yet.
+  `auto` passes no hint at all and the model detects it.
+- The audio arrives in numbered parts of 300 000 bytes, joined back in number order and refused
+  past 32 MB; the parts of a recording the browser never finished sending go after ten minutes,
+  and anything under 0.35 s is a tap rather than a word.
+- It never sends. Tap the mic again to stop, and the words go into the box at the caret, with a
+  space only where words would touch and a capital on a sentence's first word (`insert.ts`, no
+  React; its tests are plain strings). Leaving the page or turning the extension off drops a
+  recording in flight.
+- `server.ts` holds the model, the routes (`warm`, `audio`, `transcribe` under
+  `/api/extensions/dictation/http/`) and the two actions behind the setting.
 
 ## Provider request shaping
 

@@ -1,92 +1,288 @@
 import { Mic } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { toast } from "@/lib/toast.ts";
-import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
+import { callAction } from "@/sdk/actions.ts";
+import type { ComposerProps, SettingsProps, WebExtension } from "@/sdk/types.ts";
 
-import { beep } from "./beep.ts";
-import { createDictation, dictationAvailable, type Dictation } from "./dictate.ts";
+import { insert } from "./insert.ts";
+import {
+    messageOf,
+    microphone,
+    recorderType,
+    supportsRecording,
+    transcribeRecording,
+    warm,
+} from "./record.ts";
+import { isLanguage, language, LANGUAGES, setLanguage, type Language } from "./refs.ts";
 
-function MicButton({ field, setText, onSent }: ComposerProps) {
-    const [listening, setListening] = useState(false);
+/** A warm-up that answers sooner than this found the model already loaded: saying so would only flicker. */
+const LOADING_SHOWN_AFTER_MS = 300;
+
+const LABELS: Record<Language, string> = { auto: "Auto", en: "English", uk: "Ukrainian" };
+
+type Mode = "idle" | "recording" | "transcribing";
+
+/** Idle is the plain mic; recording says so in red with the ring; transcribing or loading the model waits in yellow. */
+function lookOf(mode: Mode, loading: boolean): string {
+    if (mode === "recording") {
+        return "bg-danger/20 text-danger";
+    }
+
+    return mode === "transcribing" || loading
+        ? "text-warn"
+        : "text-muted hover:text-ink hover:bg-raised";
+}
+
+function MicButton({ field, setText }: ComposerProps) {
+    const [mode, setMode] = useState<Mode>("idle");
+    const [loading, setLoading] = useState(false);
+    const recorder = useRef<MediaRecorder | null>(null);
+    const stream = useRef<MediaStream | null>(null);
+    const chunks = useRef<Blob[]>([]);
+    const starting = useRef(false);
+    // The composer hands a new setter as the conversation changes; a recording finishes on the live one.
     const write = useRef(setText);
-    const dictation = useRef<Dictation | null>(null);
 
     useEffect(() => {
         write.current = setText;
     }, [setText]);
 
-    // Leaving, sending and the tab going out of sight end dictation; Alt+V starts and stops it.
-    useEffect(() => {
-        const current = createDictation({
-            field: () => field.current,
-            focused: () => document.activeElement === field.current,
-            onText: (value) => {
-                write.current(value);
-            },
-            onListening: (on) => {
-                setListening(on);
-                beep(on);
-            },
-            onNotice: (level, text) => {
-                toast[level](text);
-            },
+    const stopTracks = useCallback((): void => {
+        stream.current?.getTracks().forEach((track) => {
+            track.stop();
         });
-        const hidden = (): void => {
-            if (document.hidden) {
+        stream.current = null;
+    }, []);
+
+    useEffect(
+        () => () => {
+            const current = recorder.current;
+
+            recorder.current = null;
+            if (current !== null) {
+                // Leaving drops the recording: nothing comes back to a button that is gone.
+                current.onstop = null;
                 current.stop();
             }
-        };
-        const shortcut = (event: KeyboardEvent): void => {
-            if (event.altKey && event.code === "KeyV") {
-                event.preventDefault();
-                current.toggle();
+
+            stopTracks();
+        },
+        [stopTracks],
+    );
+
+    const warmUp = useCallback(async (): Promise<void> => {
+        const showing = setTimeout(() => {
+            setLoading(true);
+        }, LOADING_SHOWN_AFTER_MS);
+
+        try {
+            await warm();
+        } catch (failure) {
+            toast.error(messageOf(failure));
+        } finally {
+            clearTimeout(showing);
+            setLoading(false);
+        }
+    }, []);
+
+    const finish = useCallback(async (): Promise<void> => {
+        const recorded = chunks.current;
+
+        chunks.current = [];
+        setMode("transcribing");
+
+        try {
+            const text = await transcribeRecording(recorded);
+
+            if (text === "") {
+                throw new Error("Nothing was recognised.");
             }
-        };
-        const unsubscribe = onSent(() => {
-            current.stop(true);
-        });
 
-        dictation.current = current;
-        document.addEventListener("visibilitychange", hidden);
-        window.addEventListener("keydown", shortcut);
+            const element = field.current;
+            const at = element?.selectionStart ?? 0;
+            const words = insert(
+                {
+                    value: element?.value ?? "",
+                    selectionStart: at,
+                    selectionEnd: element?.selectionEnd ?? at,
+                },
+                text,
+            );
 
-        return () => {
-            dictation.current = null;
-            unsubscribe();
-            document.removeEventListener("visibilitychange", hidden);
-            window.removeEventListener("keydown", shortcut);
-            current.stop(true);
-        };
-    }, [field, onSent]);
+            write.current(words.value);
+            // The box is drawn from its value again, which puts the caret at the end: put it back after the words.
+            requestAnimationFrame(() => {
+                field.current?.setSelectionRange(words.at, words.at);
+            });
+        } catch (failure) {
+            toast.error(messageOf(failure));
+        } finally {
+            setMode("idle");
+        }
+    }, [field]);
 
-    if (!dictationAvailable()) {
-        return null;
-    }
+    const start = useCallback(async (): Promise<void> => {
+        if (starting.current || recorder.current !== null) {
+            return;
+        }
+
+        if (!supportsRecording()) {
+            toast.error("This browser cannot record audio.");
+
+            return;
+        }
+
+        starting.current = true;
+
+        try {
+            const media = await microphone();
+
+            stream.current = media;
+            chunks.current = [];
+
+            const type = recorderType();
+            const made = new MediaRecorder(media, type === undefined ? {} : { mimeType: type });
+
+            made.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    chunks.current.push(event.data);
+                }
+            };
+            made.onstop = () => {
+                void finish();
+            };
+            recorder.current = made;
+            made.start();
+            setMode("recording");
+            void warmUp();
+        } catch (failure) {
+            stopTracks();
+            toast.error(messageOf(failure));
+        } finally {
+            starting.current = false;
+        }
+    }, [finish, stopTracks, warmUp]);
+
+    const stop = useCallback((): void => {
+        const current = recorder.current;
+
+        if (current === null) {
+            return;
+        }
+
+        recorder.current = null;
+        stopTracks();
+        current.stop();
+    }, [stopTracks]);
+
+    const toggle = (): void => {
+        if (mode === "transcribing") {
+            return;
+        }
+
+        if (recorder.current === null) {
+            void start();
+        } else {
+            stop();
+        }
+    };
+
+    const said =
+        mode === "recording"
+            ? "Stop dictating"
+            : mode === "transcribing"
+              ? "Transcribing…"
+              : "Dictate on this machine";
 
     return (
         <button
             type="button"
             aria-label="Dictate"
-            aria-pressed={listening}
-            title={listening ? "Listening: tap to stop (Alt+V)" : "Dictate (Alt+V)"}
+            aria-pressed={mode === "recording"}
+            title={loading ? `${said} (loading the model)` : said}
             // Keep focus in the textarea so words go in at the caret and the phone keyboard stays put.
             onMouseDown={(event) => {
                 event.preventDefault();
             }}
-            onClick={() => {
-                dictation.current?.toggle();
-            }}
-            className={`rounded-control relative mr-1 flex size-7 items-center justify-center ${
-                listening ? "bg-accent/20 text-accent" : "text-muted hover:text-ink hover:bg-raised"
-            }`}
+            onClick={toggle}
+            className={`rounded-control relative mr-1 flex size-7 items-center justify-center ${lookOf(mode, loading)}`}
         >
             <Mic className="size-4" />
-            {listening ? (
-                <span className="rounded-control border-accent pointer-events-none absolute inset-0 animate-ping border motion-reduce:hidden" />
+            {mode === "recording" ? (
+                <span className="rounded-control border-danger pointer-events-none absolute inset-0 animate-ping border motion-reduce:hidden" />
             ) : null}
         </button>
     );
 }
 
-export default { composer: [{ id: "mic", component: MicButton }] } satisfies WebExtension;
+function LanguageSetting(_props: SettingsProps) {
+    const [chosen, setChosen] = useState<Language>("uk");
+
+    useEffect(() => {
+        let live = true;
+
+        const read = async (): Promise<void> => {
+            try {
+                const saved = await callAction(language, undefined, null);
+
+                if (live) {
+                    setChosen(saved.language);
+                }
+            } catch (failure) {
+                if (live) {
+                    toast.error(messageOf(failure));
+                }
+            }
+        };
+
+        void read();
+
+        return () => {
+            live = false;
+        };
+    }, []);
+
+    const choose = (next: Language): void => {
+        const before = chosen;
+
+        setChosen(next);
+        void callAction(setLanguage, { language: next }, null).catch((failure: unknown) => {
+            setChosen(before);
+            toast.error(messageOf(failure));
+        });
+    };
+
+    return (
+        <div className="flex flex-col gap-2">
+            <label className="flex flex-col gap-1">
+                <span className="text-meta text-faint">Language</span>
+                <select
+                    value={chosen}
+                    onChange={(event) => {
+                        const next: string = event.target.value;
+
+                        if (isLanguage(next)) {
+                            choose(next);
+                        }
+                    }}
+                    className="rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2"
+                >
+                    {LANGUAGES.map((one) => (
+                        <option key={one} value={one}>
+                            {LABELS[one]}
+                        </option>
+                    ))}
+                </select>
+            </label>
+            <p className="text-meta text-muted">
+                Auto lets the model detect the language from the recording.
+            </p>
+        </div>
+    );
+}
+
+export default {
+    composer: [{ id: "mic", component: MicButton }],
+    settings: [{ id: "language", title: "Dictation", component: LanguageSetting }],
+} satisfies WebExtension;
