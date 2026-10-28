@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import type { Host, ResolveModelAuth } from "../../server/sdk.ts";
 import { createKeeper } from "./keeper.ts";
-import { collect, readCodex, toMs, type Fetch } from "./readers.ts";
+import { collect, readCodex, readKiro, toMs, type Fetch } from "./readers.ts";
 import { readerFor, type ProviderUsage } from "./refs.ts";
 import { actions } from "./server.ts";
 import { readSettings } from "./settings.ts";
@@ -71,7 +71,7 @@ void test("collect reads Anthropic and OpenCode Go, marks the session window, sk
         auth({ anthropic: "sk-ant-oat-x", "opencode-go": "key" }),
         fetch,
         signal,
-        { codexHome: home },
+        { codexHome: home, kiro: noKiro },
     );
 
     assert.deepEqual(
@@ -97,6 +97,7 @@ void test("collect reads Anthropic and OpenCode Go, marks the session window, sk
     seen.length = 0;
     const apiKey = await collect(auth({ anthropic: "sk-ant-api-x" }), fetch, signal, {
         codexHome: home,
+        kiro: noKiro,
     });
 
     assert.deepEqual(apiKey, []);
@@ -108,11 +109,34 @@ void test("a failing provider becomes an error row without leaking the token", a
     const home = await mkdtemp(join(tmpdir(), "usage-"));
     const result = await collect(auth({ anthropic: "sk-ant-oat-x" }), fetch, signal, {
         codexHome: home,
+        kiro: noKiro,
     });
 
     assert.deepEqual(result, [
         { id: "anthropic", name: "Anthropic", buckets: [], error: "HTTP 500" },
     ]);
+});
+
+const noKiro = () => Promise.resolve(undefined);
+
+void test("Kiro credits come from the kiro-cli report and are absent without kiro-cli", async () => {
+    const report =
+        "\u001b[1mEstimated Usage\u001b[0m | resets on 2026-11-01 | KIRO PRO\nCredits (212.99 of 5000 covered in plan)\n ████ 4.26%\n";
+    const result = await readKiro(signal, () => Promise.resolve(report));
+
+    assert.deepEqual(result, {
+        id: "kiro",
+        name: "Kiro (KIRO PRO)",
+        buckets: [
+            { label: "Credits", session: true, pct: 4.26, resetsAt: Date.parse("2026-11-01") },
+        ],
+    });
+    assert.equal(await readKiro(signal, () => Promise.resolve(undefined)), undefined);
+    await assert.rejects(
+        readKiro(signal, () => Promise.resolve("garbage")),
+        /Unexpected/,
+    );
+    assert.equal(readerFor("kiro-acp/claude-sonnet"), "kiro");
 });
 
 void test("Codex uses the Codex CLI sign-in and is absent without one", async () => {
@@ -164,7 +188,7 @@ void test("a hidden provider is not asked", async () => {
         auth({ anthropic: "sk-ant-oat-x", "opencode-go": "key" }),
         fetch,
         signal,
-        { codexHome: home, hidden: ["anthropic", "codex"] },
+        { codexHome: home, kiro: noKiro, hidden: ["anthropic", "codex"] },
     );
 
     assert.deepEqual(

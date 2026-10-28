@@ -3,6 +3,7 @@
  * undocumented endpoints: a change on the provider's side shows as an error row, never a crash.
  * Tokens come in as arguments and are never logged or returned.
  */
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -223,17 +224,73 @@ export async function readCodex(
     };
 }
 
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
+
+/** kiro-cli prints the report to stderr when it is not attached to a terminal. */
+function runKiroUsage(signal: AbortSignal): Promise<string | undefined> {
+    return new Promise((resolve, reject) => {
+        execFile(
+            "kiro-cli",
+            ["chat", "--no-interactive", "/usage"],
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) },
+            (error, stdout, stderr) => {
+                if (error === null) {
+                    resolve(stdout + stderr);
+                } else if ("code" in error && error.code === "ENOENT") {
+                    resolve(undefined);
+                } else {
+                    reject(new Error("kiro-cli /usage failed"));
+                }
+            },
+        );
+    });
+}
+
+/**
+ * Plan credits are not on the ACP wire, so this reads what `kiro-cli /usage` prints. The format is
+ * the CLI's, not an API: a change shows as an error row. Without kiro-cli the provider is absent.
+ */
+export async function readKiro(
+    signal: AbortSignal,
+    run: (signal: AbortSignal) => Promise<string | undefined> = runKiroUsage,
+): Promise<ProviderUsage | undefined> {
+    const raw = await run(signal);
+
+    if (raw === undefined) {
+        return undefined;
+    }
+
+    const text = raw.replace(ANSI, "");
+    const header = /Estimated Usage \| resets on ([^|]+) \| (.+)/.exec(text);
+    const pct = /([0-9]+(?:\.[0-9]+)?)\s*%/.exec(text)?.[1];
+
+    if (header === null || pct === undefined) {
+        throw new Error("Unexpected kiro-cli output");
+    }
+
+    const buckets: Bucket[] = [];
+
+    add(buckets, "Credits", true, Number(pct), header[1]?.trim());
+
+    return { id: "kiro", name: `Kiro (${header[2]?.trim() ?? ""})`, buckets };
+}
+
 /** Every provider this machine is signed in to; one that fails is a row with an error. */
 export async function collect(
     resolveAuth: ResolveModelAuth,
     fetch: Fetch,
     signal: AbortSignal,
-    options: { codexHome?: string; hidden?: readonly string[] } = {},
+    options: {
+        codexHome?: string;
+        hidden?: readonly string[];
+        kiro?: (signal: AbortSignal) => Promise<string | undefined>;
+    } = {},
 ): Promise<ProviderUsage[]> {
     const readers: Record<string, () => Promise<ProviderUsage | undefined>> = {
         anthropic: () => readAnthropic(resolveAuth, fetch, signal),
         "opencode-go": () => readOpencodeGo(resolveAuth, fetch, signal),
         codex: () => readCodex(fetch, signal, options.codexHome),
+        kiro: () => readKiro(signal, options.kiro),
     };
     // A hidden provider is not asked at all.
     const jobs = PROVIDERS.filter((each) => !(options.hidden ?? []).includes(each.id)).map(

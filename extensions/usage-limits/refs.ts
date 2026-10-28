@@ -11,7 +11,7 @@ export type Bucket = {
 };
 
 export type ProviderUsage = {
-    /** `anthropic`, `opencode-go` or `codex`. */
+    /** `anthropic`, `opencode-go`, `codex` or `kiro`. */
     id: string;
     name: string;
     buckets: Bucket[];
@@ -24,6 +24,7 @@ export const PROVIDERS = [
     { id: "anthropic", name: "Anthropic" },
     { id: "opencode-go", name: "OpenCode Go" },
     { id: "codex", name: "OpenAI Codex" },
+    { id: "kiro", name: "Kiro" },
 ] as const;
 
 /** The owner's choice: provider ids that are not shown (and not asked). Everything else is on. */
@@ -109,6 +110,7 @@ const READERS: Record<string, string | undefined> = {
     "opencode-go": "opencode-go",
     openai: "codex",
     "openai-codex": "codex",
+    "kiro-acp": "kiro",
 };
 
 /** Pi's provider id → the id of the reader that serves it. */

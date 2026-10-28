@@ -247,7 +247,7 @@ function UsageLimits({ session }: StatusProps) {
     const title =
         bucket === undefined
             ? "Provider usage"
-            : `${provider?.name ?? ""}: ${String(Math.round(bucket.pct))}% of the 5-hour limit used. ${until(bucket.resetsAt, usage.data?.at ?? 0)}`;
+            : `${provider?.name ?? ""}: ${String(Math.round(bucket.pct))}% used (${bucket.label}). ${until(bucket.resetsAt, usage.data?.at ?? 0)}`;
 
     return (
         <>
@@ -270,7 +270,7 @@ function UsageLimits({ session }: StatusProps) {
                     <Gauge className="size-3.5" />
                 ) : (
                     <>
-                        <span>5h</span>
+                        <span>{bucket.label === "5 hours" ? "5h" : bucket.label}</span>
                         <Bar pct={bucket.pct} className="flex h-1 w-9" />
                         {String(Math.round(bucket.pct))}%
                     </>
