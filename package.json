@@ -27,6 +27,7 @@
         "@radix-ui/react-scroll-area": "^1.4.0",
         "@radix-ui/react-switch": "1.4.1",
         "@radix-ui/react-tabs": "^1.2.1",
+        "@vantuh/pi-kiro-acp": "file:../pi-kiro-acp",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
         "react-markdown": "10.1.0",
@@ -54,6 +55,11 @@
         "tailwindcss": "^4.3.3",
         "typescript": "^7.0.2",
         "vite": "^8.3.5"
+    },
+    "dependenciesMeta": {
+        "@vantuh/pi-kiro-acp": {
+            "injected": true
+        }
     },
     "engines": {
         "node": ">=26"
