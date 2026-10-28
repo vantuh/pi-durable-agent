@@ -11,6 +11,7 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
+import { ScrollArea } from "../components/ui/scroll-area.tsx";
 import { useStatusRowItems } from "../extensions.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { statusRows } from "../lib/status-rows.ts";
@@ -147,8 +148,10 @@ function Row({ session, sessions, now, isOpen, openSession, onClose }: RowProps)
                     {isOpen ? content : triggerLink}
                 </DropdownMenuItem>
                 {subOpen ? (
-                    <div className="border-edge-soft ml-3 max-h-[min(220px,45vh)] overflow-y-auto border-l pl-1">
-                        {body}
+                    <div className="border-edge-soft ml-3 border-l pl-1">
+                        <ScrollArea viewportProps={{ className: "max-h-[min(220px,45vh)]" }}>
+                            {body}
+                        </ScrollArea>
                     </div>
                 ) : null}
             </>
@@ -186,8 +189,10 @@ function Row({ session, sessions, now, isOpen, openSession, onClose }: RowProps)
             >
                 {isOpen ? content : triggerLink}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-[min(220px,45vh)] min-w-52 overflow-y-auto">
-                {body}
+            <DropdownMenuSubContent className="min-w-52">
+                <ScrollArea viewportProps={{ className: "max-h-[min(220px,45vh)]" }}>
+                    {body}
+                </ScrollArea>
             </DropdownMenuSubContent>
         </DropdownMenuSub>
     );
