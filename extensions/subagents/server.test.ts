@@ -69,6 +69,10 @@ function lastText(request: TranscriptContext): string {
         : last.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("");
 }
 
+function call(name: string, args: Record<string, string>): AssistantMessage {
+    return fauxAssistantMessage(fauxToolCall(name, args), { stopReason: "toolUse" });
+}
+
 /** Every request, parent's and child's, goes through one script: who is asking is in its prompt. */
 function scripted(
     child: (
@@ -78,7 +82,9 @@ function scripted(
     parent: (said: string) => AssistantMessage,
 ): FauxResponseFactory {
     return (request, options) =>
-        request.systemPrompt?.includes("## Agent protocol") === true
+        JSON.stringify(request.messages.filter((message) => message.role === "system")).includes(
+            "## Agent protocol",
+        )
             ? child(request, options?.signal)
             : parent(lastText(request));
 }
@@ -100,9 +106,13 @@ void describe("subagents", () => {
         return page.items.flatMap((entry) => {
             const message = entry.model?.[0];
 
-            return message?.role === "user" && typeof message.content !== "string"
-                ? message.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
-                : [];
+            if (message?.role !== "user") {
+                return [];
+            }
+
+            return typeof message.content === "string"
+                ? [message.content]
+                : message.content.flatMap((part) => (part.type === "text" ? [part.text] : []));
         });
     }
 
@@ -139,7 +149,7 @@ void describe("subagents", () => {
         const registry = createRegistry();
 
         registry.install(CodingTools);
-        registry.install(await subagents(hostOf(dir, titles)));
+        registry.install(subagents(hostOf(dir, titles)));
         harness = await Harness.open(
             await openNodeSqliteStorage(join(dir, "state.sqlite")),
             { models, registry, env: () => new NodeExecutionEnv({ cwd: dir }) },
@@ -169,12 +179,7 @@ void describe("subagents", () => {
             () => Promise.resolve(fauxAssistantMessage("There are 42.")),
             (said) =>
                 said === "count them"
-                    ? fauxAssistantMessage(
-                          fauxToolCall("agent_spawn", {
-                              agent: "counter",
-                              task: "Count the files.",
-                          }),
-                      )
+                    ? call("agent_spawn", { agent: "counter", task: "Count the files." })
                     : fauxAssistantMessage("ok"),
         );
 
@@ -203,6 +208,10 @@ void describe("subagents", () => {
             ["read"],
             "only the profile's tools that exist, and no agent tools of its own",
         );
+        assert.ok(
+            agent?.extensions.every((extension) => extension.name !== "subagents"),
+            "a profile without a tools list still gets no agents of its own",
+        );
         assert.match(agent?.instructions ?? "", /^You count\.\n\n## Agent protocol/);
     });
 
@@ -221,13 +230,11 @@ void describe("subagents", () => {
                 }),
             (said) => {
                 if (said === "count them") {
-                    return fauxAssistantMessage(
-                        fauxToolCall("agent_spawn", { agent: "counter", task: "Count." }),
-                    );
+                    return call("agent_spawn", { agent: "counter", task: "Count." });
                 }
 
                 return said === "stop it"
-                    ? fauxAssistantMessage(fauxToolCall("agent_stop", { name: "Counter" }))
+                    ? call("agent_stop", { name: "Counter" })
                     : fauxAssistantMessage("ok");
             },
         );
