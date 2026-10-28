@@ -215,6 +215,7 @@ export function App() {
                                 onSessions={() => {
                                     setSheet(true);
                                 }}
+                                onOpenSession={go}
                                 below={<StatusItems slot="title" session={activeSession} />}
                             />
 

@@ -18,6 +18,7 @@ import { cn } from "../lib/utils.ts";
 import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
+import { AgentMessage } from "./agent-message.tsx";
 
 type Props = {
     title: string | null;
@@ -27,6 +28,8 @@ type Props = {
     tools?: ReactNode;
     onSettings: () => void;
     onSessions: () => void;
+    /** Goes to another conversation, the one an agent's message came from. */
+    onOpenSession: (session: number) => void;
     /** A small line under the title: the branch, as extensions add it. */
     below: ReactNode;
     /** Asks the server for the page older than what is on screen. */
@@ -239,11 +242,24 @@ function TurnItem({ item }: { item: Item }) {
     return <Markdown text={item.text} streaming={item.streaming} />;
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+function TurnView({
+    turn,
+    onOpenSession,
+}: {
+    turn: Turn;
+    onOpenSession: (session: number) => void;
+}) {
     return (
         <div className="flex flex-col gap-3">
             {turn.compacted === undefined ? null : <CompactionMark {...turn.compacted} />}
-            {turn.user === undefined ? null : (
+            {turn.user?.author === undefined ? null : (
+                <AgentMessage
+                    text={turn.user.text}
+                    author={turn.user.author}
+                    onOpenSession={onOpenSession}
+                />
+            )}
+            {turn.user === undefined || turn.user.author !== undefined ? null : (
                 <div className="flex justify-end">
                     <div className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2">
                         <Attachments
@@ -278,6 +294,7 @@ export function Transcript({
     tools,
     onSettings,
     onSessions,
+    onOpenSession,
     below,
     onLoadOlder,
     loadingOlder,
@@ -292,7 +309,9 @@ export function Transcript({
         null,
     );
     const turns = useMemo(() => turnsOf(entries, live), [entries, live]);
-    const sent = entries.at(-1)?.kind === "user";
+    const newest = entries.at(-1);
+    // Only the person's own message pulls the reader down; an agent's report waits where it lands.
+    const sent = newest?.kind === "user" && newest.author === undefined;
     const counted = useRef(entries.length);
     const first = entries[0]?.id;
 
@@ -433,7 +452,7 @@ export function Transcript({
                     ) : null}
 
                     {turns.map((turn) => (
-                        <TurnView key={turn.key} turn={turn} />
+                        <TurnView key={turn.key} turn={turn} onOpenSession={onOpenSession} />
                     ))}
 
                     {live.compacting === true ? (

@@ -32,8 +32,21 @@ export type ClientAttachment = {
     image: boolean;
 };
 
+/**
+ * Who wrote a message the person did not type, such as an agent's report; absent means the person. `session` is the
+ * conversation it came from, when there is one to open.
+ */
+export type ClientAuthor = { name: string; session?: number };
+
 export type ClientEntry =
-    | { id: number; kind: "user"; text: string; at?: number; files?: ClientAttachment[] }
+    | {
+          id: number;
+          kind: "user";
+          text: string;
+          at?: number;
+          files?: ClientAttachment[];
+          author?: ClientAuthor;
+      }
     | {
           id: number;
           kind: "assistant";
@@ -104,6 +117,7 @@ export type ClientQueued = {
     /** What was typed, not the expansion the agent reads, so it can go back into the composer as it was. */
     text: string;
     files?: ClientAttachment[];
+    author?: ClientAuthor;
 };
 
 export type ClientLive = {

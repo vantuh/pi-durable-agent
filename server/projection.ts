@@ -9,6 +9,7 @@ import type { EntryRecord } from "@earendil-works/pi-durable";
 import type {
     ClientAnswerStats,
     ClientAttachment,
+    ClientAuthor,
     ClientBlock,
     ClientEntry,
     ClientLive,
@@ -190,6 +191,40 @@ function filesOf(value: unknown): ClientAttachment[] {
     });
 }
 
+/**
+ * An input placed as an application entry names its writer in `data.author`, and the conversation it came from in
+ * `data.session`: that is how a message the person did not type is told apart from theirs.
+ */
+function authorOf(data: Record<string, unknown> | undefined): ClientAuthor | undefined {
+    const name = stringOf(data, "author");
+    const session = optionalNumber(data, "session");
+
+    if (name === undefined || name === "") {
+        return undefined;
+    }
+
+    return session === undefined ? { name } : { name, session };
+}
+
+function userOf(
+    id: number,
+    message: Record<string, unknown> | undefined,
+    data: Record<string, unknown> | undefined,
+): ClientEntry {
+    const at = optionalNumber(message, "timestamp");
+    const files = filesOf(data?.["files"]);
+    const author = authorOf(data);
+
+    return {
+        id,
+        kind: "user",
+        text: stringOf(data, "text") ?? textOf(message?.["content"]),
+        ...(files.length === 0 ? {} : { files }),
+        ...(at === undefined ? {} : { at }),
+        ...(author === undefined ? {} : { author }),
+    };
+}
+
 /** The summary a compaction wrote, out of the message that carries it: the sentences around the tags say nothing new. */
 function summaryOf(message: Record<string, unknown> | undefined): string | undefined {
     const text = textOf(message?.["content"]);
@@ -208,19 +243,8 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
 
     switch (entry.kind) {
         case "pi.user":
-        case "chat.user": {
-            const at = optionalNumber(message, "timestamp");
-            const data = recordOf(entry.data);
-            const files = filesOf(data?.["files"]);
-
-            return {
-                id,
-                kind: "user",
-                text: stringOf(data, "text") ?? textOf(message?.["content"]),
-                ...(files.length === 0 ? {} : { files }),
-                ...(at === undefined ? {} : { at }),
-            };
-        }
+        case "chat.user":
+            return userOf(id, message, recordOf(entry.data));
 
         case "pi.assistant": {
             const model = stringOf(message, "model");
@@ -267,8 +291,13 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
             return { id, kind: "compaction", ...(summary === undefined ? {} : { summary }) };
         }
 
-        default:
-            return { id, kind: "other", entryKind: entry.kind };
+        default: {
+            const data = recordOf(entry.data);
+
+            return message?.["role"] === "user" && authorOf(data) !== undefined
+                ? userOf(id, message, data)
+                : { id, kind: "other", entryKind: entry.kind };
+        }
     }
 }
 
@@ -349,6 +378,7 @@ function queuedOf(value: unknown): ClientQueued[] {
         const id = numberAt(item, "id");
         const data = recordOf(recordOf(item?.["entry"])?.["data"]);
         const files = filesOf(data?.["files"]);
+        const author = authorOf(data);
 
         if (id !== 0 && (mode === "steer" || mode === "followUp")) {
             queued.push({
@@ -356,6 +386,7 @@ function queuedOf(value: unknown): ClientQueued[] {
                 mode,
                 text: stringOf(data, "text") ?? textOf(item?.["content"]),
                 ...(files.length === 0 ? {} : { files }),
+                ...(author === undefined ? {} : { author }),
             });
         }
     }

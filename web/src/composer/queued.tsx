@@ -1,4 +1,4 @@
-import { Clock, Paperclip, Pencil, X, Zap } from "lucide-react";
+import { Bot, Clock, Paperclip, Pencil, X, Zap } from "lucide-react";
 import { useState } from "react";
 
 import type { ClientQueued } from "../../../shared/protocol.ts";
@@ -35,6 +35,9 @@ type Props = {
     onEdit: (item: ClientQueued) => void;
 };
 
+/** A message an agent wrote waits as the agent's, not the person's: its name instead of the mode, in its own colour. */
+const AGENT = { icon: Bot, stripe: "bg-agent", tone: "text-agent" };
+
 /** Messages waiting in `pi.inbox`: one card each, with the mode, the text, and the two things one may do to it. */
 export function Queued({ items, onWithdraw, onEdit }: Props) {
     // One opened at a time: a long message is read here, then closed again.
@@ -48,7 +51,8 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
         <ul className="mb-2 flex flex-col gap-1.5">
             {items.map((item) => {
                 const mode = MODES[item.mode];
-                const Icon = mode.icon;
+                const look = item.author === undefined ? mode : AGENT;
+                const Icon = look.icon;
 
                 return (
                     <li
@@ -57,12 +61,16 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                     >
                         <span
                             aria-hidden
-                            className={`absolute inset-y-0 left-0 w-[3px] ${mode.stripe}`}
+                            className={`absolute inset-y-0 left-0 w-[3px] ${look.stripe}`}
                         />
                         <div className="flex min-w-0 flex-1 flex-col">
                             <span className="text-meta flex items-center gap-1">
-                                <Icon className={`size-3 shrink-0 ${mode.tone}`} />
-                                <span className={`font-medium ${mode.tone}`}>{mode.label}</span>
+                                <Icon className={`size-3 shrink-0 ${look.tone}`} />
+                                <span className={`font-medium ${look.tone}`}>
+                                    {item.author === undefined
+                                        ? mode.label
+                                        : `${item.author.name} · ${mode.label.toLowerCase()}`}
+                                </span>
                                 <span className="text-faint hidden sm:inline">· {mode.hint}</span>
                             </span>
                             <button
@@ -88,17 +96,20 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                         </div>
 
                         <div className="flex shrink-0 items-center">
-                            <button
-                                type="button"
-                                title="Edit and send again"
-                                aria-label="Edit and send again"
-                                onClick={() => {
-                                    onEdit(item);
-                                }}
-                                className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 items-center justify-center"
-                            >
-                                <Pencil className="size-3.5" />
-                            </button>
+                            {/* Editing puts the text in the composer as the person's own; an agent's is not theirs to resend. */}
+                            {item.author !== undefined ? null : (
+                                <button
+                                    type="button"
+                                    title="Edit and send again"
+                                    aria-label="Edit and send again"
+                                    onClick={() => {
+                                        onEdit(item);
+                                    }}
+                                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 items-center justify-center"
+                                >
+                                    <Pencil className="size-3.5" />
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 title="Remove from the queue"

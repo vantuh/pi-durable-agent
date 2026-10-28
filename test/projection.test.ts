@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { projectLive } from "../server/projection.ts";
+import type { EntryRecord } from "@earendil-works/pi-durable";
+
+import { projectEntry, projectLive } from "../server/projection.ts";
 
 void describe("live compaction", () => {
     void it("says a compaction is running while the harness lists one, and stops when it is done", () => {
@@ -139,11 +141,63 @@ void describe("queued messages", () => {
         assert.deepEqual(live.queued, [{ id: 9, mode: "steer", text: "plain words" }]);
     });
 
+    void it("says who wrote a message the person did not type", () => {
+        const live = projectLive(
+            undefined,
+            undefined,
+            inbox([
+                {
+                    id: 11,
+                    mode: "steer",
+                    content: "[agent Scout (scout) finished]\n\nfound it",
+                    entry: {
+                        kind: "subagents.report",
+                        data: { text: "found it", author: "Scout", session: 4 },
+                    },
+                },
+            ]),
+        );
+
+        assert.deepEqual(live.queued, [
+            { id: 11, mode: "steer", text: "found it", author: { name: "Scout", session: 4 } },
+        ]);
+    });
+
     void it("lists no writes and nothing when the inbox is empty", () => {
         assert.equal(
             projectLive(undefined, undefined, inbox([{ id: 10, mode: "write", entry: {} }])).queued,
             undefined,
         );
         assert.equal(projectLive(undefined, undefined, inbox([])).queued, undefined);
+    });
+});
+
+void describe("messages the person did not type", () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a written entry, without the harness that brands its ids
+    const entry = (value: object): EntryRecord => value as unknown as EntryRecord;
+    const record = (kind: string, data: unknown): EntryRecord =>
+        entry({
+            id: 3,
+            conversationId: 1,
+            kind,
+            data,
+            model: [{ role: "user", content: "[agent Scout (scout) finished]\n\nfound it" }],
+        });
+
+    void it("shows an application input with an author as a message from it", () => {
+        assert.deepEqual(
+            projectEntry(
+                record("subagents.report", { text: "found it", author: "Scout", session: 4 }),
+            ),
+            { id: 3, kind: "user", text: "found it", author: { name: "Scout", session: 4 } },
+        );
+    });
+
+    void it("keeps an application entry without an author out of the conversation", () => {
+        assert.deepEqual(projectEntry(record("other.input", { text: "found it" })), {
+            id: 3,
+            kind: "other",
+            entryKind: "other.input",
+        });
     });
 });
