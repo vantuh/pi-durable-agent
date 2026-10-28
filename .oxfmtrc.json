@@ -13,5 +13,5 @@
     "sortImports": true,
     "sortPackageJson": true,
     "sortTailwindcss": true,
-    "ignorePatterns": ["dist", "node_modules", "pnpm-lock.yaml"]
+    "ignorePatterns": ["dist", "node_modules", "pnpm-lock.yaml", ".agents", "skills-lock.json"]
 }
