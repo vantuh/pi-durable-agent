@@ -299,8 +299,6 @@ type Seen = {
     owner: number;
     cwd: string | null;
     busy: boolean;
-    /** When this process saw the run end: null while it works, and until the first run it saw end. */
-    endedAt: number | null;
     answer: AssistantMessage | undefined;
 };
 
@@ -357,7 +355,6 @@ export const actions = (host: Host): Record<string, Action> => ({
                 session: Number(record.conversationId),
                 name,
                 profile: record.agent,
-                endedAt: seen.get(Number(record.conversationId))?.endedAt ?? null,
             }))
             .toSorted((a, b) => a.session - b.session);
     },
@@ -411,17 +408,10 @@ export default function subagents(host: Host) {
 
         const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
 
-        const before = seen.get(id);
-
         seen.set(id, {
             owner,
             cwd,
             busy: view.busy,
-            endedAt: view.busy
-                ? null
-                : before?.busy === true
-                  ? Date.now()
-                  : (before?.endedAt ?? null),
             answer: answer?.role === "assistant" ? answer : undefined,
         });
         host.notifySessionChanged(owner);

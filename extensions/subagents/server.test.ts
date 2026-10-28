@@ -750,44 +750,11 @@ void describe("subagents", () => {
                 );
 
             assert.deepEqual(await named(parent.id), [
-                { session: children[0], name: "Alpha", profile: "counter", endedAt: null },
-                { session: children[1], name: "Checker", profile: "checker", endedAt: null },
+                { session: children[0], name: "Alpha", profile: "counter" },
+                { session: children[1], name: "Checker", profile: "checker" },
             ]);
             assert.equal(wiring.reads, 1, "one read of the parent's record serves all its agents");
 
-            const view = (id: number, busy: boolean) =>
-                wiring.listeners[0]?.({
-                    session: { id, cwd: dir, owner: parent.id },
-                    entries: [],
-                    busy,
-                });
-            const endedAt = async () =>
-                (await named(parent.id)).map((agent) => [agent.name, agent.endedAt] as const);
-            const first = children[0] ?? 0;
-
-            await view(first, true);
-            assert.deepEqual(
-                await endedAt(),
-                [
-                    ["Alpha", null],
-                    ["Checker", null],
-                ],
-                "working",
-            );
-
-            const before = Date.now();
-
-            await view(first, false);
-
-            const [alpha, checker] = await endedAt();
-
-            assert.ok(alpha?.[1] !== null && alpha?.[1] !== undefined && alpha[1] >= before);
-            assert.equal(checker?.[1], null, "an agent whose end was not seen has no time");
-
-            await view(first, false);
-            assert.equal((await endedAt())[0]?.[1], alpha?.[1], "a later commit does not move it");
-            await view(first, true);
-            assert.equal((await endedAt())[0]?.[1], null, "working again clears it");
             assert.deepEqual(await named(children[0] ?? 0), [], "an agent started none");
             assert.deepEqual(
                 await named(parent.id + 1000),

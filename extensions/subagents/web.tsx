@@ -18,14 +18,7 @@ import type {
 } from "@/sdk/types.ts";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
-import {
-    agentsOf,
-    areaParent,
-    endedAtOf,
-    finishedAgo,
-    hasWorkingAgent,
-    workingAgentCount,
-} from "./area.ts";
+import { agentsOf, areaParent, finishedAgo, hasWorkingAgent, workingAgentCount } from "./area.ts";
 import { agents, type NamedAgent, type Strip, strip, type StripAgent } from "./refs.ts";
 
 const WARN_ABOVE = 70;
@@ -232,7 +225,6 @@ function AgentRow({
     kid,
     name,
     profile,
-    endedAt,
     current,
     now,
     openSession,
@@ -240,12 +232,11 @@ function AgentRow({
     kid: SessionSummary;
     name: string;
     profile: string | undefined;
-    endedAt: number | null;
     current: boolean;
     now: number;
     openSession: (id: number) => void;
 }) {
-    const status = kid.busy ? "working" : finishedAgo(endedAt, now);
+    const status = kid.busy ? "working" : finishedAgo(kid.endedAt, now);
 
     return (
         <li>
@@ -285,10 +276,8 @@ function AgentRow({
 function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
     const open = session?.id ?? null;
     const parent = areaParent(open, sessions);
-    const children = parent === undefined ? [] : agentsOf(parent.id, sessions);
-    const names = useNames(parent?.id ?? null, children);
-    const kids =
-        parent === undefined ? [] : agentsOf(parent.id, sessions, endedAtOf(names.values()));
+    const kids = parent === undefined ? [] : agentsOf(parent.id, sessions);
+    const names = useNames(parent?.id ?? null, kids);
     const now = useMinute();
     const list = useRef<HTMLUListElement>(null);
 
@@ -326,7 +315,6 @@ function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
                         kid={kid}
                         name={names.get(kid.id)?.name ?? kid.title ?? "Agent"}
                         profile={names.get(kid.id)?.profile}
-                        endedAt={names.get(kid.id)?.endedAt ?? null}
                         current={kid.id === open}
                         now={now}
                         openSession={openSession}

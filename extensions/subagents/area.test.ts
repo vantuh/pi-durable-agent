@@ -6,7 +6,6 @@ import {
     age,
     agentsOf,
     areaParent,
-    endedAtOf,
     finishedAgo,
     hasWorkingAgent,
     workingAgentCount,
@@ -50,8 +49,8 @@ void describe("agentsOf", () => {
     void it("lists only the parent's agents: working first, then finished ones, newest first", () => {
         const rows = agentsOf(1, [
             session(1),
-            session(2, { parent: 1, activeAt: 500 }),
-            session(3, { parent: 1, activeAt: 900 }),
+            session(2, { parent: 1, activeAt: 900, endedAt: 500 }),
+            session(3, { parent: 1, activeAt: 100, endedAt: 900 }),
             session(4, { parent: 1, activeAt: 100, busy: true }),
             session(5, { parent: 1, activeAt: 300, busy: true }),
             session(6, { parent: 7, busy: true }),
@@ -61,18 +60,14 @@ void describe("agentsOf", () => {
         assert.deepEqual(ids(rows), [5, 4, 3, 2]);
     });
 
-    void it("places a finished agent by when its run ended, where that is known", () => {
-        const rows = agentsOf(
-            1,
-            [
-                session(2, { parent: 1, activeAt: 100 }),
-                session(3, { parent: 1, activeAt: 300 }),
-                session(4, { parent: 1, activeAt: 200 }),
-            ],
-            new Map([[2, 900]]),
-        );
+    void it("puts a finished agent whose end is unknown last, whatever its activeAt", () => {
+        const rows = agentsOf(1, [
+            session(2, { parent: 1, activeAt: 900 }),
+            session(3, { parent: 1, activeAt: 300, endedAt: 100 }),
+            session(4, { parent: 1, activeAt: 200, endedAt: 200 }),
+        ]);
 
-        assert.deepEqual(ids(rows), [2, 3, 4]);
+        assert.deepEqual(ids(rows), [4, 3, 2]);
     });
 
     void it("keeps a stable order for agents without a time", () => {
@@ -104,19 +99,8 @@ void describe("finishedAgo", () => {
     });
 
     void it("drops the time when the session has none", () => {
-        assert.equal(finishedAgo(null, now), "finished");
+        assert.equal(finishedAgo(undefined, now), "finished");
         assert.equal(age(now - 2 * MINUTE, now), "2m");
-    });
-});
-
-void describe("endedAtOf", () => {
-    void it("keeps only the agents whose end is known", () => {
-        const ended = endedAtOf([
-            { session: 2, endedAt: 50 },
-            { session: 3, endedAt: null },
-        ]);
-
-        assert.deepEqual([...ended], [[2, 50]]);
     });
 });
 

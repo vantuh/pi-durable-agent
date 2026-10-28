@@ -65,15 +65,13 @@ export const strip = actionRef<undefined, Strip>("subagents", "strip", (value) =
 });
 
 /**
- * An agent a conversation started: its name and profile from that conversation's record, and when
- * this process saw its run end. `endedAt` is null while it works, and after a restart until it
- * works again: the session list has no time for the end of a run.
+ * An agent a conversation started: its name and profile from that conversation's record. When its
+ * run ended is not here: it is `SessionSummary.endedAt`, from the core.
  */
 export type NamedAgent = {
     session: number;
     name: string;
     profile: string;
-    endedAt: number | null;
 };
 
 function isNamedAgent(value: unknown): value is NamedAgent {
@@ -81,9 +79,7 @@ function isNamedAgent(value: unknown): value is NamedAgent {
         isRecord(value) &&
         typeof Reflect.get(value, "session") === "number" &&
         typeof Reflect.get(value, "name") === "string" &&
-        typeof Reflect.get(value, "profile") === "string" &&
-        (Reflect.get(value, "endedAt") === null ||
-            typeof Reflect.get(value, "endedAt") === "number")
+        typeof Reflect.get(value, "profile") === "string"
     );
 }
 

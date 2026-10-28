@@ -269,11 +269,13 @@ click opens the agent in the app; a modified click is the browser's.
 Names and profiles come from the `agents` action, which reads the parent's `subagents.agents`
 document once; an agent with no record shows its session title.
 
-**The time in `finished 4m ago`.** The session list has no time for the end of a run:
-`SessionSummary.activeAt` is when a person last wrote to the session or created it, and for an
-agent it stays near the moment it was started. So the `agents` action reports `endedAt`, the
-moment this process saw the agent's run end in a commit. It is lost on a restart: an agent that
-ended before the last start shows `finished` with no time, and sorts by `activeAt`.
+**The time in `finished 4m ago`.** It is `SessionSummary.endedAt` from the core: the end of the
+conversation's latest run, stored with the conversation, so it survives a restart. It is not
+`activeAt`, which is when a person last wrote to the session or created it and for an agent stays
+near the moment it was started. An agent whose end the core never recorded (it finished before the
+core began to store it) shows plain `finished` and sorts after the agents with a known end.
+Finished agents are ordered by `endedAt`, newest first. The `agents` action returns only names and
+profiles.
 
 ### Status bar and popover
 
