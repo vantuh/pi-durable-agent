@@ -16,6 +16,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
@@ -140,6 +141,8 @@ export function ModelMenu({
                 <Command
                     label="Models"
                     shouldFilter={false}
+                    // A hover shows a hover colour and nothing else: the mark moves on a click or an arrow key.
+                    disablePointerSelection
                     {...(chosen === null ? {} : { value: chosen })}
                     onValueChange={setChosen}
                     onKeyDown={applyOnEnter}
@@ -150,57 +153,59 @@ export function ModelMenu({
                         onValueChange={setQuery}
                         placeholder="Search models"
                     />
-                    <CommandList label="Models" className="px-1.5 pb-1.5">
-                        <CommandEmpty>No model matches.</CommandEmpty>
+                    <ScrollArea className="min-h-0 flex-1">
+                        <CommandList label="Models" className="px-1.5 pb-1.5">
+                            <CommandEmpty>No model matches.</CommandEmpty>
 
-                        {shown.map((model) => {
-                            const key = `${model.provider}/${model.id}`;
+                            {shown.map((model) => {
+                                const key = `${model.provider}/${model.id}`;
 
-                            return (
-                                <CommandItem
-                                    key={key}
-                                    value={key}
-                                    onDoubleClick={() => {
-                                        apply(model);
-                                    }}
-                                    className="justify-between pr-1.5"
-                                >
-                                    <span className="min-w-0">
-                                        <span className="text-ink text-interface block truncate">
-                                            {model.name}
+                                return (
+                                    <CommandItem
+                                        key={key}
+                                        value={key}
+                                        onDoubleClick={() => {
+                                            apply(model);
+                                        }}
+                                        className="justify-between pr-1.5"
+                                    >
+                                        <span className="min-w-0">
+                                            <span className="text-ink text-interface block truncate">
+                                                {model.name}
+                                            </span>
+                                            <span className="text-faint text-meta block truncate">
+                                                {model.provider} ·{" "}
+                                                {Math.round(model.contextWindow / 1000)}k
+                                                {defaultModel?.provider === model.provider &&
+                                                defaultModel.modelId === model.id
+                                                    ? " · default"
+                                                    : ""}
+                                            </span>
                                         </span>
-                                        <span className="text-faint text-meta block truncate">
-                                            {model.provider} ·{" "}
-                                            {Math.round(model.contextWindow / 1000)}k
-                                            {defaultModel?.provider === model.provider &&
-                                            defaultModel.modelId === model.id
-                                                ? " · default"
-                                                : ""}
-                                        </span>
-                                    </span>
-                                    {key === chosen ? (
-                                        <Check className="text-accent size-4 shrink-0" />
-                                    ) : null}
-                                    {onAddScoped !== undefined &&
-                                    tab === "all" &&
-                                    !scopedKeys.has(key) ? (
-                                        <button
-                                            type="button"
-                                            title="Add to scoped models"
-                                            aria-label="Add to scoped models"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onAddScoped(model);
-                                            }}
-                                            className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
-                                        >
-                                            <Plus className="size-4" />
-                                        </button>
-                                    ) : null}
-                                </CommandItem>
-                            );
-                        })}
-                    </CommandList>
+                                        {key === chosen ? (
+                                            <Check className="text-accent size-4 shrink-0" />
+                                        ) : null}
+                                        {onAddScoped !== undefined &&
+                                        tab === "all" &&
+                                        !scopedKeys.has(key) ? (
+                                            <button
+                                                type="button"
+                                                title="Add to scoped models"
+                                                aria-label="Add to scoped models"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    onAddScoped(model);
+                                                }}
+                                                className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
+                                            >
+                                                <Plus className="size-4" />
+                                            </button>
+                                        ) : null}
+                                    </CommandItem>
+                                );
+                            })}
+                        </CommandList>
+                    </ScrollArea>
                 </Command>
 
                 <div className="border-edge-soft border-t px-3 py-2">

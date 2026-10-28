@@ -33,13 +33,9 @@ export function CommandInput({
     );
 }
 
+/** The list box. It does not scroll itself: the caller gives it a viewport, such as a `ScrollArea`. */
 export function CommandList({ className, ...props }: ComponentProps<typeof CommandPrimitive.List>) {
-    return (
-        <CommandPrimitive.List
-            className={cn("min-h-0 flex-1 overflow-x-hidden overflow-y-auto", className)}
-            {...props}
-        />
-    );
+    return <CommandPrimitive.List className={cn("w-full", className)} {...props} />;
 }
 
 export function CommandEmpty({
@@ -55,7 +51,7 @@ export function CommandItem({ className, ...props }: ComponentProps<typeof Comma
     return (
         <CommandPrimitive.Item
             className={cn(
-                "rounded-control data-[selected=true]:bg-raised flex cursor-default items-center gap-2 px-2 py-1.5 outline-none select-none",
+                "rounded-control hover:bg-raised/50 data-[selected=true]:bg-raised flex cursor-default items-center gap-2 px-2 py-1.5 outline-none select-none",
                 className,
             )}
             {...props}
