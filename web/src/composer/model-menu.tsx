@@ -57,6 +57,7 @@ export function ModelMenu({
     const [chosen, setChosen] = useState<string | null>(current);
     const [thinking, setThinking] = useState<string | null>(null);
     const search = useRef<HTMLInputElement>(null);
+    const root = useRef<HTMLDivElement>(null);
 
     const scopedList = scoped ?? [];
     // Nothing scoped yet: the tabs still say so, but the list offers the catalog rather than nothing.
@@ -116,13 +117,17 @@ export function ModelMenu({
                 aria-describedby={undefined}
                 className="bg-panel sm:h-[min(36rem,80dvh)] sm:max-w-xl"
                 onOpenAutoFocus={(event) => {
-                    // A phone would put the on-screen keyboard over the list; there Radix focuses the tabs.
-                    if (!window.matchMedia("(pointer: fine)").matches) {
+                    // The keys must work at once. A phone would put its on-screen keyboard over the
+                    // list, so there the menu itself takes them and the search box waits for a tap.
+                    const target = (window.matchMedia("(pointer: fine)").matches ? search : root)
+                        .current;
+
+                    if (target === null) {
                         return;
                     }
 
                     event.preventDefault();
-                    search.current?.focus();
+                    target.focus();
                 }}
             >
                 <DialogHeader className="flex-row items-center gap-3 py-2">
@@ -143,6 +148,7 @@ export function ModelMenu({
                 </DialogHeader>
 
                 <Command
+                    ref={root}
                     label="Models"
                     shouldFilter={false}
                     // A hover shows a hover colour and nothing else: the mark moves on a click or an arrow key.
