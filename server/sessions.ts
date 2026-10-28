@@ -14,6 +14,7 @@ import {
     type Harness,
 } from "@earendil-works/pi-durable";
 
+import type { SessionSummary } from "../shared/protocol.ts";
 import { projectEntry } from "./projection.ts";
 
 /** When a person last wrote to a session, or created it. 0 until something sets it. */
@@ -83,21 +84,6 @@ const SettingsDoc = defineDoc({
 export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-
-export type SessionSummary = {
-    id: ConversationId;
-    /** The name set by hand; null while the first question still names the session. */
-    name: string | null;
-    title: string | null;
-    cwd: string | null;
-    model: string | null;
-    thinkingLevel: string | null;
-    busy: boolean;
-    archived: boolean;
-    activeAt: number | null;
-    /** A run ended after the session was last seen. */
-    unseen: boolean;
-};
 
 export type Opened = {
     id: ConversationId;
