@@ -14,6 +14,7 @@ import {
 import { ScrollArea } from "../components/ui/scroll-area.tsx";
 import { useStatusRowItems } from "../extensions.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
+import { holdingRow } from "../lib/session-nesting.ts";
 import { statusRows } from "../lib/status-rows.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { SessionRowContent } from "./session-parts.tsx";
@@ -201,12 +202,14 @@ function Row({ session, sessions, now, isOpen, openSession, onClose }: RowProps)
 /** The rows; their clock is read when the menu opens, so the times hold still while it is read. */
 function Rows({
     active,
+    activeIsOpen,
     others,
     sessions,
     onOpen,
     onClose,
 }: {
     active: SessionSummary | undefined;
+    activeIsOpen: boolean;
     others: SessionSummary[];
     sessions: SessionSummary[];
     onOpen: (id: number) => void;
@@ -221,7 +224,9 @@ function Rows({
 
     return (
         <>
-            {active === undefined ? null : <Row session={active} isOpen {...rowProps} />}
+            {active === undefined ? null : (
+                <Row session={active} isOpen={activeIsOpen} {...rowProps} />
+            )}
             {others.map((session) => (
                 <Row key={session.id} session={session} isOpen={false} {...rowProps} />
             ))}
@@ -233,10 +238,12 @@ function Rows({
 export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
     const [open, setOpen] = useState(false);
     const markers = useStatusRowItems();
-    const { working, marked, unseen } = statusRows(sessions, current, (session) =>
+    // A nested session has no row of its own: the row that holds it stands in for it.
+    const holder = holdingRow(current, sessions);
+    const { working, marked, unseen } = statusRows(sessions, holder ?? current, (session) =>
         markers.some((marker) => marker.has(session, sessions)),
     );
-    const active = sessions.find((session) => session.id === current);
+    const active = sessions.find((session) => session.id === (holder ?? current));
 
     return (
         <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
@@ -265,6 +272,7 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
             >
                 <Rows
                     active={active}
+                    activeIsOpen={holder === null}
                     others={[...working, ...marked, ...unseen]}
                     sessions={sessions}
                     onOpen={onOpen}
