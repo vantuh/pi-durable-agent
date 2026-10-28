@@ -137,7 +137,7 @@ agents among the main session rows. Step one, the compact working-agents strip a
 core `aboveComposer` slot, the `strip` action, and `web.tsx` (see the README's UI section). Stop
 for the owner's verification of it before anything below. Since built (see 1b and the
 README): the lower sidebar area with all agents of the selected parent, children left out of the
-main list, the status count and the popover marker. A finished agent's row says `finished N ago`
+main list, the status count and the popover marker. A finished agent's row says `N ago`
 from `SessionSummary.endedAt`, which the core stores per conversation; the extension keeps no end
 time of its own. The area is absent for a parent with no agents; visiting a child keeps a "← Back to" link to its parent. Deletion semantics still need a
 decision (1a). The original options below are investigation context, not the current approved UI

@@ -263,13 +263,13 @@ every agent of the open session, or of the session that started the open one, so
 stay visible while one is open. It is absent when there are none, and for an agent whose parent
 is not in the list (that agent is a row of the main list). Working agents come first, then
 finished ones, newest first. A row has the working mark, the agent's name and `working`, or a
-dimmed name with `finished 4m ago`. The open agent has the selected row's background. A plain
+dimmed name with `4m ago`. The open agent has the selected row's background. A plain
 click opens the agent in the app; a modified click is the browser's.
 
 Names and profiles come from the `agents` action, which reads the parent's `subagents.agents`
 document once; an agent with no record shows its session title.
 
-**The time in `finished 4m ago`.** It is `SessionSummary.endedAt` from the core: the end of the
+**The time in `4m ago`.** It is `SessionSummary.endedAt` from the core: the end of the
 conversation's latest run, stored with the conversation, so it survives a restart. It is not
 `activeAt`, which is when a person last wrote to the session or created it and for an agent stays
 near the moment it was started. An agent whose end the core never recorded (it finished before the

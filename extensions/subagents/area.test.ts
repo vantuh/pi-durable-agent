@@ -85,17 +85,17 @@ void describe("finishedAgo", () => {
     const MINUTE = 60_000;
 
     void it("says minutes, hours and days, each cut down", () => {
-        assert.equal(finishedAgo(now - 4 * MINUTE - 59_000, now), "finished 4m ago");
-        assert.equal(finishedAgo(now - 59 * MINUTE, now), "finished 59m ago");
-        assert.equal(finishedAgo(now - 60 * MINUTE, now), "finished 1h ago");
-        assert.equal(finishedAgo(now - 23 * 60 * MINUTE, now), "finished 23h ago");
-        assert.equal(finishedAgo(now - 24 * 60 * MINUTE, now), "finished 1d ago");
-        assert.equal(finishedAgo(now - 10 * 24 * 60 * MINUTE, now), "finished 10d ago");
+        assert.equal(finishedAgo(now - 4 * MINUTE - 59_000, now), "4m ago");
+        assert.equal(finishedAgo(now - 59 * MINUTE, now), "59m ago");
+        assert.equal(finishedAgo(now - 60 * MINUTE, now), "1h ago");
+        assert.equal(finishedAgo(now - 23 * 60 * MINUTE, now), "23h ago");
+        assert.equal(finishedAgo(now - 24 * 60 * MINUTE, now), "1d ago");
+        assert.equal(finishedAgo(now - 10 * 24 * 60 * MINUTE, now), "10d ago");
     });
 
     void it("never says 0m, and does not go negative when the clock is behind", () => {
-        assert.equal(finishedAgo(now - 20_000, now), "finished just now");
-        assert.equal(finishedAgo(now + 5 * MINUTE, now), "finished just now");
+        assert.equal(finishedAgo(now - 20_000, now), "just now");
+        assert.equal(finishedAgo(now + 5 * MINUTE, now), "just now");
     });
 
     void it("drops the time when the session has none", () => {

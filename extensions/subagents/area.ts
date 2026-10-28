@@ -51,13 +51,13 @@ export function age(at: number, now: number): string {
         : `${String(Math.floor(elapsed / DAY))}d`;
 }
 
-/** What the row of a finished agent says; no time when the end of its run is unknown. */
+/** What the row of a finished agent says: how long ago, or "finished" when the end of its run is unknown. */
 export function finishedAgo(at: number | undefined, now: number): string {
     if (at === undefined) {
         return "finished";
     }
 
-    return now - at < MINUTE ? "finished just now" : `finished ${age(at, now)} ago`;
+    return now - at < MINUTE ? "just now" : `${age(at, now)} ago`;
 }
 
 /** Whether a session has an agent working now: the marker in the status popover. */
