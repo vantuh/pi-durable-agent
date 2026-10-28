@@ -48,6 +48,11 @@ function compact(count: number): string {
     return count < 1000 ? String(count) : `${(count / 1000).toFixed(1)}k`;
 }
 
+// The provider is in the hover title; the chip has room for the model's own name.
+function shortModel(model: string): string {
+    return model.slice(model.indexOf("/") + 1);
+}
+
 function hover(agent: StripAgent): string {
     const context =
         agent.window > 0
@@ -76,6 +81,11 @@ function Chip({ agent, href, onOpen }: { agent: StripAgent; href: string; onOpen
         >
             <span className="state-mark working text-warn" aria-hidden />
             <span className="text-ink text-meta max-w-[120px] truncate">{agent.name}</span>
+            {agent.model === "" ? null : (
+                <span className="text-faint max-w-[84px] truncate text-[10px]">
+                    {shortModel(agent.model)}
+                </span>
+            )}
             <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
                 {agent.window > 0 ? (
                     <>

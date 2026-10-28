@@ -260,8 +260,9 @@ no panel, settings controls, or agents count in the status bar.
 Above the composer, in the `aboveComposer` slot, one horizontal line shows the agents the open
 conversation started that are working now. With none working, nothing is drawn, not even an empty
 row. Each chip is a link to the agent's conversation: the animated working mark, the agent's name,
-and a context bar with a percentage. The bar turns `warn` above 70%. The model, profile and exact
-token counts are in the hover title, not on the chip. There is no speed figure.
+its model (the id without the provider, in small faint text, cut at 84px), and a context bar with a
+percentage. The bar turns `warn` above 70%. The full model with its provider, the profile and the
+exact token counts are in the hover title. There is no speed figure.
 
 - The line scrolls sideways when the chips do not fit. Chips are 36px tall, 40px under 760px wide.
 - The percentage is an estimate like the context meter's: the agent's latest answer (input, output,
