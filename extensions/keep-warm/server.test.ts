@@ -331,6 +331,7 @@ void test("names the warmed conversations with the titles the core keeps", async
         sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: () => undefined,
     };
@@ -401,6 +402,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: () => undefined,
     };
@@ -470,6 +472,7 @@ void test("builds no request for a conversation the user left too long ago for a
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: () => undefined,
     };

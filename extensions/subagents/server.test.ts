@@ -64,6 +64,7 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
             titles.set(session, title);
             return Promise.resolve();
         },
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: (session) => {
             wiring.notified.push(session);

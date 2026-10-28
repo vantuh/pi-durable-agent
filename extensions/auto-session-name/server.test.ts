@@ -222,6 +222,7 @@ function hostOf(options: {
 
             return Promise.resolve();
         },
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: () => undefined,
         sessionRequest: () =>

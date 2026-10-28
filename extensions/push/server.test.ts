@@ -393,6 +393,7 @@ void describe("push", () => {
                 sessionTitle: () => Promise.resolve(null),
                 sessionName: () => Promise.resolve(null),
                 setSessionTitle: () => Promise.resolve(),
+                readDoc: (doc) => Promise.resolve(doc.definition.initial()),
                 setSessionMark: () => undefined,
                 notifySessionChanged: () => undefined,
             };

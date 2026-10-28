@@ -20,7 +20,13 @@ import type {
     ModelThinkingLevel,
     Provider,
 } from "@earendil-works/pi-ai";
-import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
+import type {
+    ConversationDocToken,
+    EntryRecord,
+    Extension,
+    JsonObject,
+    Registry,
+} from "@earendil-works/pi-durable";
 
 import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
 import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
@@ -73,6 +79,15 @@ export type Host = {
     readonly sessionName: (session: number) => Promise<string | null>;
     /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
     readonly setSessionTitle: (session: number, title: string) => Promise<void>;
+    /**
+     * The current value of a conversation document, or its initial value while that conversation has
+     * none. It is for the places a tool call's `api.snapshot` does not reach: a commit listener and an
+     * action. It only reads: no document is created and no revision moves.
+     */
+    readonly readDoc: <T extends JsonObject>(
+        doc: ConversationDocToken<T>,
+        session: number,
+    ) => Promise<Readonly<T>>;
     /**
      * What the session's row says instead of the working pulse, for as long as this version is
      * installed; `undefined` takes it back. Dropped with the version that set it.
@@ -372,6 +387,7 @@ export class Extensions {
     readonly #sessionTitle: Host["sessionTitle"];
     readonly #sessionName: Host["sessionName"];
     readonly #setSessionTitle: Host["setSessionTitle"];
+    readonly #readDoc: Host["readDoc"];
     readonly #sessionListChanged: () => void;
     readonly #sessionChanged: (session: number) => void;
     /** Per folder, the marks its live version put on session rows; dropped with that version. */
@@ -408,6 +424,7 @@ export class Extensions {
         sessionTitle?: Host["sessionTitle"];
         sessionName?: Host["sessionName"];
         setSessionTitle?: Host["setSessionTitle"];
+        readDoc?: Host["readDoc"];
         sessionListChanged?: () => void;
         sessionChanged?: (session: number) => void;
     }) {
@@ -424,6 +441,7 @@ export class Extensions {
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
+        this.#readDoc = options.readDoc ?? ((doc) => Promise.resolve(doc.definition.initial()));
         this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
         this.#sessionChanged = options.sessionChanged ?? (() => undefined);
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
@@ -854,6 +872,7 @@ export class Extensions {
             sessionTitle: (session) => this.#sessionTitle(session),
             sessionName: (session) => this.#sessionName(session),
             setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
+            readDoc: (doc, session) => this.#readDoc(doc, session),
             setSessionMark: (session, mark) => {
                 const marks = this.#marks.get(folder) ?? new Map<number, string>();
 

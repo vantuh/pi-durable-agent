@@ -8,10 +8,12 @@ import type { Context } from "@earendil-works/chord/context";
 import { type Api, clampThinkingLevel, type Model } from "@earendil-works/pi-ai";
 import {
     type Conversation,
+    type ConversationDocToken,
     type ConversationId,
     type Cursor,
     defineDoc,
     type Harness,
+    type JsonObject,
 } from "@earendil-works/pi-durable";
 
 import type { SessionSummary } from "../shared/protocol.ts";
@@ -329,6 +331,17 @@ export class Sessions {
         const record = await this.#harness.commit((tx) => tx.conversation(id), this.#context);
 
         return record?.owner === undefined ? undefined : Number(record.owner.conversationId);
+    }
+
+    /**
+     * The current value of a conversation document, or its initial value while the conversation has
+     * none. It only reads: no document is created and no revision moves.
+     */
+    async readDoc<T extends JsonObject>(
+        doc: ConversationDocToken<T>,
+        id: ConversationId,
+    ): Promise<Readonly<T>> {
+        return (await this.#harness.snapshot(doc, id, this.#context)) ?? doc.definition.initial();
     }
 
     /** A deleted session is out of the lists for good; its rows stay in storage. */

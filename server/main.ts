@@ -13,9 +13,11 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import {
     type Conversation,
+    type ConversationDocToken,
     type ConversationId,
     createRegistry,
     Harness,
+    type JsonObject,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
@@ -196,6 +198,15 @@ async function sessionOwnerOf(session: number): Promise<number | undefined> {
 async function sessionNameOf(session: number): Promise<string | null> {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
     return await sessions.name(session as ConversationId);
+}
+
+/** A conversation document's value for an extension that reads outside a tool call. */
+async function readDocOf<T extends JsonObject>(
+    doc: ConversationDocToken<T>,
+    session: number,
+): Promise<Readonly<T>> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
+    return await sessions.readDoc(doc, session as ConversationId);
 }
 
 /**
@@ -492,6 +503,7 @@ async function boot(): Promise<void> {
         sessionTitle: sessionTitleOf,
         sessionName: sessionNameOf,
         setSessionTitle: setSessionTitleOf,
+        readDoc: readDocOf,
         sessionListChanged: listChanged,
         sessionChanged: changes.notify,
         registry,

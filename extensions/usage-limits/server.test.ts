@@ -223,6 +223,7 @@ void test("settings: missing or broken file shows everything; actions validate a
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: () => undefined,
         wrapModelFetch: () => undefined,
