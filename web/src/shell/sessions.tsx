@@ -425,31 +425,33 @@ export function Sessions({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                             align="start"
-                            className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto"
+                            className="w-(--radix-dropdown-menu-trigger-width)"
                         >
-                            {[...folders].map(([cwd, count]) => (
-                                <DropdownMenuItem
-                                    key={cwd}
-                                    title={cwd}
-                                    onSelect={() => {
-                                        const [first] = latest(cwd);
+                            <ScrollArea viewportProps={{ className: "max-h-72" }}>
+                                {[...folders].map(([cwd, count]) => (
+                                    <DropdownMenuItem
+                                        key={cwd}
+                                        title={cwd}
+                                        onSelect={() => {
+                                            const [first] = latest(cwd);
 
-                                        if (first !== undefined) {
-                                            onFolder(first.id);
+                                            if (first !== undefined) {
+                                                onFolder(first.id);
+                                            }
+                                        }}
+                                        className={
+                                            cwd === folder
+                                                ? "bg-raised"
+                                                : "data-[highlighted]:bg-raised/50"
                                         }
-                                    }}
-                                    className={
-                                        cwd === folder
-                                            ? "bg-raised"
-                                            : "data-[highlighted]:bg-raised/50"
-                                    }
-                                >
-                                    <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
-                                        {folderName(cwd)}
-                                    </span>
-                                    <span className="text-faint text-meta">{count}</span>
-                                </DropdownMenuItem>
-                            ))}
+                                    >
+                                        <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
+                                            {folderName(cwd)}
+                                        </span>
+                                        <span className="text-faint text-meta">{count}</span>
+                                    </DropdownMenuItem>
+                                ))}
+                            </ScrollArea>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
