@@ -50,6 +50,13 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   a person last wrote to it (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
   was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each
   with its count; a session with no known time is under `Older` and shows no time.
+- **Started from another session**: a session with `parent` (the one it was started from) is not a
+  row while that parent is in the full session list, whatever the folder, archive or search
+  filter. The folder counts, the group counts and the search follow the rows shown. When such a
+  session is open, its parent's row takes the open row's background and `aria-current="true"`. A
+  child whose parent is not in the list stays a row, so nothing becomes unreachable. Everything
+  else (status bar, toasts, unseen, the home page, recent folders) still reads the full list.
+  The rule is `web/src/lib/session-nesting.ts`.
 - **Rows are links** (`?session=N`): a plain click opens the session in place, a modified or middle
   click opens it in a new tab.
 - **Where the time comes from**: the `app.clock` document of each conversation (`activeAt`), set when

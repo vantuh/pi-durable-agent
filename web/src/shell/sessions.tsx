@@ -35,6 +35,7 @@ import {
 import { type FolderSessionMenuItem, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
+import { holdingRow, sidebarSessions } from "../lib/session-nesting.ts";
 import { toast } from "../lib/toast.ts";
 import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
 
@@ -61,6 +62,7 @@ function iconOf(
 }
 
 type Props = {
+    /** Every session, unfiltered: the rows leave out the ones started from another session in this list. */
     sessions: SessionSummary[];
     /** Null on the home page. */
     current: number | null;
@@ -308,16 +310,19 @@ export function Sessions({
         };
     }, []);
 
+    // Checked against the full list, before the folder, archive and search filters below.
+    const topLevel = sidebarSessions(sessions);
+    const holding = holdingRow(current, sessions);
     const folders = new Map<string, number>();
 
-    for (const session of sessions) {
+    for (const session of topLevel) {
         if (session.cwd !== null) {
             folders.set(session.cwd, (folders.get(session.cwd) ?? 0) + 1);
         }
     }
 
     const latest = (cwd: string | null): SessionSummary[] =>
-        sessions
+        topLevel
             .filter((session) => session.cwd === cwd)
             .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
 
@@ -566,7 +571,10 @@ export function Sessions({
                                         return (
                                             <div
                                                 key={session.id}
-                                                className={`session-row group rounded-control relative flex items-center ${session.id === current ? "bg-raised" : "hover:bg-raised/50"}`}
+                                                data-holds-open={
+                                                    session.id === holding ? "" : undefined
+                                                }
+                                                className={`session-row group rounded-control relative flex items-center ${session.id === current || session.id === holding ? "bg-raised" : "hover:bg-raised/50"}`}
                                             >
                                                 <a
                                                     href={sessionHref(session.id)}
@@ -580,7 +588,11 @@ export function Sessions({
                                                         stopSearch();
                                                     }}
                                                     aria-current={
-                                                        session.id === current ? "page" : undefined
+                                                        session.id === current
+                                                            ? "page"
+                                                            : session.id === holding
+                                                              ? "true"
+                                                              : undefined
                                                     }
                                                     className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
                                                 >

@@ -108,6 +108,7 @@ export function sessionsOf(value: unknown): SessionSummary[] {
             archived: row?.["archived"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
             unseen: row?.["unseen"] === true,
+            ...(typeof row?.["parent"] === "number" ? { parent: row["parent"] } : {}),
         });
     }
 
