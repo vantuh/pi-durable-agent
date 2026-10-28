@@ -243,7 +243,13 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
     const { working, marked, unseen } = statusRows(sessions, holder ?? current, (session) =>
         markers.some((marker) => marker.has(session, sessions)),
     );
-    const active = sessions.find((session) => session.id === (holder ?? current));
+    const openRow = sessions.find((session) => session.id === (holder ?? current));
+    // The open session is listed only while it is at work, like the others.
+    const active =
+        openRow !== undefined &&
+        (openRow.busy || markers.some((marker) => marker.has(openRow, sessions)))
+            ? openRow
+            : undefined;
 
     return (
         <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
@@ -280,12 +286,8 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
                         setOpen(false);
                     }}
                 />
-                {working.length + marked.length + unseen.length === 0 ? (
-                    <p className="text-meta text-faint px-2 py-1.5">
-                        {active === undefined
-                            ? "No session is working"
-                            : "No other session is working"}
-                    </p>
+                {active === undefined && working.length + marked.length + unseen.length === 0 ? (
+                    <p className="text-meta text-faint px-2 py-1.5">No session is working</p>
                 ) : null}
                 <DropdownMenuItem
                     className="text-muted mt-1 gap-2 px-2 py-1.5"
