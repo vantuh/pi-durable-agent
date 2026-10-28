@@ -250,6 +250,19 @@ conversation; a normal session is created `ownerless` (`server/sessions.ts`). Pl
 have `parent`. It names no extension, so it passes the core rule; give the reason in the commit
 body. Archiving is not the marker: it is manual and a different meaning.
 
+**Core half implemented** (commits `74c4b78`, `2dccbeb`, `08be6f6`). The extension side is not
+built. What the core now gives `web.tsx` (types in `web/src/sdk/types.ts`, contract in
+[docs/extensions.md](../../docs/extensions.md)):
+
+- The sidebar list leaves out a session whose `parent` is in the full list; the parent's row is
+  highlighted while a child is open. A child with a missing parent stays a row.
+- `sidebarBottom: [{ id, component }]`, props `StatusProps & { sessions, openSession }`: the area
+  under the list, with the resize handle. Return `null` for a parent with no agents.
+- Status items get `sessions` too (`StatusItemProps`): use it for the "N agents working" item.
+- `statusRow: [{ id, has(session, sessions), component }]`: a marker at the end of a status
+  popover row; a row with a marker is listed while idle. The submenu is `DropdownMenuSub*`.
+  The popover no longer lists children, so the extension's status item is their only count.
+
 **Watch out.** Do not strand work: a child whose parent is gone (deleted) still needs a way in, so
 show it top-level when its parent is not in the list. Visiting a child keeps its parent
 identifiable (the back link already does this). Ship together with, or after, the lower agents
