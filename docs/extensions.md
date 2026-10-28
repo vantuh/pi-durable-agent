@@ -387,6 +387,14 @@ has its own error boundary. The shell knows no feature by name.
 - Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
   beforehand. Failures are shown in the header popover and can be dismissed.
 
+## Blocks above the composer
+
+`web.tsx` may export `aboveComposer: [{ id, component }]`. The component renders between the
+transcript and the composer, inside its own error boundary, and follows the extension's enabled
+switch. Its props are `StatusProps` plus `openSession(id)`, the app's own navigation, so a link
+can open another session without a page load. A component that has nothing to show returns
+`null` and takes no space. `extensions/subagents` uses it for the strip of working agents.
+
 ## Composer items and Dictation
 
 `web.tsx` may export `composer: [{ id, component }]`. The component renders in the composer's row,

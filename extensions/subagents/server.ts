@@ -6,7 +6,7 @@
  */
 
 import type { Context } from "@earendil-works/chord/context";
-import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import { type AssistantMessage, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import {
     type AgentChange,
     AssistantEntry,
@@ -25,8 +25,9 @@ import {
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 
-import type { Host } from "../../server/sdk.ts";
+import type { Action, CommitView, Host } from "../../server/sdk.ts";
 import { type Profile, readProfiles } from "./profiles.ts";
+import type { Strip, StripAgent } from "./refs.ts";
 
 export const meta = {
     title: "Subagents",
@@ -73,7 +74,13 @@ const Anchor = defineTask<null, { phase: "done" }, null>({
         runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
 });
 
-type ReporterInput = { name: string; conversationId: ConversationId; message: string };
+type ReporterInput = {
+    name: string;
+    conversationId: ConversationId;
+    message: string;
+    /** Absent in tasks stored before the strip existed. */
+    profile?: string;
+};
 /** `report` is what the parent's model reads; `text`, what its screen shows under the agent's name. */
 type ReporterState = { phase: "deliver" } | { phase: "report"; report?: string; text?: string };
 
@@ -113,6 +120,8 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                                           text: message,
                                           author: "Orchestrator",
                                           session: runtime.conversationId,
+                                          agent: name,
+                                          profile: task.input.profile ?? "",
                                       },
                                   },
                                   whenBusy: "steer",
@@ -285,7 +294,116 @@ async function childAgent(
     };
 }
 
+type Child = { parent: number; name: string; profile: string };
+/** What the strip needs of an agent's conversation, as of its latest commit. */
+type Seen = { cwd: string | null; busy: boolean; answer: AssistantMessage | undefined };
+
+// Actions cannot read documents, so the agents a conversation started are learned from commits:
+// the instruction an agent was given names its parent. The link is kept when a compaction later
+// sets that entry aside.
+const children = new Map<number, Child>();
+const seen = new Map<number, Seen>();
+
+function childOf(entries: readonly EntryRecord[]): Child | undefined {
+    const instructions = entries.filter((entry) => entry.kind === "subagents.instruction");
+    const field = (entry: EntryRecord | undefined, key: string): unknown =>
+        typeof entry?.data === "object" && entry.data !== null
+            ? Reflect.get(entry.data, key)
+            : undefined;
+    // Instructions sent before the agent's name was recorded name only the parent.
+    const named = instructions.findLast((entry) => typeof field(entry, "agent") === "string");
+    const parent = field(instructions[0], "session");
+    const name = field(named, "agent");
+    const profile = field(named, "profile");
+
+    return typeof parent === "number"
+        ? {
+              parent,
+              name: typeof name === "string" && name !== "" ? name : "Agent",
+              profile: typeof profile === "string" ? profile : "",
+          }
+        : undefined;
+}
+
+async function stripAgent(host: Host, id: number, child: Child): Promise<StripAgent> {
+    const { answer, cwd } = seen.get(id) ?? { cwd: null, answer: undefined };
+    const used =
+        answer === undefined
+            ? 0
+            : answer.usage.input +
+              answer.usage.output +
+              answer.usage.cacheRead +
+              answer.usage.cacheWrite;
+    const window =
+        answer === undefined ? 0 : (host.contextWindow(answer.provider, answer.model) ?? 0);
+    // Before its first answer the profile is the only place that names the model.
+    const model =
+        answer === undefined
+            ? ((await readProfiles(cwd ?? host.cwd)).get(child.profile)?.model ?? "")
+            : `${answer.provider}/${answer.model}`;
+
+    return {
+        name: child.name,
+        profile: child.profile,
+        model,
+        session: id,
+        fill: window > 0 ? Math.min(100, Math.round((used / window) * 100)) : 0,
+        used,
+        window,
+        working: true,
+    };
+}
+
+export const actions = (host: Host): Record<string, Action> => ({
+    async strip({ session }): Promise<Strip> {
+        if (session === null) {
+            return { parent: null, agents: [] };
+        }
+
+        const link = children.get(session.id);
+
+        if (link !== undefined) {
+            const title = await host.sessionTitle(link.parent);
+
+            return { parent: { id: link.parent, title: title ?? "New session" }, agents: [] };
+        }
+
+        const working = [...children]
+            .filter(([id, child]) => child.parent === session.id && seen.get(id)?.busy === true)
+            .toSorted(([a], [b]) => a - b);
+
+        return {
+            parent: null,
+            agents: await Promise.all(working.map(([id, child]) => stripAgent(host, id, child))),
+        };
+    },
+});
+
 export default function subagents(host: Host) {
+    host.onDispose(() => {
+        children.clear();
+        seen.clear();
+    });
+    host.onCommit((view: CommitView) => {
+        const id = view.session.id;
+        const link = childOf(view.entries);
+
+        if (link !== undefined) {
+            children.set(id, link);
+        }
+
+        if (children.has(id)) {
+            const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")
+                ?.model?.[0];
+
+            seen.set(id, {
+                cwd: view.session.cwd,
+                busy: view.busy,
+                answer: answer?.role === "assistant" ? answer : undefined,
+            });
+        }
+    });
+
     // Agents get no agents of their own: the extension is removed from them by name.
     const self = defineExtension({ name: host.name });
 
@@ -376,7 +494,12 @@ export default function subagents(host: Host) {
                 };
                 await tx.createTask(
                     Reporter,
-                    { name, conversationId: child.id, message: task },
+                    {
+                        name,
+                        conversationId: child.id,
+                        message: task,
+                        profile: profile.name,
+                    },
                     { ownership: { kind: "conversation" }, background: true },
                 );
 
@@ -424,7 +547,12 @@ export default function subagents(host: Host) {
                     found.stopped = false;
                     await tx.createTask(
                         Reporter,
-                        { name, conversationId: found.conversationId, message },
+                        {
+                            name,
+                            conversationId: found.conversationId,
+                            message,
+                            profile: found.agent,
+                        },
                         { ownership: { kind: "conversation" }, background: true },
                     );
                 }

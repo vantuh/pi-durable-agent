@@ -255,6 +255,29 @@ Withdrawing a queued report does not cause the reporter to send it again.
 `web.tsx` registers the bot icon for all four `agent_*` tools in the activity timeline. It adds
 no panel, settings controls, or agents count in the status bar.
 
+### Working-agents strip
+
+Above the composer, in the `aboveComposer` slot, one horizontal line shows the agents the open
+conversation started that are working now. With none working, nothing is drawn, not even an empty
+row. Each chip is a link to the agent's conversation: the animated working mark, the agent's name,
+and a context bar with a percentage. The bar turns `warn` above 70%. The model, profile and exact
+token counts are in the hover title, not on the chip. There is no speed figure.
+
+- The line scrolls sideways when the chips do not fit. Chips are 36px tall, 40px under 760px wide.
+- The percentage is an estimate like the context meter's: the agent's latest answer (input, output,
+  cache read and write) over the model's context window. Before its first answer the chip shows a dash.
+- When the open conversation is itself an agent's, the strip is replaced by one link,
+  "← Back to <parent title>", with the same outer height, so the composer does not move between the
+  two views. A plain click opens the conversation in the app; a modified click opens a new tab.
+- The `strip` action (`refs.ts`) feeds it. The server learns which conversations are agents from
+  the `subagents.instruction` entry (its `session` is the parent, `agent` and `profile` name the
+  agent) as commits arrive, and takes "working" from the commit's busy flag. An agent started
+  before `agent` and `profile` were recorded appears as "Agent" with no profile until it is sent a
+  new message. The browser asks again when the open session or its `busy` flag changes, and every
+  2 seconds while at least one agent is working, since agents do not keep the parent busy.
+- The lower sidebar area with all agents, finished ones included, is not built; see
+  [HANDOFF.md](HANDOFF.md).
+
 ## Stop, direct messages, archive, and delete
 
 | Action                          | What happens now                                                                                                                                                       |
@@ -288,7 +311,8 @@ child process is created here.
 | ---------------- | --------------------------------------------------------------------------------------- |
 | `profiles.ts`    | Profile discovery, frontmatter parsing, and precedence.                                 |
 | `server.ts`      | Four tools, `agents` prompt section, durable agent document, anchor and reporter tasks. |
-| `web.tsx`        | Bot icons through the generic browser extension contract.                               |
+| `refs.ts`        | The `strip` action ref and its result type, shared by `server.ts` and `web.tsx`.        |
+| `web.tsx`        | Bot icons and the working-agents strip above the composer.                              |
 | `server.test.ts` | Real-Harness integration tests with a faux model and disposable SQLite storage.         |
 | `README.md`      | Current usage, behavior, constraints, and maintenance guide.                            |
 | `HANDOFF.md`     | Remaining proposals and historical implementation/verification context.                 |

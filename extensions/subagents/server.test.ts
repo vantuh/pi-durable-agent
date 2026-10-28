@@ -20,31 +20,43 @@ import {
     type ConversationId,
     createRegistry,
     Harness,
+    LiveDoc,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import type { Host } from "../../server/sdk.ts";
-import subagents from "./server.ts";
+import type { CommitListener, Host } from "../../server/sdk.ts";
+import { strip as stripRef } from "./refs.ts";
+import subagents, { actions } from "./server.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-function hostOf(cwd: string, titles: Map<number, string>): Host {
+type Wiring = {
+    listeners: CommitListener[];
+    disposers: (() => void | Promise<void>)[];
+    windowOf: () => number | undefined;
+};
+
+function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host {
     return {
         name: "subagents",
         cwd,
         dataDir: cwd,
         log: () => undefined,
-        onCommit: () => undefined,
-        onDispose: () => undefined,
+        onCommit: (listener) => {
+            wiring.listeners.push(listener);
+        },
+        onDispose: (dispose) => {
+            wiring.disposers.push(dispose);
+        },
         shapeModelRequests: () => undefined,
         registerModelProvider: () => () => undefined,
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
+        contextWindow: () => wiring.windowOf(),
         sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
+        sessionTitle: (session) => Promise.resolve(titles.get(session) ?? null),
         sessionName: () => Promise.resolve(null),
         setSessionTitle: (session, title) => {
             titles.set(session, title);
@@ -95,6 +107,8 @@ void describe("subagents", () => {
     let harness: Harness;
     let parent: Conversation;
     let titles: Map<number, string>;
+    let wiring: Wiring;
+    let host: Host;
     let previousAgentDir: string | undefined;
     const faux = fauxProvider({
         models: [
@@ -162,11 +176,13 @@ void describe("subagents", () => {
             auth: { apiKey: { name: "Locked", resolve: () => Promise.resolve(undefined) } },
         });
         titles = new Map();
+        wiring = { listeners: [], disposers: [], windowOf: () => undefined };
+        host = hostOf(dir, titles, wiring);
 
         const registry = createRegistry();
 
         registry.install(CodingTools);
-        registry.install(subagents(hostOf(dir, titles)));
+        registry.install(subagents(host));
         harness = await Harness.open(
             await openNodeSqliteStorage(join(dir, "state.sqlite")),
             { models, registry, env: () => new NodeExecutionEnv({ cwd: dir }) },
@@ -188,6 +204,9 @@ void describe("subagents", () => {
 
     afterEach(async () => {
         await harness.close(context);
+        for (const dispose of wiring.disposers) {
+            await dispose();
+        }
         process.env["PI_CODING_AGENT_DIR"] = previousAgentDir;
         await rm(dir, { recursive: true, force: true });
     });
@@ -256,6 +275,8 @@ void describe("subagents", () => {
             text: "Count the files.",
             author: "Orchestrator",
             session: parent.id,
+            agent: "Counter",
+            profile: "counter",
         });
 
         await writeProfile(`model: ${faux.provider.id}/parent\nthinking: high`);
@@ -420,5 +441,163 @@ void describe("subagents", () => {
         await parent.waitForIdle(context);
 
         assert.deepEqual(await userTexts(parent.id), ["count them", "stop it"]);
+    });
+    void describe("strip", () => {
+        const strip = async (session: number | null) =>
+            stripRef.parse(
+                await actions(host)["strip"]?.({
+                    args: undefined,
+                    session: session === null ? null : { id: session, cwd: dir },
+                }),
+            );
+
+        /** Feeds the commit listeners the way the server does after each commit. */
+        async function observe(conversation: Conversation): Promise<void> {
+            const page = await harness.commit(
+                (tx) =>
+                    tx.scanEntries({ conversationId: conversation.id, order: "ascending" }, 100),
+                context,
+            );
+            const busy =
+                (await harness.snapshot(LiveDoc, conversation.id, context))?.run !== undefined;
+
+            for (const listener of wiring.listeners) {
+                await listener({
+                    session: { id: conversation.id, cwd: dir },
+                    entries: page.items,
+                    busy,
+                });
+            }
+        }
+
+        async function lastAnswer(id: ConversationId): Promise<AssistantMessage | undefined> {
+            const page = await harness.commit(
+                (tx) => tx.scanEntries({ conversationId: id, order: "ascending" }, 100),
+                context,
+            );
+            const message = page.items.findLast((entry) => entry.kind === "pi.assistant")
+                ?.model?.[0];
+
+            return message?.role === "assistant" ? message : undefined;
+        }
+
+        async function untilWorking(conversation: Conversation): Promise<void> {
+            for (let attempt = 0; attempt < 300; attempt++) {
+                if (
+                    (await harness.snapshot(LiveDoc, conversation.id, context))?.run !== undefined
+                ) {
+                    return;
+                }
+
+                await delay(10);
+            }
+
+            assert.fail("the agent never started working");
+        }
+
+        async function childOfParent(): Promise<Conversation> {
+            const childId = [...titles.keys()].find((id) => id !== parent.id);
+
+            assert.ok(childId !== undefined);
+
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the id came from the conversation the tool created
+            const child = await harness.conversation(childId as ConversationId, context);
+
+            assert.ok(child);
+
+            return child;
+        }
+
+        void it("lists only working agents, with the context they hold, and gives a child its parent", async () => {
+            let release: () => void = () => undefined;
+            let childRuns = 0;
+            const step = scripted(
+                () => {
+                    childRuns += 1;
+
+                    return childRuns === 1
+                        ? Promise.resolve(fauxAssistantMessage("First answer."))
+                        : new Promise((resolve) => {
+                              release = () => {
+                                  resolve(fauxAssistantMessage("Second answer."));
+                              };
+                          });
+                },
+                (said) =>
+                    said === "count them"
+                        ? call("agent_spawn", { agent: "counter", task: "Count the files." })
+                        : said === "continue"
+                          ? call("agent_send", { name: "Counter", message: "Count again." })
+                          : fauxAssistantMessage("ok"),
+            );
+
+            titles.set(parent.id, "Main work");
+            faux.setResponses(Array.from({ length: 10 }, () => step));
+            await (
+                await parent.submit({ type: "input", content: "count them" }, context)
+            ).wait(context);
+            await reportersDone();
+            await parent.waitForIdle(context);
+
+            const child = await childOfParent();
+
+            await observe(parent);
+            await observe(child);
+            assert.deepEqual(
+                await strip(parent.id),
+                { parent: null, agents: [] },
+                "idle agents are not shown",
+            );
+
+            const answer = await lastAnswer(child.id);
+
+            assert.ok(answer);
+
+            const used =
+                answer.usage.input +
+                answer.usage.output +
+                answer.usage.cacheRead +
+                answer.usage.cacheWrite;
+
+            assert.ok(used > 0);
+            wiring.windowOf = () => used * 4;
+
+            await (
+                await parent.submit({ type: "input", content: "continue" }, context)
+            ).wait(context);
+            await untilWorking(child);
+            await observe(child);
+
+            assert.deepEqual((await strip(parent.id)).agents, [
+                {
+                    name: "Counter",
+                    profile: "counter",
+                    model: `${faux.provider.id}/profile`,
+                    session: child.id,
+                    fill: 25,
+                    used,
+                    window: used * 4,
+                    working: true,
+                },
+            ]);
+            assert.deepEqual(await strip(child.id), {
+                parent: { id: parent.id, title: "Main work" },
+                agents: [],
+            });
+
+            release();
+            await reportersDone();
+            await parent.waitForIdle(context);
+            await observe(child);
+
+            assert.deepEqual(await strip(parent.id), { parent: null, agents: [] });
+        });
+
+        void it("is empty for a session with no agents and for none at all", async () => {
+            await observe(parent);
+
+            assert.deepEqual(await strip(parent.id), { parent: null, agents: [] });
+            assert.deepEqual(await strip(null), { parent: null, agents: [] });
+        });
     });
 });

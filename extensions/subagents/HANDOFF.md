@@ -131,15 +131,25 @@ follow-ups through `agent_send` delivered.
 
 ### 1. Separate agent navigation from main sessions
 
-**Owner's revised direction; implementation pending.** Do not nest agents among the main session
-rows. First review a [standalone UI mockup](../../docs/mockups/README.md) for working agents above
-the composer: active agents only, links to their conversations, working marks, context fill and
-TPS, with the model secondary. Implement that feature only after design approval, then stop for
-the owner's verification. Only afterwards add a height-resizable lower sidebar area with all
-agents of the selected parent, including finished ones, and remove children from the main list.
-The lower area must be absent for a parent with no agents; visiting a child must retain an obvious
-parent/sibling navigation path. Deletion semantics still need a decision. The original options
-below are investigation context, not the current approved UI direction.
+**Owner's revised direction; first step implemented, owner verification pending.** Do not nest
+agents among the main session rows. Step one, the compact working-agents strip above the composer
+(the approved [mockup](../../docs/mockups/README.md), version 2, without tok/s), is built: the
+core `aboveComposer` slot, the `strip` action, and `web.tsx` (see the README's UI section). Stop
+for the owner's verification of it before anything below. Not built, and still open: a
+height-resizable lower sidebar area with all agents of the selected parent, including finished
+ones, and removing children from the main list. The lower area must be absent for a parent with no
+agents; visiting a child already keeps a "← Back to" link to its parent. Deletion semantics still
+need a decision. The original options below are investigation context, not the current approved UI
+direction.
+
+**Strip: what was and was not checked.** `pnpm check` and the `strip` tests (real Harness, faux
+model) pass. In an isolated instance (temp data directory, own ports) with a real Chrome through
+the DevTools protocol and the `strip` response stubbed, desktop 1280x800 and mobile 390x844: chips
+36px and 40px tall, the back link the same height as the chips, composer top identical with no
+agents, with chips and in a child view, plain click navigates in the app without a page load,
+polling every 2s only while agents work. Not checked: a real agent run in the browser (the
+stub replaced the server's answer), the animation of the working mark, Latte, and a real
+horizontal scrollbar on a touch device.
 
 **Problem.** `Sessions.list()` (`server/sessions.ts`) scans every conversation, so each agent is a
 top-level row next to the person's sessions. A parent with four agents adds four rows; a
@@ -209,6 +219,46 @@ folded anyway.
 
 **Watch out.** Cut on line boundaries; never cut inside a fenced code block if it can be avoided
 (or close the fence). Unit-test the excerpt function — it is the one genuinely fiddly piece.
+
+### 1b. Filter agents out of the sidebar session list (planned, after the strip is verified)
+
+**Task.** Agent conversations must not appear among the main sessions in the sidebar. Reach them
+through the working-agents strip, the report card's open button, and the lower agents area.
+
+**Marker.** `ConversationRecord.owner` (`{ conversationId, taskId }`) is set for a task-owned
+conversation; a normal session is created `ownerless` (`server/sessions.ts`). Plan: add a generic
+`parent?: number` to `SessionSummary` (`shared/protocol.ts`), filled in `Sessions.list()` from
+`owner?.conversationId`, and have the sidebar (`web/src/shell/sessions.tsx`) leave out rows that
+have `parent`. It names no extension, so it passes the core rule; give the reason in the commit
+body. Archiving is not the marker: it is manual and a different meaning.
+
+**Watch out.** Do not strand work: a child whose parent is gone (deleted) still needs a way in, so
+show it top-level when its parent is not in the list. Visiting a child keeps its parent
+identifiable (the back link already does this). Ship together with, or after, the lower agents
+area (item 1) and before 1a is relevant to the owner. Test `Sessions.list()` with a harness-backed
+case (`test/sessions-*.test.ts`).
+
+### 1a. Parent delete or archive stops its agents (planned, separate worker and commit)
+
+**Owner's decision.** Stopping a parent does not stop its agents; they keep working. Deleting or
+archiving a parent must stop them. Do this as its own worker task and its own commit, after the
+working-agents strip and the lower agents area, because hiding children from the main list makes
+unstopped orphans invisible.
+
+**Facts.** `Sessions.delete` calls `abort()` without `{ background: true }`, which does not reach
+background agent tasks. `Sessions.setArchived` (`server/sessions.ts`) only flips `ArchiveDoc`;
+archiving never changes the lifecycle today. The parent's `subagents.agents` document lists every
+child conversation.
+
+**Open design choice.** The extension has no hook for parent delete or archive. Either add a
+generic core hook (a session removed or archived, with a reason in the commit body) that the
+extension uses to run the `agent_stop` logic on each child, or abort the children's background
+tasks in `Sessions` directly through the `owner` link (core, less generic). Prefer the hook:
+core stays free of extension names.
+
+**Check.** A real-Harness test: parent with a working agent; delete it, then archive another, and
+assert the child's run ends. Stopping the parent alone must leave the child running. Decide
+whether un-archiving restarts anything (assumed: no).
 
 ## Completed follow-ups
 
