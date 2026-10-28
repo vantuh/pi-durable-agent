@@ -13,7 +13,7 @@ require("readline").createInterface({ input: process.stdin }).on("line", (line) 
     const reply = (result) => id !== undefined && console.log(JSON.stringify({ jsonrpc: "2.0", id, result }));
     if (method === "initialize") reply({ protocolVersion: params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "fixture", version: "1" } });
     if (method === "tools/list") reply({ tools: [{ name: "echo", inputSchema: { type: "object" } }] });
-    if (method === "tools/call") reply({ content: [{ type: "text", text: "echo: " + params.arguments.word }] });
+    if (method === "tools/call") reply({ content: [{ type: "text", text: "echo: " + params.arguments.word + (process.env.SUFFIX ?? "") }] });
 });`;
 
 void describe("mcp connections", () => {
@@ -58,6 +58,39 @@ void describe("mcp connections", () => {
             const result = await live?.client.callTool("echo", { word: "hi" });
 
             assert.deepEqual(result?.content, [{ type: "text", text: "echo: hi" }]);
+        } finally {
+            await connections.close();
+        }
+    });
+
+    void it("runs a `!` value's command without holding the server while it runs", async () => {
+        await writeFile(
+            config,
+            JSON.stringify({
+                mcpServers: {
+                    echo: {
+                        command: process.execPath,
+                        args: ["-e", SERVER],
+                        env: { SUFFIX: "!sleep 0.3; printf ' -shell'" },
+                    },
+                },
+            }),
+        );
+
+        const connections = new Connections(config, state, () => undefined);
+        const before = performance.now();
+        const started = connections.start();
+        const blocked = performance.now() - before;
+
+        try {
+            await started;
+            assert.ok(blocked < 150, `start held the server for ${String(blocked)} ms`);
+
+            const result = await connections.connected()[0]?.[1].client.callTool("echo", {
+                word: "hi",
+            });
+
+            assert.deepEqual(result?.content, [{ type: "text", text: "echo: hi-shell" }]);
         } finally {
             await connections.close();
         }

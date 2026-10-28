@@ -1,6 +1,7 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { promisify } from "node:util";
 
 import {
     McpClient,
@@ -10,6 +11,8 @@ import {
 } from "@earendil-works/pi-mcp";
 
 import type { McpState, ServerInfo } from "./refs.ts";
+
+const run = promisify(execFile);
 
 type Raw = Record<string, unknown>;
 type Live = { client: McpClient; status: ServerInfo["status"]; error?: string; tools: Tool[] };
@@ -32,46 +35,47 @@ function readJson(file: string): unknown {
 }
 
 /** A value starting with `!` is a shell command whose output is the value, as in Pi's other config files. */
-function strings(table: unknown): Record<string, string> {
-    if (!isRecord(table)) {
-        return {};
+async function strings(table: unknown): Promise<Record<string, string>> {
+    const values: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(isRecord(table) ? table : {})) {
+        if (typeof value !== "string") {
+            continue;
+        }
+
+        if (!value.startsWith("!")) {
+            values[key] = value;
+            continue;
+        }
+
+        // Asynchronous: a password manager's CLI can take seconds, and the server must keep answering.
+        const command = run("/bin/sh", ["-c", value.slice(1)], {
+            encoding: "utf8",
+            timeout: 10_000,
+        });
+
+        command.child.stdin?.end();
+        values[key] = (await command).stdout.trim();
     }
 
-    return Object.fromEntries(
-        Object.entries(table).flatMap(([key, value]) =>
-            typeof value !== "string"
-                ? []
-                : [
-                      [
-                          key,
-                          value.startsWith("!")
-                              ? execFileSync("/bin/sh", ["-c", value.slice(1)], {
-                                    encoding: "utf8",
-                                    timeout: 10_000,
-                                    stdio: ["ignore", "pipe", "ignore"],
-                                }).trim()
-                              : value,
-                      ],
-                  ],
-        ),
-    );
+    return values;
 }
 
-function transportOf(raw: Raw) {
+async function transportOf(raw: Raw) {
     if (typeof raw["command"] === "string") {
         return new StdioTransport({
             command: raw["command"],
             args: Array.isArray(raw["args"])
                 ? raw["args"].filter((arg) => typeof arg === "string")
                 : [],
-            env: strings(raw["env"]),
+            env: await strings(raw["env"]),
         });
     }
 
     if (typeof raw["url"] === "string") {
         return new StreamableHttpTransport({
             url: raw["url"],
-            headers: strings(raw["headers"]),
+            headers: await strings(raw["headers"]),
         });
     }
 
@@ -189,7 +193,14 @@ export class Connections {
         this.#live.set(name, live);
 
         try {
-            await client.connect(transportOf(raw));
+            const transport = await transportOf(raw);
+
+            // Switched off while a `!` command ran: connecting now would start a server nobody holds.
+            if (this.#live.get(name) !== live) {
+                return;
+            }
+
+            await client.connect(transport);
             live.tools = await client.listTools();
             live.status = "connected";
             client.onClose(() => {
