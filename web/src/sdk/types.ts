@@ -62,6 +62,18 @@ export type ComposerItem = {
     component: ComponentType<ComposerProps>;
 };
 
+export type AboveComposerProps = StatusProps & {
+    /** Opens a session in the app, as a plain click on a link to it does. */
+    openSession: (id: number) => void;
+};
+
+/** A block above the composer, in the column the transcript and composer share. It renders nothing when it has nothing to show. */
+export type AboveComposerItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<AboveComposerProps>;
+};
+
 /** One item an extension adds to a session row's menu, above the core's own. */
 export type SessionMenuItem = {
     id: string;
@@ -84,6 +96,7 @@ export type WebExtension = {
     status?: StatusItem[];
     header?: HeaderItem[];
     composer?: ComposerItem[];
+    aboveComposer?: AboveComposerItem[];
     settings?: SettingsSection[];
     panels?: PanelItem[];
     tools?: ToolIcon[];

@@ -1,6 +1,6 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
- * composer controls, settings sections, side panels, tool icons and session menu items.
+ * composer controls, blocks above the composer, settings sections, side panels, tool icons and session menu items.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 
 import { listExtensions } from "./lib/api.ts";
 import type {
+    AboveComposerItem,
     ComposerItem,
     HeaderItem,
     PanelItem,
@@ -25,6 +26,7 @@ export type FolderPanel = PanelItem & { folder: string };
 
 export type FolderHeaderItem = HeaderItem & { folder: string };
 export type FolderComposerItem = ComposerItem & { folder: string };
+export type FolderAboveComposerItem = AboveComposerItem & { folder: string };
 export type FolderToolIcon = ToolIcon & { folder: string };
 export type FolderSessionMenuItem = SessionMenuItem & { folder: string };
 
@@ -56,6 +58,10 @@ function isHeaderItem(value: unknown): value is HeaderItem {
 }
 
 function isComposerItem(value: unknown): value is ComposerItem {
+    return isHeaderItem(value);
+}
+
+function isAboveComposerItem(value: unknown): value is AboveComposerItem {
     return isHeaderItem(value);
 }
 
@@ -164,6 +170,7 @@ type Loaded = {
     status: FolderStatusItem[];
     header: FolderHeaderItem[];
     composer: FolderComposerItem[];
+    aboveComposer: FolderAboveComposerItem[];
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
     tools: FolderToolIcon[];
@@ -191,6 +198,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         status: [],
         header: [],
         composer: [],
+        aboveComposer: [],
         settings: [],
         panels: [],
         tools: [],
@@ -202,6 +210,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
 
         collect(folder, "header", module, isHeaderItem, loaded.header);
         collect(folder, "composer", module, isComposerItem, loaded.composer);
+        collect(folder, "aboveComposer", module, isAboveComposerItem, loaded.aboveComposer);
         collect(folder, "status", module, isStatusItem, loaded.status);
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
@@ -316,6 +325,13 @@ const pickComposer = (loaded: Loaded): FolderComposerItem[] => loaded.composer;
 /** Controls extensions add to the composer's row, beside Send. */
 export function useComposerItems(): readonly FolderComposerItem[] {
     return useLoaded(pickComposer);
+}
+
+const pickAboveComposer = (loaded: Loaded): FolderAboveComposerItem[] => loaded.aboveComposer;
+
+/** Blocks extensions put above the composer; empty until the modules are in. */
+export function useAboveComposerItems(): readonly FolderAboveComposerItem[] {
+    return useLoaded(pickAboveComposer);
 }
 
 const pickTools = (loaded: Loaded): FolderToolIcon[] => loaded.tools;

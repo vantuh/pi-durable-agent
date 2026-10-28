@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { AboveComposerItems } from "./composer/above-items.tsx";
 import { Composer } from "./composer/composer.tsx";
 import { SessionMeta } from "./composer/meta.tsx";
 import { ModelMenu } from "./composer/model-menu.tsx";
@@ -219,6 +220,8 @@ export function App() {
                                 onOpenSession={go}
                                 below={<StatusItems slot="title" session={activeSession} />}
                             />
+
+                            <AboveComposerItems session={activeSession} openSession={go} />
 
                             <div className="relative">
                                 {menu ? (
