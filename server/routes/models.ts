@@ -1,11 +1,11 @@
 /** The model picker: the catalog, scoped by Pi's `enabledModels`, and the default for new sessions. */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
-import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { type ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { answer, readJson, record, type Route, string } from "../http.ts";
 import { type Sessions, supportedLevel, THINKING_LEVELS } from "../sessions.ts";
@@ -28,22 +28,12 @@ async function enabledModels(): Promise<string[] | undefined> {
 }
 
 async function addEnabledModel(key: string, fallback: string[]): Promise<void> {
-    const file = join(homedir(), ".pi/agent/settings.json");
-    let settings: Record<string, unknown> = {};
-
-    try {
-        settings = record(JSON.parse(await readFile(file, "utf8"))) ?? {};
-    } catch {
-        // No settings file yet: start one.
-    }
-
-    const current = Array.isArray(settings["enabledModels"])
-        ? settings["enabledModels"].filter((entry): entry is string => typeof entry === "string")
-        : fallback;
+    const settings = SettingsManager.create(process.cwd());
+    const current = settings.getEnabledModels() ?? fallback;
 
     if (!current.includes(key)) {
-        settings["enabledModels"] = [...current, key];
-        await writeFile(file, `${JSON.stringify(settings, null, 2)}\n`);
+        settings.setEnabledModels([...current, key]);
+        await settings.flush();
     }
 }
 
