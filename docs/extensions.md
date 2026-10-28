@@ -401,12 +401,13 @@ to this server's own routes, which transcribe it here with `transcribe-cpp` — 
 on Metal. The Web Speech API is gone: no audio reaches a speech service, and dictating needs no
 network. A browser without `MediaRecorder`, or a page off https or localhost, shows no mic.
 
-- Three settings live in `dictation.json` in the data directory, and the Dictation settings section
-  is the only way to change them: `language` (Auto, English or Ukrainian — `uk` stands in while the
-  file does not exist yet, and `auto` passes no hint at all so the model detects it), `model` (null
-  for the first Handy whisper GGUF found, else an absolute `.gguf` path) and `idleMinutes` (0 to
-  1440, default 10). No environment variables. A file written before the model and the idle time
-  were settings still reads, taking the defaults for the two it lacks.
+- Three settings live in `dictation.json` in the data directory, and `details.tsx` — the Dictation
+  row in the Extensions dialog, expanded — is the only way to change them: `language` (Auto, English
+  or Ukrainian — `uk` stands in while the file does not exist yet, and `auto` passes no hint at all
+  so the model detects it), `model` (null for the first Handy whisper GGUF found, else an absolute
+  `.gguf` path) and `idleMinutes` (0 to 1440, default 10). No environment variables, and no settings
+  section in the shell's panel. A file written before the model and the idle time were settings
+  still reads, taking the defaults for the two it lacks.
 - The model dropdown lists the whisper GGUFs under `~/.cache/huggingface/hub` with their names and
   sizes, the `large-v3-turbo` `Q8_0` first, and says so when there is none. The model holds ~900 MB
   with Metal, so it loads when a recording starts and goes after `idleMinutes` without a dictation;
@@ -421,7 +422,8 @@ network. A browser without `MediaRecorder`, or a page off https or localhost, sh
   recording in flight.
 - `server.ts` holds the model, the routes (`warm`, `audio`, `transcribe` under
   `/api/extensions/dictation/http/`) and the two actions behind the settings, `settings` and
-  `saveSettings`, which validate every field with the rules the file is read with.
+  `saveSettings`, which validate every field with the rules the file is read with. `details.tsx`
+  asks for them only while the folder is installed and on; off, it says so instead.
 
 ## Provider request shaping
 
