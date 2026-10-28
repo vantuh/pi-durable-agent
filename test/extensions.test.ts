@@ -621,6 +621,17 @@ export const status = () => ({ text: "v${value}" });`;
         assert.deepEqual(extensions.names, ["alpha"]);
     });
 
+    void it("toggling one folder leaves the others running", async () => {
+        await write("alpha", source({ tags: ["alpha"] }));
+        await write("beta", source({ tags: ["beta"] }));
+        await extensions.load();
+
+        await extensions.setEnabled("beta", false);
+        await extensions.setEnabled("beta", true);
+
+        assert.deepEqual(calls(), ["beta"]);
+    });
+
     void it("refuses to toggle an unknown folder", async () => {
         await write("alpha", named("v1"));
         await extensions.load();

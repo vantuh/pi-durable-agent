@@ -446,7 +446,8 @@ export class Extensions {
 
             await writeFile(temp, JSON.stringify({ disabled: [...disabled].sort() }));
             await rename(temp, file);
-            await this.#load();
+            // Only this folder: reloading the rest would run their disposers (a pause lets go, MCP reconnects).
+            await this.#load(new Set([name]));
 
             const info = this.#info(name);
 
