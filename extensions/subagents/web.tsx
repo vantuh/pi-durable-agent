@@ -2,6 +2,7 @@ import { Bot } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type {
@@ -274,7 +275,7 @@ function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
     const kids = parent === undefined ? [] : agentsOf(parent.id, sessions);
     const names = useNames(parent?.id ?? null, kids);
     const now = useMinute();
-    const list = useRef<HTMLUListElement>(null);
+    const list = useRef<HTMLDivElement>(null);
 
     const shown = kids.length > 0;
 
@@ -300,22 +301,21 @@ function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
                 </span>
                 <span className="font-mono">{kids.length}</span>
             </h2>
-            <ul
-                ref={list}
-                className="m-0 min-h-0 flex-1 [scrollbar-width:thin] list-none overflow-y-auto px-1.5 pb-1"
-            >
-                {kids.map((kid) => (
-                    <AgentRow
-                        key={kid.id}
-                        kid={kid}
-                        name={names.get(kid.id)?.name ?? kid.title ?? "Agent"}
-                        profile={names.get(kid.id)?.profile}
-                        current={kid.id === open}
-                        now={now}
-                        openSession={openSession}
-                    />
-                ))}
-            </ul>
+            <ScrollArea ref={list} className="min-h-0 flex-1">
+                <ul className="m-0 list-none px-1.5 pb-1">
+                    {kids.map((kid) => (
+                        <AgentRow
+                            key={kid.id}
+                            kid={kid}
+                            name={names.get(kid.id)?.name ?? kid.title ?? "Agent"}
+                            profile={names.get(kid.id)?.profile}
+                            current={kid.id === open}
+                            now={now}
+                            openSession={openSession}
+                        />
+                    ))}
+                </ul>
+            </ScrollArea>
         </section>
     );
 }
