@@ -34,6 +34,7 @@ import { hasOlder } from "./history.ts";
 import { answer, type Route, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
+import { observeNewConversations } from "./new-conversations.ts";
 import { projectEntry, projectLive } from "./projection.ts";
 import { conversationRoutes } from "./routes/conversation.ts";
 import { extensionRoutes } from "./routes/extensions.ts";
@@ -308,8 +309,30 @@ function observe(opened: Opened, state: View): void {
     void announce(opened.id, state.entries, busy.get(opened.id) === true);
 }
 
-/** Opens a conversation and starts forwarding its commits. */
-async function attach(id: number): Promise<Opened | undefined> {
+const attaching = new Map<number, Promise<Opened | undefined>>();
+
+/** Opens a conversation and starts forwarding its commits. A caller that comes while it opens gets the same open. */
+function attach(id: number): Promise<Opened | undefined> {
+    const known = attaching.get(id);
+
+    if (known !== undefined) {
+        return known;
+    }
+
+    const pending = attachOnce(id);
+
+    attaching.set(id, pending);
+    // Only the open in flight is shared: a deleted session must be refused again by `sessions.open`.
+    void pending
+        .finally(() => {
+            attaching.delete(id);
+        })
+        .catch(() => undefined);
+
+    return pending;
+}
+
+async function attachOnce(id: number): Promise<Opened | undefined> {
     // Session ids come from the browser as plain numbers; the harness brands its own.
     // A conversation id is a number at run time; the brand lives only in the type.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value came from a conversation id or a JSON number
@@ -531,6 +554,12 @@ async function boot(): Promise<void> {
         }
     });
 
+    const stopObserving = observeNewConversations(harness, (id) => {
+        attach(id).catch((error: unknown) => {
+            console.error(error);
+        });
+    });
+
     // The harness dispatches nothing until `resume()`. Every conversation gets its observer, and the
     // extensions get their baseline views, first; so work that was cut off by a restart and finishes
     // at once is seen as a change, with no browser attached.
@@ -583,6 +612,11 @@ async function boot(): Promise<void> {
         },
     ];
 
+    lifecycle.onStop(() => {
+        stopObserving();
+
+        return Promise.resolve();
+    });
     harness.resume();
 }
 
