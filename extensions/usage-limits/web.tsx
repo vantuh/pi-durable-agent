@@ -17,6 +17,9 @@ function tone(pct: number): string {
 }
 
 /** "resets in 2d 3h", as the terminal's `/usage` says it. */
+/** The status bar is narrow: long window labels shrink there; the popover keeps them whole. */
+const SHORT: Record<string, string | undefined> = { "5 hours": "5h", Credits: "Cred." };
+
 function until(resetsAt: number | null, now: number): string {
     if (resetsAt === null) {
         return "";
@@ -270,7 +273,7 @@ function UsageLimits({ session }: StatusProps) {
                     <Gauge className="size-3.5" />
                 ) : (
                     <>
-                        <span>{bucket.label === "5 hours" ? "5h" : bucket.label}</span>
+                        <span>{SHORT[bucket.label] ?? bucket.label}</span>
                         <Bar pct={bucket.pct} className="flex h-1 w-9" />
                         {String(Math.round(bucket.pct))}%
                     </>
