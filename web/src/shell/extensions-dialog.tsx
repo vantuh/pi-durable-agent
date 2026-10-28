@@ -94,7 +94,7 @@ function ExtensionList() {
             {current === undefined ? null : (
                 <button
                     type="button"
-                    className="text-interface text-accent border-edge-soft hover:bg-raised focus-visible:ring-accent rounded-control mb-1 flex w-fit items-center gap-1.5 border px-3 py-1.5 outline-none focus-visible:ring-2"
+                    className="text-interface text-ink border-edge-soft hover:bg-raised focus-visible:ring-accent rounded-control mb-1 flex w-fit items-center gap-1.5 border px-3 py-1.5 outline-none focus-visible:ring-2"
                     onClick={() => setSelected(undefined)}
                 >
                     <ArrowLeft className="size-4" />
