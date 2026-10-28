@@ -2,7 +2,7 @@
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join, resolve, sep } from "node:path";
 
 import { answer, readBytes, readJson, record, type Route } from "../http.ts";
 
@@ -104,7 +104,7 @@ export function fileRoutes({ dataDir }: { dataDir: string }): Route[] {
             handle: async (_request, response, url) => {
                 const wanted = resolve(url.searchParams.get("path") ?? "");
 
-                if (!wanted.startsWith(uploadDir)) {
+                if (!wanted.startsWith(uploadDir + sep)) {
                     answer(response, 403, { error: "not an uploaded file" });
 
                     return;
