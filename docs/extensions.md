@@ -416,6 +416,9 @@ network. A browser without `MediaRecorder`, or a page off https or localhost, sh
 - The audio arrives in numbered parts of 300 000 bytes, joined back in number order and refused
   past 32 MB; the parts of a recording the browser never finished sending go after ten minutes,
   and anything under 0.35 s is a tap rather than a word.
+- A short rising tone marks the start of a recording and a falling one its end (`beep.ts`, Web
+  Audio; no files). The tone follows listening, not the text: transcription finishes later and says
+  nothing.
 - It never sends. Tap the mic again to stop, and the words go into the box at the caret, with a
   space only where words would touch and a capital on a sentence's first word (`insert.ts`, no
   React; its tests are plain strings). Leaving the page or turning the extension off drops a

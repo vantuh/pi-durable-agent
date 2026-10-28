@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/toast.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
+import { beep } from "./beep.ts";
 import { insert } from "./insert.ts";
 import {
     messageOf,
@@ -151,6 +152,7 @@ function MicButton({ field, setText }: ComposerProps) {
             recorder.current = made;
             made.start();
             setMode("recording");
+            beep(true);
             void warmUp();
         } catch (failure) {
             stopTracks();
@@ -170,6 +172,7 @@ function MicButton({ field, setText }: ComposerProps) {
         recorder.current = null;
         stopTracks();
         current.stop();
+        beep(false);
     }, [stopTracks]);
 
     const toggle = (): void => {
