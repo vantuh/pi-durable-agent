@@ -271,12 +271,13 @@ exact token counts are in the hover title. There is no speed figure.
   "← Back to <parent title>", with the same outer height, so the composer does not move between the
   two views. A plain click opens the conversation in the app; a modified click opens a new tab.
 - The `strip` action (`refs.ts`) feeds it. Which conversations are agents comes from the core's
-  owner link (`session.owner` in a commit view and in an action call), not from any entry: an agent
-  started before its instruction recorded `agent` and `profile` still has its parent. "Working" is
-  the commit's busy flag, and the latest answer gives the context fill. The name is the
-  instruction's `agent` field; without one, the part of the session name before the first `": "` (the
-  title set at spawn is `<Name>: <task>`); without that, "Agent". A profile the instruction did not
-  record leaves the profile and the model blank until the first answer.
+  owner link (`session.owner` in a commit view and in an action call), not from any entry. "Working"
+  is the commit's busy flag, and the latest answer gives the context fill. The name and the profile
+  come from the parent's `subagents.agents` document, read once per call with `host.readDoc`: the
+  record whose `conversationId` is the child gives the name (its key) and the profile (`agent`).
+  That document is durable and does not depend on the child's entries, so a compaction cannot lose
+  a name. A conversation the parent has no record of (owned by the parent but not started by this
+  extension) shows as "Agent" with no profile and no model until its first answer.
 - Every commit of an agent calls `host.notifySessionChanged(parent)`. The core sends the parent's
   browsers a new `session.revision` at most every 250 ms, and the strip asks again when it moves, so
   an agent appears, fills and disappears without the person touching the page. Nothing polls.

@@ -38,6 +38,10 @@ type Wiring = {
     disposers: (() => void | Promise<void>)[];
     windowOf: () => number | undefined;
     notified: number[];
+    /** Set once the harness is open; `host.readDoc` reads through it, as the server does. */
+    harness: Harness | undefined;
+    /** How many times the extension read a document. */
+    reads: number;
 };
 
 function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host {
@@ -64,7 +68,14 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
             titles.set(session, title);
             return Promise.resolve();
         },
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
+        readDoc: async (doc, session) => {
+            wiring.reads += 1;
+
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the id came from a conversation this test created
+            const id = session as ConversationId;
+
+            return (await wiring.harness?.snapshot(doc, id, context)) ?? doc.definition.initial();
+        },
         setSessionMark: () => undefined,
         notifySessionChanged: (session) => {
             wiring.notified.push(session);
@@ -182,7 +193,14 @@ void describe("subagents", () => {
             auth: { apiKey: { name: "Locked", resolve: () => Promise.resolve(undefined) } },
         });
         titles = new Map();
-        wiring = { listeners: [], disposers: [], windowOf: () => undefined, notified: [] };
+        wiring = {
+            listeners: [],
+            disposers: [],
+            windowOf: () => undefined,
+            notified: [],
+            harness: undefined,
+            reads: 0,
+        };
         host = hostOf(dir, titles, wiring);
 
         const registry = createRegistry();
@@ -194,6 +212,7 @@ void describe("subagents", () => {
             { models, registry, env: () => new NodeExecutionEnv({ cwd: dir }) },
             context,
         );
+        wiring.harness = harness;
         harness.resume();
         parent = await harness.createConversation(
             {
@@ -281,8 +300,6 @@ void describe("subagents", () => {
             text: "Count the files.",
             author: "Orchestrator",
             session: parent.id,
-            agent: "Counter",
-            profile: "counter",
         });
 
         await writeProfile(`model: ${faux.provider.id}/parent\nthinking: high`);
@@ -627,7 +644,7 @@ void describe("subagents", () => {
             assert.deepEqual(await strip(parent.id), { parent: null, agents: [] });
         });
 
-        void it("gives a child with no instruction entry its parent, a name from its title, and a place in the strip", async () => {
+        void it("names a child from the parent's record, with no instruction entry and whatever its title says", async () => {
             faux.setResponses([
                 scripted(
                     () => Promise.resolve(fauxAssistantMessage("never asked")),
@@ -645,33 +662,45 @@ void describe("subagents", () => {
             titles.set(parent.id, "Main work");
 
             const child = await childOfParent();
+            const stranger = child.id + 1000;
 
-            // An agent from before the instruction recorded who it was: its entries name nothing.
+            // A compaction set the instruction aside: the child's entries name nothing. A title
+            // someone changed names nothing either.
+            titles.set(child.id, "Renamed by hand");
             wiring.notified.length = 0;
             await wiring.listeners[0]?.({
                 session: { id: child.id, cwd: dir, owner: parent.id },
                 entries: [],
                 busy: true,
             });
+            // Owned by the parent, but not started by this extension: the parent has no record of it.
+            await wiring.listeners[0]?.({
+                session: { id: stranger, cwd: dir, owner: parent.id },
+                entries: [],
+                busy: true,
+            });
 
-            assert.deepEqual(wiring.notified, [parent.id]);
+            assert.deepEqual(wiring.notified, [parent.id, parent.id]);
             assert.deepEqual(await strip(child.id), {
                 parent: { id: parent.id, title: "Main work" },
                 agents: [],
             });
-            assert.deepEqual(
-                (await strip(parent.id)).agents.map((agent) => [agent.name, agent.profile]),
-                [["Counter", ""]],
-                "named by the title the extension set at spawn",
-            );
 
-            titles.delete(child.id);
+            wiring.reads = 0;
 
             assert.deepEqual(
-                (await strip(parent.id)).agents.map((agent) => agent.name),
-                ["Agent"],
-                "a title that is not ours names nothing",
+                (await strip(parent.id)).agents.map((agent) => [
+                    agent.session,
+                    agent.name,
+                    agent.profile,
+                    agent.model,
+                ]),
+                [
+                    [child.id, "Counter", "counter", profileModel],
+                    [stranger, "Agent", "", ""],
+                ],
             );
+            assert.equal(wiring.reads, 1, "the parent's record is read once for all its children");
         });
 
         void it("is empty for a session with no agents and for none at all", async () => {

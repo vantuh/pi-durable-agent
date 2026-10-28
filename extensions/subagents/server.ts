@@ -78,8 +78,6 @@ type ReporterInput = {
     name: string;
     conversationId: ConversationId;
     message: string;
-    /** Absent in tasks stored before the strip existed. */
-    profile?: string;
 };
 /** `report` is what the parent's model reads; `text`, what its screen shows under the agent's name. */
 type ReporterState = { phase: "deliver" } | { phase: "report"; report?: string; text?: string };
@@ -120,8 +118,6 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                                           text: message,
                                           author: "Orchestrator",
                                           session: runtime.conversationId,
-                                          agent: name,
-                                          profile: task.input.profile ?? "",
                                       },
                                   },
                                   whenBusy: "steer",
@@ -296,52 +292,29 @@ async function childAgent(
 
 /**
  * What the strip needs of a conversation something else started, as of its latest commit. The
- * parent is the core's owner link; a commit is the only source of the rest. A name and a profile
- * the active entries no longer show (a compaction sets the instruction aside) are kept.
+ * parent is the core's owner link; a commit is the only source of the rest. Its name and profile
+ * are not here: the parent's `AgentsDoc` keeps them.
  */
 type Seen = {
     owner: number;
     cwd: string | null;
     busy: boolean;
     answer: AssistantMessage | undefined;
-    name: string | undefined;
-    profile: string | undefined;
 };
 
 const seen = new Map<number, Seen>();
 
-/** The agent name and profile the latest instruction that recorded them gives. */
-function namedBy(entries: readonly EntryRecord[]): { name?: string; profile?: string } {
-    const field = (entry: EntryRecord, key: string): unknown =>
-        typeof entry.data === "object" && entry.data !== null
-            ? Reflect.get(entry.data, key)
-            : undefined;
-    const named = entries.findLast(
-        (entry) =>
-            entry.kind === "subagents.instruction" &&
-            typeof field(entry, "agent") === "string" &&
-            field(entry, "agent") !== "",
-    );
-    const name = named === undefined ? undefined : field(named, "agent");
-    const profile = named === undefined ? undefined : field(named, "profile");
+/** The parent's record of an agent: its name and its profile. */
+type Named = { name: string; profile: string };
 
-    return {
-        ...(typeof name === "string" ? { name } : {}),
-        ...(typeof profile === "string" ? { profile } : {}),
-    };
-}
-
-/** An agent started before its name was recorded is still called by its title, "<Name>: <task>". */
-async function nameFromTitle(host: Host, id: number): Promise<string | undefined> {
-    const title = await host.sessionName(id);
-    const at = title?.indexOf(": ") ?? -1;
-
-    return title !== null && at > 0 ? title.slice(0, at) : undefined;
-}
-
-async function stripAgent(host: Host, id: number, child: Seen): Promise<StripAgent> {
+async function stripAgent(
+    host: Host,
+    id: number,
+    child: Seen,
+    named: Named | undefined,
+): Promise<StripAgent> {
     const { answer, cwd } = child;
-    const profile = child.profile ?? "";
+    const profile = named?.profile ?? "";
     const used =
         answer === undefined
             ? 0
@@ -358,7 +331,7 @@ async function stripAgent(host: Host, id: number, child: Seen): Promise<StripAge
             : `${answer.provider}/${answer.model}`;
 
     return {
-        name: child.name ?? (await nameFromTitle(host, id)) ?? "Agent",
+        name: named?.name ?? "Agent",
         profile,
         model,
         session: id,
@@ -385,9 +358,24 @@ export const actions = (host: Host): Record<string, Action> => ({
             .filter(([, child]) => child.owner === session.id && child.busy)
             .toSorted(([a], [b]) => a - b);
 
+        if (working.length === 0) {
+            return { parent: null, agents: [] };
+        }
+
+        // The parent's record is the one durable place that says who each child is.
+        const { agents } = await host.readDoc(AgentsDoc, session.id);
+        const named = new Map(
+            Object.entries(agents).map(([name, record]) => [
+                Number(record.conversationId),
+                { name, profile: record.agent },
+            ]),
+        );
+
         return {
             parent: null,
-            agents: await Promise.all(working.map(([id, child]) => stripAgent(host, id, child))),
+            agents: await Promise.all(
+                working.map(([id, child]) => stripAgent(host, id, child, named.get(id))),
+            ),
         };
     },
 });
@@ -403,17 +391,13 @@ export default function subagents(host: Host) {
             return;
         }
 
-        const before = seen.get(id);
         const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
-        const named = namedBy(view.entries);
 
         seen.set(id, {
             owner,
             cwd,
             busy: view.busy,
             answer: answer?.role === "assistant" ? answer : undefined,
-            name: named.name ?? before?.name,
-            profile: named.profile ?? before?.profile,
         });
         host.notifySessionChanged(owner);
     });
@@ -508,12 +492,7 @@ export default function subagents(host: Host) {
                 };
                 await tx.createTask(
                     Reporter,
-                    {
-                        name,
-                        conversationId: child.id,
-                        message: task,
-                        profile: profile.name,
-                    },
+                    { name, conversationId: child.id, message: task },
                     { ownership: { kind: "conversation" }, background: true },
                 );
 
@@ -561,12 +540,7 @@ export default function subagents(host: Host) {
                     found.stopped = false;
                     await tx.createTask(
                         Reporter,
-                        {
-                            name,
-                            conversationId: found.conversationId,
-                            message,
-                            profile: found.agent,
-                        },
+                        { name, conversationId: found.conversationId, message },
                         { ownership: { kind: "conversation" }, background: true },
                     );
                 }
