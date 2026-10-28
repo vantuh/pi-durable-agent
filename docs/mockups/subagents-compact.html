@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" data-flavour="mocha">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Working subagents · Compact preview</title>
+        <link rel="icon" href="data:," />
+        <link rel="stylesheet" href="./subagents-compact.css" />
+    </head>
+    <body>
+        <div
+            class="preview-toolbar border-edge-soft bg-panel flex flex-wrap items-center gap-x-5 gap-y-2 border-b px-4 py-3"
+        >
+            <div class="flex items-center gap-2">
+                <span class="bg-agent text-sunken rounded px-1.5 py-0.5 text-xs font-semibold"
+                    >PREVIEW</span
+                >
+                <a
+                    href="./subagents.html?count=3"
+                    class="text-meta text-agent underline underline-offset-2"
+                    >Version 1</a
+                >
+                <span class="text-meta text-muted">V2 · Compact strip</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 sm:ml-auto">
+                <div
+                    class="border-edge flex rounded-md border p-0.5"
+                    aria-label="Sample working agents"
+                >
+                    <button type="button" data-count="0" class="scenario">None</button>
+                    <button type="button" data-count="1" class="scenario">1 agent</button>
+                    <button type="button" data-count="3" class="scenario">3 agents</button>
+                    <button type="button" data-count="6" class="scenario">6 agents</button>
+                </div>
+                <label class="text-meta text-muted flex items-center gap-1.5">
+                    <input id="show-model" type="checkbox" /> Show model
+                </label>
+                <select
+                    id="flavour"
+                    aria-label="Theme"
+                    class="border-edge bg-canvas text-meta rounded-md border px-1.5 py-1"
+                >
+                    <option value="mocha">Mocha</option>
+                    <option value="latte">Latte</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="preview-shell bg-sunken flex min-h-0 flex-1 flex-col gap-2 p-2">
+            <div class="flex min-h-0 flex-1 gap-2">
+                <aside
+                    class="border-edge-soft bg-canvas rounded-card hidden w-[264px] shrink-0 flex-col border lg:flex"
+                    aria-label="Sample main sessions"
+                >
+                    <header class="border-edge-soft flex items-center gap-2 border-b px-3 py-3">
+                        <span class="text-agent font-mono text-lg">π</span>
+                        <span class="text-sidebar font-medium">Sessions</span>
+                        <span class="text-faint ml-auto" aria-hidden="true">◧</span>
+                    </header>
+                    <div class="border-edge-soft text-meta text-muted border-b px-3 py-2 font-mono">
+                        ⌄ pi-durable-agent
+                    </div>
+                    <div class="p-3">
+                        <div
+                            class="border-edge bg-sunken text-sidebar rounded-control border py-2.5 text-center"
+                        >
+                            + New session
+                        </div>
+                    </div>
+                    <div class="text-meta text-faint px-3 pb-2">Today · 3</div>
+                    <nav class="flex flex-col gap-0.5 px-1.5">
+                        <a
+                            href="?count=3"
+                            class="bg-raised text-sidebar rounded-control flex items-center gap-2 px-2 py-2.5"
+                        >
+                            <span class="state-mark idle text-faint" aria-hidden="true"></span>
+                            <span class="min-w-0 flex-1 truncate">Subagent workspace</span>
+                            <span class="text-meta text-faint">now</span>
+                        </a>
+                        <div class="text-sidebar flex items-center gap-2 px-2 py-2.5">
+                            <span class="state-mark idle text-faint" aria-hidden="true"></span>
+                            <span>Profile model validation</span>
+                        </div>
+                        <div class="text-sidebar flex items-center gap-2 px-2 py-2.5">
+                            <span class="state-mark idle text-faint" aria-hidden="true"></span>
+                            <span>Extension documentation</span>
+                        </div>
+                    </nav>
+                    <p class="text-meta text-faint mt-auto p-3 leading-relaxed">
+                        Sample sessions only.<br />The separate agents area is step 2, not part of
+                        this preview.
+                    </p>
+                </aside>
+
+                <main class="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+                    <section
+                        class="border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col overflow-hidden border"
+                    >
+                        <header
+                            class="border-edge-soft flex min-h-14 items-center gap-3 border-b px-4 py-3"
+                        >
+                            <span class="text-faint lg:hidden" aria-hidden="true">☰</span>
+                            <div class="min-w-0 flex-1">
+                                <h1
+                                    id="conversation-title"
+                                    class="text-interface truncate font-medium"
+                                >
+                                    Subagent workspace
+                                </h1>
+                                <div
+                                    id="conversation-subtitle"
+                                    class="text-meta text-faint mt-0.5 font-mono"
+                                >
+                                    pi-durable-agent · main
+                                </div>
+                            </div>
+                            <span class="text-muted text-lg" aria-hidden="true">⚙</span>
+                        </header>
+                        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+                            <div class="mx-auto flex max-w-[46rem] flex-col gap-6">
+                                <a
+                                    id="back-to-parent"
+                                    href="?count=3"
+                                    hidden
+                                    class="back-link text-agent text-sidebar rounded-control border-edge-soft bg-panel border px-3 py-2.5"
+                                    >← Back to Subagent workspace</a
+                                >
+                                <div
+                                    class="bg-raised text-prose rounded-card max-w-[85%] self-end px-4 py-3 leading-relaxed"
+                                    id="user-message"
+                                >
+                                    Keep subagents separate from my main sessions. I want to see
+                                    who's working without leaving this conversation.
+                                </div>
+                                <div>
+                                    <div
+                                        class="text-meta text-faint mb-3 flex flex-wrap justify-between gap-2 font-mono"
+                                    >
+                                        <span id="answer-model">gpt-6.1-sol · high</span>
+                                        <span>↑18.2k ↓641 · $0.024</span>
+                                    </div>
+                                    <div
+                                        id="answer"
+                                        class="text-prose max-w-[42rem] leading-relaxed"
+                                    >
+                                        I've split the work into independent tasks. You can keep
+                                        working here while the agents investigate. Their reports
+                                        will come back to this conversation.
+                                    </div>
+                                </div>
+                                <div class="text-meta text-faint flex items-center gap-2">
+                                    <span
+                                        class="state-mark working text-warn"
+                                        aria-hidden="true"
+                                    ></span>
+                                    <span id="activity"
+                                        >Delegated work · waiting for agent reports</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="mx-auto flex w-full max-w-[46rem] shrink-0 flex-col gap-2">
+                        <section id="working-agents" aria-label="Working subagents" class="px-1">
+                            <div class="sr-only">
+                                <span id="agent-count" class="text-muted">3 agents working</span>
+                                <span class="ml-auto">This session</span>
+                            </div>
+                            <div id="agent-list" class="agent-grid" role="list"></div>
+                        </section>
+
+                        <div class="border-edge-soft bg-sunken rounded-card border px-3 py-2.5">
+                            <textarea
+                                aria-label="Sample composer"
+                                rows="2"
+                                placeholder="Ask the agent to change something…"
+                                class="text-prose text-ink placeholder:text-faint block w-full resize-none bg-transparent leading-relaxed outline-none"
+                            ></textarea>
+                            <div class="mt-1.5 flex items-center gap-2">
+                                <span class="text-muted px-1" aria-hidden="true">＋</span>
+                                <span
+                                    id="composer-model"
+                                    class="text-sidebar text-muted min-w-0 truncate font-mono"
+                                    ><span class="text-accent">✧</span> gpt-6.1-sol
+                                    <span class="text-accent">high</span> ⌄</span
+                                >
+                                <button
+                                    type="button"
+                                    disabled
+                                    title="Preview only; no requests are sent"
+                                    aria-label="Send (preview only)"
+                                    class="bg-accent text-on-accent ml-auto flex size-7 shrink-0 items-center justify-center rounded-full"
+                                >
+                                    ↑
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            class="text-meta text-faint flex h-6 items-center justify-center gap-3 overflow-hidden px-1 font-mono whitespace-nowrap"
+                        >
+                            <span class="flex items-center gap-1.5"
+                                >context
+                                <span class="meter-track w-9"
+                                    ><span class="meter-fill" style="width: 18%"></span
+                                ></span>
+                                18%</span
+                            >
+                            <span>cache 94%</span>
+                            <span>↑18.2k ↓641 · $0.024</span>
+                        </div>
+                    </div>
+                </main>
+            </div>
+            <footer class="text-meta text-faint flex shrink-0 items-center gap-2 px-1">
+                <span class="bg-ok size-1.5 rounded-full" aria-hidden="true"></span>
+                <span>Design preview · sample data · no live agents</span>
+                <span class="ml-auto hidden font-mono sm:inline">~/projects/pi-durable-agent</span>
+            </footer>
+        </div>
+        <script type="module" src="./subagents.js"></script>
+    </body>
+</html>

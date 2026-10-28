@@ -1,0 +1,58 @@
+@import "./subagents.css";
+
+.agent-grid,
+body[data-show-model] .agent-grid {
+    display: flex;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--role-edge) var(--role-sunken);
+}
+
+.agent-grid > div {
+    flex: none;
+}
+
+.agent-card,
+body[data-show-model] .agent-card {
+    grid-template-columns: 8px minmax(48px, 1fr) auto auto;
+    gap: 6px;
+    min-height: 28px;
+    padding: 4px 6px;
+}
+
+.agent-card > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-name {
+    max-width: 96px;
+    font-size: 12px;
+}
+
+.agent-model {
+    max-width: 66px;
+}
+
+.agent-context .meter-track {
+    width: 22px;
+}
+
+.agent-rate {
+    min-width: 58px;
+    font-size: 11px;
+}
+
+.agent-open {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .agent-card,
+    body[data-show-model] .agent-card {
+        min-height: 44px;
+    }
+}

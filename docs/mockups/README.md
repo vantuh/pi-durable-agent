@@ -13,7 +13,7 @@ pnpm exec vite docs/mockups --config vite.config.ts --host 127.0.0.1 --port 5193
 Open <http://127.0.0.1:5193/subagents.html>. The explicit config is needed for Tailwind and the
 existing app theme. No backend needs to be started; no `/api` routes are called.
 
-## Step 1: proposed working-agents area
+## Version 1: working-agents grid
 
 - Lives directly above the composer, scoped to the current parent session.
 - Shows only working agents. With none, the whole section disappears, without an empty-state row.
@@ -33,6 +33,34 @@ existing app theme. No backend needs to be started; no `/api` routes are called.
 The top controls are preview-only: 0/1/3/6 active agents, model visibility, and Mocha/Latte. Links
 preserve the preview choices in the query string. Send is disabled. Other shell controls are
 illustrative, not working replacements for the real app.
+
+## Version 2: compact horizontal strip
+
+Open <http://127.0.0.1:5193/subagents-compact.html?count=3> separately to compare with
+[version 1](subagents.html?count=3). The original HTML, CSS, and script are unchanged.
+Version 2 has its own HTML entry and a small CSS override over the same theme/sample behavior.
+
+- No separate heading above the agents. The count remains available to screen readers.
+- All agents stay on one horizontal line, with the same working mark, name, context bar/percentage,
+  and speed. The whole chip remains a conversation link.
+- The strip scrolls horizontally when its contents do not fit. This saves vertical space but means
+  not all agents are visible at once, especially on a phone. A partially visible next chip and the
+  scrollbar indicate more content.
+- Chips are 28px tall on desktop and at least 44px on mobile for touch. Turning **Show model** on
+  adds the model inline, not a second line. This uses more width; a native desktop scrollbar can
+  add height when the strip overflows (11px in the tested browser).
+- Empty state, child navigation, return-to-parent link, and sample-data isolation match version 1.
+
+Measured area heights with three sample agents and models hidden (excluding the shared 8px gap
+above the composer):
+
+| Viewport            | Version 1 | Version 2 | Height recovered for the transcript |
+| ------------------- | --------- | --------- | ----------------------------------- |
+| Desktop, 1280 × 800 | 110px     | 32px      | 78px                                |
+| Phone, 390 × 844    | 172px     | 48px      | 124px                               |
+
+This variant has not been selected for implementation. Compare both before choosing the tradeoff
+between all-at-once visibility and transcript height.
 
 ## Requested sequencing
 
