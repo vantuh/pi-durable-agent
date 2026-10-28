@@ -55,6 +55,19 @@ export function DialogHeader({ className, ...props }: ComponentProps<"div">) {
     );
 }
 
+export function DialogFooter({ className, ...props }: ComponentProps<"div">) {
+    return (
+        <div
+            data-slot="dialog-footer"
+            className={cn(
+                "flex flex-col-reverse gap-2 px-3 py-2.5 sm:flex-row sm:justify-end",
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+
 export function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
     return (
         <DialogPrimitive.Title

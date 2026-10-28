@@ -28,6 +28,7 @@
         "@radix-ui/react-switch": "1.4.1",
         "@radix-ui/react-tabs": "^1.2.1",
         "@vantuh/pi-kiro-acp": "file:../pi-kiro-acp",
+        "cmdk": "1.1.1",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
         "react-markdown": "10.1.0",

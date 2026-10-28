@@ -1,8 +1,21 @@
 import { Check, Plus } from "lucide-react";
-import { useState } from "react";
+import { type KeyboardEvent, useRef, useState } from "react";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import {
+    Command,
+    CommandEmpty,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
@@ -33,6 +46,10 @@ export function ModelMenu({
 }: Props) {
     const [tab, setTab] = useState<"scoped" | "all">("scoped");
     const [query, setQuery] = useState("");
+    // The chosen model is applied by OK; a row click or an arrow key only moves this mark.
+    const [chosen, setChosen] = useState<string | null>(current);
+    const [thinking, setThinking] = useState<string | null>(null);
+    const search = useRef<HTMLInputElement>(null);
 
     const list = tab === "scoped" ? scoped : all;
     const needle = query.trim().toLowerCase();
@@ -45,12 +62,34 @@ export function ModelMenu({
     );
     const scopedKeys = new Set(scoped.map((model) => `${model.provider}/${model.id}`));
     const active = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === current);
-    const levels = active?.levels ?? ["off"];
+    const picked = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === chosen);
+    const levels = picked?.levels ?? active?.levels ?? ["off"];
+    const wanted = thinking ?? level ?? "off";
+    const thinkingLevel = levels.includes(wanted) ? wanted : (levels[0] ?? "off");
     const isDefault =
-        active !== undefined &&
-        defaultModel?.provider === active.provider &&
-        defaultModel.modelId === active.id &&
-        defaultModel.thinkingLevel === (level ?? "off");
+        picked !== undefined &&
+        defaultModel?.provider === picked.provider &&
+        defaultModel.modelId === picked.id &&
+        defaultModel.thinkingLevel === thinkingLevel;
+    const appliable =
+        picked !== undefined && (chosen !== current || thinkingLevel !== (level ?? "off"));
+
+    const apply = (model: ModelChoice): void => {
+        const wantedLevel = thinking ?? level ?? "off";
+
+        onPick(
+            model,
+            model.levels.includes(wantedLevel) ? wantedLevel : (model.levels[0] ?? "off"),
+        );
+        onClose();
+    };
+
+    const applyOnEnter = (event: KeyboardEvent<HTMLDivElement>): void => {
+        if (event.key === "Enter" && !event.nativeEvent.isComposing && picked !== undefined) {
+            event.preventDefault();
+            apply(picked);
+        }
+    };
 
     return (
         <Dialog
@@ -64,6 +103,15 @@ export function ModelMenu({
             <DialogContent
                 aria-describedby={undefined}
                 className="bg-panel sm:h-[min(36rem,80dvh)] sm:max-w-xl"
+                onOpenAutoFocus={(event) => {
+                    // A phone would put the on-screen keyboard over the list; there Radix focuses the tabs.
+                    if (!window.matchMedia("(pointer: fine)").matches) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    search.current?.focus();
+                }}
             >
                 <DialogHeader className="flex-row items-center gap-3 py-2">
                     <DialogTitle>Model</DialogTitle>
@@ -80,68 +128,57 @@ export function ModelMenu({
                     </Tabs>
                 </DialogHeader>
 
-                <div className="px-3 py-2">
-                    <input
+                <Command
+                    label="Models"
+                    shouldFilter={false}
+                    {...(chosen === null ? {} : { value: chosen })}
+                    onValueChange={setChosen}
+                    onKeyDown={applyOnEnter}
+                >
+                    <CommandInput
+                        ref={search}
                         value={query}
-                        onChange={(event) => {
-                            setQuery(event.target.value);
-                        }}
+                        onValueChange={setQuery}
                         placeholder="Search models"
-                        className="rounded-control border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint w-full border px-2.5 py-1.5 outline-none"
                     />
-                </div>
-
-                <ScrollArea className="min-h-0 flex-1">
-                    <div className="px-1.5 pb-1.5">
-                        {shown.length === 0 ? (
-                            <p className="text-faint text-meta p-2">No model matches.</p>
-                        ) : null}
+                    <CommandList label="Models" className="px-1.5 pb-1.5">
+                        <CommandEmpty>No model matches.</CommandEmpty>
 
                         {shown.map((model) => {
                             const key = `${model.provider}/${model.id}`;
 
                             return (
-                                <div
+                                <CommandItem
                                     key={key}
-                                    className={`rounded-control flex items-center gap-1 pr-1.5 ${
-                                        key === current ? "bg-raised" : "hover:bg-raised/50"
-                                    }`}
+                                    value={key}
+                                    onDoubleClick={() => {
+                                        apply(model);
+                                    }}
+                                    className="justify-between pr-1.5"
                                 >
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            onPick(
-                                                model,
-                                                model.levels.includes(level ?? "")
-                                                    ? (level ?? "off")
-                                                    : (model.levels[0] ?? "off"),
-                                            );
-                                        }}
-                                        className="rounded-control flex min-w-0 flex-1 items-center justify-between gap-2 px-2 py-1.5 text-left"
-                                    >
-                                        <span className="min-w-0">
-                                            <span className="text-ink text-interface block truncate">
-                                                {model.name}
-                                            </span>
-                                            <span className="text-faint text-meta block truncate">
-                                                {model.provider} ·{" "}
-                                                {Math.round(model.contextWindow / 1000)}k
-                                                {defaultModel?.provider === model.provider &&
-                                                defaultModel.modelId === model.id
-                                                    ? " · default"
-                                                    : ""}
-                                            </span>
+                                    <span className="min-w-0">
+                                        <span className="text-ink text-interface block truncate">
+                                            {model.name}
                                         </span>
-                                        {key === current ? (
-                                            <Check className="text-accent size-4 shrink-0" />
-                                        ) : null}
-                                    </button>
+                                        <span className="text-faint text-meta block truncate">
+                                            {model.provider} ·{" "}
+                                            {Math.round(model.contextWindow / 1000)}k
+                                            {defaultModel?.provider === model.provider &&
+                                            defaultModel.modelId === model.id
+                                                ? " · default"
+                                                : ""}
+                                        </span>
+                                    </span>
+                                    {key === chosen ? (
+                                        <Check className="text-accent size-4 shrink-0" />
+                                    ) : null}
                                     {tab === "all" && !scopedKeys.has(key) ? (
                                         <button
                                             type="button"
                                             title="Add to scoped models"
                                             aria-label="Add to scoped models"
-                                            onClick={() => {
+                                            onClick={(event) => {
+                                                event.stopPropagation();
                                                 onAddScoped(model);
                                             }}
                                             className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
@@ -149,22 +186,22 @@ export function ModelMenu({
                                             <Plus className="size-4" />
                                         </button>
                                     ) : null}
-                                </div>
+                                </CommandItem>
                             );
                         })}
-                    </div>
-                </ScrollArea>
+                    </CommandList>
+                </Command>
 
                 <div className="border-edge-soft border-t px-3 py-2">
                     <div className="mb-1 flex items-center justify-between">
                         <span className="text-faint text-meta">Thinking</span>
                         <button
                             type="button"
-                            disabled={active === undefined || isDefault}
+                            disabled={picked === undefined || isDefault}
                             title="New sessions start with this model and thinking level"
                             onClick={() => {
-                                if (active !== undefined) {
-                                    onMakeDefault(active, level ?? "off");
+                                if (picked !== undefined) {
+                                    onMakeDefault(picked, thinkingLevel);
                                 }
                             }}
                             className="rounded-control text-meta text-accent hover:bg-raised disabled:text-faint px-2 py-0.5 disabled:hover:bg-transparent"
@@ -173,11 +210,10 @@ export function ModelMenu({
                         </button>
                     </div>
                     <Tabs
-                        value={level ?? "off"}
+                        value={thinkingLevel}
+                        onKeyDown={applyOnEnter}
                         onValueChange={(option) => {
-                            if (active !== undefined) {
-                                onPick(active, option);
-                            }
+                            setThinking(option);
                         }}
                     >
                         <TabsList className="w-full">
@@ -193,6 +229,22 @@ export function ModelMenu({
                         </TabsList>
                     </Tabs>
                 </div>
+
+                <DialogFooter className="border-edge-soft border-t">
+                    <Button variant="ghost" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button
+                        disabled={!appliable}
+                        onClick={() => {
+                            if (picked !== undefined) {
+                                apply(picked);
+                            }
+                        }}
+                    >
+                        OK
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
