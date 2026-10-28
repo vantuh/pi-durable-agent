@@ -304,6 +304,39 @@ void describe("web-search anthropic", () => {
             { message: "stream error: Overloaded" },
         );
     });
+
+    // Runs last in this suite: the version it teaches stays learned for the rest of the process.
+    void it("retries once with the version Anthropic requires, and starts there next time", async () => {
+        const tooOld = () =>
+            Response.json(
+                {
+                    type: "error",
+                    error: {
+                        type: "invalid_request_error",
+                        message: "Claude Code version 2.1.900 or newer is required.",
+                        details: { error_code: "claude_code_version_too_old" },
+                    },
+                },
+                { status: 400 },
+            );
+        let answered = 0;
+        const { fetch, calls } = stubFetch(() =>
+            answered++ === 0 ? tooOld() : sse(fixture("anthropic.sse")),
+        );
+        const auth = authWith({ anthropic: CLAUDE_TOKEN });
+        const versionOf = (call: Call | undefined) => call?.headers.get("user-agent");
+
+        const found = await searchAnthropic(auth, "q", signal(), fetch);
+
+        assert.match(found.answer, /Node\.js LTS/);
+        assert.deepEqual(calls.map(versionOf), ["claude-cli/2.1.280", "claude-cli/2.1.900"]);
+        assert.match(JSON.stringify(calls[1]?.body["system"]), /cc_version=2\.1\.900\./);
+
+        await searchAnthropic(auth, "q", signal(), fetch);
+
+        assert.equal(versionOf(calls[2]), "claude-cli/2.1.900");
+        assert.equal(calls.length, 3);
+    });
 });
 
 void describe("web-search kiro", () => {

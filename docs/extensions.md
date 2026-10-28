@@ -817,8 +817,9 @@ in, and returns that model's answer followed by `## Sources` and a `Searched wit
 - **Claude**: the `sk-ant-oat…` subscription token, sent to `/v1/messages` with the
   `web_search_20260209` server tool on `claude-haiku-5-5`. The call does not go through Pi's model
   transport, so it repeats the billing block of `anthropic-subscription` itself (an extension may not
-  import another) with the static Claude Code version; it does not learn a newer one from a
-  rejection, as Pi's own requests do.
+  import another), and its version recovery too: a 400 `claude_code_version_too_old` is replayed
+  once with the version it names, which later searches start from until the server restarts.
+  `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION` overrides both extensions and turns the learning off.
 - **Kiro**: `kiro-cli chat --no-interactive --output-format=stream-json` in an empty temporary
   folder, trusting only Kiro's own `web_search` and `web_fetch`. The process group is killed on stop,
   timeout or output past 4 MiB, so `kiro-cli-chat` does not outlive the call.

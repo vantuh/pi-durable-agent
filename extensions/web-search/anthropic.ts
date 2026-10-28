@@ -31,10 +31,38 @@ const IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude.";
 // Keep in step with DEFAULT_VERSION in anthropic-subscription/refs.ts; the same override applies.
 const DEFAULT_VERSION = "2.1.280";
 
-function claudeCodeVersion(): string {
+// The least version Anthropic last asked for. Like anthropic-subscription's, it lives only as long as
+// this extension version: after a restart the first search learns it again from the rejection.
+let learnedFloor: string | undefined;
+
+const isHigher = (left: string, right: string): boolean =>
+    left.localeCompare(right, "en", { numeric: true }) > 0;
+
+/** `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION` when it is X.Y.Z; it then wins and nothing is learned. */
+function overrideVersion(): string | undefined {
     const configured = process.env["PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION"]?.trim() ?? "";
 
-    return /^\d+\.\d+\.\d+$/.test(configured) ? configured : DEFAULT_VERSION;
+    return /^\d+\.\d+\.\d+$/.test(configured) ? configured : undefined;
+}
+
+/** The version a 400 says it needs, read as anthropic-subscription's version-rejection.ts reads it. */
+async function requiredVersion(response: Response): Promise<string | undefined> {
+    if (response.status !== 400) {
+        return undefined;
+    }
+
+    try {
+        const { error } = record(await response.clone().json());
+        const { details, message } = record(error);
+
+        if (record(details)["error_code"] !== "claude_code_version_too_old") {
+            return undefined;
+        }
+
+        return /version (\d+\.\d+\.\d+) or newer is required/.exec(str(message) ?? "")?.[1];
+    } catch {
+        return undefined;
+    }
 }
 
 export function billingBlock(prompt: string, version: string): { type: "text"; text: string } {
@@ -139,37 +167,53 @@ export async function searchAnthropic(
         throw new Error("not signed in with a Claude subscription");
     }
 
-    const version = claudeCodeVersion();
-    const response = await fetchImpl(ENDPOINT, {
-        method: "POST",
-        headers: {
-            authorization: `Bearer ${token}`,
-            "content-type": "application/json",
-            accept: "text/event-stream",
-            "anthropic-version": "2023-06-01",
-            "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
-            "user-agent": `claude-cli/${version}`,
-            "x-app": "cli",
-        },
-        body: JSON.stringify({
-            model: MODEL,
-            max_tokens: 4096,
-            system: [billingBlock(prompt, version), { type: "text", text: IDENTITY }],
-            messages: [{ role: "user", content: prompt }],
-            // Without `allowed_callers` the model may run the search from code execution, and the
-            // search then fails with `invalid_tool_input`.
-            tools: [
-                {
-                    type: "web_search_20260209",
-                    name: "web_search",
-                    max_uses: 5,
-                    allowed_callers: ["direct"],
-                },
-            ],
-            stream: true,
-        }),
-        signal,
-    });
+    const override = overrideVersion();
+    const first =
+        override ??
+        (learnedFloor !== undefined && isHigher(learnedFloor, DEFAULT_VERSION)
+            ? learnedFloor
+            : DEFAULT_VERSION);
+    const send = (version: string) =>
+        fetchImpl(ENDPOINT, {
+            method: "POST",
+            headers: {
+                authorization: `Bearer ${token}`,
+                "content-type": "application/json",
+                accept: "text/event-stream",
+                "anthropic-version": "2023-06-01",
+                "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+                "user-agent": `claude-cli/${version}`,
+                "x-app": "cli",
+            },
+            body: JSON.stringify({
+                model: MODEL,
+                max_tokens: 4096,
+                system: [billingBlock(prompt, version), { type: "text", text: IDENTITY }],
+                messages: [{ role: "user", content: prompt }],
+                // Without `allowed_callers` the model may run the search from code execution, and the
+                // search then fails with `invalid_tool_input`.
+                tools: [
+                    {
+                        type: "web_search_20260209",
+                        name: "web_search",
+                        max_uses: 5,
+                        allowed_callers: ["direct"],
+                    },
+                ],
+                stream: true,
+            }),
+            signal,
+        });
+
+    let response = await send(first);
+    const required = override === undefined ? await requiredVersion(response) : undefined;
+
+    if (required !== undefined && isHigher(required, first)) {
+        learnedFloor = required;
+        await response.body?.cancel();
+        // One replay, as anthropic-subscription does; a second rejection is reported as it is.
+        response = await send(required);
+    }
 
     if (!response.ok) {
         throw await httpError(response);
