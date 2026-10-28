@@ -5,6 +5,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { ActionError, ActionNotFound } from "./extensions.ts";
 
 const MAX_BODY = 100_000_000;
+/** Unsent bytes past which a stream's reader is gone, as a phone asleep on a dead tunnel is. */
+const STALLED_BYTES = 1_000_000;
 
 /** One API route: `path` must match the whole pathname; `method` "*" takes every method. */
 export type Route = {
@@ -74,6 +76,20 @@ export function sessionIdOf(value: unknown): number | undefined {
     return typeof value === "number" && Number.isSafeInteger(value) && value > 0
         ? value
         : undefined;
+}
+
+/**
+ * Writes to an event stream, or closes it when its reader stopped reading; the EventSource reconnects
+ * and starts from a fresh `hello`, instead of the server buffering every event for it.
+ */
+export function writeEvent(response: ServerResponse, text: string): void {
+    if (response.writableLength > STALLED_BYTES) {
+        response.destroy();
+
+        return;
+    }
+
+    response.write(text);
 }
 
 export function answer(response: ServerResponse, status: number, payload: unknown): void {

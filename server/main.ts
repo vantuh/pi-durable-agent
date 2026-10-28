@@ -31,7 +31,7 @@ import type {
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
-import { answer, type Route } from "./http.ts";
+import { answer, type Route, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { projectEntry, projectLive } from "./projection.ts";
@@ -85,7 +85,7 @@ let rootId: number;
 let routes: Route[] = [];
 
 function send(client: Client, event: ServerEvent): void {
-    client.response.write(`data: ${JSON.stringify(event)}\n\n`);
+    writeEvent(client.response, `data: ${JSON.stringify(event)}\n\n`);
 }
 
 function broadcast(event: ServerEvent): void {
@@ -116,7 +116,7 @@ async function sendList(watchers: Iterable<ServerResponse>): Promise<void> {
     const event = `data: ${JSON.stringify(list)}\n\n`;
 
     for (const watcher of watchers) {
-        watcher.write(event);
+        writeEvent(watcher, event);
     }
 }
 
@@ -396,11 +396,11 @@ async function boot(): Promise<void> {
 
     const heartbeat = setInterval(() => {
         for (const client of clients) {
-            client.response.write(": heartbeat\n\n");
+            writeEvent(client.response, ": heartbeat\n\n");
         }
 
         for (const watcher of listWatchers) {
-            watcher.write(": heartbeat\n\n");
+            writeEvent(watcher, ": heartbeat\n\n");
         }
     }, IDLE_HEARTBEAT_MS);
 
