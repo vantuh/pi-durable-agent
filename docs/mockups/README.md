@@ -109,19 +109,39 @@ gains the area described below. The strip's own CSS is reused unchanged.
 
 Agents are counted **separately and are not added to the session totals**. The status line keeps
 the session figures exactly as they are, and agents are their own item after them:
-`ready · 1 working · 1 new · 3 agents working`. The item is hidden when no agent is working.
+`ready · 1 working · 1 new · 6 agents working`. The item counts the working agents of all
+parents and is hidden when none is working. The open agent is not counted, as the open session
+is not.
 
 Click the status line to open the mocked popover. It has the box of the real sessions popover
-(320px wide). The sessions part is unchanged: the open session first, then other working or
-unseen sessions with their time, or "No other session is working", and an "All sessions" row
-(not wired in the mockup). Below it, after a separator, comes a separate section
-"Agents · N working". It has one line per working agent, with the working mark, the agent's name
-and its parent's name, and each row opens that agent. It lists the working agents of **all**
-parents, the open parent's first, and leaves out the agent that is currently open. The section is
-absent when no agent is working. The sample data has a second parent, "Profile model validation",
-with its own agents, so the list shows more than one parent.
+(320px wide). It keeps the real structure: the open session first, then other sessions, or "No
+other session is working", and an "All sessions" row (not wired in the mockup). **Agents have no
+rows and no section of their own in it.** A session is listed when it works, is unseen, or has
+working agents, so a parent whose only activity is its agents still has a row.
 
-Escape or a click outside closes the popover.
+A parent row with working agents has a small marker at its right: the working mark and the
+count, for example `▪ 3 ›`. The sample data has Theme contrast pass with 3, Profile model
+validation with 1, the open Subagent workspace with 2 (4 in the 12-agent state), and Session
+archive notes with none, which has no marker. The marker opens a submenu of that parent's
+**working** agents only: a heading with the parent's name and "N working", then one row per agent
+with the working mark and the name. A click on an agent opens its conversation. A click on the
+parent row itself still opens the parent.
+
+- **Mouse:** hovering the row or its marker opens the submenu. Moving to a row without a marker,
+  or out of the popover, closes it after 250ms, which leaves time to cross the gap into the
+  submenu. Clicking the marker pins it open until a second click, Escape, or a click elsewhere.
+- **Keyboard:** focusing the row's link or its marker opens the submenu. Tab goes on to the
+  marker and then into the submenu's rows in order, and Tab out of the row closes it. ArrowRight
+  moves into the list, ArrowUp and ArrowDown move within it, ArrowLeft goes back to the marker.
+  Enter or Space on the marker pins the submenu and focuses its first agent.
+- **Touch:** tapping the marker opens the submenu and a second tap closes it. Tapping the row
+  opens the parent. Touch never opens it by hover. The marker is 56 × 44px on narrow screens.
+- **Escape** closes the submenu first. A second Escape closes the popover.
+- **Placement:** to the right of the popover, then to its left, then below the row (above it if
+  the window ends first), and always inside the window. In the default layout there is room on
+  the right on desktop, and on a phone the submenu goes under or over the row at the row's width.
+  The submenu sits inside the hovered row in the page, so the row stays highlighted while the
+  pointer is in it.
 
 ### A child whose parent is missing (decided)
 
@@ -137,8 +157,8 @@ Scenario (no agents, 3 agents, 12 agents, child open, parent missing), Sidebar (
 collapsed), Theme (Mocha or Latte), **Reset area size**, and the one open decision below. They
 are kept in the query string, for example
 `?scenario=many&theme=latte&finished=check&sidebar=open`. On a phone the controls start
-collapsed; `?controls=1` opens them. Opening an agent of the second parent from the popover
-uses `?scenario=other`, which has no button of its own.
+collapsed; `?controls=1` opens them. Opening another parent, or one of its agents, from the popover
+uses `?scenario=other&parent=profile` or `&parent=theme`, which has no button of its own.
 
 ### Measured sizes
 
@@ -160,9 +180,20 @@ Measured in the browser with sample data. Rows have fixed heights so the bounds 
 The default height fits the agents up to six rows, then the area scrolls. The maximum depends on
 the window: it is what is left after the top of the sidebar, the grip and the list minimum.
 
-Status popover, the same on both sizes: 320px wide (at most the window minus 24px), session rows
-49.5px, agent rows 27.5px. Its height is 259.5px with one working agent, 315px with three and
-369.5px with five.
+Status popover: 320px wide (at most the window minus 24px) and 248.5px tall in every scenario,
+with four parent rows of 49.5px each. The marker is 52 × 32px on desktop and 56 × 44px on narrow
+screens.
+
+Submenu, measured when opened: 24px heading, agent rows of 27.5px on desktop and 44px on a phone.
+
+| Parent (agents)                  | Desktop, 1280 × 800 | Phone, 390 × 844 |
+| -------------------------------- | ------------------- | ---------------- |
+| Profile model validation (1)     | 223 × 61.5px        | 310 × 78px       |
+| Subagent workspace (2)           | 210 × 89px          | not measured     |
+| Theme contrast pass (3)          | 211 × 116.5px       | 310 × 166px      |
+| Subagent workspace, 12-agent (4) | 211 × 144px         | 310 × 210px      |
+
+The submenu list scrolls past 220px or 45% of the window height, whichever is less.
 
 ### Open decision
 
@@ -176,12 +207,13 @@ Status popover, the same on both sizes: 320px wide (at most the window minus 24p
   while looking at 12 agents leaves empty space under 3 agents.
 - Agents sort working first, then finished newest first.
 - The status item counts only working agents, not finished unseen ones.
-- The sample data always has one working agent in the second parent, so the state with no working
-  agent at all (no status item, no popover section) is in the code but is not reachable on screen.
+- The sample data always has working agents in the two other parents, so the state with no
+  working agent at all (no status item, no markers) is in the code but is not reachable on screen.
 - Rows are fixed-height and titles are truncated with an ellipsis; the full title is in the
   tooltip.
-- The agents section of the popover scrolls past roughly five rows. The sample data never has
-  more than five working agents, so this is not shown.
+- Hover closes after 250ms. The close delay, the 220px height cap and the order of the parent
+  rows (working or agent-bearing sessions first, then unseen ones) are my choices.
+- The submenu has no per-agent time. The owner called it optional and the data would be invented.
 - Below about 455px of sidebar height on a phone (the fixed top of the sidebar, the list
   minimum, the grip and the area minimum) the sidebar clips its bottom. This happens in the
   preview only when the controls are expanded on a phone. The real app needs a rule for short

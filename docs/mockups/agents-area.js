@@ -6,6 +6,7 @@ const wide = window.matchMedia("(min-width: 1024px)");
 const PARENTS = {
     workspace: { id: "workspace", title: "Subagent workspace" },
     profile: { id: "profile", title: "Profile model validation" },
+    theme: { id: "theme", title: "Theme contrast pass" },
 };
 
 const sessions = [
@@ -13,7 +14,7 @@ const sessions = [
     { id: "profile", title: "Profile model validation", age: 2, busy: true },
     { id: "docs", title: "Extension documentation", age: 15 },
     { id: "archive", title: "Session archive notes", age: 180, unseen: true },
-    { id: "theme", title: "Theme contrast pass", age: 1500 },
+    { id: "theme", title: "Theme contrast pass", age: 45 },
     { id: "cache", title: "Offline shell cache", age: 4300 },
 ];
 
@@ -147,7 +148,49 @@ Object.assign(catalog, {
     },
 });
 
-const profileKidIds = ["validator", "schema"];
+Object.assign(catalog, {
+    writer: {
+        title: "Writer",
+        profile: "worker",
+        model: "Sonnet 5.5",
+        state: "working",
+        ctx: 37,
+        task: "Draft the theme contrast notes.",
+    },
+    linker: {
+        title: "Linker",
+        profile: "scout",
+        model: "Sonnet 5.5",
+        state: "working",
+        ctx: 24,
+        task: "Collect the contrast ratios of every role pair.",
+    },
+    checker: {
+        title: "Checker",
+        profile: "reviewer",
+        model: "Opus 5.5",
+        state: "working",
+        ctx: 62,
+        task: "Check the Latte flavour against the same pairs.",
+    },
+    indexer: {
+        title: "Indexer",
+        profile: "worker",
+        model: "Sonnet 5.5",
+        state: "finished",
+        ctx: 41,
+        age: 31,
+        task: "List the roles that have no contrast data.",
+    },
+});
+
+// The agents of the two other parents. Their parents are in the list in every scenario; the
+// parent with three working agents is Theme contrast pass, the one with one is Profile model
+// validation, and Session archive notes has none.
+const otherKidIds = {
+    profile: ["validator", "schema"],
+    theme: ["writer", "linker", "checker", "indexer"],
+};
 
 const kidIds = {
     mixed: ["scout", "worker", "reviewer"],
@@ -192,8 +235,11 @@ function formatAge(minutes) {
 // The agents of a parent in the sample world. The workspace's depend on the scenario; the missing
 // and none scenarios have none, because there the workspace is gone or has not delegated.
 function kidsOf(parentId, scenario) {
-    if (parentId === "profile") {
-        return profileKidIds;
+    if (parentId === "profile" || parentId === "theme") {
+        return otherKidIds[parentId];
+    }
+    if (parentId !== "workspace") {
+        return [];
     }
 
     return scenario === "many" || scenario === "mixed" || scenario === "other"
@@ -224,7 +270,10 @@ function readState() {
         scenario = "mixed";
     }
 
-    const parent = scenario === "other" ? PARENTS.profile : PARENTS.workspace;
+    const parent =
+        scenario === "other"
+            ? PARENTS[params.get("parent") === "theme" ? "theme" : "profile"]
+            : PARENTS.workspace;
     const ordered = orderedKids(parent.id, scenario);
     const hasParent = scenario === "mixed" || scenario === "many" || scenario === "other";
     const child = hasParent ? ordered.find((kid) => kid.id === agent) : undefined;
@@ -282,13 +331,17 @@ function mark(item, finishedStyle) {
 
 function sessionHref(session, state) {
     if (session.id === "workspace") {
-        return hrefWith({ scenario: state.scenario === "many" ? "many" : "mixed", agent: null });
+        return hrefWith({
+            scenario: state.scenario === "many" ? "many" : "mixed",
+            agent: null,
+            parent: null,
+        });
     }
-    if (session.id === "profile") {
-        return hrefWith({ scenario: "other", agent: null });
+    if (session.id === "profile" || session.id === "theme") {
+        return hrefWith({ scenario: "other", parent: session.id, agent: null });
     }
 
-    return hrefWith({ scenario: "none", agent: null, session: session.id });
+    return hrefWith({ scenario: "none", agent: null, parent: null, session: session.id });
 }
 
 function sessionRows(state) {
@@ -458,13 +511,29 @@ function workingAgents(state) {
 }
 
 function agentHref(kid, state) {
-    const scenario =
-        kid.parentId === "profile" ? "other" : state.scenario === "many" ? "many" : "mixed";
+    if (kid.parentId === "workspace") {
+        return hrefWith({
+            scenario: state.scenario === "many" ? "many" : "mixed",
+            agent: kid.id,
+            parent: null,
+        });
+    }
 
-    return hrefWith({ scenario, agent: kid.id });
+    return hrefWith({ scenario: "other", parent: kid.parentId, agent: kid.id });
 }
 
-function popoverSessionRow(row, current) {
+// A parent's working agents, as counted by its marker and listed in its submenu. The agent that
+// is open is left out, like the open session is left out of the session counts.
+function workingKidsOf(parentId, state) {
+    return orderedKids(parentId, state.scenario).filter(
+        (kid) => kid.state === "working" && kid.id !== state.child?.id,
+    );
+}
+
+// One row of the popover. A parent with working agents also gets a marker button. It sits beside
+// the row's link because a button cannot be inside a link.
+function popoverItem(row, state, current) {
+    const kids = workingKidsOf(row.id, state);
     const markClass = row.busy
         ? "working text-accent"
         : row.unseen
@@ -473,45 +542,171 @@ function popoverSessionRow(row, current) {
     const inner = `<span class="mark-slot"><span class="state-mark ${markClass}" aria-hidden="true"></span></span>
         <span class="pop-text"><span class="pop-title">${row.title}</span><span class="pop-sub">pi-durable-agent</span></span>
         <span class="pop-time">${formatAge(row.age)}</span>`;
-
-    return current
-        ? `<div class="pop-row is-current">${inner}</div>`
+    const link = current
+        ? `<div class="pop-row">${inner}</div>`
         : `<a data-nav class="pop-row" href="${row.href}">${inner}</a>`;
+    const marker =
+        kids.length === 0
+            ? ""
+            : `<button type="button" class="pop-marker" aria-haspopup="true" aria-expanded="false" aria-controls="status-submenu" aria-label="${kids.length} ${kids.length === 1 ? "agent" : "agents"} working in ${row.title}"><span class="state-mark working text-warn" aria-hidden="true"></span><span>${kids.length}</span><span class="pop-chev" aria-hidden="true">›</span></button>`;
+
+    return `<div class="pop-item${current ? " is-current" : ""}" data-parent="${row.id}"${kids.length === 0 ? "" : " data-has-agents"}>${link}${marker}</div>`;
 }
 
-function renderPopover(state, working, fresh, agents) {
+let popoverState = null;
+
+function renderPopover(state) {
+    hideSub();
+    popoverState = state;
+
     const active = sessionRows(state).find((row) => row.id === state.currentId);
-    const others = [...working, ...fresh.filter((row) => !working.includes(row))];
-    const sessionPart = `${active ? popoverSessionRow(active, true) : ""}${others
-        .map((row) => popoverSessionRow(row, false))
+    const rows = sessionRows(state).filter((row) => row.id !== state.currentId);
+    // Working sessions, and parents whose agents work, come first; then the unseen ones.
+    const busy = rows.filter((row) => row.busy === true || workingKidsOf(row.id, state).length > 0);
+    const others = [...busy, ...rows.filter((row) => row.unseen && !busy.includes(row))];
+
+    $("status-popover").innerHTML = `${active ? popoverItem(active, state, true) : ""}${others
+        .map((row) => popoverItem(row, state, false))
         .join(
             "",
-        )}${others.length === 0 ? '<p class="pop-none">No other session is working</p>' : ""}`;
-    const agentPart =
-        agents.length === 0
-            ? ""
-            : `<div class="pop-sep" role="separator"></div>
-        <div class="pop-head"><span class="state-mark working text-warn" aria-hidden="true"></span><span>Agents · <b>${agents.length} working</b></span></div>
-        <ul class="pop-agents">${agents
+        )}${others.length === 0 ? '<p class="pop-none">No other session is working</p>' : ""}
+        <div class="pop-sep" role="separator"></div>
+        <button type="button" class="pop-row" data-close title="Opens the home page in the real app; not mocked here"><span class="mark-slot text-muted" aria-hidden="true">⌂</span>All sessions</button>`;
+    $("status-popover")
+        .querySelectorAll(".pop-item")
+        .forEach((item) => {
+            // Hover is the mouse's. A touch has no hover; it taps the marker instead.
+            item.addEventListener("pointerenter", (event) => {
+                if (event.pointerType !== "mouse") {
+                    return;
+                }
+                window.clearTimeout(subTimer);
+                if (item.hasAttribute("data-has-agents")) {
+                    showSub(item.dataset.parent, "hover");
+                } else {
+                    scheduleHideSub();
+                }
+            });
+            item.addEventListener("pointerleave", (event) => {
+                if (event.pointerType === "mouse") {
+                    scheduleHideSub();
+                }
+            });
+        });
+}
+
+const submenu = $("status-submenu");
+// Who opened the submenu decides what closes it: a hover closes on leave, a focus on focus
+// leaving, a tap (or Enter on the marker) only on a second tap, Escape or a click elsewhere.
+let sub = null;
+let subTimer = 0;
+let suppressFocusOpen = false;
+
+function itemFor(parentId) {
+    return [...$("status-popover").querySelectorAll(".pop-item")].find(
+        (item) => item.dataset.parent === parentId,
+    );
+}
+
+function hideSub() {
+    window.clearTimeout(subTimer);
+    sub = null;
+    submenu.hidden = true;
+    // Out of the row again, so rebuilding the rows does not destroy it.
+    $("status-line").append(submenu);
+    document.querySelectorAll(".pop-item[data-open]").forEach((item) => {
+        delete item.dataset.open;
+        item.querySelector(".pop-marker")?.setAttribute("aria-expanded", "false");
+    });
+}
+
+// Beside the popover if there is room on the right, else beside it on the left, else under the
+// row (over the rows below it, or over the row if the window ends first).
+function placeSub(item) {
+    const margin = 8;
+    const gap = 4;
+    const box = $("status-popover").getBoundingClientRect();
+    const row = item.getBoundingClientRect();
+
+    submenu.style.minWidth = "";
+    submenu.style.visibility = "hidden";
+    submenu.hidden = false;
+
+    const width = submenu.offsetWidth;
+    const height = submenu.offsetHeight;
+    let side = "right";
+    let left = box.right + gap;
+    let top = row.top - 5;
+
+    if (left + width > window.innerWidth - margin) {
+        side = "left";
+        left = box.left - gap - width;
+    }
+    if (left < margin) {
+        side = "below";
+        submenu.style.minWidth = `${row.width}px`;
+        left = Math.max(
+            margin,
+            Math.min(row.left, window.innerWidth - margin - submenu.offsetWidth),
+        );
+        // No gap: the next row would show through it.
+        top = row.bottom;
+        if (top + height > window.innerHeight - margin) {
+            top = row.top - height;
+        }
+    }
+    top = Math.max(margin, Math.min(top, window.innerHeight - margin - height));
+    submenu.style.left = `${left}px`;
+    submenu.style.top = `${top}px`;
+    submenu.dataset.side = side;
+    submenu.style.visibility = "";
+}
+
+function showSub(parentId, by) {
+    window.clearTimeout(subTimer);
+    if (sub?.parentId === parentId) {
+        return;
+    }
+    hideSub();
+
+    const item = itemFor(parentId);
+    const kids = popoverState === null ? [] : workingKidsOf(parentId, popoverState);
+
+    if (item === undefined || kids.length === 0) {
+        return;
+    }
+    sub = { parentId, by };
+    item.dataset.open = "";
+    item.querySelector(".pop-marker")?.setAttribute("aria-expanded", "true");
+    submenu.setAttribute("aria-label", `Working agents of ${PARENTS[parentId].title}`);
+    submenu.innerHTML = `<div class="pop-head"><b>${PARENTS[parentId].title}</b><span>${kids.length} working</span></div>
+        <ul class="pop-agents">${kids
             .map(
                 (
                     kid,
-                ) => `<li><a data-nav class="pop-row pop-agent" href="${agentHref(kid, state)}" title="${kid.title} · ${kid.profile} · ${kid.parent.title}">
+                ) => `<li><a data-nav class="pop-row pop-agent" href="${agentHref(kid, popoverState)}" title="${kid.title} · ${kid.profile} · ${kid.model}">
             <span class="mark-slot"><span class="state-mark working text-warn" aria-hidden="true"></span></span>
             <span class="pop-title">${kid.title}</span>
-            <span class="pop-sub">${kid.parent.title}</span>
         </a></li>`,
             )
             .join("")}</ul>`;
+    item.append(submenu);
+    placeSub(item);
+}
 
-    $("status-popover").innerHTML = `${sessionPart}${agentPart}
-        <div class="pop-sep" role="separator"></div>
-        <button type="button" class="pop-row" data-close title="Opens the home page in the real app; not mocked here"><span class="mark-slot text-muted" aria-hidden="true">⌂</span>All sessions</button>`;
+function scheduleHideSub() {
+    window.clearTimeout(subTimer);
+    if (sub?.by === "hover") {
+        subTimer = window.setTimeout(hideSub, 250);
+    }
 }
 
 function setPopover(open) {
     $("status-popover").hidden = !open;
     $("status-trigger").setAttribute("aria-expanded", String(open));
+    if (!open) {
+        hideSub();
+    }
 }
 
 function renderStatus(state) {
@@ -527,7 +722,7 @@ function renderStatus(state) {
         agents.length > 0
             ? `· ${agents.length} ${agents.length === 1 ? "agent" : "agents"} working`
             : "";
-    renderPopover(state, working, fresh, agents);
+    renderPopover(state);
     setPopover(false);
 
     const hint = $("collapsed-hint");
@@ -682,8 +877,8 @@ document.querySelectorAll("[data-set]").forEach((button) => {
         if (set === "scenario") {
             replace(
                 value === "child"
-                    ? { scenario: "mixed", agent: "worker" }
-                    : { scenario: value, agent: null },
+                    ? { scenario: "mixed", agent: "worker", parent: null }
+                    : { scenario: value, agent: null, parent: null },
             );
         } else {
             replace({ [set]: value });
@@ -709,11 +904,92 @@ $("backdrop").addEventListener("click", () => {
 $("status-trigger").addEventListener("click", () => {
     setPopover($("status-popover").hidden);
 });
-$("status-popover").addEventListener("click", (event) => {
-    if (event.target instanceof Element && event.target.closest("[data-close]")) {
+const popover = $("status-popover");
+
+function closeSub(returnFocus) {
+    const marker = sub === null ? null : itemFor(sub.parentId)?.querySelector(".pop-marker");
+
+    hideSub();
+    if (returnFocus && marker) {
+        suppressFocusOpen = true;
+        marker.focus();
+        suppressFocusOpen = false;
+    }
+}
+
+popover.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const marker = target?.closest(".pop-marker");
+
+    if (target?.closest("[data-close]")) {
         setPopover(false);
+    } else if (marker) {
+        const parentId = marker.closest(".pop-item").dataset.parent;
+
+        if (sub?.parentId === parentId && sub.by === "tap") {
+            hideSub();
+
+            return;
+        }
+        hideSub();
+        showSub(parentId, "tap");
+        // Enter or Space on the marker click with no pointer: move into the list.
+        if (event.detail === 0) {
+            submenu.querySelector("a")?.focus();
+        }
+    } else if (sub?.by === "tap" && !target?.closest("#status-submenu")) {
+        hideSub();
     }
 });
+popover.addEventListener("focusin", (event) => {
+    const item = event.target instanceof Element ? event.target.closest(".pop-item") : null;
+
+    if (suppressFocusOpen) {
+        return;
+    }
+    if (item?.hasAttribute("data-has-agents")) {
+        showSub(item.dataset.parent, "focus");
+    } else if (sub !== null && sub.by !== "tap") {
+        hideSub();
+    }
+});
+popover.addEventListener("focusout", (event) => {
+    if (
+        sub?.by === "focus" &&
+        !(event.relatedTarget instanceof Node && popover.contains(event.relatedTarget))
+    ) {
+        hideSub();
+    }
+});
+popover.addEventListener("keydown", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+
+    if (target === null) {
+        return;
+    }
+    if (target.closest("#status-submenu")) {
+        const links = [...submenu.querySelectorAll("a")];
+        const at = links.indexOf(target.closest("a"));
+        const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+
+        if (step !== undefined) {
+            event.preventDefault();
+            links[(at + step + links.length) % links.length]?.focus();
+        } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            closeSub(true);
+        }
+    } else if (event.key === "ArrowRight") {
+        const item = target.closest(".pop-item[data-has-agents]");
+
+        if (item) {
+            event.preventDefault();
+            showSub(item.dataset.parent, "focus");
+            submenu.querySelector("a")?.focus();
+        }
+    }
+});
+window.addEventListener("resize", hideSub);
 document.addEventListener("click", (event) => {
     if (event.target instanceof Element && !event.target.closest("#status-line")) {
         setPopover(false);
@@ -723,7 +999,9 @@ document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
         return;
     }
-    if (!$("status-popover").hidden) {
+    if (sub !== null) {
+        closeSub(popover.contains(document.activeElement));
+    } else if (!popover.hidden) {
         setPopover(false);
         $("status-trigger").focus();
     } else if (!wide.matches && $("app").dataset.sidebar === "open") {

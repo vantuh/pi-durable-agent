@@ -288,13 +288,8 @@ summary::-webkit-details-marker {
 }
 
 /* The status-bar popover: the same box as the real sessions menu (w-80, panel, 1px soft edge, 4px padding). */
-.status-popover {
-    position: absolute;
-    bottom: calc(100% + 4px);
-    left: 0;
-    z-index: 40;
-    width: 320px;
-    max-width: calc(100vw - 24px);
+.status-popover,
+.status-submenu {
     padding: 4px;
     border: 1px solid var(--role-edge-soft);
     border-radius: 6px;
@@ -302,6 +297,24 @@ summary::-webkit-details-marker {
     box-shadow: 0 8px 24px var(--role-sunken);
     color: var(--role-ink);
     font-family: var(--font-sans);
+}
+
+.status-popover {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    z-index: 40;
+    width: 320px;
+    max-width: calc(100vw - 24px);
+}
+
+/* Fixed, so it can sit beside the popover or under a row; script sets left and top. */
+.status-submenu {
+    position: fixed;
+    z-index: 50;
+    width: max-content;
+    min-width: 180px;
+    max-width: calc(100vw - 16px);
 }
 
 .pop-row {
@@ -323,9 +336,62 @@ button.pop-row:hover {
     background: color-mix(in srgb, var(--role-raised) 50%, transparent);
 }
 
-.pop-row.is-current {
+/* A row with a marker: the row and the marker share one background, and it stays while the
+   pointer or focus is in the submenu, which is inside the row. */
+.pop-item {
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+}
+
+.pop-item > .pop-row {
+    flex: 1;
+    min-width: 0;
+}
+
+.pop-item:hover,
+.pop-item:focus-within,
+.pop-item[data-open] {
+    background: color-mix(in srgb, var(--role-raised) 50%, transparent);
+}
+
+.pop-item.is-current {
     background: var(--role-raised);
+}
+
+.pop-item > a.pop-row:hover {
+    background: none;
+}
+
+.pop-item.is-current > .pop-row {
     cursor: default;
+}
+
+.pop-marker {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    margin-right: 4px;
+    padding: 0 8px;
+    border: 1px solid var(--role-edge-soft);
+    border-radius: 6px;
+    color: var(--role-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.pop-marker:hover,
+.pop-item[data-open] .pop-marker {
+    border-color: var(--role-edge);
+    background: var(--role-raised);
+    color: var(--role-ink);
+}
+
+.pop-chev {
+    color: var(--role-faint);
 }
 
 .pop-text {
@@ -373,21 +439,28 @@ button.pop-row:hover {
 
 .pop-head {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
     padding: 4px 8px 2px;
     color: var(--role-faint);
     font-size: 12px;
+    white-space: nowrap;
 }
 
 .pop-head b {
+    min-width: 0;
+    overflow: hidden;
     color: var(--role-muted);
     font-weight: 500;
+    text-overflow: ellipsis;
 }
 
-/* Agents are one line each, so five fit before the section scrolls. */
+.pop-head span {
+    margin-left: auto;
+}
+
 .pop-agents {
-    max-height: 164px;
+    max-height: min(220px, 45vh);
     margin: 0;
     padding: 0;
     overflow-y: auto;
@@ -401,16 +474,14 @@ button.pop-row:hover {
     padding-block: 4px;
 }
 
-.pop-agent .pop-title {
-    flex: none;
-    max-width: 45%;
-}
+@media (max-width: 1023px) {
+    .pop-marker {
+        min-width: 56px;
+        min-height: 44px;
+        justify-content: center;
+    }
 
-.pop-agent .pop-sub {
-    flex: 1;
-    min-width: 0;
-    font-family: var(--font-sans);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    .pop-agent {
+        min-height: 44px;
+    }
 }
