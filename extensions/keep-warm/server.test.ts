@@ -322,6 +322,7 @@ void test("names the warmed conversations with the titles the core keeps", async
             disposers.push(dispose);
         },
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,
@@ -390,6 +391,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
             disposers.push(dispose);
         },
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,
@@ -454,6 +456,7 @@ void test("builds no request for a conversation the user left too long ago for a
             disposers.push(dispose);
         },
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,

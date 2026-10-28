@@ -428,6 +428,17 @@ async function boot(): Promise<void> {
         contextWindow: windowOf,
         resolveModelAuth: async (providerId, signal) =>
             (await models.getAuth(providerId, { signal }))?.auth,
+        registerModelProvider: (native) => {
+            models.registerNativeProvider(native);
+
+            return () => {
+                // A reload registers the next version before this one's disposers run, and those
+                // must not take the provider that is in force now.
+                if (models.getRegisteredNativeProvider(native.id) === native) {
+                    models.unregisterProvider(native.id);
+                }
+            };
+        },
         sessionRequest: sessionRequestOf,
         sessionTitle: sessionTitleOf,
         sessionName: sessionNameOf,

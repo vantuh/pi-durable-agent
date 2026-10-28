@@ -39,6 +39,7 @@ function hostOf(cwd: string, titles: Map<number, string>): Host {
         onCommit: () => undefined,
         onDispose: () => undefined,
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,

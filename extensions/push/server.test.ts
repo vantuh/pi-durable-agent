@@ -385,6 +385,7 @@ void describe("push", () => {
                 onDispose: (dispose) => disposers.push(dispose),
                 onCommit: (listener) => listeners.push(listener),
                 shapeModelRequests: () => undefined,
+                registerModelProvider: () => () => undefined,
                 wrapModelFetch: () => undefined,
                 resolveModelAuth: () => Promise.resolve(undefined),
                 contextWindow: () => undefined,

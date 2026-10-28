@@ -210,6 +210,7 @@ function hostOf(options: {
         },
         onDispose: () => undefined,
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,

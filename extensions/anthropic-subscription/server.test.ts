@@ -82,6 +82,7 @@ function setup() {
             disposers.push(dispose);
         },
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,
         sessionRequest: () => Promise.resolve(undefined),

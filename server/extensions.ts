@@ -18,6 +18,7 @@ import type {
     Message,
     Model,
     ModelThinkingLevel,
+    Provider,
 } from "@earendil-works/pi-ai";
 import type { EntryRecord, Extension, Registry } from "@earendil-works/pi-durable";
 
@@ -46,6 +47,11 @@ export type Host = {
     readonly shapeModelRequests: (shape: RequestShaper) => void;
     /** Wraps the resolved HTTP transport; never retain or log authorization headers. */
     readonly wrapModelFetch: (wrap: FetchWrapper) => void;
+    /**
+     * Puts a provider in front of the model picker and the harness, and returns how to take it out
+     * again. It goes with this extension version, so a reload holds the newest one only.
+     */
+    readonly registerModelProvider: (provider: Provider) => () => void;
     /** Resolves current provider auth through Pi, including refresh. Never persist or log it. */
     readonly resolveModelAuth: ResolveModelAuth;
     /** The context window of a model in the catalog, in tokens. */
@@ -347,6 +353,7 @@ export class Extensions {
     readonly #shapers = new Set<RequestShaper>();
     readonly #fetchWrappers = new Set<FetchWrapper>();
     readonly #resolveModelAuth: ResolveModelAuth;
+    readonly #registerModelProvider: Host["registerModelProvider"];
     readonly #contextWindow: Host["contextWindow"];
     readonly #sessionRequest: Host["sessionRequest"];
     readonly #sessionTitle: Host["sessionTitle"];
@@ -381,6 +388,7 @@ export class Extensions {
         log: (message: string) => void;
         notify?: (notice: ExtensionNotice) => void;
         resolveModelAuth?: ResolveModelAuth;
+        registerModelProvider?: Host["registerModelProvider"];
         contextWindow?: Host["contextWindow"];
         sessionRequest?: Host["sessionRequest"];
         sessionTitle?: Host["sessionTitle"];
@@ -395,6 +403,7 @@ export class Extensions {
         this.#log = options.log;
         this.#notify = options.notify ?? (() => undefined);
         this.#resolveModelAuth = options.resolveModelAuth ?? (() => Promise.resolve(undefined));
+        this.#registerModelProvider = options.registerModelProvider ?? (() => () => undefined);
         this.#contextWindow = options.contextWindow ?? (() => undefined);
         this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
@@ -845,6 +854,13 @@ export class Extensions {
                 attempt.push(() => {
                     this.#fetchWrappers.delete(wrap);
                 });
+            },
+            registerModelProvider: (provider) => {
+                const unregister = this.#registerModelProvider(provider);
+
+                attempt.push(unregister);
+
+                return unregister;
             },
             shapeModelRequests: (shape) => {
                 this.#shapers.add(shape);

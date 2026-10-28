@@ -192,6 +192,7 @@ void test("settings: missing or broken file shows everything; actions validate a
         onCommit: () => undefined,
         onDispose: () => undefined,
         shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
         resolveModelAuth: auth({}),
         contextWindow: () => undefined,
         sessionRequest: () => Promise.resolve(undefined),
