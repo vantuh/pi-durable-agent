@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
 import { Toaster as Sonner } from "sonner";
 
 /** One global notification host; Sonner owns animation, timers and announcements, not colours. */
@@ -27,15 +27,16 @@ export function Toaster() {
                 info: <Info className="text-info size-4" />,
                 warning: <TriangleAlert className="text-warn size-4" />,
                 error: <CircleAlert className="text-danger size-4" />,
-                loading: (
-                    <LoaderCircle className="text-muted size-4 animate-spin motion-reduce:animate-none" />
-                ),
+                // A loading toast places the spinner itself: Sonner positions this slot with CSS that
+                // `unstyled` drops, which leaves the spinner floating over the text instead of at its end.
+                loading: null,
                 close: <X className="size-3.5" />,
             }}
             toastOptions={{
                 unstyled: true,
                 classNames: {
-                    toast: "app-toast rounded-card border-edge bg-panel text-ink text-meta flex w-full items-center gap-3 border py-3 pr-10 pl-4 shadow-lg",
+                    // The right inset belongs to the close button, which a waiting toast does not show.
+                    toast: "app-toast rounded-card border-edge bg-panel text-ink text-meta flex w-full items-center gap-3 border px-4 py-3 shadow-lg has-[[data-close-button]]:pr-10",
                     title: "font-medium",
                     description: "text-muted mt-0.5",
                     content: "min-w-0 flex-1",

@@ -22,6 +22,7 @@ import {
 } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import {
@@ -40,6 +41,16 @@ import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
 /** An item's label and icon, which a folder may read off the row: pause turns into resume. */
 function labelOf(item: FolderSessionMenuItem, session: SessionSummary): string {
     return typeof item.label === "function" ? item.label(session) : item.label;
+}
+
+/** A busy toast's title, with the spinner at the far end: Sonner's own loading slot cannot be placed here. */
+function busyLabel(text: string): ReactNode {
+    return (
+        <span className="flex items-center gap-3">
+            {text}
+            <Spinner className="text-muted ml-auto shrink-0 motion-reduce:animate-none" />
+        </span>
+    );
 }
 
 function iconOf(
@@ -214,7 +225,7 @@ export function Sessions({
     const runMenuItem = (item: FolderSessionMenuItem, session: SessionSummary): void => {
         setPending(true);
         toast.promise(item.run(session.id), {
-            loading: `${labelOf(item, session)}…`,
+            loading: busyLabel(`${labelOf(item, session)}…`),
             error: (error: unknown) =>
                 error instanceof Error ? error.message : "Could not finish the action.",
             finally: () => {
@@ -250,7 +261,7 @@ export function Sessions({
                     label: "Undo",
                     onClick: () => {
                         toast.promise(onArchive(id, !value), {
-                            loading: "Undoing…",
+                            loading: busyLabel("Undoing…"),
                             success: value ? "Session restored" : "Session archived",
                             error: "Could not undo. Please try again.",
                         });
