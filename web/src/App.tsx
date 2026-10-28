@@ -195,6 +195,7 @@ export function App() {
                         <>
                             <Transcript
                                 key={current}
+                                session={current}
                                 title={active?.title ?? null}
                                 entries={state.entries}
                                 live={state.live}

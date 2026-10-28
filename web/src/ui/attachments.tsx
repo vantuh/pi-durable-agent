@@ -45,7 +45,15 @@ function srcOf(file: Pending): string | undefined {
         : `/api/uploads?path=${encodeURIComponent(file.path)}`;
 }
 
-function Lightbox({ file, onClose }: { file: Pending; onClose: () => void }) {
+function Lightbox({
+    src,
+    name,
+    onClose,
+}: {
+    src: string | undefined;
+    name: string;
+    onClose: () => void;
+}) {
     return (
         <Dialog
             open
@@ -59,17 +67,53 @@ function Lightbox({ file, onClose }: { file: Pending; onClose: () => void }) {
                 aria-describedby={undefined}
                 className="bg-panel border-edge rounded-card inset-auto top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 gap-1.5 border p-1.5 sm:max-h-[calc(100dvh-2rem)] sm:w-auto sm:max-w-[calc(100vw-2rem)]"
             >
-                <DialogTitle className="sr-only">{file.name}</DialogTitle>
+                <DialogTitle className="sr-only">{name}</DialogTitle>
                 <img
-                    src={srcOf(file)}
-                    alt={file.name}
+                    src={src}
+                    alt={name}
                     className="rounded-control max-h-[calc(100dvh-8rem)] max-w-full object-contain"
                 />
-                <p className="text-meta text-muted max-w-full truncate px-1 font-mono">
-                    {file.name}
-                </p>
+                <p className="text-meta text-muted max-w-full truncate px-1 font-mono">{name}</p>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/** Pictures a tool returned, as thumbnails that open full size. */
+export function ImageThumbs({ images }: { images: { src: string; name: string }[] }) {
+    const [open, setOpen] = useState<{ src: string; name: string } | undefined>(undefined);
+
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {images.map((image) => (
+                <button
+                    key={image.src}
+                    type="button"
+                    title="Preview"
+                    onClick={() => {
+                        setOpen(image);
+                    }}
+                    className="rounded-control border-edge-soft bg-sunken hover:border-edge cursor-zoom-in overflow-hidden border"
+                >
+                    <img
+                        src={image.src}
+                        alt={image.name}
+                        loading="lazy"
+                        className="block max-h-40 max-w-full object-contain"
+                    />
+                </button>
+            ))}
+
+            {open === undefined ? null : (
+                <Lightbox
+                    src={open.src}
+                    name={open.name}
+                    onClose={() => {
+                        setOpen(undefined);
+                    }}
+                />
+            )}
+        </div>
     );
 }
 
@@ -134,7 +178,8 @@ export function Attachments({ files, onRemove }: Props) {
 
             {open === undefined ? null : (
                 <Lightbox
-                    file={open}
+                    src={srcOf(open)}
+                    name={open.name}
                     onClose={() => {
                         setOpen(undefined);
                     }}

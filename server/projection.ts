@@ -12,6 +12,7 @@ import type {
     ClientAuthor,
     ClientBlock,
     ClientEntry,
+    ClientImage,
     ClientLive,
     ClientQueued,
     ClientTool,
@@ -114,6 +115,52 @@ function textOf(content: unknown): string {
     }
 
     return text;
+}
+
+/** Types a browser may be handed as an image: anything else (SVG, HTML) could run script from this origin. */
+const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+function imagePartsOf(content: unknown): { mimeType: string; data: string }[] {
+    const images: { mimeType: string; data: string }[] = [];
+
+    if (!Array.isArray(content)) {
+        return images;
+    }
+
+    for (const raw of content) {
+        const part = recordOf(raw);
+        const mimeType = stringOf(part, "mimeType");
+        const data = stringOf(part, "data");
+
+        if (
+            stringOf(part, "type") === "image" &&
+            mimeType !== undefined &&
+            IMAGE_MIME_TYPES.has(mimeType) &&
+            data !== undefined &&
+            data !== ""
+        ) {
+            images.push({ mimeType, data });
+        }
+    }
+
+    return images;
+}
+
+/** The bytes of the `index`th image a tool result holds: what `GET /api/entry-image` serves. */
+export function toolImageOf(
+    entry: EntryRecord,
+    index: number,
+): { mimeType: string; bytes: Buffer } | undefined {
+    if (entry.kind !== "pi.tool-result") {
+        return undefined;
+    }
+
+    const message = recordOf(Array.isArray(entry.model) ? entry.model[0] : undefined);
+    const image = imagePartsOf(message?.["content"])[index];
+
+    return image === undefined
+        ? undefined
+        : { mimeType: image.mimeType, bytes: Buffer.from(image.data, "base64") };
 }
 
 function optionalNumber(
@@ -267,6 +314,9 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
             const at = optionalNumber(message, "timestamp");
             const durationMs = optionalNumber(message, "durationMs");
             const diff = diffOf(recordOf(message?.["details"]));
+            const images: ClientImage[] = imagePartsOf(message?.["content"]).map(
+                ({ mimeType }) => ({ mimeType }),
+            );
 
             return {
                 id,
@@ -279,6 +329,7 @@ export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
                     : output,
                 isError: message?.["isError"] === true,
                 ...(cut ? { truncated: true } : {}),
+                ...(images.length === 0 ? {} : { images }),
                 ...(at === undefined ? {} : { at }),
                 ...(durationMs === undefined ? {} : { durationMs }),
                 ...(diff === undefined ? {} : { diff }),

@@ -8,8 +8,9 @@ import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 
 import { runCommand } from "../commands.ts";
-import { historyPage } from "../history.ts";
+import { entryAt, historyPage } from "../history.ts";
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
+import { toolImageOf } from "../projection.ts";
 import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
 import { expandSkillCommand, skillsFor } from "../skills.ts";
 import { IMAGE_TYPES } from "./files.ts";
@@ -115,6 +116,50 @@ export function conversationRoutes(deps: {
                         ...(before === undefined ? {} : { before }),
                     }),
                 );
+            },
+        },
+        {
+            method: "GET",
+            path: /^\/api\/entry-image$/,
+            handle: async (_request, response, url) => {
+                const id = sessionIdOf(Number(url.searchParams.get("session")));
+                const entry = sessionIdOf(Number(url.searchParams.get("entry")));
+                const index = Number(url.searchParams.get("index"));
+
+                if (
+                    id === undefined ||
+                    entry === undefined ||
+                    !Number.isSafeInteger(index) ||
+                    index < 0
+                ) {
+                    answer(response, 400, { error: "session, entry and index are required" });
+
+                    return;
+                }
+
+                const opened = await attach(id);
+                const stored =
+                    opened === undefined
+                        ? undefined
+                        : await entryAt({
+                              conversation: opened.conversation,
+                              context,
+                              id: entry,
+                          });
+                const image = stored === undefined ? undefined : toolImageOf(stored, index);
+
+                if (image === undefined) {
+                    answer(response, 404, { error: "no such image" });
+
+                    return;
+                }
+
+                response.writeHead(200, {
+                    "content-type": image.mimeType,
+                    "x-content-type-options": "nosniff",
+                    "cache-control": "private, max-age=3600",
+                });
+                response.end(image.bytes);
             },
         },
         {

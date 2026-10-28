@@ -209,6 +209,10 @@ export function outcomeOf(
         return { text: first.length > 48 ? `${first.slice(0, 47)}…` : first, tone: "danger" };
     }
 
+    if (result.images !== undefined) {
+        return { text: plural(result.images.length, "image") };
+    }
+
     // A cut output cannot be counted.
     const counted = result.truncated === true ? undefined : lineCount(text);
 

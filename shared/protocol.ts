@@ -25,6 +25,9 @@ export type ClientAnswerStats = {
     durationMs?: number;
 };
 
+/** An image a tool returned. Its bytes are not sent: `GET /api/entry-image` serves them by entry and position. */
+export type ClientImage = { mimeType: string };
+
 export type ClientAttachment = {
     name: string;
     path: string;
@@ -63,6 +66,8 @@ export type ClientEntry =
           text: string;
           isError: boolean;
           truncated?: true;
+          /** In the order of `GET /api/entry-image`'s `index`. */
+          images?: ClientImage[];
           at?: number;
           durationMs?: number;
           /** An edit's diff as the tool wrote it: `+12 text`, `-12 text`, ` 12 text`, and `   ...` where lines are skipped. */

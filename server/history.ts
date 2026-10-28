@@ -5,7 +5,7 @@
  */
 
 import type { Context } from "@earendil-works/chord/context";
-import type { Conversation, Cursor, EntryId } from "@earendil-works/pi-durable";
+import type { Conversation, Cursor, EntryId, EntryRecord } from "@earendil-works/pi-durable";
 
 import type { ClientEntry, ClientHistory } from "../shared/protocol.ts";
 import { projectEntry } from "./projection.ts";
@@ -29,6 +29,24 @@ export async function hasOlder(options: {
     const first = oldest.items[0];
 
     return first !== undefined && Number(first.id) < options.id;
+}
+
+/** One entry of the conversation's log by id, `undefined` when this conversation has no such entry. */
+export async function entryAt(options: {
+    conversation: Conversation;
+    context: Context;
+    id: number;
+}): Promise<EntryRecord | undefined> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- an entry id is a number at run time; the brand lives only in the type
+    const bound = options.id as EntryId;
+    const page = await options.conversation.entries(
+        { minEntryId: bound, maxEntryId: bound },
+        1,
+        undefined,
+        options.context,
+    );
+
+    return page.items[0];
 }
 
 export async function historyPage(options: {

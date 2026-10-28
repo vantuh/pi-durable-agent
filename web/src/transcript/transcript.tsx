@@ -19,8 +19,10 @@ import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { AgentMessage } from "./agent-message.tsx";
+import { SessionContext } from "./session.ts";
 
 type Props = {
+    session: number;
     title: string | null;
     entries: ClientEntry[];
     live: ClientLive;
@@ -288,6 +290,7 @@ function TurnView({
 }
 
 export function Transcript({
+    session,
     title,
     entries,
     live,
@@ -451,9 +454,11 @@ export function Transcript({
                         </div>
                     ) : null}
 
-                    {turns.map((turn) => (
-                        <TurnView key={turn.key} turn={turn} onOpenSession={onOpenSession} />
-                    ))}
+                    <SessionContext value={session}>
+                        {turns.map((turn) => (
+                            <TurnView key={turn.key} turn={turn} onOpenSession={onOpenSession} />
+                        ))}
+                    </SessionContext>
 
                     {live.compacting === true ? (
                         <CompactingMark retrying={live.compactionRetrying === true} />

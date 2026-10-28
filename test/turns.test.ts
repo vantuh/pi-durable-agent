@@ -159,6 +159,15 @@ void describe("outcomeOf", () => {
             result: { id: 1, kind: "toolResult", callId: "c", name, text, isError },
         }) as const;
 
+    void it("says a call returned pictures, not how many lines of notice came with them", () => {
+        const read = step("read", { path: "a.png" }, "[info] Read image file [image/png].");
+
+        assert.deepEqual(
+            outcomeOf({ ...read, result: { ...read.result, images: [{ mimeType: "image/png" }] } }),
+            { text: "1 image" },
+        );
+    });
+
     void it("counts lines, edits, and says how a call failed", () => {
         assert.deepEqual(outcomeOf(step("read", { path: "a" }, "1\n2\n3")), { text: "3 lines" });
         assert.deepEqual(outcomeOf(step("bash", { command: "true" }, "")), { text: "no output" });

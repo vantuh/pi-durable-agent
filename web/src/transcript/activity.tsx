@@ -30,8 +30,10 @@ import {
     subjectOf,
     summarize,
 } from "../lib/turns.ts";
+import { ImageThumbs } from "../ui/attachments.tsx";
 import { Counts, DiffCard } from "../ui/diff.tsx";
 import { CodeBlock } from "../ui/markdown.tsx";
+import { useSession } from "./session.ts";
 
 /** The current time, every second while `live`; a settled clock never redraws. */
 export function useNow(live: boolean): number {
@@ -180,6 +182,11 @@ function StepBody({ step }: { step: Extract<Step, { kind: "tool" }> }) {
     const path = argOf(step.args, "path");
     const content = step.name === "write" ? argOf(step.args, "content") : undefined;
     const failed = step.status === "error";
+    const session = useSession();
+    const images = (step.result?.images ?? []).map((_image, index) => ({
+        src: `/api/entry-image?session=${String(session)}&entry=${String(step.result?.id)}&index=${String(index)}`,
+        name: `${step.name} image ${String(index + 1)}`,
+    }));
 
     if (!failed && step.result?.diff !== undefined) {
         return (
@@ -207,6 +214,7 @@ function StepBody({ step }: { step: Extract<Step, { kind: "tool" }> }) {
             {output === "" ? null : (
                 <Pre {...(failed ? { tone: "danger" as const } : {})}>{output}</Pre>
             )}
+            {session === null || images.length === 0 ? null : <ImageThumbs images={images} />}
             {step.result?.truncated === true ? (
                 <p className="text-meta text-faint">Output cut for the screen.</p>
             ) : null}
