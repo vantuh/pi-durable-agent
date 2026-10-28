@@ -347,39 +347,27 @@ function WorkingAgents({
 }) {
     const names = useNames(parent.id, kids);
 
-    return (
-        <>
-            <p className="text-meta text-faint flex items-center gap-2 px-2 py-1">
-                <span className="min-w-0 flex-1 truncate">
-                    <b className="text-muted font-medium">{parent.title ?? "New session"}</b>
-                </span>
-                <span className="shrink-0">{kids.length} working</span>
-            </p>
-            {kids.map((kid) => {
-                const name = names.get(kid.id)?.name ?? kid.title ?? "Agent";
+    return kids.map((kid) => {
+        const name = names.get(kid.id)?.name ?? kid.title ?? "Agent";
 
-                return (
-                    <DropdownMenuItem key={kid.id} asChild className="gap-2 px-2 py-1.5">
-                        <a
-                            href={sessionHref(kid.id)}
-                            onClick={(event) => {
-                                // A modified click is the browser's: a new tab, and the menu stays.
-                                if (isPlainClick(event)) {
-                                    event.preventDefault();
-                                    openSession(kid.id);
-                                }
-                            }}
-                        >
-                            <span className="state-mark working text-warn" aria-hidden />
-                            <span className="text-sidebar text-ink min-w-0 flex-1 truncate">
-                                {name}
-                            </span>
-                        </a>
-                    </DropdownMenuItem>
-                );
-            })}
-        </>
-    );
+        return (
+            <DropdownMenuItem key={kid.id} asChild className="gap-2 px-2 py-1.5">
+                <a
+                    href={sessionHref(kid.id)}
+                    onClick={(event) => {
+                        // A modified click is the browser's: a new tab, and the menu stays.
+                        if (isPlainClick(event)) {
+                            event.preventDefault();
+                            openSession(kid.id);
+                        }
+                    }}
+                >
+                    <span className="state-mark working text-warn" aria-hidden />
+                    <span className="text-sidebar text-ink min-w-0 flex-1 truncate">{name}</span>
+                </a>
+            </DropdownMenuItem>
+        );
+    });
 }
 
 // Inside the row's link, so it is only a mark and a count: the core makes the whole row the trigger.
