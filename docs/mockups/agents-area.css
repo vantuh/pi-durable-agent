@@ -1,0 +1,304 @@
+@import "./subagents-compact.css";
+
+summary {
+    list-style: none;
+}
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+.ctl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ctl-label {
+    color: var(--role-faint);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.seg {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 2px;
+    border: 1px solid var(--role-edge);
+    border-radius: 6px;
+}
+
+.icon-btn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.icon-btn:hover {
+    background: var(--role-raised);
+}
+
+/* The sidebar column. Row heights are fixed so the resize bounds are exact numbers. */
+.sidebar {
+    --list-row: 40px;
+    --agent-row: 32px;
+    --group-head: 28px;
+    --area-head: 28px;
+    --area-pad: 4px;
+    --handle: 10px;
+    width: 264px;
+    overflow: hidden;
+}
+
+.split {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.list-pane {
+    flex: 1 1 0;
+    min-height: calc(var(--group-head) + 3 * var(--list-row));
+    overflow-y: auto;
+    padding: 0 6px 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--role-edge) transparent;
+}
+
+.group-head {
+    display: flex;
+    align-items: center;
+    height: var(--group-head);
+    padding: 0 8px;
+    color: var(--role-faint);
+    font-size: 12px;
+}
+
+.sess-row,
+.agent-row {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    border-radius: 6px;
+    color: var(--role-ink);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.sess-row {
+    height: var(--list-row);
+}
+
+.agent-row {
+    height: var(--agent-row);
+}
+
+.sess-row:hover,
+.agent-row:hover {
+    background: color-mix(in srgb, var(--role-raised) 50%, transparent);
+}
+
+.sess-row.is-current,
+.agent-row.is-current {
+    background: var(--role-raised);
+}
+
+.agent-row.is-current {
+    box-shadow: inset 2px 0 0 var(--role-agent);
+}
+
+.sess-title,
+.agent-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sess-time,
+.agent-meta {
+    flex: none;
+    color: var(--role-faint);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.tag {
+    flex: none;
+    padding: 0 4px;
+    border: 1px solid var(--role-edge);
+    border-radius: 4px;
+    color: var(--role-agent);
+    font-size: 11px;
+}
+
+.mark-slot {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 10px;
+    line-height: 1;
+}
+
+.check {
+    font-size: 12px;
+}
+
+.area-handle {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    height: var(--handle);
+    border-top: 1px solid var(--role-edge-soft);
+    cursor: row-resize;
+    touch-action: none;
+}
+
+/* A taller hit area than the visible bar. */
+.area-handle::before {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+}
+
+.grip {
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--role-edge);
+}
+
+.area-handle:hover .grip,
+.area-handle:focus-visible .grip,
+:root.resizing-y .grip {
+    background: var(--role-accent);
+}
+
+/* At the minimum or the maximum: the bar says it cannot go further. */
+.area-handle[data-limit] .grip {
+    background: var(--role-warn);
+}
+
+.area-handle:focus-visible {
+    outline: 2px solid var(--role-accent);
+    outline-offset: -2px;
+}
+
+:root.resizing-y,
+:root.resizing-y * {
+    cursor: row-resize !important;
+    user-select: none;
+}
+
+.agents-area {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--role-panel);
+}
+
+.agents-area.minimal {
+    border-top: 1px solid var(--role-edge-soft);
+}
+
+.area-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    height: var(--area-head);
+    padding: 0 12px;
+    color: var(--role-faint);
+    font-size: 12px;
+}
+
+.area-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 12px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.area-title b {
+    color: var(--role-muted);
+    font-weight: 500;
+}
+
+.area-count {
+    flex: none;
+    font-family: var(--font-mono);
+}
+
+.area-scroll {
+    flex: 1;
+    min-height: 0;
+    padding: 0 6px var(--area-pad);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--role-edge) transparent;
+}
+
+.area-note {
+    margin: 0;
+    padding: 0 12px 10px;
+    color: var(--role-faint);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+@media (max-width: 1023px) {
+    .sidebar {
+        --list-row: 44px;
+        --agent-row: 44px;
+        --handle: 16px;
+        position: absolute;
+        inset-block: 0;
+        left: 0;
+        z-index: 30;
+        width: min(320px, 88vw);
+        box-shadow: 0 0 32px var(--role-sunken);
+    }
+
+    .icon-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    #app[data-sidebar="open"] .backdrop {
+        display: block;
+    }
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: none;
+}
+
+#app[data-sidebar="closed"] > .sidebar {
+    display: none;
+}
+
+#app[data-sidebar="open"] #open-sidebar,
+#app[data-sidebar="open"] #collapsed-hint {
+    display: none;
+}

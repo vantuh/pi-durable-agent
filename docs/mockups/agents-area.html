@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en" data-flavour="mocha">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Sidebar agents area · Design preview</title>
+        <link rel="icon" href="data:," />
+        <link rel="stylesheet" href="./agents-area.css" />
+    </head>
+    <body>
+        <details id="controls" class="preview-toolbar border-edge-soft bg-panel border-b" open>
+            <summary class="flex cursor-pointer items-center gap-2 px-4 py-2.5">
+                <span class="bg-agent text-sunken rounded px-1.5 py-0.5 text-xs font-semibold"
+                    >PREVIEW</span
+                >
+                <span class="text-meta text-muted"
+                    >Step 2 · Agents area in the sidebar · sample data, no live agents</span
+                >
+                <span class="text-meta text-faint ml-auto">Controls</span>
+            </summary>
+            <div class="flex flex-col gap-2 px-4 pb-3">
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+                    <div class="ctl">
+                        <span class="ctl-label">Scenario</span>
+                        <div class="seg border-edge" role="group" aria-label="Scenario">
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="scenario"
+                                data-value="none"
+                            >
+                                No agents
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="scenario"
+                                data-value="mixed"
+                            >
+                                3 agents
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="scenario"
+                                data-value="many"
+                            >
+                                12 agents
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="scenario"
+                                data-value="child"
+                            >
+                                Child open
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="scenario"
+                                data-value="missing"
+                            >
+                                Parent missing
+                            </button>
+                        </div>
+                    </div>
+                    <div class="ctl">
+                        <span class="ctl-label">Sidebar</span>
+                        <div class="seg border-edge" role="group" aria-label="Sidebar">
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="sidebar"
+                                data-value="open"
+                            >
+                                Open
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="sidebar"
+                                data-value="closed"
+                            >
+                                Collapsed
+                            </button>
+                        </div>
+                    </div>
+                    <div class="ctl">
+                        <label class="ctl-label" for="flavour">Theme</label>
+                        <select
+                            id="flavour"
+                            class="border-edge bg-canvas text-meta rounded-md border px-1.5 py-1"
+                        >
+                            <option value="mocha">Mocha</option>
+                            <option value="latte">Latte</option>
+                        </select>
+                    </div>
+                    <div class="ctl sm:ml-auto">
+                        <span class="ctl-label">Size</span>
+                        <button type="button" id="reset-size" class="scenario border-edge border">
+                            Reset area size
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="border-edge-soft flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-2"
+                >
+                    <span class="text-meta text-faint">Open decisions</span>
+                    <div class="ctl">
+                        <span class="ctl-label">A · Status totals</span>
+                        <div class="seg border-edge" role="group" aria-label="A: status totals">
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="totals"
+                                data-value="sessions"
+                            >
+                                Sessions only
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="totals"
+                                data-value="all"
+                            >
+                                + agents
+                            </button>
+                        </div>
+                    </div>
+                    <div class="ctl">
+                        <span class="ctl-label">B · Parent missing</span>
+                        <div class="seg border-edge" role="group" aria-label="B: parent missing">
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="orphan"
+                                data-value="none"
+                            >
+                                No area
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="orphan"
+                                data-value="minimal"
+                            >
+                                “Parent not found”
+                            </button>
+                        </div>
+                    </div>
+                    <div class="ctl">
+                        <span class="ctl-label">C · Finished agent</span>
+                        <div class="seg border-edge" role="group" aria-label="C: finished agent">
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="finished"
+                                data-value="dim"
+                            >
+                                Dimmed + time
+                            </button>
+                            <button
+                                type="button"
+                                class="scenario"
+                                data-set="finished"
+                                data-value="check"
+                            >
+                                ✓ + context
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <div class="preview-shell bg-sunken flex min-h-0 flex-1 flex-col gap-2 p-2">
+            <div id="app" class="relative flex min-h-0 flex-1 gap-2" data-sidebar="open">
+                <div id="backdrop" class="backdrop bg-sunken/70"></div>
+
+                <aside
+                    id="sidebar"
+                    class="sidebar border-edge-soft bg-canvas rounded-card flex shrink-0 flex-col border"
+                    aria-label="Sample sessions"
+                >
+                    <header class="border-edge-soft flex items-center gap-2 border-b px-3 py-2">
+                        <span class="text-agent font-mono text-lg">π</span>
+                        <span class="text-sidebar font-medium">Sessions</span>
+                        <button
+                            type="button"
+                            id="close-sidebar"
+                            class="icon-btn text-faint ml-auto"
+                            aria-label="Collapse sidebar"
+                        >
+                            ◧
+                        </button>
+                    </header>
+                    <div class="border-edge-soft text-meta text-muted border-b px-3 py-2 font-mono">
+                        ⌄ pi-durable-agent
+                    </div>
+                    <div class="p-3">
+                        <div
+                            class="border-edge bg-sunken text-sidebar rounded-control border py-2.5 text-center"
+                        >
+                            + New session
+                        </div>
+                    </div>
+                    <div id="split" class="split">
+                        <div id="list-pane" class="list-pane" tabindex="-1"></div>
+                        <div
+                            id="area-handle"
+                            class="area-handle"
+                            role="separator"
+                            aria-orientation="horizontal"
+                            aria-label="Resize the agents area"
+                            tabindex="0"
+                            hidden
+                        >
+                            <span class="grip"></span>
+                        </div>
+                        <section id="agents-area" class="agents-area" hidden></section>
+                    </div>
+                </aside>
+
+                <main class="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+                    <section
+                        class="border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col overflow-hidden border"
+                    >
+                        <header
+                            class="border-edge-soft flex min-h-14 items-center gap-3 border-b px-4 py-3"
+                        >
+                            <button
+                                type="button"
+                                id="open-sidebar"
+                                class="icon-btn text-muted"
+                                aria-label="Open sidebar"
+                            >
+                                ☰
+                            </button>
+                            <span
+                                id="collapsed-hint"
+                                class="text-meta text-faint flex items-center gap-1.5"
+                                hidden
+                            ></span>
+                            <div class="min-w-0 flex-1">
+                                <h1
+                                    id="conversation-title"
+                                    class="text-interface truncate font-medium"
+                                ></h1>
+                                <div
+                                    id="conversation-subtitle"
+                                    class="text-meta text-faint mt-0.5 truncate font-mono"
+                                ></div>
+                            </div>
+                            <span class="text-muted text-lg" aria-hidden="true">⚙</span>
+                        </header>
+                        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+                            <div class="mx-auto flex max-w-[46rem] flex-col gap-6">
+                                <div
+                                    class="bg-raised text-prose rounded-card max-w-[85%] self-end px-4 py-3 leading-relaxed"
+                                    id="user-message"
+                                ></div>
+                                <div>
+                                    <div
+                                        class="text-meta text-faint mb-3 flex flex-wrap justify-between gap-2 font-mono"
+                                    >
+                                        <span id="answer-model"></span>
+                                        <span>↑18.2k ↓641 · $0.024</span>
+                                    </div>
+                                    <div
+                                        id="answer"
+                                        class="text-prose max-w-[42rem] leading-relaxed"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="mx-auto flex w-full max-w-[46rem] shrink-0 flex-col gap-2">
+                        <a
+                            id="back-to-parent"
+                            href="?"
+                            hidden
+                            class="back-link text-agent text-sidebar rounded-control border-edge-soft bg-panel border px-3 py-2.5"
+                        ></a>
+                        <section id="working-agents" aria-label="Working subagents" class="px-1">
+                            <div class="sr-only">
+                                <span id="agent-count"></span>
+                            </div>
+                            <div id="agent-list" class="agent-grid" role="list"></div>
+                        </section>
+
+                        <div class="border-edge-soft bg-sunken rounded-card border px-3 py-2.5">
+                            <textarea
+                                aria-label="Sample composer"
+                                rows="2"
+                                placeholder="Ask the agent to change something…"
+                                class="text-prose text-ink placeholder:text-faint block w-full resize-none bg-transparent leading-relaxed outline-none"
+                            ></textarea>
+                            <div class="mt-1.5 flex items-center gap-2">
+                                <span class="text-muted px-1" aria-hidden="true">＋</span>
+                                <span
+                                    id="composer-model"
+                                    class="text-sidebar text-muted min-w-0 truncate font-mono"
+                                ></span>
+                                <button
+                                    type="button"
+                                    disabled
+                                    title="Preview only; no requests are sent"
+                                    aria-label="Send (preview only)"
+                                    class="bg-accent text-on-accent ml-auto flex size-7 shrink-0 items-center justify-center rounded-full"
+                                >
+                                    ↑
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            id="status-line"
+                            class="text-meta text-faint flex h-6 items-center gap-3 overflow-hidden px-1 font-mono whitespace-nowrap"
+                        >
+                            <span class="flex items-center gap-1.5">
+                                <span class="bg-ok size-1.5 rounded-full" aria-hidden="true"></span>
+                                <span>ready</span>
+                                <span id="status-working" class="text-accent"></span>
+                                <span id="status-new" class="text-ok"></span>
+                            </span>
+                            <span id="status-note" class="ml-auto truncate"></span>
+                        </div>
+                    </div>
+                </main>
+            </div>
+            <footer class="text-meta text-faint flex shrink-0 flex-wrap items-center gap-x-3 px-1">
+                <span class="bg-ok size-1.5 rounded-full" aria-hidden="true"></span>
+                <span>Design preview · sample data · no live agents</span>
+                <span id="readout" class="ml-auto font-mono"></span>
+            </footer>
+        </div>
+        <script type="module" src="./agents-area.js"></script>
+    </body>
+</html>
