@@ -291,14 +291,10 @@ function AgentsArea({ session, sessions, openSession }: SidebarBottomProps) {
         return null;
     }
 
-    const title = parent.title ?? "New session";
-
     return (
-        <section aria-label={`Agents of ${title}`} className="flex min-h-0 flex-1 flex-col">
+        <section aria-label="Subagents" className="flex min-h-0 flex-1 flex-col">
             <h2 className="text-meta text-faint flex h-7 shrink-0 items-center gap-2 px-3 font-normal">
-                <span className="min-w-0 flex-1 truncate">
-                    Agents of <b className="text-muted font-medium">{title}</b>
-                </span>
+                <span className="min-w-0 flex-1 truncate">Subagents</span>
                 <span className="font-mono">{kids.length}</span>
             </h2>
             <ScrollArea ref={list} className="min-h-0 flex-1">
