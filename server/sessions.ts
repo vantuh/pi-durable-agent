@@ -319,6 +319,7 @@ export class Sessions {
                 archived,
                 activeAt: await this.#activeAt(id),
                 unseen: !working && !archived && endedAt > seenAt,
+                ...(endedAt > 0 ? { endedAt } : {}),
                 ...(owner === undefined ? {} : { parent: Number(owner) }),
             });
         }

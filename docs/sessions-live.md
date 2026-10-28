@@ -33,6 +33,9 @@ Per conversation, the `app.attention` document holds `endedAt` (when the latest 
 browser's `localStorage`, so a session seen on the computer is no longer fresh on the phone, and
 the marks survive a restart.
 
+- The list row carries `endedAt` too, so a screen can say how long ago a session finished. It is
+  absent until a run has been seen to end, never `0`, and a working session keeps the end of its
+  previous run until the new one ends. `activeAt` is not this time: it moves when a person writes.
 - A row is `unseen` when `endedAt > seenAt`, and never while it works or is archived.
 - `endedAt` is taken when the run ends, before the browsers hear of it; `seen` sets `seenAt` to
   now. So a `seen` sent the moment a run ends always covers it, whatever order the writes land in.

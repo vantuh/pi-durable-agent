@@ -109,6 +109,7 @@ export function sessionsOf(value: unknown): SessionSummary[] {
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
             unseen: row?.["unseen"] === true,
             ...(typeof row?.["parent"] === "number" ? { parent: row["parent"] } : {}),
+            ...(typeof row?.["endedAt"] === "number" ? { endedAt: row["endedAt"] } : {}),
         });
     }
 

@@ -190,6 +190,11 @@ export type SessionSummary = {
     unseen: boolean;
     /** The session this one was started from, when something other than a person started it. */
     parent?: number;
+    /**
+     * When the latest run ended, in the same milliseconds as `activeAt`; absent while no run has
+     * been seen to end. A working session keeps the end of its previous run until this one ends.
+     */
+    endedAt?: number;
 };
 
 /** What `GET /api/sessions/events` sends: the whole list, at once and after every change. */

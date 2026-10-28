@@ -87,4 +87,35 @@ void describe("sessionsOf", () => {
             [undefined, 1, undefined],
         );
     });
+
+    void it("passes every field of a row through", () => {
+        const sent = {
+            id: 7,
+            name: "n",
+            title: "t",
+            cwd: "/c",
+            model: "p/m",
+            thinkingLevel: "low",
+            busy: true,
+            mark: "x",
+            archived: true,
+            activeAt: 10,
+            unseen: true,
+            parent: 3,
+            endedAt: 20,
+        };
+
+        assert.deepEqual(sessionsOf({ sessions: [sent] }), [sent]);
+    });
+
+    void it("keeps endedAt only as a number, and leaves it out otherwise", () => {
+        const rows = sessionsOf({
+            sessions: [{ id: 1 }, { id: 2, endedAt: 50 }, { id: 3, endedAt: "50" }],
+        });
+
+        assert.deepEqual(
+            rows.map((row) => "endedAt" in row && row.endedAt),
+            [false, 50, false],
+        );
+    });
 });
