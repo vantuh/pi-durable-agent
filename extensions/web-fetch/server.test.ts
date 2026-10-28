@@ -108,25 +108,73 @@ void describe("web-fetch html", () => {
         }
     });
 
-    void it("falls back to the body when Readability finds no article", async () => {
+    void it("returns the header alone for a page with nothing to read", async () => {
         const site = await serve({
-            "/thin": (response) => {
+            "/spa": (response) => {
                 response.writeHead(200, { "content-type": "text/html" });
                 response.end(
-                    `<html><head><title>Status</title><style>STYLETEXT</style></head><body><nav>NAVTEXT</nav><script>SCRIPTTEXT</script><main><p>All systems are up. <a href="/status/1">Detail</a></p></main><footer>FOOTERTEXT</footer></body></html>`,
+                    `<html><head><title>App</title></head><body><div id="root"></div><script>render()</script></body></html>`,
                 );
             },
         });
 
         try {
-            const text = format(await page(`${site.url}/thin`), 0).text;
+            const fetched = await page(`${site.url}/spa`);
+            const text = format(fetched, 0);
 
-            assert.match(text, /^# Status\n/);
-            assert.match(
-                text,
-                /All systems are up\. \[Detail\]\(http:\/\/127\.0\.0\.1:\d+\/status\/1\)/,
+            assert.equal(fetched.markdown, "");
+            assert.equal(
+                text.text,
+                `# App\nURL: ${site.url}/spa\n\n(the page has no readable text; it may need JavaScript)`,
             );
-            assert.doesNotMatch(text, /NAVTEXT|FOOTERTEXT|STYLETEXT|SCRIPTTEXT/);
+            assert.equal(text.isError, undefined);
+            assert.equal(format(fetched, 1).isError, true);
+        } finally {
+            await site.close();
+        }
+    });
+
+    void it("collapses whitespace in the title, so the header stays one line", async () => {
+        const site = await serve({
+            "/title": (response) => {
+                response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+                response.end(
+                    ARTICLE.replace(
+                        "<title>Node release notes</title>",
+                        "<title>\n  Node\n  release\tnotes  </title>",
+                    ),
+                );
+            },
+        });
+
+        try {
+            const fetched = await page(`${site.url}/title`);
+
+            assert.equal(fetched.title, "Node release notes");
+            assert.match(format(fetched, 0).text, /^# Node release notes\nURL: [^\n]+\n\n/);
+        } finally {
+            await site.close();
+        }
+    });
+
+    void it("keeps alt text but not the base64 of an inline image", async () => {
+        const site = await serve({
+            "/inline-image": (response) => {
+                response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+                response.end(
+                    ARTICLE.replace(
+                        "<h1>Releases</h1>",
+                        `<h1>Releases</h1><figure><img src="data:image/png;base64,${"A".repeat(30_000)}" alt="ALTINLINE"><figcaption>Build chart</figcaption></figure>`,
+                    ),
+                );
+            },
+        });
+
+        try {
+            const markdown = markdownOf(format(await page(`${site.url}/inline-image`), 0).text);
+
+            assert.doesNotMatch(markdown, /base64|data:image/);
+            assert.match(markdown, /ALTINLINE/);
         } finally {
             await site.close();
         }
@@ -186,6 +234,30 @@ void describe("web-fetch paging", () => {
         } finally {
             await site.close();
         }
+    });
+
+    void it("never cuts a surrogate pair, and steps back off one as an offset", () => {
+        const cut: Page = {
+            kind: "page",
+            url: "http://example.test/",
+            title: "",
+            markdown: `${"a".repeat(MAX_CHARS - 1)}😀${"b".repeat(5)}`,
+        };
+
+        const first = markdownOf(format(cut, 0).text);
+
+        assert.equal(first.length, MAX_CHARS - 1);
+        assert.doesNotMatch(first, /[\uD800-\uDBFF]$/);
+
+        const pair: Page = {
+            kind: "page",
+            url: "http://example.test/",
+            title: "",
+            markdown: `${"x".repeat(10)}😀${"y".repeat(20)}`,
+        };
+
+        // Offset 11 is the low half of the pair: the call starts one character earlier instead.
+        assert.equal(markdownOf(format(pair, 11).text), "😀" + "y".repeat(20));
     });
 });
 
@@ -287,6 +359,67 @@ void describe("web-fetch charsets", () => {
         }
     });
 
+    void it("reads a utf-16 <meta> label as UTF-8, since the page is plainly not utf-16", async () => {
+        const site = await serve({
+            "/lying": (response) => {
+                response.writeHead(200, { "content-type": "text/html" });
+                response.end(
+                    ARTICLE.replace(
+                        "<title>",
+                        '<meta http-equiv="Content-Type" content="text/html; charset=utf-16"><title>',
+                    ),
+                );
+            },
+        });
+
+        try {
+            const fetched = await page(`${site.url}/lying`);
+
+            assert.equal(fetched.title, "Node release notes");
+            assert.match(format(fetched, 0).text, /Every even major version/);
+        } finally {
+            await site.close();
+        }
+    });
+
+    void it("lets a UTF-8 BOM win over a wrong Content-Type charset", async () => {
+        const site = await serve({
+            "/bom": (response) => {
+                response.writeHead(200, { "content-type": "text/plain; charset=windows-1251" });
+                response.end(
+                    Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("Привіт")]),
+                );
+            },
+        });
+
+        try {
+            const fetched = await page(`${site.url}/bom`);
+
+            assert.equal(format(fetched, 0).text, `URL: ${site.url}/bom\n\nПривіт`);
+        } finally {
+            await site.close();
+        }
+    });
+
+    void it("lets a UTF-16LE BOM win over a UTF-8 header", async () => {
+        const site = await serve({
+            "/utf16": (response) => {
+                response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+                response.end(
+                    Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from("Привіт", "utf16le")]),
+                );
+            },
+        });
+
+        try {
+            const fetched = await page(`${site.url}/utf16`);
+
+            assert.equal(format(fetched, 0).text, `URL: ${site.url}/utf16\n\nПривіт`);
+        } finally {
+            await site.close();
+        }
+    });
+
     void it("falls back to UTF-8 when the charset label is unknown", async () => {
         const site = await serve({
             "/odd": (response) => {
@@ -327,7 +460,7 @@ void describe("web-fetch limits", () => {
         }
     });
 
-    void it("stops when the caller aborts during the request", async () => {
+    void it("stops when the caller aborts mid-body", async () => {
         const site = await serve({
             "/stall": (response) => {
                 response.writeHead(200, { "content-type": "text/html" });

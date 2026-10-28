@@ -44,6 +44,7 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
         });
 
         if (!response.ok) {
+            await discard(response);
             return error(`HTTP ${response.status}`);
         }
 
@@ -54,6 +55,7 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
         const isText = type === "" || isHtml || type.startsWith("text/");
 
         if (!isText && type !== "application/json") {
+            await discard(response);
             return error(`unsupported content type: ${type}`);
         }
 
@@ -85,39 +87,48 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
     }
 }
 
-/** The header, then the Markdown from `offset`. An offset past the end is an error, not empty text. */
+/**
+ * The header, then the Markdown from `offset`. An offset past the end is an error, not empty text; a
+ * page with nothing to read at offset 0 says so instead.
+ */
 export function format(page: Page, offset: number): { text: string; isError?: boolean } {
     const total = page.markdown.length;
+    const header = `${page.title === "" ? "" : `# ${page.title}\n`}URL: ${page.url}\n\n`;
 
     if (offset >= total) {
+        if (offset === 0) {
+            return { text: `${header}(the page has no readable text; it may need JavaScript)` };
+        }
         return {
             text: `The page has ${total} characters, so offset ${offset} is past the end.`,
             isError: true,
         };
     }
 
-    const end = Math.min(offset + MAX_CHARS, total);
-    const title = page.title === "" ? "" : `# ${page.title}\n`;
+    const start = isLowSurrogate(page.markdown.charCodeAt(offset)) ? offset - 1 : offset;
+    let end = Math.min(offset + MAX_CHARS, total);
+    // A slice that ends inside a surrogate pair cannot be printed; the pair waits for the next call.
+    if (end < total && isHighSurrogate(page.markdown.charCodeAt(end - 1))) {
+        end -= 1;
+    }
+
     const note =
         end < total
             ? `\n\n[Truncated: showing characters ${offset}–${end} of ${total}. Call fetch_content again with offset: ${end} for more.]`
             : "";
 
-    return { text: `${title}URL: ${page.url}\n\n${page.markdown.slice(offset, end)}${note}` };
+    return { text: `${header}${page.markdown.slice(start, end)}${note}` };
 }
 
+const isHighSurrogate = (unit: number): boolean => unit >= 0xd800 && unit <= 0xdbff;
+const isLowSurrogate = (unit: number): boolean => unit >= 0xdc00 && unit <= 0xdfff;
+
 /**
- * The body decoded with the charset the response names: its Content-Type, else an HTML `<meta>`, else
- * UTF-8. A label TextDecoder does not know also falls back to UTF-8 rather than failing the page.
+ * The body decoded with the charset the response names: a BOM first, then its Content-Type, then an
+ * HTML `<meta>`, then UTF-8. A label TextDecoder does not know also falls back to UTF-8.
  */
 function decode(body: Uint8Array, contentType: string, isHtml: boolean): string {
-    const fromHeader = /charset\s*=\s*["']?([^"';,\s]+)/i.exec(contentType)?.[1];
-    const fromMeta = isHtml
-        ? /<meta[^>]+charset\s*=\s*["']?([^"'\s/>;]+)/i.exec(
-              new TextDecoder("latin1").decode(body.subarray(0, 4096)),
-          )?.[1]
-        : undefined;
-    const label = fromHeader ?? fromMeta;
+    const label = bomOf(body) ?? labelOf(contentType) ?? metaLabelOf(body, isHtml);
 
     if (label === undefined) {
         return new TextDecoder().decode(body);
@@ -127,6 +138,51 @@ function decode(body: Uint8Array, contentType: string, isHtml: boolean): string 
         return new TextDecoder(label).decode(body);
     } catch {
         return new TextDecoder().decode(body);
+    }
+}
+
+/** A BOM outranks every declaration, as it does in a browser; TextDecoder then strips it for us. */
+function bomOf(body: Uint8Array): string | undefined {
+    const [first, second, third] = body;
+
+    if (first === 0xef && second === 0xbb && third === 0xbf) {
+        return "utf-8";
+    }
+    if (first === 0xff && second === 0xfe) {
+        return "utf-16le";
+    }
+    if (first === 0xfe && second === 0xff) {
+        return "utf-16be";
+    }
+    return undefined;
+}
+
+const labelOf = (source: string): string | undefined =>
+    /charset\s*=\s*["']?([^"';,\s/>]+)/i.exec(source)?.[1];
+
+/**
+ * A `<meta>` label, with utf-16 and utf-32 read as UTF-8: an ASCII page cannot really be either, and
+ * decoding it as one loses the whole document. Only a `<meta>` tag counts — prose may name a charset.
+ */
+function metaLabelOf(body: Uint8Array, isHtml: boolean): string | undefined {
+    if (!isHtml) {
+        return undefined;
+    }
+
+    const label = /<meta[^>]+charset\s*=\s*["']?([^"'\s/>;]+)/i.exec(
+        new TextDecoder("latin1").decode(body.subarray(0, 4096)),
+    )?.[1];
+
+    if (label === undefined) {
+        return undefined;
+    }
+    return /utf-?16|utf-?32/i.test(label) ? "utf-8" : label;
+}
+
+/** Releases a response this call is not going to read, so its socket goes back to the pool. */
+async function discard(response: Response): Promise<void> {
+    if (response.body !== null) {
+        await response.body.cancel();
     }
 }
 
@@ -153,17 +209,26 @@ async function readBody(body: ReadableStream<Uint8Array>): Promise<Uint8Array | 
 function fromHtml(html: string, base: string): { title: string; markdown: string } {
     const { document } = parseHTML(html);
     absolutize(document, base);
+    unwrapDataImages(document);
 
+    const documentTitle = collapseSpaces(document.title);
     const article = new Readability(document).parse();
+    const content = article?.content ?? "";
 
-    if (typeof article?.content === "string" && article.content !== "") {
-        return { title: article.title?.trim() ?? "", markdown: turndown.turndown(article.content) };
-    }
+    return {
+        title: collapseSpaces(article?.title ?? "") || documentTitle,
+        markdown: content === "" ? "" : turndown.turndown(content),
+    };
+}
 
-    for (const element of document.querySelectorAll("nav, header, footer, aside, script, style")) {
-        element.remove();
+/** An inline image is a page of base64 in Markdown; the alt text is the part worth keeping. */
+function unwrapDataImages(document: Document): void {
+    for (const image of document.querySelectorAll("img[src]")) {
+        if (!(image.getAttribute("src") ?? "").toLowerCase().startsWith("data:")) {
+            continue;
+        }
+        image.replaceWith(document.createTextNode(image.getAttribute("alt") ?? ""));
     }
-    return { title: document.title.trim(), markdown: turndown.turndown(document.body.innerHTML) };
 }
 
 /** Readability resolves only what it keeps, so links are made absolute before it looks at the page. */
@@ -184,3 +249,5 @@ function absolutize(document: Document, base: string): void {
 }
 
 const collapse = (markdown: string): string => markdown.replace(/\n{3,}/g, "\n\n").trim();
+
+const collapseSpaces = (title: string): string => title.replace(/\s+/g, " ").trim();

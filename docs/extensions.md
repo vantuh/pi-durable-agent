@@ -834,9 +834,11 @@ in, and returns that model's answer followed by `## Sources` and a `Searched wit
 note saying which `offset` continues it.
 
 - HTML goes through linkedom, Readability and Turndown (the path of `pi-web-access`'s `extract.ts`);
-  links are made absolute first. When Readability finds no article, the body without navigation,
-  header, footer and asides is converted instead. Plain text, Markdown and JSON come back as they are.
-- The charset comes from `Content-Type`, then from a `<meta>` in the first 4 KiB, else UTF-8.
+  links are made absolute first, and inline `data:` images are replaced by their alt text. A page
+  Readability finds no article in (often one built by JavaScript) returns its title, URL and a line
+  saying there is no readable text. Plain text, Markdown and JSON come back as they are.
+- The charset comes from a BOM, then `Content-Type`, then a `<meta>` in the first 4 KiB (where
+  utf-16 and utf-32 are read as UTF-8, as browsers do), else UTF-8.
 - 30 s timeout, a 5 MiB cap on the body (reading stops there), and a content type that is not text,
   HTML or JSON is refused before the body is read. PDFs are not read.
 - There is no guard against private addresses: the agent has `bash` and `curl` on the same machine,
