@@ -1,5 +1,5 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { listSkills, runCommand, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
@@ -65,6 +65,8 @@ type Props = {
     session: StatusProps["session"];
     busy: boolean;
     queued: ClientQueued[];
+    /** Drawn between the queued messages and the box, so the queue stays next to the transcript. */
+    above?: ReactNode;
     model: string;
     level: string | null;
     menuOpen: boolean;
@@ -101,6 +103,7 @@ export function Composer({
     session,
     busy,
     queued,
+    above,
     model,
     level,
     menuOpen,
@@ -341,6 +344,8 @@ export function Composer({
                     void edit(item);
                 }}
             />
+
+            <div className="mb-2 empty:hidden">{above}</div>
 
             <div
                 className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2"

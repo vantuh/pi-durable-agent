@@ -222,8 +222,6 @@ export function App() {
                                 below={<StatusItems slot="title" session={activeSession} />}
                             />
 
-                            <AboveComposerItems session={activeSession} openSession={go} />
-
                             <div className="relative">
                                 {menu ? (
                                     <ModelMenu
@@ -275,6 +273,12 @@ export function App() {
                                     session={activeSession}
                                     busy={state.live.busy}
                                     queued={state.live.queued ?? []}
+                                    above={
+                                        <AboveComposerItems
+                                            session={activeSession}
+                                            openSession={go}
+                                        />
+                                    }
                                     model={model}
                                     level={active?.thinkingLevel ?? null}
                                     menuOpen={menu}

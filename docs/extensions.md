@@ -391,7 +391,8 @@ has its own error boundary. The shell knows no feature by name.
 ## Blocks above the composer
 
 `web.tsx` may export `aboveComposer: [{ id, component }]`. The component renders between the
-transcript and the composer, inside its own error boundary, and follows the extension's enabled
+queued messages and the message box (top to bottom: transcript, queued messages, these blocks, the
+box), inside its own error boundary, and follows the extension's enabled
 switch. Its props are `StatusProps` plus `openSession(id)`, the app's own navigation, so a link
 can open another session without a page load. A component that has nothing to show returns
 `null` and takes no space. `extensions/subagents` uses it for the strip of working agents.
