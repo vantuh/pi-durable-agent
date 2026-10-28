@@ -138,6 +138,7 @@ export function App() {
                 <Sessions
                     sessions={sessions}
                     current={current}
+                    session={activeSession}
                     folder={folder}
                     onHome={() => {
                         go(null);

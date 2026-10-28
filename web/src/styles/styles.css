@@ -139,6 +139,13 @@ body {
     user-select: none;
 }
 
+/* While the handle between the session list and the area under it is dragged. */
+:root.resizing-y,
+:root.resizing-y * {
+    cursor: row-resize !important;
+    user-select: none;
+}
+
 body {
     background-color: var(--role-canvas);
     color: var(--role-ink);

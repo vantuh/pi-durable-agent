@@ -398,6 +398,38 @@ switch. Its props are `StatusProps` plus `openSession(id)`, the app's own naviga
 can open another session without a page load. A component that has nothing to show returns
 `null` and takes no space. `extensions/subagents` uses it for the strip of working agents.
 
+## Under the session list
+
+`web.tsx` may export `sidebarBottom: [{ id, component }]`. The component renders in the sidebar
+column under the session list, inside its own error boundary, and follows the extension's enabled
+switch. Its props are `StatusProps` (`session`: the open session, or null on the home page) plus
+`sessions` (every session, unfiltered: the list itself leaves out those started from another
+session) and `openSession(id)`, the app's own navigation. On a phone it also closes the drawer.
+
+- **The core owns the frame.** A drag handle sits between the list and the area
+  (`role="separator"`). Drag it, or focus it and press `↑` / `↓` (16px; with Shift 64px), `Home` /
+  `End` (the limits), `Enter` or double-click (back to fitting the content). The height is kept in
+  `localStorage` (`sidebarBottomHeight`). Limits: the area keeps a minimum of about two rows and the list
+  three rows (table below).
+- **Hidden when empty.** If no item renders anything, the handle and the area are not drawn and
+  take no space. A component with nothing to show returns `null`.
+- **Sizing contract.** The area has a bounded height. Make the root
+  `flex min-h-0 flex-1 flex-col`, keep a fixed heading, and put `overflow-y-auto` on the part that
+  grows. Without a saved height the area fits its content, between the minimum and a cap of about
+  six rows.
+- **Hidden in the collapsed rail**; in the phone drawer it stays under the list.
+
+| Size (px)            | From `lg` | Below `lg` |
+| -------------------- | --------- | ---------- |
+| Area minimum         | 96        | 120        |
+| List minimum         | 148       | 160        |
+| Handle height        | 10        | 16         |
+| Area cap, no saved h | 224       | 296        |
+
+The values come from the approved agents-area mockup (`docs/mockups/`); the arithmetic is
+`web/src/lib/sidebar-bottom.ts`. `extensions/subagents` is meant to use this slot for the agents
+of the open session.
+
 ## Composer items and Dictation
 
 `web.tsx` may export `composer: [{ id, component }]`. The component renders in the composer's row,

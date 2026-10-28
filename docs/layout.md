@@ -65,6 +65,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 - **Width**: 264px to start. Drag the right edge, or focus it and press `←` / `→` (16px a step),
   to set it between 204px and 464px, never past 40% of the screen. The width is kept in
   `localStorage` (`sidebarWidth`); a double click on the edge puts it back to 264px.
+- **Under the list**: extensions may add an area with its own height (`sidebarBottom`, see
+  [extensions.md](extensions.md#under-the-session-list)), with a drag handle between it and the list.
 - The search field is not drawn yet.
 - Hidden below `lg`, where the conversation takes the screen. There, the panel icon in the
   conversation header opens the list as a full-screen sheet; choosing a session closes it.

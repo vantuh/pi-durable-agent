@@ -37,7 +37,9 @@ import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { holdingRow, sidebarSessions } from "../lib/session-nesting.ts";
 import { toast } from "../lib/toast.ts";
+import type { StatusProps } from "../sdk/types.ts";
 import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
+import { SidebarBottom } from "./sidebar-bottom.tsx";
 
 /** An item's label and icon, which a folder may read off the row: pause turns into resume. */
 function labelOf(item: FolderSessionMenuItem, session: SessionSummary): string {
@@ -66,6 +68,8 @@ type Props = {
     sessions: SessionSummary[];
     /** Null on the home page. */
     current: number | null;
+    /** The open session as extensions see it, for the area under the list. */
+    session: StatusProps["session"];
     /** The folder the list shows: the open session's, or the last one's on the home page. */
     folder: string | null;
     onHome: () => void;
@@ -198,6 +202,7 @@ function ResizeHandle() {
 export function Sessions({
     sessions,
     current,
+    session: activeSession,
     folder,
     onHome,
     onSelect,
@@ -215,6 +220,7 @@ export function Sessions({
     const [query, setQuery] = useState("");
     const searchBox = useRef<HTMLInputElement>(null);
     const searchTrigger = useRef<HTMLButtonElement>(null);
+    const list = useRef<HTMLDivElement>(null);
     const stopSearch = (): void => {
         setSearching(false);
         setQuery("");
@@ -539,7 +545,7 @@ export function Sessions({
                         )}
                     </button>
                 </div>
-                <ScrollArea className="min-h-0 flex-1">
+                <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">
                         {shown.length === 0 ? (
                             <p className="text-meta text-faint px-2 py-3">
@@ -703,6 +709,12 @@ export function Sessions({
                         })}
                     </nav>
                 </ScrollArea>
+                <SidebarBottom
+                    list={list}
+                    session={activeSession}
+                    sessions={sessions}
+                    openSession={onSelect}
+                />
             </div>
 
             {renaming === null ? null : (

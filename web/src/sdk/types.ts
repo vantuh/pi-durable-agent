@@ -79,6 +79,24 @@ export type AboveComposerItem = {
     component: ComponentType<AboveComposerProps>;
 };
 
+export type SidebarBottomProps = StatusProps & {
+    /** Every session, unfiltered: the sidebar's list leaves out those started from another session. */
+    sessions: SessionSummary[];
+    /** Opens a session in the app, as a plain click on a link to it does; on a phone it closes the drawer. */
+    openSession: (id: number) => void;
+};
+
+/**
+ * A block under the session list in the sidebar, with a drag handle between them. The block sits
+ * in a column of bounded height: make its root `flex min-h-0 flex-1 flex-col` and scroll the part
+ * that can grow. It renders nothing when it has nothing to show, and then takes no space.
+ */
+export type SidebarBottomItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<SidebarBottomProps>;
+};
+
 /** One item an extension adds to a session row's menu, above the core's own. */
 export type SessionMenuItem = {
     id: string;
@@ -102,6 +120,7 @@ export type WebExtension = {
     header?: HeaderItem[];
     composer?: ComposerItem[];
     aboveComposer?: AboveComposerItem[];
+    sidebarBottom?: SidebarBottomItem[];
     settings?: SettingsSection[];
     panels?: PanelItem[];
     tools?: ToolIcon[];
