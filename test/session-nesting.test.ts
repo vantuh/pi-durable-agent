@@ -3,7 +3,12 @@ import { describe, it } from "node:test";
 
 import type { SessionSummary } from "../shared/protocol.ts";
 import { sessionsOf } from "../web/src/lib/api.ts";
-import { holdingRow, isNested, sidebarSessions } from "../web/src/lib/session-nesting.ts";
+import {
+    holdingRow,
+    isNested,
+    sidebarSessions,
+    workingChildren,
+} from "../web/src/lib/session-nesting.ts";
 
 function session(id: number, extra: Partial<SessionSummary> = {}): SessionSummary {
     return {
@@ -117,5 +122,28 @@ void describe("sessionsOf", () => {
             rows.map((row) => "endedAt" in row && row.endedAt),
             [false, 50, false],
         );
+    });
+});
+
+void describe("workingChildren", () => {
+    void it("counts only the working sessions that were started from this one", () => {
+        const all = [
+            session(1),
+            session(2, { parent: 1, busy: true }),
+            session(3, { parent: 1, busy: true }),
+            session(4, { parent: 1 }),
+            session(5, { parent: 9, busy: true }),
+            session(6, { busy: true }),
+        ];
+
+        assert.equal(workingChildren(1, all), 2);
+        assert.equal(workingChildren(9, all), 1);
+        assert.equal(workingChildren(6, all), 0);
+    });
+
+    void it("counts a child of an archived or filtered-out row, as it reads the full list", () => {
+        const all = [session(1, { archived: true }), session(2, { parent: 1, busy: true })];
+
+        assert.equal(workingChildren(1, all), 1);
     });
 });

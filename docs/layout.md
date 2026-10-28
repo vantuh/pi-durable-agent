@@ -57,6 +57,12 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   child whose parent is not in the list stays a row, so nothing becomes unreachable. Everything
   else (status bar, toasts, unseen, the home page, recent folders) still reads the full list.
   The rule is `web/src/lib/session-nesting.ts`.
+- **A parent whose started sessions work**: while a session is not working itself and at least one
+  session started from it is (`workingChildren` over the full list), its row shows the animated
+  working mark in the agent colour (`text-agent`) instead of the idle or unseen mark. The mark's
+  tooltip and label say `N agents working` (`1 agent working` for one). When the session works
+  itself, the usual working mark stays; with no working child the unseen dot is as before. The row
+  has no submenu: the status bar's popover has that.
 - **Rows are links** (`?session=N`): a plain click opens the session in place, a modified or middle
   click opens it in a new tab.
 - **Where the time comes from**: the `app.clock` document of each conversation (`activeAt`), set when

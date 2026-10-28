@@ -39,24 +39,35 @@ export function folderName(cwd: string | null): string {
     return parts[parts.length - 1] ?? cwd;
 }
 
-/** Working, held by an extension, finished and not seen yet, or idle: the same mark in every list. */
-export function StateMark({ session }: { session: SessionSummary }) {
+/**
+ * Working, held by an extension, finished and not seen yet, or idle: the same mark in every list.
+ * A session that is not working itself while `working` of the sessions it started are gets the
+ * working mark in the agent colour, so its row does not look idle.
+ */
+export function StateMark({ session, working = 0 }: { session: SessionSummary; working?: number }) {
     const { busy, unseen, mark } = session;
-    const label = mark ?? (busy ? "Working" : unseen ? "Finished, not viewed" : undefined);
+    const delegated = mark === undefined && !busy && working > 0;
+    const note = delegated
+        ? `${String(working)} ${working === 1 ? "agent" : "agents"} working`
+        : undefined;
+    const label =
+        mark ?? (busy ? "Working" : (note ?? (unseen ? "Finished, not viewed" : undefined)));
 
     return (
         <span
             role={label === undefined ? undefined : "status"}
             aria-label={label}
-            title={mark}
+            title={mark ?? note}
             className={`state-mark ${
                 mark !== undefined
                     ? "held text-warn"
                     : busy
                       ? "working text-accent"
-                      : unseen
-                        ? "fresh text-ok"
-                        : "idle text-faint"
+                      : delegated
+                        ? "working text-agent"
+                        : unseen
+                          ? "fresh text-ok"
+                          : "idle text-faint"
             }`}
         />
     );

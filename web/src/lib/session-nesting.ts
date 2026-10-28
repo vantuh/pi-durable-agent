@@ -14,6 +14,11 @@ export function sidebarSessions(all: readonly SessionSummary[]): SessionSummary[
     return all.filter((session) => !isNested(session, all));
 }
 
+/** How many sessions started from `id` are working now, over the full list. */
+export function workingChildren(id: number, all: readonly SessionSummary[]): number {
+    return all.filter((session) => session.parent === id && session.busy).length;
+}
+
 /** The sidebar row that holds a nested session: its nearest ancestor with a row. Null when `id` has a row itself. */
 export function holdingRow(id: number | null, all: readonly SessionSummary[]): number | null {
     const byId = new Map(all.map((session) => [session.id, session]));

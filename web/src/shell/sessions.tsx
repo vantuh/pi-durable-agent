@@ -35,7 +35,7 @@ import {
 import { type FolderSessionMenuItem, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
-import { holdingRow, sidebarSessions } from "../lib/session-nesting.ts";
+import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { toast } from "../lib/toast.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
@@ -602,7 +602,13 @@ export function Sessions({
                                                     }
                                                     className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
                                                 >
-                                                    <StateMark session={session} />
+                                                    <StateMark
+                                                        session={session}
+                                                        working={workingChildren(
+                                                            session.id,
+                                                            sessions,
+                                                        )}
+                                                    />
                                                     <span
                                                         className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}
                                                     >
