@@ -171,7 +171,7 @@ void describe("web-fetch paging", () => {
 
             assert.match(
                 first.text,
-                /\[Truncated: showing characters 0–40000 of 70000\. Call web_fetch again with offset: 40000 for more\.\]$/,
+                /\[Truncated: showing characters 0–40000 of 70000\. Call fetch_content again with offset: 40000 for more\.\]$/,
             );
 
             const second = format(fetched, MAX_CHARS);
@@ -239,6 +239,74 @@ void describe("web-fetch content types", () => {
     });
 });
 
+void describe("web-fetch charsets", () => {
+    // "Привіт" in windows-1251: the one non-ASCII word these tests serve.
+    const PRYVIT = Buffer.from([0xcf, 0xf0, 0xe8, 0xe2, 0xb3, 0xf2]);
+
+    void it("decodes a page whose Content-Type names the charset", async () => {
+        const site = await serve({
+            "/cyrillic": (response) => {
+                response.writeHead(200, { "content-type": "text/plain; charset=windows-1251" });
+                response.end(PRYVIT);
+            },
+        });
+
+        try {
+            const fetched = await page(`${site.url}/cyrillic`);
+
+            assert.equal(format(fetched, 0).text, `URL: ${site.url}/cyrillic\n\nПривіт`);
+        } finally {
+            await site.close();
+        }
+    });
+
+    void it("decodes an HTML page whose <meta> names the charset", async () => {
+        const site = await serve({
+            "/meta": (response) => {
+                response.writeHead(200, { "content-type": "text/html" });
+                response.end(
+                    Buffer.concat([
+                        Buffer.from(
+                            '<html><head><meta charset="windows-1251"><title>Page</title></head><body><main><p>',
+                            "latin1",
+                        ),
+                        PRYVIT,
+                        Buffer.from("</p></main></body></html>", "latin1"),
+                    ]),
+                );
+            },
+        });
+
+        try {
+            const text = format(await page(`${site.url}/meta`), 0).text;
+
+            assert.match(text, /Привіт/);
+            assert.doesNotMatch(text, /Ð|Ñ|â|ã/);
+        } finally {
+            await site.close();
+        }
+    });
+
+    void it("falls back to UTF-8 when the charset label is unknown", async () => {
+        const site = await serve({
+            "/odd": (response) => {
+                response.writeHead(200, {
+                    "content-type": "text/plain; charset=x-no-such-charset",
+                });
+                response.end("Привіт", "utf8");
+            },
+        });
+
+        try {
+            const fetched = await page(`${site.url}/odd`);
+
+            assert.equal(format(fetched, 0).text, `URL: ${site.url}/odd\n\nПривіт`);
+        } finally {
+            await site.close();
+        }
+    });
+});
+
 void describe("web-fetch limits", () => {
     void it("stops reading a body over 5 MiB", async () => {
         const site = await serve({
@@ -272,7 +340,7 @@ void describe("web-fetch limits", () => {
         try {
             assert.equal(
                 await failure(`${site.url}/stall`, controller.signal),
-                "web_fetch was stopped.",
+                "fetch_content was stopped.",
             );
         } finally {
             clearTimeout(aborted);

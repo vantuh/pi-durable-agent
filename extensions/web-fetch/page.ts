@@ -47,8 +47,8 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
             return error(`HTTP ${response.status}`);
         }
 
-        const type =
-            (response.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+        const contentType = response.headers.get("content-type") ?? "";
+        const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
         const isHtml = type === "text/html" || type === "application/xhtml+xml";
         // A page served without a content type is read as text rather than refused.
         const isText = type === "" || isHtml || type.startsWith("text/");
@@ -62,7 +62,7 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
             return error("page too large: over 5 MiB");
         }
 
-        const text = new TextDecoder().decode(body);
+        const text = decode(body, contentType, isHtml);
         const finalUrl = response.url === "" ? url : response.url;
         const converted = isHtml ? fromHtml(text, finalUrl) : { title: "", markdown: text };
 
@@ -74,7 +74,7 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
         };
     } catch (cause) {
         if (signal?.aborted === true) {
-            return error("web_fetch was stopped.");
+            return error("fetch_content was stopped.");
         }
         if (timeout.signal.aborted) {
             return error(`the page did not answer within ${TIMEOUT_MS / 1000} seconds`);
@@ -100,10 +100,34 @@ export function format(page: Page, offset: number): { text: string; isError?: bo
     const title = page.title === "" ? "" : `# ${page.title}\n`;
     const note =
         end < total
-            ? `\n\n[Truncated: showing characters ${offset}–${end} of ${total}. Call web_fetch again with offset: ${end} for more.]`
+            ? `\n\n[Truncated: showing characters ${offset}–${end} of ${total}. Call fetch_content again with offset: ${end} for more.]`
             : "";
 
     return { text: `${title}URL: ${page.url}\n\n${page.markdown.slice(offset, end)}${note}` };
+}
+
+/**
+ * The body decoded with the charset the response names: its Content-Type, else an HTML `<meta>`, else
+ * UTF-8. A label TextDecoder does not know also falls back to UTF-8 rather than failing the page.
+ */
+function decode(body: Uint8Array, contentType: string, isHtml: boolean): string {
+    const fromHeader = /charset\s*=\s*["']?([^"';,\s]+)/i.exec(contentType)?.[1];
+    const fromMeta = isHtml
+        ? /<meta[^>]+charset\s*=\s*["']?([^"'\s/>;]+)/i.exec(
+              new TextDecoder("latin1").decode(body.subarray(0, 4096)),
+          )?.[1]
+        : undefined;
+    const label = fromHeader ?? fromMeta;
+
+    if (label === undefined) {
+        return new TextDecoder().decode(body);
+    }
+
+    try {
+        return new TextDecoder(label).decode(body);
+    } catch {
+        return new TextDecoder().decode(body);
+    }
 }
 
 /** The body, or undefined once it passes the cap: reading stops there instead of buffering the rest. */

@@ -1,6 +1,6 @@
 /**
- * Web fetch: one tool, `web_fetch`, that turns a web page into Markdown. It is the reading half of
- * `web_search`: the search answers a question, this opens the page.
+ * Web fetch: one tool, `fetch_content`, that turns a web page into Markdown. It is the reading half
+ * of `web_search`: the search answers a question, this opens the page.
  *
  * No private-address guard, deliberately: the agent already runs bash and curl on this machine, so
  * a check here would protect nothing. No PDF either — a binary needs a different reader.
@@ -24,7 +24,7 @@ const reply = (text: string, isError = false) => ({
 
 export default function webFetch(host: Host) {
     const webFetchTool = defineTool({
-        name: "web_fetch",
+        name: "fetch_content",
         description:
             "Fetch one public page and return its main content as Markdown. A long page is cut short: call again with offset to read the rest. For current facts, use web_search first.",
         parameters: Type.Object({
