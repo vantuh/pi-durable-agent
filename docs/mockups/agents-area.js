@@ -3,10 +3,13 @@
 const STORE_KEY = "agents-area:height";
 const wide = window.matchMedia("(min-width: 1024px)");
 
-const PARENT = { id: "workspace", title: "Subagent workspace" };
+const PARENTS = {
+    workspace: { id: "workspace", title: "Subagent workspace" },
+    profile: { id: "profile", title: "Profile model validation" },
+};
 
 const sessions = [
-    { id: "workspace", title: PARENT.title, age: 0 },
+    { id: "workspace", title: PARENTS.workspace.title, age: 0 },
     { id: "profile", title: "Profile model validation", age: 2, busy: true },
     { id: "docs", title: "Extension documentation", age: 15 },
     { id: "archive", title: "Session archive notes", age: 180, unseen: true },
@@ -123,8 +126,30 @@ const catalog = {
     },
 };
 
+// A second parent, so the status popover has working agents of more than one parent to list.
+Object.assign(catalog, {
+    validator: {
+        title: "Validator",
+        profile: "worker",
+        model: "Sonnet 5.5",
+        state: "working",
+        ctx: 51,
+        task: "Validate profile model names against the registry.",
+    },
+    schema: {
+        title: "Schema",
+        profile: "worker",
+        model: "Sonnet 5.5",
+        state: "finished",
+        ctx: 29,
+        age: 25,
+        task: "Check the profile frontmatter schema.",
+    },
+});
+
+const profileKidIds = ["validator", "schema"];
+
 const kidIds = {
-    none: [],
     mixed: ["scout", "worker", "reviewer"],
     many: [
         "scout",
@@ -140,7 +165,6 @@ const kidIds = {
         "migration",
         "mapper",
     ],
-    missing: [],
 };
 const orphanIds = ["reviewer", "scout"];
 
@@ -165,6 +189,28 @@ function formatAge(minutes) {
     return `${Math.floor(minutes / 1440)}d`;
 }
 
+// The agents of a parent in the sample world. The workspace's depend on the scenario; the missing
+// and none scenarios have none, because there the workspace is gone or has not delegated.
+function kidsOf(parentId, scenario) {
+    if (parentId === "profile") {
+        return profileKidIds;
+    }
+
+    return scenario === "many" || scenario === "mixed" || scenario === "other"
+        ? kidIds[scenario === "many" ? "many" : "mixed"]
+        : [];
+}
+
+// Working first, then finished, newest first.
+function orderedKids(parentId, scenario) {
+    const kids = kidsOf(parentId, scenario).map((id) => ({ id, parentId, ...catalog[id] }));
+
+    return [
+        ...kids.filter((kid) => kid.state === "working"),
+        ...kids.filter((kid) => kid.state !== "working").toSorted((a, b) => a.age - b.age),
+    ];
+}
+
 function readState() {
     const params = new URLSearchParams(window.location.search);
     let scenario = params.get("scenario");
@@ -174,17 +220,13 @@ function readState() {
         scenario = "mixed";
         agent ??= "worker";
     }
-    if (!["none", "mixed", "many", "missing"].includes(scenario)) {
+    if (!["none", "mixed", "many", "other", "missing"].includes(scenario)) {
         scenario = "mixed";
     }
 
-    const kids = kidIds[scenario].map((id) => ({ id, ...catalog[id] }));
-    // Working first, then finished, newest first. Creation order breaks ties.
-    const ordered = [
-        ...kids.filter((kid) => kid.state === "working"),
-        ...kids.filter((kid) => kid.state !== "working").toSorted((a, b) => a.age - b.age),
-    ];
-    const hasParent = scenario === "mixed" || scenario === "many";
+    const parent = scenario === "other" ? PARENTS.profile : PARENTS.workspace;
+    const ordered = orderedKids(parent.id, scenario);
+    const hasParent = scenario === "mixed" || scenario === "many" || scenario === "other";
     const child = hasParent ? ordered.find((kid) => kid.id === agent) : undefined;
     const sessionParam = sessions.find((s) => s.id === params.get("session"));
     const openOrphan = scenario === "missing" && orphanIds.includes(agent) ? agent : "reviewer";
@@ -193,13 +235,14 @@ function readState() {
     if (scenario === "missing") {
         currentId = openOrphan;
     } else if (hasParent) {
-        currentId = PARENT.id;
+        currentId = parent.id;
     } else {
-        currentId = sessionParam && sessionParam.id !== PARENT.id ? sessionParam.id : "docs";
+        currentId = sessionParam && !(sessionParam.id in PARENTS) ? sessionParam.id : "docs";
     }
 
     return {
         scenario,
+        parent,
         kids: ordered,
         hasParent,
         child,
@@ -207,8 +250,6 @@ function readState() {
         orphan: scenario === "missing",
         openOrphan,
         theme: params.get("theme") === "latte" ? "latte" : "mocha",
-        totals: params.get("totals") === "all" ? "all" : "sessions",
-        orphanArea: params.get("orphan") === "minimal" ? "minimal" : "none",
         finished: params.get("finished") === "check" ? "check" : "dim",
         sidebar: params.get("sidebar") ?? (wide.matches ? "open" : "closed"),
     };
@@ -239,17 +280,21 @@ function mark(item, finishedStyle) {
     return `<span class="mark-slot"><span class="state-mark ${item.unseen ? "fresh text-ok" : "idle text-faint"}" role="img" aria-label="${item.unseen ? "Finished, not viewed" : "Finished"}"></span></span>`;
 }
 
+function sessionHref(session, state) {
+    if (session.id === "workspace") {
+        return hrefWith({ scenario: state.scenario === "many" ? "many" : "mixed", agent: null });
+    }
+    if (session.id === "profile") {
+        return hrefWith({ scenario: "other", agent: null });
+    }
+
+    return hrefWith({ scenario: "none", agent: null, session: session.id });
+}
+
 function sessionRows(state) {
     const rows = sessions
-        .filter((s) => !(state.orphan && s.id === PARENT.id))
-        .map((s) => ({
-            ...s,
-            href: hrefWith(
-                s.id === PARENT.id
-                    ? { scenario: state.hasParent ? state.scenario : "mixed", agent: null }
-                    : { scenario: "none", agent: null, session: s.id },
-            ),
-        }));
+        .filter((s) => !(state.orphan && s.id === "workspace"))
+        .map((s) => ({ ...s, href: sessionHref(s, state) }));
 
     if (state.orphan) {
         for (const id of orphanIds) {
@@ -329,22 +374,17 @@ function agentRow(kid, state) {
 }
 
 function renderArea(state) {
-    const showFull = state.hasParent && state.kids.length > 0;
-    const showMinimal = state.orphan && state.orphanArea === "minimal";
+    // No agents, or no parent (a child whose parent is gone is a plain row in the list): no area.
+    const show = state.hasParent && state.kids.length > 0;
 
-    area.hidden = !showFull && !showMinimal;
-    area.classList.toggle("minimal", showMinimal);
-    if (showFull) {
-        area.setAttribute("aria-label", `Agents of ${PARENT.title}`);
+    area.hidden = !show;
+    if (show) {
+        area.setAttribute("aria-label", `Agents of ${state.parent.title}`);
         area.innerHTML = `<div class="area-head">
-            <h2 class="area-title">Agents of <b>${PARENT.title}</b></h2>
+            <h2 class="area-title">Agents of <b>${state.parent.title}</b></h2>
             <span class="area-count">${state.kids.length}</span>
         </div>
         <ul id="area-scroll" class="area-scroll m-0 list-none">${state.kids.map((kid) => agentRow(kid, state)).join("")}</ul>`;
-    } else if (showMinimal) {
-        area.setAttribute("aria-label", "Parent not found");
-        area.innerHTML = `<div class="area-head"><h2 class="area-title"><b>Parent not found</b></h2></div>
-        <p class="area-note">The parent session is archived, so its agents stay in the list above.</p>`;
     } else {
         area.innerHTML = "";
     }
@@ -357,15 +397,15 @@ function renderMain(state) {
     const agent = child ?? orphan;
     const parentView = agent === undefined;
     const title = parentView
-        ? (selected?.title ?? PARENT.title)
+        ? (selected?.title ?? state.parent.title)
         : `${agent.title} · ${agent.profile}`;
 
     $("conversation-title").textContent = title;
     $("conversation-subtitle").textContent = parentView
         ? "pi-durable-agent · main"
         : child
-          ? `Agent of ${PARENT.title} · sample conversation`
-          : "Agent · its parent session is archived · sample conversation";
+          ? `Agent of ${state.parent.title} · sample conversation`
+          : "Agent · its parent session was deleted · sample conversation";
     $("user-message").textContent = parentView
         ? scenario === "none"
             ? "Sample conversation without any agents."
@@ -385,7 +425,7 @@ function renderMain(state) {
 
     const back = $("back-to-parent");
     back.hidden = child === undefined;
-    back.textContent = `← Back to ${PARENT.title}`;
+    back.textContent = `← Back to ${state.parent.title}`;
     back.href = hrefWith({ agent: null });
     back.dataset.nav = "";
 
@@ -405,40 +445,105 @@ function renderMain(state) {
         .join("");
 }
 
+// Working agents of every parent that still exists, the open parent's first. The open agent
+// itself is left out, like the open session is left out of the session counts.
+function workingAgents(state) {
+    const parents = [state.parent, ...Object.values(PARENTS).filter((p) => p !== state.parent)];
+
+    return parents
+        .flatMap((parent) =>
+            orderedKids(parent.id, state.scenario).map((kid) => ({ ...kid, parent })),
+        )
+        .filter((kid) => kid.state === "working" && kid.id !== state.child?.id);
+}
+
+function agentHref(kid, state) {
+    const scenario =
+        kid.parentId === "profile" ? "other" : state.scenario === "many" ? "many" : "mixed";
+
+    return hrefWith({ scenario, agent: kid.id });
+}
+
+function popoverSessionRow(row, current) {
+    const markClass = row.busy
+        ? "working text-accent"
+        : row.unseen
+          ? "fresh text-ok"
+          : "idle text-faint";
+    const inner = `<span class="mark-slot"><span class="state-mark ${markClass}" aria-hidden="true"></span></span>
+        <span class="pop-text"><span class="pop-title">${row.title}</span><span class="pop-sub">pi-durable-agent</span></span>
+        <span class="pop-time">${formatAge(row.age)}</span>`;
+
+    return current
+        ? `<div class="pop-row is-current">${inner}</div>`
+        : `<a data-nav class="pop-row" href="${row.href}">${inner}</a>`;
+}
+
+function renderPopover(state, working, fresh, agents) {
+    const active = sessionRows(state).find((row) => row.id === state.currentId);
+    const others = [...working, ...fresh.filter((row) => !working.includes(row))];
+    const sessionPart = `${active ? popoverSessionRow(active, true) : ""}${others
+        .map((row) => popoverSessionRow(row, false))
+        .join(
+            "",
+        )}${others.length === 0 ? '<p class="pop-none">No other session is working</p>' : ""}`;
+    const agentPart =
+        agents.length === 0
+            ? ""
+            : `<div class="pop-sep" role="separator"></div>
+        <div class="pop-head"><span class="state-mark working text-warn" aria-hidden="true"></span><span>Agents · <b>${agents.length} working</b></span></div>
+        <ul class="pop-agents">${agents
+            .map(
+                (
+                    kid,
+                ) => `<li><a data-nav class="pop-row pop-agent" href="${agentHref(kid, state)}" title="${kid.title} · ${kid.profile} · ${kid.parent.title}">
+            <span class="mark-slot"><span class="state-mark working text-warn" aria-hidden="true"></span></span>
+            <span class="pop-title">${kid.title}</span>
+            <span class="pop-sub">${kid.parent.title}</span>
+        </a></li>`,
+            )
+            .join("")}</ul>`;
+
+    $("status-popover").innerHTML = `${sessionPart}${agentPart}
+        <div class="pop-sep" role="separator"></div>
+        <button type="button" class="pop-row" data-close title="Opens the home page in the real app; not mocked here"><span class="mark-slot text-muted" aria-hidden="true">⌂</span>All sessions</button>`;
+}
+
+function setPopover(open) {
+    $("status-popover").hidden = !open;
+    $("status-trigger").setAttribute("aria-expanded", String(open));
+}
+
 function renderStatus(state) {
     const rows = sessionRows(state).filter((row) => row.id !== state.currentId);
-    let working = rows.filter((row) => row.busy).length;
-    let fresh = rows.filter((row) => row.unseen).length;
-    const hidden = state.kids.filter((kid) => kid.id !== state.child?.id);
+    const working = rows.filter((row) => row.busy);
+    const fresh = rows.filter((row) => row.unseen);
+    // Agents are their own item. They are never added to the session counts.
+    const agents = workingAgents(state);
 
-    if (state.totals === "all") {
-        working += hidden.filter((kid) => kid.state === "working").length;
-        fresh += hidden.filter((kid) => kid.unseen).length;
-    }
-
-    $("status-working").textContent = working > 0 ? `· ${working} working` : "";
-    $("status-new").textContent = fresh > 0 ? `· ${fresh} new` : "";
-    $("status-note").textContent =
-        state.totals === "sessions"
-            ? "totals: sessions only"
-            : hidden.length === 0
-              ? "totals: + agents (none hidden here)"
-              : "totals: sessions + hidden agents";
+    $("status-working").textContent = working.length > 0 ? `· ${working.length} working` : "";
+    $("status-new").textContent = fresh.length > 0 ? `· ${fresh.length} new` : "";
+    $("status-agents").textContent =
+        agents.length > 0
+            ? `· ${agents.length} ${agents.length === 1 ? "agent" : "agents"} working`
+            : "";
+    renderPopover(state, working, fresh, agents);
+    setPopover(false);
 
     const hint = $("collapsed-hint");
-    const workingKids = hidden.filter((kid) => kid.state === "working").length;
+    const workingKids = state.kids.filter(
+        (kid) => kid.state === "working" && kid.id !== state.child?.id,
+    ).length;
 
     hint.hidden = workingKids === 0 || !state.hasParent;
     hint.innerHTML = `<span class="state-mark working text-warn" aria-hidden="true"></span>${workingKids} working`;
-    hint.title = `${workingKids} agents working in ${PARENT.title}`;
+    hint.title = `${workingKids} agents working in ${state.parent.title}`;
 }
 
 function renderControls(state) {
     const pressed = {
         scenario: state.scenario === "mixed" && state.child ? "child" : state.scenario,
         sidebar: state.sidebar === "closed" ? "closed" : "open",
-        totals: state.totals,
-        orphan: state.orphanArea,
         finished: state.finished,
     };
 
@@ -510,16 +615,10 @@ function setHeight(requested, persist) {
 function layoutArea() {
     const rows = area.querySelectorAll(".agent-row").length;
 
-    if (area.hidden || area.classList.contains("minimal")) {
+    if (area.hidden) {
         handle.hidden = true;
         area.style.height = "";
-        updateReadout(
-            null,
-            bounds(),
-            area.hidden
-                ? "No agents area for this conversation"
-                : "Minimal “Parent not found” area · fixed height, not resizable",
-        );
+        updateReadout(null, bounds(), "No agents area for this conversation");
 
         return;
     }
@@ -607,8 +706,27 @@ $("close-sidebar").addEventListener("click", () => {
 $("backdrop").addEventListener("click", () => {
     replace({ sidebar: "closed" });
 });
+$("status-trigger").addEventListener("click", () => {
+    setPopover($("status-popover").hidden);
+});
+$("status-popover").addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest("[data-close]")) {
+        setPopover(false);
+    }
+});
+document.addEventListener("click", (event) => {
+    if (event.target instanceof Element && !event.target.closest("#status-line")) {
+        setPopover(false);
+    }
+});
 document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !wide.matches && $("app").dataset.sidebar === "open") {
+    if (event.key !== "Escape") {
+        return;
+    }
+    if (!$("status-popover").hidden) {
+        setPopover(false);
+        $("status-trigger").focus();
+    } else if (!wide.matches && $("app").dataset.sidebar === "open") {
         replace({ sidebar: "closed" });
     }
 });

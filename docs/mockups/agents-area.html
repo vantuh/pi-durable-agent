@@ -106,49 +106,7 @@
                 <div
                     class="border-edge-soft flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-2"
                 >
-                    <span class="text-meta text-faint">Open decisions</span>
-                    <div class="ctl">
-                        <span class="ctl-label">A · Status totals</span>
-                        <div class="seg border-edge" role="group" aria-label="A: status totals">
-                            <button
-                                type="button"
-                                class="scenario"
-                                data-set="totals"
-                                data-value="sessions"
-                            >
-                                Sessions only
-                            </button>
-                            <button
-                                type="button"
-                                class="scenario"
-                                data-set="totals"
-                                data-value="all"
-                            >
-                                + agents
-                            </button>
-                        </div>
-                    </div>
-                    <div class="ctl">
-                        <span class="ctl-label">B · Parent missing</span>
-                        <div class="seg border-edge" role="group" aria-label="B: parent missing">
-                            <button
-                                type="button"
-                                class="scenario"
-                                data-set="orphan"
-                                data-value="none"
-                            >
-                                No area
-                            </button>
-                            <button
-                                type="button"
-                                class="scenario"
-                                data-set="orphan"
-                                data-value="minimal"
-                            >
-                                “Parent not found”
-                            </button>
-                        </div>
-                    </div>
+                    <span class="text-meta text-faint">Open decision</span>
                     <div class="ctl">
                         <span class="ctl-label">C · Finished agent</span>
                         <div class="seg border-edge" role="group" aria-label="C: finished agent">
@@ -316,15 +274,33 @@
                         </div>
                         <div
                             id="status-line"
-                            class="text-meta text-faint flex h-6 items-center gap-3 overflow-hidden px-1 font-mono whitespace-nowrap"
+                            class="text-meta text-faint relative flex h-6 items-center px-1 font-mono whitespace-nowrap"
                         >
-                            <span class="flex items-center gap-1.5">
-                                <span class="bg-ok size-1.5 rounded-full" aria-hidden="true"></span>
+                            <button
+                                type="button"
+                                id="status-trigger"
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                                aria-controls="status-popover"
+                                title="Sessions and agents at work"
+                                class="rounded-control hover:bg-sunken aria-expanded:bg-sunken -mx-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden px-1.5 py-0.5"
+                            >
+                                <span
+                                    class="bg-ok size-1.5 shrink-0 rounded-full"
+                                    aria-hidden="true"
+                                ></span>
                                 <span>ready</span>
                                 <span id="status-working" class="text-accent"></span>
                                 <span id="status-new" class="text-ok"></span>
-                            </span>
-                            <span id="status-note" class="ml-auto truncate"></span>
+                                <span id="status-agents" class="text-warn"></span>
+                            </button>
+                            <div
+                                id="status-popover"
+                                class="status-popover"
+                                role="group"
+                                aria-label="Sessions and agents at work"
+                                hidden
+                            ></div>
                         </div>
                     </div>
                 </main>

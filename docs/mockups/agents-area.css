@@ -111,10 +111,6 @@ summary::-webkit-details-marker {
     background: var(--role-raised);
 }
 
-.agent-row.is-current {
-    box-shadow: inset 2px 0 0 var(--role-agent);
-}
-
 .sess-title,
 .agent-title {
     flex: 1;
@@ -211,10 +207,6 @@ summary::-webkit-details-marker {
     background: var(--role-panel);
 }
 
-.agents-area.minimal {
-    border-top: 1px solid var(--role-edge-soft);
-}
-
 .area-head {
     display: flex;
     flex: none;
@@ -256,14 +248,6 @@ summary::-webkit-details-marker {
     scrollbar-color: var(--role-edge) transparent;
 }
 
-.area-note {
-    margin: 0;
-    padding: 0 12px 10px;
-    color: var(--role-faint);
-    font-size: 12px;
-    line-height: 1.4;
-}
-
 @media (max-width: 1023px) {
     .sidebar {
         --list-row: 44px;
@@ -301,4 +285,132 @@ summary::-webkit-details-marker {
 #app[data-sidebar="open"] #open-sidebar,
 #app[data-sidebar="open"] #collapsed-hint {
     display: none;
+}
+
+/* The status-bar popover: the same box as the real sessions menu (w-80, panel, 1px soft edge, 4px padding). */
+.status-popover {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    z-index: 40;
+    width: 320px;
+    max-width: calc(100vw - 24px);
+    padding: 4px;
+    border: 1px solid var(--role-edge-soft);
+    border-radius: 6px;
+    background: var(--role-panel);
+    box-shadow: 0 8px 24px var(--role-sunken);
+    color: var(--role-ink);
+    font-family: var(--font-sans);
+}
+
+.pop-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    color: var(--role-ink);
+    font-size: 13px;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+a.pop-row:hover,
+button.pop-row:hover {
+    background: color-mix(in srgb, var(--role-raised) 50%, transparent);
+}
+
+.pop-row.is-current {
+    background: var(--role-raised);
+    cursor: default;
+}
+
+.pop-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pop-title,
+.pop-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pop-sub,
+.pop-time {
+    color: var(--role-faint);
+    font-size: 12px;
+}
+
+.pop-sub {
+    font-family: var(--font-mono);
+}
+
+.pop-time {
+    flex: none;
+    min-width: 28px;
+    text-align: right;
+}
+
+.pop-none {
+    margin: 0;
+    padding: 6px 8px;
+    color: var(--role-faint);
+    font-size: 12px;
+}
+
+.pop-sep {
+    height: 1px;
+    margin: 4px -4px;
+    background: var(--role-edge-soft);
+}
+
+.pop-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px 2px;
+    color: var(--role-faint);
+    font-size: 12px;
+}
+
+.pop-head b {
+    color: var(--role-muted);
+    font-weight: 500;
+}
+
+/* Agents are one line each, so five fit before the section scrolls. */
+.pop-agents {
+    max-height: 164px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--role-edge) transparent;
+}
+
+.pop-agent {
+    gap: 8px;
+    padding-block: 4px;
+}
+
+.pop-agent .pop-title {
+    flex: none;
+    max-width: 45%;
+}
+
+.pop-agent .pop-sub {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-sans);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

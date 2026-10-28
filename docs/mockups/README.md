@@ -76,8 +76,8 @@ pnpm exec vite docs/mockups --config vite.config.ts --host 127.0.0.1 --port 5195
 
 This is also a standalone, sample-data mockup: no API calls, no backend, no live agents, and a
 **PREVIEW** badge in the toolbar. It continues [version 1](subagents.html?count=3) and
-[version 2](subagents-compact.html?count=3): the strip above the composer is kept, the sidebar
-gains the area described in the sequencing below. The strip's own CSS is reused unchanged.
+[version 2](subagents-compact.html?count=3): the strip above the composer is kept, and the sidebar
+gains the area described below. The strip's own CSS is reused unchanged.
 
 ### What it shows
 
@@ -88,11 +88,11 @@ gains the area described in the sequencing below. The strip's own CSS is reused 
   finished unseen). The secondary text is `working` or `finished 4m ago`.
 - **Click a row** to open that agent's conversation in the main panel, with the "Back to <parent>"
   link above the composer, in the slot the strip used.
-- **A parent with no agents** has no area, no handle, and no heading.
+- **The open agent** is marked with the same background fill as the selected session row in the
+  main list. It has no extra border or frame.
+- **A parent with no agents** has no area, no grip, and no heading.
 - **A child open:** its parent stays highlighted in the main list. The area still lists every
-  sibling, and the open child is highlighted with a teal bar.
-- **A child whose parent is missing** (archived here) is not hidden. It is a top-level row in the
-  main list with an `agent` tag, and no agents area is shown unless decision B is switched on.
+  sibling.
 - **Resizing.** A grip between the list and the area drags the area's height. Keyboard on the
   focused grip: ArrowUp/ArrowDown change it by 16px (Shift: 64px), Home/End go to the minimum or
   maximum, Enter resets. Double-click resets. The size is stored in `localStorage` under
@@ -100,18 +100,45 @@ gains the area described in the sequencing below. The strip's own CSS is reused 
   height, its bounds and the list height.
 - **Narrow screens (below 1024px):** the sidebar is a drawer over the page, collapsed by default.
   The area stays under the list inside the drawer. Choosing a conversation closes the drawer,
-  and the header shows a small "N working" hint next to the menu button so the work is not
-  invisible while the drawer is closed.
+  and the header shows a small "N working" hint next to the menu button. The hint counts only
+  the open parent's agents, so it can be lower than the status line, which counts all parents.
 - **Long list:** the 12-agent state scrolls inside the area's own bounds. Opening a child scrolls
   its row into view inside the area.
+
+### Agents in the status bar (decided)
+
+Agents are counted **separately and are not added to the session totals**. The status line keeps
+the session figures exactly as they are, and agents are their own item after them:
+`ready · 1 working · 1 new · 3 agents working`. The item is hidden when no agent is working.
+
+Click the status line to open the mocked popover. It has the box of the real sessions popover
+(320px wide). The sessions part is unchanged: the open session first, then other working or
+unseen sessions with their time, or "No other session is working", and an "All sessions" row
+(not wired in the mockup). Below it, after a separator, comes a separate section
+"Agents · N working". It has one line per working agent, with the working mark, the agent's name
+and its parent's name, and each row opens that agent. It lists the working agents of **all**
+parents, the open parent's first, and leaves out the agent that is currently open. The section is
+absent when no agent is working. The sample data has a second parent, "Profile model validation",
+with its own agents, so the list shows more than one parent.
+
+Escape or a click outside closes the popover.
+
+### A child whose parent is missing (decided)
+
+Such a child is not hidden. It appears as a top-level row in the main list, tagged `agent`, and
+there is no agents area for it. This should be rare: it only happens if the parent was deleted
+from the sidebar. It is a safety net so that no agent becomes unreachable, not a designed
+feature. Open the **Parent missing** scenario to see it. Its rows count as ordinary sessions in
+the status line.
 
 ### Preview controls
 
 Scenario (no agents, 3 agents, 12 agents, child open, parent missing), Sidebar (open or
-collapsed), Theme (Mocha or Latte), and **Reset area size**. All of them, and the three decisions
-below, are kept in the query string, for example
-`?scenario=many&theme=latte&finished=check&totals=all&orphan=minimal&sidebar=open`. On a phone
-the controls start collapsed; `?controls=1` opens them.
+collapsed), Theme (Mocha or Latte), **Reset area size**, and the one open decision below. They
+are kept in the query string, for example
+`?scenario=many&theme=latte&finished=check&sidebar=open`. On a phone the controls start
+collapsed; `?controls=1` opens them. Opening an agent of the second parent from the popover
+uses `?scenario=other`, which has no button of its own.
 
 ### Measured sizes
 
@@ -133,17 +160,12 @@ Measured in the browser with sample data. Rows have fixed heights so the bounds 
 The default height fits the agents up to six rows, then the area scrolls. The maximum depends on
 the window: it is what is left after the top of the sidebar, the grip and the list minimum.
 
-### Open decisions
+Status popover, the same on both sizes: 320px wide (at most the window minus 24px), session rows
+49.5px, agent rows 27.5px. Its height is 259.5px with one working agent, 315px with three and
+369.5px with five.
 
-Each can be switched in the preview. None is decided.
+### Open decision
 
-- **A. Children in the status-bar totals.** The status line shows "working" and "new" counts for
-  other sessions. "Sessions only" counts main-list sessions. "+ agents" adds the agents of the
-  open parent (the open child itself is never counted). With the agents area open the agents are
-  already on screen, so counting them mostly matters when the sidebar is closed.
-- **B. Parent not found.** "No area" shows nothing for an agent whose parent is missing.
-  "Parent not found" shows a short fixed-height area saying so. The preview text says the parent
-  is archived; the real wording depends on how deletion and archiving end up working.
 - **C. A finished agent.** "Dimmed + time" shows a muted title and `finished 4m ago`. "✓ + context"
   shows a check mark (green if not yet viewed) and the final context percentage, amber above
   70%. Neither shows both.
@@ -153,10 +175,13 @@ Each can be switched in the preview. None is decided.
 - One stored area height is shared by every parent and by both desktop and phone. A height saved
   while looking at 12 agents leaves empty space under 3 agents.
 - Agents sort working first, then finished newest first.
-- Parent-missing demonstrates two agents with different states; the list sorts all top-level
-  rows by recency.
+- The status item counts only working agents, not finished unseen ones.
+- The sample data always has one working agent in the second parent, so the state with no working
+  agent at all (no status item, no popover section) is in the code but is not reachable on screen.
 - Rows are fixed-height and titles are truncated with an ellipsis; the full title is in the
   tooltip.
+- The agents section of the popover scrolls past roughly five rows. The sample data never has
+  more than five working agents, so this is not shown.
 - Below about 455px of sidebar height on a phone (the fixed top of the sidebar, the list
   minimum, the grip and the area minimum) the sidebar clips its bottom. This happens in the
   preview only when the controls are expanded on a phone. The real app needs a rule for short
@@ -165,9 +190,9 @@ Each can be switched in the preview. None is decided.
 ### Not decided
 
 Deleting, archiving or hiding a parent; whether agents can be archived or deleted from the area;
-whether an agent's own children (nested agents) appear; folder filters beyond the one parent
-case shown; notifications for finished agents; the server and browser contract. Implementation
-needs the owner's approval first, and this mockup is not an approval.
+whether an agent's own children (nested agents) appear; folder filters; notifications for
+finished agents; the server and browser contract. Implementation needs the owner's approval
+first, and this mockup is not an approval.
 
 ## Requested sequencing
 
