@@ -8,22 +8,30 @@ import type { CommitView } from "./extensions.ts";
  */
 export function commitAnnouncer(options: {
     cwdOf: (session: number) => Promise<string | null>;
+    ownerOf: (session: number) => Promise<number | undefined>;
     publish: (view: CommitView) => void;
 }): (session: number, entries: readonly EntryRecord[], busy: boolean) => Promise<void> {
-    const cwds = new Map<number, Promise<string | null>>();
+    // Neither changes over a session's life: its folder is fixed at creation and its owner is immutable.
+    const facts = new Map<number, Promise<readonly [string | null, number | undefined]>>();
 
     return async (session, entries, busy) => {
-        let cwd = cwds.get(session);
+        let known = facts.get(session);
 
-        if (cwd === undefined) {
-            cwd = options.cwdOf(session);
-            cwds.set(session, cwd);
+        if (known === undefined) {
+            known = Promise.all([options.cwdOf(session), options.ownerOf(session)]);
+            facts.set(session, known);
         }
 
         try {
-            options.publish({ session: { id: session, cwd: await cwd }, entries, busy });
+            const [cwd, owner] = await known;
+
+            options.publish({
+                session: { id: session, cwd, ...(owner === undefined ? {} : { owner }) },
+                entries,
+                busy,
+            });
         } catch {
-            cwds.delete(session);
+            facts.delete(session);
         }
     };
 }

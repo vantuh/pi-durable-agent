@@ -292,13 +292,14 @@ export class Sessions {
 
             const name = await this.name(id);
             const working = busy(id);
-            const { archived, endedAt, seenAt } = await this.#harness.commit(async (tx) => {
+            const { archived, endedAt, seenAt, owner } = await this.#harness.commit(async (tx) => {
                 const attention = await tx.doc(AttentionDoc, id);
 
                 return {
                     archived: (await tx.doc(ArchiveDoc, id)).archived,
                     endedAt: attention.endedAt,
                     seenAt: attention.seenAt,
+                    owner: (await tx.conversation(id))?.owner?.conversationId,
                 };
             }, this.#context);
 
@@ -316,10 +317,18 @@ export class Sessions {
                 archived,
                 activeAt: await this.#activeAt(id),
                 unseen: !working && !archived && endedAt > seenAt,
+                ...(owner === undefined ? {} : { parent: Number(owner) }),
             });
         }
 
         return summaries;
+    }
+
+    /** The conversation that started this one, from the immutable record; undefined for a session a person created. */
+    async owner(id: ConversationId): Promise<number | undefined> {
+        const record = await this.#harness.commit((tx) => tx.conversation(id), this.#context);
+
+        return record?.owner === undefined ? undefined : Number(record.owner.conversationId);
     }
 
     /** A deleted session is out of the lists for good; its rows stay in storage. */

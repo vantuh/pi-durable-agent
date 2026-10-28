@@ -2,7 +2,13 @@
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 
-import { ActionError, ActionNotFound, type Extensions, parseActionBody } from "../extensions.ts";
+import {
+    ActionError,
+    ActionNotFound,
+    type Extensions,
+    parseActionBody,
+    type SessionRef,
+} from "../extensions.ts";
 import { answer, answerError, readJson, type Route } from "../http.ts";
 import type { Opened } from "../sessions.ts";
 
@@ -13,8 +19,9 @@ function badBody(error: unknown): never {
 export function extensionRoutes(deps: {
     extensions: Extensions;
     attach: (id: number) => Promise<Opened | undefined>;
+    ownerOf: (id: number) => Promise<number | undefined>;
 }): Route[] {
-    const { extensions, attach } = deps;
+    const { extensions, attach, ownerOf } = deps;
 
     return [
         {
@@ -45,7 +52,7 @@ export function extensionRoutes(deps: {
             handle: async (request, response, _url, match) => {
                 try {
                     const parsed = parseActionBody(await readJson(request).catch(badBody));
-                    let session: { id: number; cwd: string | null } | null = null;
+                    let session: SessionRef | null = null;
 
                     if (parsed.session !== undefined) {
                         const opened = await attach(parsed.session);
@@ -58,7 +65,13 @@ export function extensionRoutes(deps: {
 
                         const agent = await opened.conversation.agent(context);
 
-                        session = { id: parsed.session, cwd: agent.cwd ?? null };
+                        const owner = await ownerOf(parsed.session);
+
+                        session = {
+                            id: parsed.session,
+                            cwd: agent.cwd ?? null,
+                            ...(owner === undefined ? {} : { owner }),
+                        };
                     }
 
                     const result = await extensions.call(

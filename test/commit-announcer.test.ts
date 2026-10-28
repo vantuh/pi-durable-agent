@@ -13,6 +13,7 @@ void describe("commitAnnouncer", () => {
                 new Promise((done) => {
                     resolve = done;
                 }),
+            ownerOf: () => Promise.resolve(undefined),
             publish: (view) => seen.push(view),
         });
 
@@ -27,6 +28,26 @@ void describe("commitAnnouncer", () => {
             [
                 [true, "/work"],
                 [false, "/work"],
+            ],
+        );
+    });
+
+    void it("names the owner of a session that something else started, and only then", async () => {
+        const seen: CommitView[] = [];
+        const announce = commitAnnouncer({
+            cwdOf: () => Promise.resolve("/work"),
+            ownerOf: (session) => Promise.resolve(session === 2 ? 1 : undefined),
+            publish: (view) => seen.push(view),
+        });
+
+        await announce(1, [], false);
+        await announce(2, [], false);
+
+        assert.deepEqual(
+            seen.map((view) => view.session),
+            [
+                { id: 1, cwd: "/work" },
+                { id: 2, cwd: "/work", owner: 1 },
             ],
         );
     });

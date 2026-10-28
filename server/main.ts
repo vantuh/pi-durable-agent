@@ -172,6 +172,12 @@ async function sessionTitleOf(session: number): Promise<string | null> {
     return await sessions.title(session as ConversationId);
 }
 
+/** The session that started this one, for the extensions' view of it. */
+async function sessionOwnerOf(session: number): Promise<number | undefined> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
+    return await sessions.owner(session as ConversationId);
+}
+
 /** The name someone gave a session, without the first question the sidebar falls back to. */
 async function sessionNameOf(session: number): Promise<string | null> {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
@@ -272,6 +278,7 @@ const announce = commitAnnouncer({
 
         return agent?.cwd ?? null;
     },
+    ownerOf: sessionOwnerOf,
     publish: (view) => {
         extensions.publish(view);
     },
@@ -521,7 +528,7 @@ async function boot(): Promise<void> {
         }),
         ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
         ...fileRoutes({ dataDir: DATA_DIR }),
-        ...extensionRoutes({ extensions, attach }),
+        ...extensionRoutes({ extensions, attach, ownerOf: sessionOwnerOf }),
         {
             // The app's restart button; 409 without the supervisor, which would leave nothing to start it.
             method: "POST",

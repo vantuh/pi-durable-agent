@@ -105,9 +105,16 @@ export type SessionRequest = {
     ) => Promise<AssistantMessage>;
 };
 
+/** A session as an extension sees it. `owner` is the session that started it, when a person did not. */
+export type SessionRef = {
+    readonly id: number;
+    readonly cwd: string | null;
+    readonly owner?: number;
+};
+
 /** One conversation after a commit: what a commit listener may read. */
 export type CommitView = {
-    readonly session: { readonly id: number; readonly cwd: string | null };
+    readonly session: SessionRef;
     readonly entries: readonly EntryRecord[];
     readonly busy: boolean;
 };
@@ -139,7 +146,7 @@ export type StatusProvider = (view: StatusView) => StatusLine | undefined;
 export type ActionCall = {
     readonly args: unknown;
     /** The session the call was made from, or null when it was made from none. */
-    readonly session: { readonly id: number; readonly cwd: string | null } | null;
+    readonly session: SessionRef | null;
 };
 
 /** A folder's entry in its `actions` export. Its return value must be JSON-serialisable. */

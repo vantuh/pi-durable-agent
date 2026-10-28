@@ -186,6 +186,8 @@ export type SessionSummary = {
     activeAt: number | null;
     /** A run ended after the session was last seen, on any device; never while it works or is archived. */
     unseen: boolean;
+    /** The session this one was started from, when something other than a person started it. */
+    parent?: number;
 };
 
 /** What `GET /api/sessions/events` sends: the whole list, at once and after every change. */
