@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
+import { sidebarSessions } from "../lib/session-nesting.ts";
 import { MINUTE, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
@@ -62,7 +63,9 @@ export function Home({ sessions, onOpen, onNew, onSessions, onSettings }: Props)
         };
     }, []);
 
-    const listed = sessions.filter((session) => !session.archived).toSorted(newestFirst);
+    const listed = sidebarSessions(sessions)
+        .filter((session) => !session.archived)
+        .toSorted(newestFirst);
     const groups = [
         { name: "Working", rows: listed.filter((session) => session.busy) },
         { name: "Not viewed", rows: listed.filter((session) => session.unseen) },
