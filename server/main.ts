@@ -373,7 +373,9 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         if (match !== null) {
             await route.handle(request, response, url, match);
 
-            if (request.method !== "GET") {
+            // An extension changes a row only through the host, which sends the list itself; a panel
+            // that polls an action every second must not resend every row to every device.
+            if (request.method !== "GET" && !url.pathname.startsWith("/api/extensions/")) {
                 listChanged();
             }
 
