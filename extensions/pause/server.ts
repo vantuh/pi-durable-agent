@@ -11,6 +11,7 @@ import { defineExtension, GenerationTask, hook, ToolTask } from "@earendil-works
 
 import { type Action, ActionError, type Host } from "../../server/sdk.ts";
 import { Gate } from "./gate.ts";
+import { MARK, type PauseState } from "./refs.ts";
 
 export const meta = {
     title: "Pause",
@@ -43,8 +44,6 @@ function named(call: { readonly session: { readonly id: number } | null }): numb
     return call.session.id;
 }
 
-/** What a held session's row says: the working pulse would claim it works. */
-const MARK = "Paused";
 /** Sessions whose row carries the mark, so a commit does not push the session list for nothing. */
 const marked = new Set<number>();
 
@@ -60,27 +59,36 @@ function setMark(host: Host, session: number, mark: string | undefined): void {
     host.setSessionMark(session, mark);
 }
 
+function hold(host: Host, session: number): PauseState {
+    // Nothing to hold in an idle session, and a pause nobody asked for would hang its next run.
+    if (running.get(session) !== true) {
+        return { paused: false };
+    }
+
+    gateOf(session).pause();
+    setMark(host, session, MARK);
+
+    return { paused: true };
+}
+
+function letGo(host: Host, session: number): PauseState {
+    gateOf(session).resume();
+    setMark(host, session, undefined);
+
+    return { paused: false };
+}
+
 export const actions = (host: Host): Record<string, Action> => ({
     pause(call) {
-        const session = named(call);
-
-        // Nothing to hold in an idle session, and a pause nobody asked for would hang its next run.
-        if (running.get(session) !== true) {
-            return { paused: false };
-        }
-
-        gateOf(session).pause();
-        setMark(host, session, MARK);
-
-        return { paused: true };
+        return hold(host, named(call));
     },
     resume(call) {
+        return letGo(host, named(call));
+    },
+    toggle(call) {
         const session = named(call);
 
-        gateOf(session).resume();
-        setMark(host, session, undefined);
-
-        return { paused: false };
+        return gates.get(session)?.paused === true ? letGo(host, session) : hold(host, session);
     },
     state(call) {
         return { paused: gates.get(named(call))?.paused === true };

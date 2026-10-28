@@ -13,7 +13,13 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
+import {
+    type PointerEvent as ReactPointerEvent,
+    type ReactNode,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -30,6 +36,18 @@ import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { toast } from "../lib/toast.ts";
 import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
+
+/** An item's label and icon, which a folder may read off the row: pause turns into resume. */
+function labelOf(item: FolderSessionMenuItem, session: SessionSummary): string {
+    return typeof item.label === "function" ? item.label(session) : item.label;
+}
+
+function iconOf(
+    part: ReactNode | ((session: SessionSummary) => ReactNode),
+    session: SessionSummary,
+): ReactNode {
+    return typeof part === "function" ? part(session) : part;
+}
 
 type Props = {
     sessions: SessionSummary[];
@@ -193,10 +211,10 @@ export function Sessions({
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
     const menu = useSessionMenu();
-    const runMenuItem = (item: FolderSessionMenuItem, id: number): void => {
+    const runMenuItem = (item: FolderSessionMenuItem, session: SessionSummary): void => {
         setPending(true);
-        toast.promise(item.run(id), {
-            loading: `${item.label}…`,
+        toast.promise(item.run(session.id), {
+            loading: `${labelOf(item, session)}…`,
             error: (error: unknown) =>
                 error instanceof Error ? error.message : "Could not finish the action.",
             finally: () => {
@@ -605,11 +623,11 @@ export function Sessions({
                                                                 key={item.id}
                                                                 disabled={pending}
                                                                 onSelect={() => {
-                                                                    runMenuItem(item, session.id);
+                                                                    runMenuItem(item, session);
                                                                 }}
                                                             >
-                                                                {item.icon}
-                                                                {item.label}
+                                                                {iconOf(item.icon, session)}
+                                                                {labelOf(item, session)}
                                                             </DropdownMenuItem>
                                                         ))}
                                                         {menu.length === 0 ? null : (

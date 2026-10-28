@@ -95,11 +95,15 @@ function isToolIcon(value: unknown): value is ToolIcon {
 }
 
 function isSessionMenuItem(value: unknown): value is SessionMenuItem {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const label: unknown = Reflect.get(value, "label");
+
     return (
-        typeof value === "object" &&
-        value !== null &&
         typeof Reflect.get(value, "id") === "string" &&
-        typeof Reflect.get(value, "label") === "string" &&
+        (typeof label === "string" || typeof label === "function") &&
         typeof Reflect.get(value, "run") === "function"
     );
 }

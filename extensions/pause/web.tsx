@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { callAction } from "@/sdk/actions.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
-import { pause, resume, state } from "./refs.ts";
+import { MARK, pause, resume, state, toggle as toggleAction } from "./refs.ts";
 
 /** The step a hold belongs to: another session or another run starts unpaused. */
 type Held = { readonly key: string; readonly paused: boolean };
@@ -85,20 +85,17 @@ function command(ref: typeof pause): (session: number) => Promise<void> {
     };
 }
 
+const held = (mark: string | undefined): boolean => mark === MARK;
+
 export default {
     composer: [{ id: "pause", component: PauseControl }],
+    // One item that says what pressing it does: a held row offers the way out, not a second hold.
     sessionMenu: [
         {
             id: "pause",
-            label: "Pause after this step",
-            icon: <Pause />,
-            run: command(pause),
-        },
-        {
-            id: "resume",
-            label: "Resume",
-            icon: <Play />,
-            run: command(resume),
+            label: (session) => (held(session.mark) ? "Resume" : "Pause after this step"),
+            icon: (session) => (held(session.mark) ? <Play /> : <Pause />),
+            run: command(toggleAction),
         },
     ],
 } satisfies WebExtension;

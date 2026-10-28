@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType, ReactNode, RefObject } from "react";
 
-import type { ClientStatus } from "../../../shared/protocol.ts";
+import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 
 export type StatusProps = {
     session: {
@@ -65,8 +65,9 @@ export type ComposerItem = {
 /** One item an extension adds to a session row's menu, above the core's own. */
 export type SessionMenuItem = {
     id: string;
-    label: string;
-    icon?: ReactNode;
+    /** A fixed label, or one read off the row: a command that turns into its own undo. */
+    label: string | ((session: SessionSummary) => string);
+    icon?: ReactNode | ((session: SessionSummary) => ReactNode);
     /** Runs for one session; its label stands in a toast while it runs, and the failure's message after. */
     run: (session: number) => Promise<void>;
 };

@@ -5,10 +5,11 @@ asking again. Stop is destructive: the request in flight dies and a partial answ
 aborted entry. Pause gives up nothing; it only declines to start the next step.
 
 The button sits in the composer's row beside Stop, and appears only while the session runs: ⏸ to
-hold, ▶ (yellow) to let go. The same two commands are in a session's menu in the sidebar — "Pause
-after this step" and "Resume" — so one conversation can be held while another is open on screen.
-While a session is held, its row in the sidebar shows a filled square in the warning colour instead
-of the working pulse, and says "Paused" to a screen reader or on hover.
+hold, ▶ (yellow) to let go. The session's own menu in the sidebar carries the same command as one
+item, so one conversation can be held while another is open on screen: it reads "Pause after this
+step" while the session runs and turns into "Resume" once it is held. While a session is held, its
+row shows a filled square in the warning colour instead of the working pulse, and says "Paused" to
+a screen reader or on hover.
 
 ## Where a pause lands
 
@@ -55,10 +56,12 @@ Neither conflicts with a pause: the run is what stops, not the inbox.
 - `server.ts` — `ToolTask.beforeTool` holds the next call before it runs, `GenerationTask.beforeRequest`
   holds the next request before it leaves. Both await the conversation's gate, so nothing new
   begins, and no state is written while parked.
-- `actions` — `pause`, `resume`, `state`, one call each through
+- `actions` — `pause`, `resume`, `toggle`, `state`, one call each through
   `POST /api/extensions/pause/actions/<name>` with `{ "session": n }`; each answers `{ paused }`.
-- `web.tsx` — the composer item and the two menu items; the browser reads `state` on entering a
-  session and whenever a run starts, and never guesses.
+  `toggle` is what the menu item calls, whichever way it reads.
+- `web.tsx` — the composer item and the one menu item; the browser reads `state` on entering a
+  session and whenever a run starts, and never guesses. The menu item's label and icon are
+  functions of the row (`SessionSummary` in `sdk/types.ts`), which is how one item can say both.
 
 ## Things worth knowing before changing it
 
