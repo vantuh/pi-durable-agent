@@ -2,7 +2,8 @@
 
 import type { Found } from "./wire.ts";
 
-export type Ask = { readonly query: string; readonly urls: readonly string[] };
+/** What one search asks: the angles to cover, folded into the one prompt a provider gets. */
+export type Ask = { readonly queries: readonly string[]; readonly urls: readonly string[] };
 
 export type Provider = {
     readonly name: string;
@@ -15,9 +16,16 @@ export type Outcome =
     | { readonly kind: "failed"; readonly reasons: readonly string[] }
     | { readonly kind: "aborted" };
 
-export function buildPrompt({ query, urls }: Ask, listSources: boolean): string {
+export function buildPrompt({ queries, urls }: Ask, listSources: boolean): string {
+    const [only] = queries;
+
     return [
-        `Search the web and answer this: ${query}`,
+        ...(queries.length === 1 && only !== undefined
+            ? [`Search the web and answer this: ${only}`]
+            : [
+                  "Search the web and answer each of these, covering every angle:",
+                  ...queries.map((query) => `- ${query}`),
+              ]),
         ...(urls.length === 0
             ? []
             : ["Also read these pages and use them:", ...urls.map((url) => `- ${url}`)]),

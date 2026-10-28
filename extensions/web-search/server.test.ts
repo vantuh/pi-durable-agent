@@ -6,14 +6,17 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import type { ToolExecutionResult } from "@earendil-works/pi-durable";
+
 import type { ResolveModelAuth } from "../../server/sdk.ts";
 import { billingBlock, readMessages, searchAnthropic } from "./anthropic.ts";
 import { type Provider, formatAnswer, runChain } from "./chain.ts";
 import { readResponses, searchChatgpt } from "./chatgpt.ts";
 import { MAX_OUTPUT, readKiro, searchKiro } from "./kiro.ts";
+import { searchAnswer } from "./server.ts";
 import type { Found } from "./wire.ts";
 
-const ask = { query: "latest Node.js LTS", urls: [] };
+const ask = { queries: ["latest Node.js LTS"], urls: [] };
 const fixture = (name: string) =>
     readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -574,6 +577,74 @@ void describe("web-search provider order", () => {
 
         assert.equal(outcome.kind, "answered");
         assert.deepEqual(calls, ["anthropic"]);
+    });
+});
+
+void describe("web-search tool", () => {
+    /** The tool's providers fetch through the global `fetch`, so this is where their requests land. */
+    async function withStubbedFetch<T>(run: (calls: Call[]) => Promise<T>): Promise<T> {
+        const { fetch: stub, calls } = stubFetch(() => sse(fixture("chatgpt.sse")));
+        const original = globalThis.fetch;
+
+        globalThis.fetch = stub;
+
+        try {
+            return await run(calls);
+        } finally {
+            globalThis.fetch = original;
+        }
+    }
+
+    const promptIn = (call: Call | undefined): string => JSON.stringify(call?.body["input"] ?? "");
+    const textOf = (result: ToolExecutionResult): string =>
+        result.output?.map((item) => ("text" in item ? item.text : "")).join("") ?? "";
+    const signedIn = authWith({ openai: OPENAI_TOKEN });
+
+    void it("asks once about every item of `queries`, not once per query", async () => {
+        const result = await withStubbedFetch(async (calls) => {
+            const answer = await searchAnswer(
+                signedIn,
+                { queries: ["Node.js latest LTS version", "Node.js release schedule 2027"] },
+                signal(),
+            );
+
+            assert.equal(calls.length, 1);
+            assert.match(promptIn(calls[0]), /Node\.js latest LTS version/);
+            assert.match(promptIn(calls[0]), /Node\.js release schedule 2027/);
+
+            return answer;
+        });
+
+        assert.equal(result.isError, undefined);
+        assert.match(textOf(result), /^The latest Node\.js LTS is/);
+    });
+
+    void it("merges `query` into `queries` with the single question first", async () => {
+        await withStubbedFetch(async (calls) => {
+            await searchAnswer(
+                signedIn,
+                { query: "Node.js latest LTS version", queries: ["Node.js release schedule 2027"] },
+                signal(),
+            );
+
+            const prompt = promptIn(calls[0]);
+
+            assert.equal(calls.length, 1);
+            assert.ok(
+                prompt.indexOf("Node.js latest LTS version") <
+                    prompt.indexOf("Node.js release schedule 2027"),
+            );
+        });
+    });
+
+    void it("refuses a call with neither `query` nor `queries`, without asking a provider", async () => {
+        await withStubbedFetch(async (calls) => {
+            const result = await searchAnswer(signedIn, { urls: [] }, signal());
+
+            assert.equal(result.isError, true);
+            assert.equal(textOf(result), "give query or queries");
+            assert.equal(calls.length, 0);
+        });
     });
 });
 
