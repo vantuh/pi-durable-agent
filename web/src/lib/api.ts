@@ -231,6 +231,14 @@ export async function setDefaultModel(choice: DefaultModel): Promise<void> {
     });
 }
 
+export async function addScopedModel(choice: ModelChoice): Promise<void> {
+    await json("/api/scoped", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: choice.provider, modelId: choice.id }),
+    });
+}
+
 function choices(value: unknown): ModelChoice[] {
     const out: ModelChoice[] = [];
 

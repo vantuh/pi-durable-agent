@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ type Props = {
     level: string | null;
     defaultModel: DefaultModel | null;
     onPick: (choice: ModelChoice, level: string) => void;
+    onAddScoped: (choice: ModelChoice) => void;
     onMakeDefault: (choice: ModelChoice, level: string) => void;
     onClose: () => void;
 };
@@ -26,6 +27,7 @@ export function ModelMenu({
     level,
     defaultModel,
     onPick,
+    onAddScoped,
     onMakeDefault,
     onClose,
 }: Props) {
@@ -41,6 +43,7 @@ export function ModelMenu({
             model.id.toLowerCase().includes(needle) ||
             model.provider.toLowerCase().includes(needle),
     );
+    const scopedKeys = new Set(scoped.map((model) => `${model.provider}/${model.id}`));
     const active = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === current);
     const levels = active?.levels ?? ["off"];
     const isDefault =
@@ -98,38 +101,55 @@ export function ModelMenu({
                             const key = `${model.provider}/${model.id}`;
 
                             return (
-                                <button
+                                <div
                                     key={key}
-                                    type="button"
-                                    onClick={() => {
-                                        onPick(
-                                            model,
-                                            model.levels.includes(level ?? "")
-                                                ? (level ?? "off")
-                                                : (model.levels[0] ?? "off"),
-                                        );
-                                    }}
-                                    className={`rounded-control flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${
+                                    className={`rounded-control flex items-center gap-1 pr-1.5 ${
                                         key === current ? "bg-raised" : "hover:bg-raised/50"
                                     }`}
                                 >
-                                    <span className="min-w-0">
-                                        <span className="text-ink text-interface block truncate">
-                                            {model.name}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onPick(
+                                                model,
+                                                model.levels.includes(level ?? "")
+                                                    ? (level ?? "off")
+                                                    : (model.levels[0] ?? "off"),
+                                            );
+                                        }}
+                                        className="rounded-control flex min-w-0 flex-1 items-center justify-between gap-2 px-2 py-1.5 text-left"
+                                    >
+                                        <span className="min-w-0">
+                                            <span className="text-ink text-interface block truncate">
+                                                {model.name}
+                                            </span>
+                                            <span className="text-faint text-meta block truncate">
+                                                {model.provider} ·{" "}
+                                                {Math.round(model.contextWindow / 1000)}k
+                                                {defaultModel?.provider === model.provider &&
+                                                defaultModel.modelId === model.id
+                                                    ? " · default"
+                                                    : ""}
+                                            </span>
                                         </span>
-                                        <span className="text-faint text-meta block truncate">
-                                            {model.provider} ·{" "}
-                                            {Math.round(model.contextWindow / 1000)}k
-                                            {defaultModel?.provider === model.provider &&
-                                            defaultModel.modelId === model.id
-                                                ? " · default"
-                                                : ""}
-                                        </span>
-                                    </span>
-                                    {key === current ? (
-                                        <Check className="text-accent size-4 shrink-0" />
+                                        {key === current ? (
+                                            <Check className="text-accent size-4 shrink-0" />
+                                        ) : null}
+                                    </button>
+                                    {tab === "all" && !scopedKeys.has(key) ? (
+                                        <button
+                                            type="button"
+                                            title="Add to scoped models"
+                                            aria-label="Add to scoped models"
+                                            onClick={() => {
+                                                onAddScoped(model);
+                                            }}
+                                            className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
+                                        >
+                                            <Plus className="size-4" />
+                                        </button>
                                     ) : null}
-                                </button>
+                                </div>
                             );
                         })}
                     </div>

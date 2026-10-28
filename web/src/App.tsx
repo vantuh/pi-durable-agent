@@ -15,6 +15,7 @@ import {
     setAgent,
     setSessionArchived,
     setSessionTitle,
+    addScopedModel,
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
@@ -229,6 +230,12 @@ export function App() {
                                         defaultModel={models.default}
                                         onClose={() => {
                                             setMenu(false);
+                                        }}
+                                        onAddScoped={(choice) => {
+                                            void (async () => {
+                                                await addScopedModel(choice);
+                                                setModels(await listModels());
+                                            })();
                                         }}
                                         onMakeDefault={(choice, level) => {
                                             void (async () => {

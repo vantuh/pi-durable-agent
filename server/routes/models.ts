@@ -1,6 +1,6 @@
 /** The model picker: the catalog, scoped by Pi's `enabledModels`, and the default for new sessions. */
 
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -24,6 +24,26 @@ async function enabledModels(): Promise<string[] | undefined> {
             : undefined;
     } catch {
         return undefined;
+    }
+}
+
+async function addEnabledModel(key: string, fallback: string[]): Promise<void> {
+    const file = join(homedir(), ".pi/agent/settings.json");
+    let settings: Record<string, unknown> = {};
+
+    try {
+        settings = record(JSON.parse(await readFile(file, "utf8"))) ?? {};
+    } catch {
+        // No settings file yet: start one.
+    }
+
+    const current = Array.isArray(settings["enabledModels"])
+        ? settings["enabledModels"].filter((entry): entry is string => typeof entry === "string")
+        : fallback;
+
+    if (!current.includes(key)) {
+        settings["enabledModels"] = [...current, key];
+        await writeFile(file, `${JSON.stringify(settings, null, 2)}\n`);
     }
 }
 
@@ -80,6 +100,29 @@ export function modelRoutes(deps: {
                               }
                             : { ...stored.model, thinkingLevel: stored.thinkingLevel },
                 });
+            },
+        },
+        {
+            method: "POST",
+            path: /^\/api\/scoped$/,
+            handle: async (request, response) => {
+                const payload = record(await readJson(request));
+                const provider = string(payload?.["provider"]);
+                const modelId = string(payload?.["modelId"]);
+
+                if (provider === undefined || modelId === undefined) {
+                    answer(response, 400, { error: "provider and modelId are required" });
+
+                    return;
+                }
+
+                const available = await models.getAvailable();
+
+                await addEnabledModel(
+                    `${provider}/${modelId}`,
+                    available.map((model) => `${model.provider}/${model.id}`),
+                );
+                answer(response, 200, { provider, modelId });
             },
         },
         {
