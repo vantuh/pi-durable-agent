@@ -8,7 +8,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
+import { useStatusRowItems } from "../extensions.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
+import { statusRows } from "../lib/status-rows.ts";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
@@ -21,51 +24,76 @@ type Props = {
 
 const ROW = "gap-3 px-2 py-1.5";
 
-function newestFirst(left: SessionSummary, right: SessionSummary): number {
-    return (right.activeAt ?? 0) - (left.activeAt ?? 0);
+/** The markers extensions put at the end of one row; the row's link keeps the rest of its width. */
+function RowMarkers({
+    session,
+    sessions,
+    openSession,
+}: {
+    session: SessionSummary;
+    sessions: SessionSummary[];
+    openSession: (id: number) => void;
+}) {
+    return useStatusRowItems()
+        .filter((item) => item.has(session, sessions))
+        .map(({ folder, id, component: Marker }) => (
+            <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+                <Marker session={session} sessions={sessions} openSession={openSession} />
+            </ItemBoundary>
+        ));
 }
 
 /** The rows; their clock is read when the menu opens, so the times hold still while it is read. */
 function Rows({
     active,
     others,
+    sessions,
     onOpen,
     onClose,
 }: {
     active: SessionSummary | undefined;
     others: SessionSummary[];
+    sessions: SessionSummary[];
     onOpen: (id: number) => void;
     onClose: () => void;
 }) {
     const [now] = useState(() => Date.now());
+    const openSession = (id: number): void => {
+        onClose();
+        onOpen(id);
+    };
 
     return (
         <>
             {active === undefined ? null : (
-                <DropdownMenuItem className={`bg-raised data-[highlighted]:bg-raised ${ROW}`}>
-                    <SessionRowContent session={active} now={now} />
-                </DropdownMenuItem>
+                <div className="flex items-center">
+                    <DropdownMenuItem className={`bg-raised data-[highlighted]:bg-raised ${ROW}`}>
+                        <SessionRowContent session={active} now={now} />
+                    </DropdownMenuItem>
+                    <RowMarkers session={active} sessions={sessions} openSession={openSession} />
+                </div>
             )}
             {others.map((session) => (
-                <DropdownMenuItem
-                    key={session.id}
-                    asChild
-                    className={`data-[highlighted]:bg-raised/50 ${ROW}`}
-                >
-                    <a
-                        href={sessionHref(session.id)}
-                        onClick={(event) => {
-                            // A modified click is the browser's: a new tab, and the menu stays.
-                            if (isPlainClick(event)) {
-                                event.preventDefault();
-                                onClose();
-                                onOpen(session.id);
-                            }
-                        }}
+                <div key={session.id} className="flex items-center">
+                    <DropdownMenuItem
+                        asChild
+                        className={`data-[highlighted]:bg-raised/50 min-w-0 flex-1 ${ROW}`}
                     >
-                        <SessionRowContent session={session} now={now} />
-                    </a>
-                </DropdownMenuItem>
+                        <a
+                            href={sessionHref(session.id)}
+                            onClick={(event) => {
+                                // A modified click is the browser's: a new tab, and the menu stays.
+                                if (isPlainClick(event)) {
+                                    event.preventDefault();
+                                    openSession(session.id);
+                                }
+                            }}
+                        >
+                            <SessionRowContent session={session} now={now} />
+                        </a>
+                    </DropdownMenuItem>
+                    <RowMarkers session={session} sessions={sessions} openSession={openSession} />
+                </div>
             ))}
         </>
     );
@@ -74,9 +102,10 @@ function Rows({
 /** The app's state, then how many other sessions work or wait unseen; a click lists them. */
 export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
     const [open, setOpen] = useState(false);
-    const listed = sessions.filter((session) => !session.archived && session.id !== current);
-    const working = listed.filter((session) => session.busy).toSorted(newestFirst);
-    const unseen = listed.filter((session) => session.unseen).toSorted(newestFirst);
+    const markers = useStatusRowItems();
+    const { working, marked, unseen } = statusRows(sessions, current, (session) =>
+        markers.some((marker) => marker.has(session, sessions)),
+    );
     const active = sessions.find((session) => session.id === current);
 
     return (
@@ -106,13 +135,14 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
             >
                 <Rows
                     active={active}
-                    others={[...working, ...unseen]}
+                    others={[...working, ...marked, ...unseen]}
+                    sessions={sessions}
                     onOpen={onOpen}
                     onClose={() => {
                         setOpen(false);
                     }}
                 />
-                {working.length + unseen.length === 0 ? (
+                {working.length + marked.length + unseen.length === 0 ? (
                     <p className="text-meta text-faint px-2 py-1.5">
                         {active === undefined
                             ? "No session is working"

@@ -1,4 +1,4 @@
-import type { ClientStatus } from "../../../shared/protocol.ts";
+import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import { useStatusItems } from "../extensions.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "./item-boundary.tsx";
@@ -7,9 +7,11 @@ import { ItemBoundary } from "./item-boundary.tsx";
 export function StatusItems({
     slot,
     session,
+    sessions,
 }: {
     slot: ClientStatus["slot"];
     session: StatusProps["session"];
+    sessions: SessionSummary[];
 }) {
     const statusItems = useStatusItems();
 
@@ -17,7 +19,7 @@ export function StatusItems({
         .filter((item) => item.slot === slot)
         .map(({ folder, id, component: Item }) => (
             <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
-                <Item session={session} />
+                <Item session={session} sessions={sessions} />
             </ItemBoundary>
         ));
 }

@@ -151,7 +151,10 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
 
 - **Status items** fill the same places (`start`, `center`, `end`, `composer`, `title`), before the fields that
   `status` providers send. `session` is `{ id, cwd, busy }`, or `null` before one is open. The item
-  draws its own markup (`hidden sm:flex` and so on) and uses theme roles for colour.
+  draws its own markup (`hidden sm:flex` and so on) and uses theme roles for colour. It also gets
+  `sessions`: every session, unfiltered (the sidebar leaves out those started from another
+  session, the item does not). That is how an item counts something across sessions, such as the
+  working agents of every parent, in the `start`, `center` or `end` slot of the status bar.
 - `component` must be a plain function component; a `memo` or `forwardRef` object is rejected.
 - Modules load after the first render, each on its own: the app renders while they load. A module that
   throws at top level, fails to import, or has a bad shape is skipped with a `console.error` that
@@ -429,6 +432,29 @@ session) and `openSession(id)`, the app's own navigation. On a phone it also clo
 The values come from the approved agents-area mockup (`docs/mockups/`); the arithmetic is
 `web/src/lib/sidebar-bottom.ts`. `extensions/subagents` is meant to use this slot for the agents
 of the open session.
+
+## Markers in the status popover
+
+`web.tsx` may export `statusRow: [{ id, has, component }]`. The status bar's "working" count opens
+a list of the sessions at work. For each session, `has(session, sessions)` says whether the
+extension puts a marker on its row; the rule is generic: **a row that has a marker is listed even
+while its session is idle**, and it does not raise the "working" count. `has` is a plain function
+(no hooks) over the full session list, called for every session whenever the status bar renders,
+so keep it a cheap filter. `component` renders at the end of the row for a session `has` accepted,
+inside an error boundary, with `session`, `sessions` and `openSession(id)` (closes the popover and
+opens the session). It follows the extension's enabled switch.
+
+- **Why `has` and not a component that returns `null`.** The core must know before it renders
+  whether a row is listed, and a hidden Radix menu item still takes part in keyboard navigation.
+- **The core owns placement only**: the row is a flex line, the link on the left, the markers at
+  the right. The marker and its submenu are the extension's. The component renders inside the
+  popover's Radix menu, so a submenu is `DropdownMenuSub`, `DropdownMenuSubTrigger` and
+  `DropdownMenuSubContent` from `@/components/ui/dropdown-menu`: hover (after a short delay),
+  click or tap, and ArrowRight open it; ArrowLeft closes it. Radix closes the whole popover on
+  Escape, also from a submenu.
+- Sessions started from another session (`parent` in the full list) are not rows of the popover,
+  as they are not in the sidebar. Whoever started them counts them, so a count of the agents is
+  the extension's own status item. A child whose parent is gone is a row like any session.
 
 ## Composer items and Dictation
 

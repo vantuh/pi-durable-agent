@@ -57,3 +57,41 @@ export function DropdownMenuSeparator({
         />
     );
 }
+
+export function DropdownMenuSub(props: ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+    return <DropdownMenuPrimitive.Sub {...props} />;
+}
+
+export function DropdownMenuSubTrigger({
+    className,
+    ...props
+}: ComponentProps<typeof DropdownMenuPrimitive.SubTrigger>) {
+    return (
+        <DropdownMenuPrimitive.SubTrigger
+            className={cn(
+                "rounded-control text-meta data-[highlighted]:bg-raised data-[state=open]:bg-raised relative flex cursor-default items-center gap-2 px-3 py-2 outline-none select-none [&_svg]:size-4 [&_svg]:shrink-0",
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+
+export function DropdownMenuSubContent({
+    className,
+    ...props
+}: ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+    return (
+        <DropdownMenuPrimitive.Portal>
+            <DropdownMenuPrimitive.SubContent
+                sideOffset={4}
+                collisionPadding={8}
+                className={cn(
+                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-lg outline-none",
+                    className,
+                )}
+                {...props}
+            />
+        </DropdownMenuPrimitive.Portal>
+    );
+}

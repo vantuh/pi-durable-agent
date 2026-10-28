@@ -1,4 +1,4 @@
-import type { ClientStatus, ClientUsage } from "../../../shared/protocol.ts";
+import type { ClientStatus, ClientUsage, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
 
@@ -27,16 +27,18 @@ function money(cost: number): string {
  */
 export function SessionMeta({
     session,
+    sessions,
     status,
     usage,
 }: {
     session: StatusProps["session"];
+    sessions: SessionSummary[];
     status: ClientStatus[];
     usage: ClientUsage;
 }) {
     return (
         <div className="text-meta -mt-1 flex h-6 shrink-0 flex-wrap items-center justify-center gap-x-3 overflow-hidden px-1 [&>*]:h-6">
-            <StatusItems slot="composer" session={session} />
+            <StatusItems slot="composer" session={session} sessions={sessions} />
             {status
                 .filter((field) => field.slot === "composer")
                 .map((field) => (

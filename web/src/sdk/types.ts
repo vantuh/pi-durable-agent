@@ -18,12 +18,17 @@ export type StatusProps = {
     } | null;
 };
 
+export type StatusItemProps = StatusProps & {
+    /** Every session, unfiltered: the sidebar's list leaves out those started from another session. */
+    sessions: SessionSummary[];
+};
+
 export type StatusItem = {
     id: string;
     /** The same places as a server field's `slot`. */
     slot: ClientStatus["slot"];
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
-    component: ComponentType<StatusProps>;
+    component: ComponentType<StatusItemProps>;
 };
 
 export type SettingsProps = StatusProps;
@@ -97,6 +102,30 @@ export type SidebarBottomItem = {
     component: ComponentType<SidebarBottomProps>;
 };
 
+export type StatusRowProps = {
+    session: SessionSummary;
+    /** Every session, unfiltered. */
+    sessions: SessionSummary[];
+    /** Closes the status popover and opens a session in the app. */
+    openSession: (id: number) => void;
+};
+
+/**
+ * A marker at the end of a row of the status popover (the list opened from the status bar's
+ * "working" count). The component renders inside the popover's Radix menu, so a submenu is
+ * `DropdownMenuSub` from `@/components/ui/dropdown-menu`: hover, ArrowRight and Escape work as in any menu.
+ */
+export type StatusRowItem = {
+    id: string;
+    /**
+     * Whether this session's row has the marker. A row that has one is listed even while its session
+     * is idle. It runs for every session each time the status bar renders, so keep it a cheap filter.
+     */
+    has: (session: SessionSummary, sessions: SessionSummary[]) => boolean;
+    /** Renders the marker for a session `has` accepted. A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<StatusRowProps>;
+};
+
 /** One item an extension adds to a session row's menu, above the core's own. */
 export type SessionMenuItem = {
     id: string;
@@ -121,6 +150,7 @@ export type WebExtension = {
     composer?: ComposerItem[];
     aboveComposer?: AboveComposerItem[];
     sidebarBottom?: SidebarBottomItem[];
+    statusRow?: StatusRowItem[];
     settings?: SettingsSection[];
     panels?: PanelItem[];
     tools?: ToolIcon[];

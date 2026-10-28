@@ -220,7 +220,13 @@ export function App() {
                                     setSheet(true);
                                 }}
                                 onOpenSession={go}
-                                below={<StatusItems slot="title" session={activeSession} />}
+                                below={
+                                    <StatusItems
+                                        slot="title"
+                                        session={activeSession}
+                                        sessions={sessions}
+                                    />
+                                }
                             />
 
                             <div className="relative">
@@ -306,6 +312,7 @@ export function App() {
 
                             <SessionMeta
                                 session={activeSession}
+                                sessions={sessions}
                                 status={state.live.status ?? []}
                                 usage={state.live.usage}
                             />
