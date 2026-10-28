@@ -91,3 +91,44 @@ export const agents = actionRef<undefined, NamedAgent[]>("subagents", "agents", 
 
     throw new Error("the agent names are malformed");
 });
+
+/** One agent profile as the Extensions dialog lists it: what its Markdown frontmatter says. */
+export type ProfileRow = {
+    name: string;
+    description: string;
+    /** `provider/modelId`, or null while the profile names none. */
+    model: string | null;
+    /** A thinking level, or null: absent thinking means off. */
+    thinking: string | null;
+};
+
+function optional(value: unknown): boolean {
+    return value === null || typeof value === "string";
+}
+
+function isProfileRow(value: unknown): value is ProfileRow {
+    return (
+        isRecord(value) &&
+        typeof Reflect.get(value, "name") === "string" &&
+        typeof Reflect.get(value, "description") === "string" &&
+        optional(Reflect.get(value, "model")) &&
+        optional(Reflect.get(value, "thinking"))
+    );
+}
+
+function profileRows(value: unknown): ProfileRow[] {
+    if (Array.isArray(value) && value.every(isProfileRow)) {
+        return value;
+    }
+
+    throw new Error("the agent profiles are malformed");
+}
+
+/** Every profile a spawn would see now: the user's, with the project's replacing them by name. */
+export const profiles = actionRef<undefined, ProfileRow[]>("subagents", "profiles", profileRows);
+
+/** The model a profile runs with; null for both clears the lines, so the profile names neither. */
+export type SetModelArgs = { profile: string; model: string | null; thinking: string | null };
+
+/** Writes a profile's model and thinking into its Markdown, and returns the profiles as they are after it. */
+export const setModel = actionRef<SetModelArgs, ProfileRow[]>("subagents", "setModel", profileRows);

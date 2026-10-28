@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -27,8 +27,13 @@ import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import type { CommitListener, Host } from "../../server/sdk.ts";
-import { agents as agentsRef, strip as stripRef } from "./refs.ts";
+import { ActionError, type CommitListener, type Host } from "../../server/sdk.ts";
+import {
+    agents as agentsRef,
+    profiles as profilesRef,
+    type ProfileRow,
+    strip as stripRef,
+} from "./refs.ts";
 import subagents, { actions } from "./server.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -465,6 +470,131 @@ void describe("subagents", () => {
 
         assert.deepEqual(await userTexts(parent.id), ["count them", "stop it"]);
     });
+    void describe("profiles", () => {
+        const session = () => ({ id: parent.id, cwd: dir });
+
+        async function listed(): Promise<ProfileRow[]> {
+            const action = actions(host)["profiles"];
+
+            assert.ok(action !== undefined);
+
+            return profilesRef.parse(await action({ args: undefined, session: session() }));
+        }
+
+        /** The refusal, checked as the route answers it: an `ActionError` is a 400. */
+        async function rejection(promise: Promise<unknown>): Promise<ActionError> {
+            let refused: ActionError | undefined;
+
+            try {
+                await promise;
+            } catch (error) {
+                assert.ok(error instanceof ActionError, `an ActionError, not ${String(error)}`);
+                refused = error;
+            }
+
+            assert.ok(refused !== undefined, "it was expected to refuse");
+
+            return refused;
+        }
+
+        async function write(args: unknown): Promise<ProfileRow[]> {
+            const action = actions(host)["setModel"];
+
+            assert.ok(action !== undefined);
+
+            return profilesRef.parse(await action({ args, session: session() }));
+        }
+
+        void it("lists what each profile's frontmatter says, the project's file winning", async () => {
+            await mkdir(join(dir, "agent", "agents"), { recursive: true });
+            await writeFile(
+                join(dir, "agent", "agents", "counter.md"),
+                "---\nname: counter\ndescription: The user's counter\nmodel: user/model\n---\n\nYou count.\n",
+            );
+
+            assert.deepEqual(await listed(), [
+                {
+                    name: "counter",
+                    description: "Counts things",
+                    model: profileModel,
+                    thinking: "low",
+                },
+            ]);
+        });
+
+        void it("writes the model and thinking into the profile's own file", async () => {
+            await mkdir(join(dir, "agent", "agents"), { recursive: true });
+            await writeFile(
+                join(dir, "agent", "agents", "counter.md"),
+                "---\nname: counter\ndescription: The user's counter\nmodel: user/model\n---\n\nYou count.\n",
+            );
+
+            assert.deepEqual(
+                await write({ profile: "counter", model: "faux/checker", thinking: "high" }),
+                [
+                    {
+                        name: "counter",
+                        description: "Counts things",
+                        model: "faux/checker",
+                        thinking: "high",
+                    },
+                ],
+            );
+
+            assert.equal(
+                await readFile(join(dir, ".pi", "agents", "counter.md"), "utf8"),
+                '---\nname: counter\ndescription: Counts things\ntools: read, grep\nmodel: "faux/checker"\nthinking: "high"\n---\n\nYou count.\n',
+            );
+            assert.match(
+                await readFile(join(dir, "agent", "agents", "counter.md"), "utf8"),
+                /model: user\/model/,
+                "the profile the project's file replaces is left alone",
+            );
+        });
+
+        void it("clears the model and the thinking when it is given null for both", async () => {
+            await write({ profile: "counter", model: null, thinking: null });
+
+            const after = await readFile(join(dir, ".pi", "agents", "counter.md"), "utf8");
+
+            assert.ok(!after.includes("model:"));
+            assert.ok(!after.includes("thinking:"));
+            assert.deepEqual(await listed(), [
+                {
+                    name: "counter",
+                    description: "Counts things",
+                    model: null,
+                    thinking: null,
+                },
+            ]);
+        });
+
+        void it("refuses a profile it did not discover, and takes a name and never a path", async () => {
+            for (const profile of ["../counter", "/etc/passwd", "not-a-profile"]) {
+                assert.match(
+                    (await rejection(write({ profile, model: "faux/checker", thinking: null })))
+                        .message,
+                    /Unknown agent profile/,
+                );
+            }
+        });
+
+        void it("refuses a model that is not provider/modelId", async () => {
+            for (const model of ["profile", "faux/", "/profile", 7]) {
+                assert.match(
+                    (await rejection(write({ profile: "counter", model, thinking: null }))).message,
+                    /model must be provider\/modelId/,
+                );
+            }
+
+            assert.match(
+                await readFile(join(dir, ".pi", "agents", "counter.md"), "utf8"),
+                new RegExp(`model: ${profileModel}\n`),
+                "the profile keeps the model it had",
+            );
+        });
+    });
+
     void describe("strip", () => {
         /** What the core knows of a session: the conversation that started it, from its record. */
         async function ownerOf(id: number): Promise<number | undefined> {

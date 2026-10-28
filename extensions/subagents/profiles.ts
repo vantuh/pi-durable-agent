@@ -13,6 +13,8 @@ import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 export type Profile = {
     name: string;
     description: string;
+    /** The Markdown file it was read from; a project profile replaces a user profile of the same name. */
+    filePath: string;
     /** Tool names; absent keeps every tool of the parent. */
     tools?: string[];
     /** `provider/model`, as written. */
@@ -48,9 +50,8 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
 
     for (const file of files.filter((each) => each.endsWith(".md")).toSorted()) {
         try {
-            const { frontmatter, body } = parseFrontmatter(
-                await readFile(join(folder, file), "utf8"),
-            );
+            const filePath = join(folder, file);
+            const { frontmatter, body } = parseFrontmatter(await readFile(filePath, "utf8"));
             const name = text(frontmatter["name"]);
             const description = text(frontmatter["description"]);
 
@@ -66,6 +67,7 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
             into.set(name, {
                 name,
                 description,
+                filePath,
                 instructions: body.trim(),
                 ...(tools === undefined ? {} : { tools }),
                 ...(model === undefined ? {} : { model }),

@@ -178,6 +178,29 @@ Important details:
   child's model/statistics if needed. A successful spawn is not proof that a later provider request
   will succeed.
 
+### Changing a model from the Extensions dialog
+
+`details.tsx` lists every profile a spawn would see, with the model and thinking level its
+Markdown names, and a **Change model** button that opens the composer's own model menu. The chosen
+model and level are written by the `setModel` action into the profile's frontmatter, so the next
+`agent_spawn` uses them; an agent already running keeps what it started with. **Use default**
+removes both lines, which leaves the profile without a model, and `agent_spawn` then refuses it.
+
+- The browser sends a profile **name**, never a path: the action looks the name up in the profiles
+  discovery found for the request's session, and writes to the file that name belongs to. A project
+  profile therefore stays in the project's `.pi/agents/`; the user profile it replaces is untouched.
+- The Extensions dialog has no conversation, so the action resolves profiles from `host.cwd` (the
+  directory the app was started in), not from a session's folder. A profile that exists only under
+  another folder's `.pi/agents/` is not listed there.
+- `profile-model.ts` rewrites one line per key and no other byte: it resolves a symlink and edits
+  the file it points at, keeps the line endings and the file mode, quotes the value as JSON and
+  replaces the file atomically (temp file + rename). It refuses a file with no complete frontmatter
+  block, a repeated `model:`/`thinking:` line, a value written on several lines, or an edit that
+  would change any other field. That refusal is a 400 with the reason; the file is left as it was.
+- `thinking` is written together with the model, at a level the chosen model supports, so a new
+  model cannot leave the profile with a level it rejects. Edit `tools` by hand; the dialog does not
+  touch it.
+
 ## What the child inherits, and what it does not
 
 The harness starts a task-owned child with the parent's agent configuration, including extensions,
@@ -347,16 +370,18 @@ child process is created here.
 
 ### File map
 
-| File             | Responsibility                                                                          |
-| ---------------- | --------------------------------------------------------------------------------------- |
-| `profiles.ts`    | Profile discovery, frontmatter parsing, and precedence.                                 |
-| `server.ts`      | Four tools, `agents` prompt section, durable agent document, anchor and reporter tasks. |
-| `refs.ts`        | The `strip` and `agents` action refs and their types, shared by `server.ts`, `web.tsx`. |
-| `area.ts`        | Pure helpers for the area: parent, order, "ago", counts. Tested in `area.test.ts`.      |
-| `web.tsx`        | Bot icons, the strip, the agents area, the status count and the popover marker.         |
-| `server.test.ts` | Real-Harness integration tests with a faux model and disposable SQLite storage.         |
-| `README.md`      | Current usage, behavior, constraints, and maintenance guide.                            |
-| `HANDOFF.md`     | Remaining proposals and historical implementation/verification context.                 |
+| File               | Responsibility                                                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles.ts`      | Profile discovery, frontmatter parsing, and precedence.                                                                           |
+| `server.ts`        | Four tools, `agents` prompt section, durable agent document, anchor and reporter tasks.                                           |
+| `refs.ts`          | The `strip`, `agents`, `profiles` and `setModel` action refs and their types, shared by `server.ts`, `web.tsx` and `details.tsx`. |
+| `profile-model.ts` | Writes `model:` and `thinking:` into a profile's frontmatter, and nothing else. Tested in `profile-model.test.ts`.                |
+| `details.tsx`      | The profiles list in the Extensions dialog, with the model menu and **Use default**.                                              |
+| `area.ts`          | Pure helpers for the area: parent, order, "ago", counts. Tested in `area.test.ts`.                                                |
+| `web.tsx`          | Bot icons, the strip, the agents area, the status count and the popover marker.                                                   |
+| `server.test.ts`   | Real-Harness integration tests with a faux model and disposable SQLite storage.                                                   |
+| `README.md`        | Current usage, behavior, constraints, and maintenance guide.                                                                      |
+| `HANDOFF.md`       | Remaining proposals and historical implementation/verification context.                                                           |
 
 ### Parent document
 
@@ -467,6 +492,7 @@ setup. A successful test run is not evidence that the owner's production bundle 
 | Spawn rejects a profile's model or thinking             | Read the tool error and fix the Markdown profile or provider/auth setup. `model` is required; thinking must be supported (`off` when omitted). There is no fallback or inline override. |
 | Child has too many or too few tools                     | Empty lists inherit; non-empty lists intersect exact parent tool names. Editing the profile does not reconfigure an existing child.                                                     |
 | Spawn says the name exists                              | Continue it with `agent_send`, or choose a fresh name; session titles and tool names are separate.                                                                                      |
+| A model set in the dialog is not used                   | The profile edits apply to the next spawn, not to a running agent. Check the row's model and that `agent_spawn` names the profile you changed.                                          |
 | No report after typing in the child                     | Direct input creates no reporter. Send through the parent when a report is required.                                                                                                    |
 | No report after `agent_stop`                            | An unanswered stopped run is intentionally suppressed. Continue with `agent_send`.                                                                                                      |
 | Report exists but is invisible in the UI                | Check for an old server without author projection, an old browser build, or a report still queued at a boundary.                                                                        |

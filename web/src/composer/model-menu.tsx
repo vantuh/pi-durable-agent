@@ -22,14 +22,17 @@ import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
 import { thinkingTab } from "../lib/thinking.ts";
 
 type Props = {
-    scoped: ModelChoice[];
+    /** Absent: no scoped/all tabs, and `all` is the whole list. */
+    scoped?: ModelChoice[];
     all: ModelChoice[];
     current: string | null;
     level: string | null;
-    defaultModel: DefaultModel | null;
+    /** Absent: no "default" marker on a row and no Make default. */
+    defaultModel?: DefaultModel | null;
     onPick: (choice: ModelChoice, level: string) => void;
-    onAddScoped: (choice: ModelChoice) => void;
-    onMakeDefault: (choice: ModelChoice, level: string) => void;
+    /** Absent: no button to add a model to the scoped list. */
+    onAddScoped?: (choice: ModelChoice) => void;
+    onMakeDefault?: (choice: ModelChoice, level: string) => void;
     onClose: () => void;
 };
 
@@ -51,7 +54,8 @@ export function ModelMenu({
     const [thinking, setThinking] = useState<string | null>(null);
     const search = useRef<HTMLInputElement>(null);
 
-    const list = tab === "scoped" ? scoped : all;
+    const scopedList = scoped ?? [];
+    const list = scoped === undefined || tab === "all" ? all : scopedList;
     const needle = query.trim().toLowerCase();
     const shown = list.filter(
         (model) =>
@@ -60,15 +64,18 @@ export function ModelMenu({
             model.id.toLowerCase().includes(needle) ||
             model.provider.toLowerCase().includes(needle),
     );
-    const scopedKeys = new Set(scoped.map((model) => `${model.provider}/${model.id}`));
-    const active = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === current);
-    const picked = [...scoped, ...all].find((model) => `${model.provider}/${model.id}` === chosen);
+    const every = [...scopedList, ...all];
+    const scopedKeys = new Set(scopedList.map((model) => `${model.provider}/${model.id}`));
+    const active = every.find((model) => `${model.provider}/${model.id}` === current);
+    const picked = every.find((model) => `${model.provider}/${model.id}` === chosen);
     const levels = picked?.levels ?? active?.levels ?? ["off"];
     const wanted = thinking ?? level ?? "off";
     const thinkingLevel = levels.includes(wanted) ? wanted : (levels[0] ?? "off");
     const isDefault =
         picked !== undefined &&
-        defaultModel?.provider === picked.provider &&
+        defaultModel !== undefined &&
+        defaultModel !== null &&
+        defaultModel.provider === picked.provider &&
         defaultModel.modelId === picked.id &&
         defaultModel.thinkingLevel === thinkingLevel;
     const appliable =
@@ -115,17 +122,19 @@ export function ModelMenu({
             >
                 <DialogHeader className="flex-row items-center gap-3 py-2">
                     <DialogTitle>Model</DialogTitle>
-                    <Tabs
-                        value={tab}
-                        onValueChange={(value) => {
-                            setTab(value === "all" ? "all" : "scoped");
-                        }}
-                    >
-                        <TabsList>
-                            <TabsTrigger value="scoped">scoped</TabsTrigger>
-                            <TabsTrigger value="all">all</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    {scoped === undefined ? null : (
+                        <Tabs
+                            value={tab}
+                            onValueChange={(value) => {
+                                setTab(value === "all" ? "all" : "scoped");
+                            }}
+                        >
+                            <TabsList>
+                                <TabsTrigger value="scoped">scoped</TabsTrigger>
+                                <TabsTrigger value="all">all</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    )}
                 </DialogHeader>
 
                 <Command
@@ -172,7 +181,9 @@ export function ModelMenu({
                                     {key === chosen ? (
                                         <Check className="text-accent size-4 shrink-0" />
                                     ) : null}
-                                    {tab === "all" && !scopedKeys.has(key) ? (
+                                    {onAddScoped !== undefined &&
+                                    tab === "all" &&
+                                    !scopedKeys.has(key) ? (
                                         <button
                                             type="button"
                                             title="Add to scoped models"
@@ -195,19 +206,21 @@ export function ModelMenu({
                 <div className="border-edge-soft border-t px-3 py-2">
                     <div className="mb-1 flex items-center justify-between">
                         <span className="text-faint text-meta">Thinking</span>
-                        <button
-                            type="button"
-                            disabled={picked === undefined || isDefault}
-                            title="New sessions start with this model and thinking level"
-                            onClick={() => {
-                                if (picked !== undefined) {
-                                    onMakeDefault(picked, thinkingLevel);
-                                }
-                            }}
-                            className="rounded-control text-meta text-accent hover:bg-raised disabled:text-faint px-2 py-0.5 disabled:hover:bg-transparent"
-                        >
-                            {isDefault ? "Default for new sessions" : "Make default"}
-                        </button>
+                        {onMakeDefault === undefined ? null : (
+                            <button
+                                type="button"
+                                disabled={picked === undefined || isDefault}
+                                title="New sessions start with this model and thinking level"
+                                onClick={() => {
+                                    if (picked !== undefined) {
+                                        onMakeDefault(picked, thinkingLevel);
+                                    }
+                                }}
+                                className="rounded-control text-meta text-accent hover:bg-raised disabled:text-faint px-2 py-0.5 disabled:hover:bg-transparent"
+                            >
+                                {isDefault ? "Default for new sessions" : "Make default"}
+                            </button>
+                        )}
                     </div>
                     <Tabs
                         value={thinkingLevel}

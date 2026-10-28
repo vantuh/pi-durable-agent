@@ -25,9 +25,10 @@ import {
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 
-import type { Action, CommitView, Host } from "../../server/sdk.ts";
+import { ActionError, type Action, type CommitView, type Host } from "../../server/sdk.ts";
+import { writeProfileModel } from "./profile-model.ts";
 import { type Profile, readProfiles } from "./profiles.ts";
-import type { NamedAgent, Strip, StripAgent } from "./refs.ts";
+import type { NamedAgent, ProfileRow, Strip, StripAgent } from "./refs.ts";
 
 export const meta = {
     title: "Subagents",
@@ -342,6 +343,48 @@ async function stripAgent(
     };
 }
 
+/** The profiles as the Extensions dialog lists them, by name. */
+function profileRows(found: Map<string, Profile>): ProfileRow[] {
+    return [...found.values()]
+        .map((profile) => ({
+            name: profile.name,
+            description: profile.description,
+            model: profile.model ?? null,
+            thinking: typeof profile.thinking === "string" ? profile.thinking : null,
+        }))
+        .toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The action's args, checked: the name of a profile this server discovered, and a model or none. */
+function setModelArgs(value: unknown): {
+    profile: string;
+    model: string | null;
+    thinking: string | null;
+} {
+    if (typeof value !== "object" || value === null) {
+        throw new ActionError("args must be { profile, model, thinking }");
+    }
+
+    const profile: unknown = Reflect.get(value, "profile");
+    const model: unknown = Reflect.get(value, "model");
+    const thinking: unknown = Reflect.get(value, "thinking");
+    const name = typeof profile === "string" ? profile.trim() : "";
+
+    if (name === "") {
+        throw new ActionError("profile must be the name of an agent profile");
+    }
+
+    if (model !== null && (typeof model !== "string" || !/^\S+\/\S+$/.test(model))) {
+        throw new ActionError("model must be provider/modelId, or null to name none");
+    }
+
+    if (thinking !== null && (typeof thinking !== "string" || thinking.trim() === "")) {
+        throw new ActionError("thinking must be a thinking level, or null to name none");
+    }
+
+    return { profile: name, model, thinking };
+}
+
 export const actions = (host: Host): Record<string, Action> => ({
     async agents({ session }): Promise<NamedAgent[]> {
         if (session === null) {
@@ -357,6 +400,23 @@ export const actions = (host: Host): Record<string, Action> => ({
                 profile: record.agent,
             }))
             .toSorted((a, b) => a.session - b.session);
+    },
+    async profiles({ session }): Promise<ProfileRow[]> {
+        return profileRows(await readProfiles(session?.cwd ?? host.cwd));
+    },
+    async setModel({ args, session }): Promise<ProfileRow[]> {
+        const edit = setModelArgs(args);
+        const cwd = session?.cwd ?? host.cwd;
+        const profile = (await readProfiles(cwd)).get(edit.profile);
+
+        if (profile === undefined) {
+            throw new ActionError(`Unknown agent profile: ${edit.profile}`);
+        }
+
+        // The client names a profile, never a path: the file is the one discovery found for it.
+        await writeProfileModel(profile.filePath, { model: edit.model, thinking: edit.thinking });
+
+        return profileRows(await readProfiles(cwd));
     },
     async strip({ session }): Promise<Strip> {
         if (session === null) {

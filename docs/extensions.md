@@ -342,6 +342,13 @@ Remaining proposals and historical verification notes are in its
 - **Stopping:** the parent's foreground Stop does not stop its background agents. `agent_stop`
   suppresses the unanswered result of a stopped run, keeps its context, and permits a later send.
   Direct input in the child creates no new reporter and therefore no automatic report to the parent.
+- **Changing a model:** the folder's `details.tsx` lists the profiles a spawn would see, with each
+  one's model and thinking level, and opens the composer's own model menu. The `setModel` action
+  writes `model:` and `thinking:` into that profile's Markdown frontmatter (`profile-model.ts`:
+  one line per key, symlinks resolved, line endings and mode kept, atomic replace, and a refusal
+  instead of a partial edit), so the next spawn uses it and a running agent keeps its own. It takes
+  a profile **name**, never a path, and resolves it through the same discovery, from `host.cwd` —
+  the dialog has no conversation. **Use default** removes both lines. See the local README.
 - **Current limits:** reports have no length bound; a child session is a main-list row only when
   its parent is gone. There is no full-result status parameter, model mapping, `ask_question` tool, or
   per-profile skill selection. See the local README before relying on stop/delete behavior.
