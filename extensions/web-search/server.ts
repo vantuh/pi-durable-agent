@@ -25,6 +25,8 @@ export type SearchArgs = {
     readonly urls?: readonly string[];
 };
 
+const MAX_QUERIES = 5;
+
 function providersOf(resolveAuth: ResolveModelAuth): Provider[] {
     return [
         {
@@ -62,10 +64,17 @@ export async function searchAnswer(
         return text(`urls must be http(s) links: ${bad.slice(0, 100)}`, true);
     }
 
-    const queries = [...(args.query === undefined ? [] : [args.query]), ...(args.queries ?? [])];
+    const queries = [...(args.query === undefined ? [] : [args.query]), ...(args.queries ?? [])]
+        .map((query) => query.trim())
+        .filter((query, index, all) => query !== "" && all.indexOf(query) === index);
 
     if (queries.length === 0) {
         return text("give query or queries", true);
+    }
+
+    // The schema caps `queries` alone; a call carrying both can still merge past it.
+    if (queries.length > MAX_QUERIES) {
+        return text(`at most ${MAX_QUERIES} queries`, true);
     }
 
     const outcome = await runChain(providersOf(resolveAuth), { queries, urls }, signal);
@@ -83,7 +92,7 @@ export default function webSearch(host: Host) {
     const webSearchTool = defineTool({
         name: "web_search",
         description:
-            "Search the web and get back a synthesized answer with numbered source links, not raw result pages. Use it for current facts, versions, news and documentation. Give queries to cover several angles in one search, or urls to have specific pages read as well.",
+            "Search the web and get back a synthesized answer with numbered source links, not raw result pages. Use it for current facts, versions, news and documentation. Give query or queries. Several queries cover several angles in one search. Give urls to have specific pages read as well.",
         parameters: Type.Object({
             query: Type.Optional(
                 Type.String({
@@ -94,7 +103,7 @@ export default function webSearch(host: Host) {
             queries: Type.Optional(
                 Type.Array(Type.String({ minLength: 1 }), {
                     minItems: 1,
-                    maxItems: 5,
+                    maxItems: MAX_QUERIES,
                     description:
                         "Several angles to ask at once, when one question would cover only part of what is needed. Searched as one prompt, not as separate searches.",
                 }),

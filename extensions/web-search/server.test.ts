@@ -646,6 +646,47 @@ void describe("web-search tool", () => {
             assert.equal(calls.length, 0);
         });
     });
+
+    void it("treats whitespace-only queries as none", async () => {
+        await withStubbedFetch(async (calls) => {
+            const result = await searchAnswer(signedIn, { query: "  ", queries: ["\n"] }, signal());
+
+            assert.equal(textOf(result), "give query or queries");
+            assert.equal(calls.length, 0);
+        });
+    });
+
+    void it("trims each query and drops the one `queries` repeats", async () => {
+        await withStubbedFetch(async (calls) => {
+            await searchAnswer(
+                signedIn,
+                {
+                    query: "Node.js latest LTS version",
+                    queries: ["  Node.js latest LTS version  ", "Node.js release schedule 2027"],
+                },
+                signal(),
+            );
+
+            const prompt = promptIn(calls[0]);
+
+            assert.equal(prompt.split("Node.js latest LTS version").length - 1, 1);
+            assert.match(prompt, /Node\.js release schedule 2027/);
+        });
+    });
+
+    void it("refuses more than five once `query` and `queries` are merged", async () => {
+        await withStubbedFetch(async (calls) => {
+            const result = await searchAnswer(
+                signedIn,
+                { query: "a", queries: ["b", "c", "d", "e", "f"] },
+                signal(),
+            );
+
+            assert.equal(result.isError, true);
+            assert.equal(textOf(result), "at most 5 queries");
+            assert.equal(calls.length, 0);
+        });
+    });
 });
 
 void describe("web-search answer text", () => {
