@@ -129,7 +129,17 @@ follow-ups through `agent_send` delivered.
 
 ## Open items, in recommended order
 
-### 1. Agents in the sidebar
+### 1. Separate agent navigation from main sessions
+
+**Owner's revised direction; implementation pending.** Do not nest agents among the main session
+rows. First review a [standalone UI mockup](../../docs/mockups/README.md) for working agents above
+the composer: active agents only, links to their conversations, working marks, context fill and
+TPS, with the model secondary. Implement that feature only after design approval, then stop for
+the owner's verification. Only afterwards add a height-resizable lower sidebar area with all
+agents of the selected parent, including finished ones, and remove children from the main list.
+The lower area must be absent for a parent with no agents; visiting a child must retain an obvious
+parent/sibling navigation path. Deletion semantics still need a decision. The original options
+below are investigation context, not the current approved UI direction.
 
 **Problem.** `Sessions.list()` (`server/sessions.ts`) scans every conversation, so each agent is a
 top-level row next to the person's sessions. A parent with four agents adds four rows; a
@@ -150,7 +160,7 @@ the goal is to place them, not to hide them outright.
 
 **Options.**
 
-- **A. Nest under the parent (recommended).** Add `parent?: number` to `SessionSummary`
+- **A. Nest under the parent (original recommendation, superseded).** Add `parent?: number` to `SessionSummary`
   (`shared/protocol.ts`), filled in `Sessions.list()` from `ConversationRecord.owner?.conversationId`.
   This is generic ("this conversation was started from that one"), not subagent-specific, so it
   passes the core rule. In `web/src/shell/sessions.tsx`, group children under their parent, folded
@@ -174,9 +184,10 @@ the goal is to place them, not to hide them outright.
 - Deleting a child from the sidebar hides it, but the parent's `agent_send` still reaches it. Fine
   as is; mention it if the UI shows "deleted".
 
-**Done when.** Rows nest, fold and unfold; a busy agent marks its folded parent; the open button
-on a report card still lands on the child; a session list test covers the parent field (see
-`test/sessions-*.test.ts` for the harness-backed pattern).
+**Original acceptance criteria (superseded).** Rows nest, fold and unfold; a busy agent marks its
+folded parent; the open button on a report card still lands on the child; a session list test
+covers the parent field (see `test/sessions-*.test.ts` for the harness-backed pattern). Use the
+revised two-step direction above for the next implementation, not these tree-view criteria.
 
 ### 2. Bound long reports
 

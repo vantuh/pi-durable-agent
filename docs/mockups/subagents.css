@@ -1,0 +1,160 @@
+@import "../../web/src/styles/styles.css";
+@source ".";
+
+body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--role-sunken);
+}
+
+[hidden] {
+    display: none !important;
+}
+
+#show-model {
+    accent-color: var(--role-accent);
+}
+
+.scenario {
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: var(--role-faint);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.scenario:hover,
+.scenario[aria-pressed="true"] {
+    background: var(--role-raised);
+    color: var(--role-ink);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--role-accent);
+    outline-offset: 2px;
+}
+
+.agent-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    max-height: 172px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.agent-card {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr) auto auto 12px;
+    align-items: center;
+    gap: 10px;
+    min-height: 38px;
+    padding: 7px 10px;
+    border: 1px solid var(--role-edge-soft);
+    border-radius: 6px;
+    background: var(--role-canvas);
+    text-decoration: none;
+}
+
+.agent-card:hover,
+.agent-card:focus-visible {
+    background: var(--role-panel);
+    border-color: var(--role-agent);
+}
+
+.agent-name {
+    overflow: hidden;
+    color: var(--role-ink);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-model {
+    display: none;
+    overflow: hidden;
+    color: var(--role-faint);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body[data-show-model] .agent-model {
+    display: block;
+}
+
+.agent-context {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--role-faint);
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.meter-track {
+    display: inline-flex;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--role-raised);
+}
+
+.agent-context .meter-track {
+    width: 32px;
+}
+
+.meter-fill {
+    height: 100%;
+    background: var(--role-accent);
+}
+
+.meter-fill.warn {
+    background: var(--role-warn);
+}
+
+.agent-rate {
+    min-width: 62px;
+    color: var(--role-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.agent-open {
+    color: var(--role-faint);
+    font-size: 14px;
+}
+
+.agent-card:hover .agent-open {
+    color: var(--role-agent);
+}
+
+@media (max-width: 760px) {
+    .agent-grid {
+        grid-template-columns: minmax(0, 1fr);
+        max-height: 148px;
+    }
+
+    .agent-card {
+        min-height: 44px;
+    }
+
+    body[data-show-model] .agent-grid {
+        max-height: 172px;
+    }
+
+    body[data-show-model] .agent-card {
+        min-height: 52px;
+    }
+
+    .preview-toolbar {
+        padding: 8px 12px;
+        gap: 6px;
+    }
+}
