@@ -435,3 +435,64 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         await rm(dir, { recursive: true, force: true });
     }
 });
+
+void test("builds no request for a conversation the user left too long ago for a ping", async () => {
+    mock.timers.enable({ apis: ["setInterval"] });
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    const commits: CommitListener[] = [];
+    const disposers: (() => void | Promise<void>)[] = [];
+    const built: number[] = [];
+    const host: Host = {
+        name: "keep-warm",
+        cwd: dir,
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: (listener) => {
+            commits.push(listener);
+        },
+        onDispose: (dispose) => {
+            disposers.push(dispose);
+        },
+        shapeModelRequests: () => undefined,
+        wrapModelFetch: () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
+        sessionRequest: (session) => {
+            built.push(session);
+
+            return Promise.resolve(undefined);
+        },
+        sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
+        setSessionMark: () => undefined,
+    };
+    const at = Date.now();
+
+    try {
+        await keepWarm(host);
+        await commits[0]?.({
+            session: { id: 5, cwd: "/work/old" },
+            entries: [asked(5, "long ago", at - IDLE_STOP - minutes(1))],
+            busy: false,
+        });
+        await commits[0]?.({
+            session: { id: 6, cwd: "/work/recent" },
+            entries: [asked(6, "just now", at - minutes(1))],
+            busy: false,
+        });
+
+        mock.timers.tick(60_000);
+        await setTimeout(50);
+
+        assert.deepEqual(built, [6]);
+    } finally {
+        mock.timers.reset();
+
+        for (const dispose of disposers) {
+            await dispose();
+        }
+
+        await rm(dir, { recursive: true, force: true });
+    }
+});

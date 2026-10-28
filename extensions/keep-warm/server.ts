@@ -8,7 +8,7 @@ import type { Message } from "@earendil-works/pi-ai";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host, type SessionRequest } from "../../server/sdk.ts";
-import { due, PROVIDER } from "./due.ts";
+import { due, IDLE_STOP, PROVIDER } from "./due.ts";
 import { type Ping, type WarmSession, type WarmState } from "./refs.ts";
 import { readStore, writeStore } from "./store.ts";
 import {
@@ -107,8 +107,15 @@ async function tick(host: Host): Promise<void> {
 
     for (const session of [...seen.keys()]) {
         const known = seen.get(session);
+        const inputAt = known?.inputAt;
 
-        if (known?.busy === true) {
+        // A request reads the whole conversation: only build one for a session a ping can be due for.
+        if (
+            known?.busy === true ||
+            inputAt === undefined ||
+            Date.now() - inputAt >= IDLE_STOP ||
+            stopped(stored, session, inputAt)
+        ) {
             continue;
         }
 
@@ -127,11 +134,7 @@ async function tick(host: Host): Promise<void> {
 
         const activity = activityOf(stored, session, known, request.model.id, Date.now());
 
-        if (
-            activity.lastRequest === undefined ||
-            !due(activity) ||
-            stopped(stored, session, activity.inputAt)
-        ) {
+        if (activity.lastRequest === undefined || !due(activity)) {
             continue;
         }
 
