@@ -75,7 +75,8 @@ const Anchor = defineTask<null, { phase: "done" }, null>({
 });
 
 type ReporterInput = { name: string; conversationId: ConversationId; message: string };
-type ReporterState = { phase: "deliver" } | { phase: "report"; report?: string };
+/** `report` is what the parent's model reads; `text`, what its screen shows under the agent's name. */
+type ReporterState = { phase: "deliver" } | { phase: "report"; report?: string; text?: string };
 
 function answerText(entry: EntryRecord | undefined): string {
     const message = entry?.model?.[0];
@@ -107,6 +108,14 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                               {
                                   type: "input",
                                   content: message,
+                                  entry: {
+                                      kind: "subagents.instruction",
+                                      data: {
+                                          text: message,
+                                          author: "Orchestrator",
+                                          session: runtime.conversationId,
+                                      },
+                                  },
                                   whenBusy: "steer",
                                   requestId: `subagents:${task.id}`,
                               },
@@ -115,21 +124,26 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                       ).wait(context);
 
             await runtime.commit(async (tx) => {
-                const next = (report?: string): NextTaskState<ReporterState, null> => ({
+                const next = (
+                    report?: string,
+                    text?: string,
+                ): NextTaskState<ReporterState, null> => ({
                     status: "running",
                     checkpoint:
-                        report === undefined ? { phase: "report" } : { phase: "report", report },
+                        report === undefined || text === undefined
+                            ? { phase: "report" }
+                            : { phase: "report", report, text },
                 });
+                const failed = (why: string) =>
+                    next(`[agent ${name} failed: ${why}]`, `Failed: ${why}`);
                 const record = (await tx.doc(AgentsDoc, runtime.conversationId)).agents[name];
 
                 if (settled === undefined) {
-                    return next(`[agent ${name} failed: its conversation is gone]`);
+                    return failed("its conversation is gone");
                 }
 
                 if (settled.status === "unanswered") {
-                    return record?.stopped === true
-                        ? next()
-                        : next(`[agent ${name} failed: ${settled.reason}]`);
+                    return record?.stopped === true ? next() : failed(settled.reason);
                 }
 
                 if (
@@ -141,15 +155,15 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                 }
 
                 record.reported.push(settled.answer);
-                const answer = answerText(await tx.entry(AssistantEntry, settled.answer));
+                const answer =
+                    answerText(await tx.entry(AssistantEntry, settled.answer)) || "(no text)";
 
-                return next(
-                    `[agent ${name} (${record.agent}) finished]\n\n${answer === "" ? "(no text)" : answer}`,
-                );
+                return next(`[agent ${name} (${record.agent}) finished]\n\n${answer}`, answer);
             }, context);
         },
         report: async (task, runtime, context) => {
-            const { report } = task.state.checkpoint;
+            const { report, text } = task.state.checkpoint;
+            const { name, conversationId } = task.input;
 
             if (report !== undefined) {
                 const parent = await runtime.conversation(runtime.conversationId, context);
@@ -158,6 +172,10 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                     {
                         type: "input",
                         content: report,
+                        entry: {
+                            kind: "subagents.report",
+                            data: { text: text ?? report, author: name, session: conversationId },
+                        },
                         whenBusy: "steer",
                         requestId: `subagents-report:${task.id}`,
                     },

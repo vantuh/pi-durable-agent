@@ -213,6 +213,26 @@ void describe("subagents", () => {
             "a profile without a tools list still gets no agents of its own",
         );
         assert.match(agent?.instructions ?? "", /^You count\.\n\n## Agent protocol/);
+
+        const written = async (id: number, kind: string) =>
+            (
+                await harness.commit(
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- an id the harness gave out
+                    (tx) => tx.scanEntries({ conversationId: id as ConversationId }, 100),
+                    context,
+                )
+            ).items.find((entry) => entry.kind === kind)?.data;
+
+        assert.deepEqual(
+            await written(parent.id, "subagents.report"),
+            { text: "There are 42.", author: "Counter", session: childId },
+            "the screen shows the answer under the agent's name, with the way to its conversation",
+        );
+        assert.deepEqual(await written(childId, "subagents.instruction"), {
+            text: "Count the files.",
+            author: "Orchestrator",
+            session: parent.id,
+        });
     });
 
     void it("reports nothing for a run agent_stop ended", async () => {
