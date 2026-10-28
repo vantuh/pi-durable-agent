@@ -124,6 +124,8 @@ void describe("Extensions disposers", () => {
         await write("beta", source({ tags: ["beta"] }));
         await extensions.load();
         assert.deepEqual(notices, []);
+        // macOS FSEvents can still deliver the writes above to a watcher started right after them.
+        await setTimeout(500);
         extensions.watch();
 
         await write("alpha", source({ tags: ["alpha-v2"] }));
