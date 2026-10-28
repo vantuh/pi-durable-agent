@@ -63,6 +63,33 @@ connected browser already has:
 The live answer is not an entry. It arrives as `live` on every commit, with at most 100 ms between
 commits, and becomes an `assistant` entry when it is final.
 
+## Messages from application authors
+
+An extension can submit model input while choosing an application entry for the transcript. Core
+uses a generic author convention in `server/projection.ts`, without knowing the extension's name:
+
+- For an application entry outside the explicitly handled core kinds, its first model message
+  must have `role: "user"` and its `data.author` must be a non-empty string. It then projects as
+  `kind: "user"` with `author: { name, session? }` instead of an invisible `kind: "other"` entry.
+- `data.text`, when a string, is the displayed text; otherwise the text comes from the model
+  message's content. This lets an application keep routing headers in model input without showing
+  them in the card.
+- An optional numeric `data.session` supplies `author.session`, the source conversation's ID.
+  The browser offers an open-conversation link when it is present. It does not change which
+  conversation receives the input.
+- Ordinary `pi.user` and `chat.user` entries also preserve author metadata when provided. An
+  unknown application entry without a valid author remains `kind: "other"`.
+
+The same metadata is projected from queued `pi.inbox` inputs into `ClientQueued.author`, so the
+queue does not display an application's message as if the person typed it. The transcript draws
+an authored message as a folded card with its name and bot icon; the queue shows its author and
+mode, permits withdrawal, and does not offer editing it into the person's own draft.
+
+For example, an input with application data `{ text: "Found a defect.", author: "Reviewer",
+session: 12 }` appears under **Reviewer**, linking to session 12. The model still receives the
+submission's `content`, not a reconstruction from that displayed text. Author metadata is a display
+convention, not an authentication or trust boundary, and folding a card does not reduce model context.
+
 ## One guarded door
 
 Every value taken from a document is `unknown` until narrowed. `recordOf()` in `projection.ts` is

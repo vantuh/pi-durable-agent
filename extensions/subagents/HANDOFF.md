@@ -4,6 +4,11 @@ Written for whoever continues this extension. It has the state of the work, how 
 decisions already made (with the reasons), the open items in the order they were recommended, and
 how to check each one. Read it top to bottom once; each open item stands on its own after that.
 
+The current usage and maintenance guide is [README.md](README.md). This handoff preserves the
+original investigation and proposals; its live-database evidence and deployment notes below are
+historical, not a fresh inspection of the owner's running app. Follow-ups 4 (icons) and 5
+(documentation) are complete; items 1–3 remain open.
+
 ## Where things stand
 
 Commits on `main`, oldest first:
@@ -14,6 +19,7 @@ Commits on `main`, oldest first:
 | `28f5e9f` | Tests drive the tools through a faux model; gate green                                   |
 | `2d45299` | **Core**: a message with `data.author` shows as an agent's card, in transcript and queue |
 | `ae6588d` | The extension names the agent on reports and "Orchestrator" on the tasks it hands out    |
+| `08e5766` | The browser facet gives all four `agent_*` tools bot icons                               |
 
 `pnpm check` is clean and `pnpm test` passes (312 tests at the time of writing).
 
@@ -72,7 +78,8 @@ not shipped in `node_modules`; the README text is the reference).
   which overrides by name. Frontmatter read: `name`, `description` (both required), `tools`
   (comma list or YAML list), `model` (`provider/id`), `thinking`. The body is the instructions.
 
-Files: `server.ts` (tools, tasks, doc, section), `profiles.ts`, `server.test.ts`. No `web.tsx` yet.
+Files: `server.ts` (tools, tasks, doc, section), `profiles.ts`, `server.test.ts`, `web.tsx`
+(tool icons), `README.md` (current guide), and this handoff.
 
 ### Tests
 
@@ -216,37 +223,26 @@ mapping is wanted — the kiro models may be reachable through an extension late
 lookup is exact (`provider/id`); Pi's own `resolveCliModel` does fuzzy matching but needs the
 `ModelRuntime`, which an extension does not get.
 
+## Completed follow-ups
+
 ### 4. A tool icon for `agent_*`
 
-`extensions/subagents/web.tsx`, modelled on `extensions/browser/web.tsx`:
-
-```tsx
-import { Bot } from "lucide-react";
-
-import type { WebExtension } from "@/sdk/types.ts";
-
-export default {
-    tools: ["agent_spawn", "agent_send", "agent_stop", "agent_status"].map((id) => ({
-        id,
-        icon: Bot,
-    })),
-} satisfies WebExtension;
-```
-
-The transcript then marks those tool steps with the bot instead of a wrench. Goes live through
-Vite HMR in dev; the built app needs `pnpm build`.
+Completed in `08e5766`. `web.tsx` registers `Bot` for `agent_spawn`, `agent_send`, `agent_stop`,
+and `agent_status`, through the existing `WebExtension.tools` contract. Vite HMR applies it in
+development; production needs a browser rebuild. The change passed `pnpm check`, all 312 tests,
+and a production build into an isolated cache directory; that does not establish deployment to
+the owner's app.
 
 ### 5. Documentation
 
-- `docs/extensions.md`, section "Planned, with where each comes from": the `subagents` row says it
-  does not exist. Remove the row (or the whole note if nothing else is planned there) and add a
-  section like the ones for git-stats or dictation: the four tools, profiles and where they are
-  read from, reports and the author convention, stop semantics, what is deliberately not done.
-- The author convention belongs in core docs too: `docs/server.md` or `docs/layout.md`, wherever
-  projection of entries is described — "an application entry with a user message and
-  `data.author` is shown as a message from that author".
-- `AGENTS.md` lists the existing extensions in "Target shape"; it is already out of date; touch it
-  only if the owner asks.
+- [README.md](README.md) documents current usage, profile precedence and field semantics, model
+  fallback, the four tools, context inheritance, reports and UI, stop/delete behavior, durable
+  tasks/state, reload rules, checks, troubleshooting, and deliberate limits.
+- [docs/extensions.md](../../docs/extensions.md#subagents) lists this feature as implemented,
+  links to the local guide, and no longer lists it among planned folders.
+- [docs/server.md](../../docs/server.md#messages-from-application-authors) describes the generic
+  author convention for committed and queued messages, including separate model/display text.
+- `AGENTS.md` is unchanged; its broader extension inventory remains outside this follow-up.
 
 ## Deliberately not done
 

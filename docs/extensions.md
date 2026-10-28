@@ -306,13 +306,43 @@ to the watcher. What happens in `pnpm dev`:
 - Read or write the core's SQLite directly.
 - Add a name to `RESERVED`.
 
+## Subagents
+
+`extensions/subagents` lets a conversation delegate work to agents in separate durable
+conversations, following Pi Durable's background-task ownership pattern. Its complete usage and
+maintenance guide lives with the feature: [Subagents README](../extensions/subagents/README.md).
+Remaining proposals and historical verification notes are in its
+[handoff](../extensions/subagents/HANDOFF.md).
+
+- **Four tools:** `agent_spawn` starts a profile on a self-contained task; `agent_send` steers it or
+  continues it with its own context; `agent_stop` aborts its current run; `agent_status` lists agents
+  or shows one agent's working/idle state and a text preview. Names are local to the parent
+  conversation. The browser facet gives all four tools bot icons.
+- **Profiles:** Markdown with required `name` and `description`, optional `tools`, `model`, and
+  `thinking`, and instructions in the body. Read from `<Pi agent directory>/agents/` (normally
+  `~/.pi/agent/agents/`), then the nearest `.pi/agents/` above the session's cwd, overriding by name.
+  Edits affect future spawns without a restart, not agents already started.
+- **Inheritance:** a child starts with the parent's agent configuration, not its transcript; the
+  profile applies overrides. The subagents extension is removed from children, preventing recursive
+  delegation. Children share the working directory and permissions; this is not a sandbox.
+- **Reports:** background reporter tasks deliver answers automatically as steering input to the
+  parent. `subagents.instruction` names `Orchestrator`; `subagents.report` names the child agent.
+  Both use the generic [`data.author` convention](server.md#messages-from-application-authors) and
+  link to the source conversation. Cards fold on screen, but the full report enters model context.
+- **Stopping:** the parent's foreground Stop does not stop its background agents. `agent_stop`
+  suppresses the unanswered result of a stopped run, keeps its context, and permits a later send.
+  Direct input in the child creates no new reporter and therefore no automatic report to the parent.
+- **Current limits:** unavailable profile models fall back to the parent's model with a warning in
+  the spawn result; reports have no length bound; child sessions are top-level list rows. There is
+  no agent-count status item, full-result status parameter, model mapping, `ask_question` tool, or
+  per-profile skill selection. See the local README before relying on stop/delete behavior.
+
 ## Planned, with where each comes from
 
-| Folder      | What it is                                                                         | Source                              |
-| ----------- | ---------------------------------------------------------------------------------- | ----------------------------------- |
-| `files`     | File browser in the drawer                                                         | Pi Pocket's file browser, rewritten |
-| `web`       | The page the agent is working on, beside the conversation                          | Pi Pocket core, adapted             |
-| `subagents` | Agents the conversation can hand work to, and the `agents` count in the status bar | Ultimate, rewritten                 |
+| Folder  | What it is                                                | Source                              |
+| ------- | --------------------------------------------------------- | ----------------------------------- |
+| `files` | File browser in the drawer                                | Pi Pocket's file browser, rewritten |
+| `web`   | The page the agent is working on, beside the conversation | Pi Pocket core, adapted             |
 
 None of these exist yet. A folder is added when its feature is built, never as a placeholder.
 
