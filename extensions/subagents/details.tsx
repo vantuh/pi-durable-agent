@@ -158,6 +158,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
 
             {editing === null || models === null ? null : (
                 <ModelMenu
+                    scoped={models.scoped}
                     all={models.all}
                     current={editing.model}
                     level={editing.thinking}

@@ -181,11 +181,15 @@ Important details:
 ### Changing a model from the Extensions dialog
 
 `details.tsx` lists every profile a spawn would see, with the model and thinking level its
-Markdown names, and a **Change model** button that opens the composer's own model menu. The chosen
-model and level are written by the `setModel` action into the profile's frontmatter, so the next
-`agent_spawn` uses them; an agent already running keeps what it started with. **Use default**
-removes both lines, which leaves the profile without a model, and `agent_spawn` then refuses it.
+Markdown names, and a **Change model** button that opens the composer's own model menu. The menu
+here offers the same `scoped` and `all` tabs, scoped first, from the same `enabledModels` the
+composer reads; a menu with nothing scoped lists the catalog. The chosen model and level are
+written by the `setModel` action into the profile's frontmatter, so the next `agent_spawn` uses
+them; an agent already running keeps what it started with. **Use default** removes both lines,
+which leaves the profile without a model, and `agent_spawn` then refuses it.
 
+- The "+" that adds a model to `enabledModels` and **Make default** belong to the composer's
+  session, so this menu leaves them out; it writes a profile, not a setting.
 - The browser sends a profile **name**, never a path: the action looks the name up in the profiles
   discovery found for the request's session, and writes to the file that name belongs to. A project
   profile therefore stays in the project's `.pi/agents/`; the user profile it replaces is untouched.

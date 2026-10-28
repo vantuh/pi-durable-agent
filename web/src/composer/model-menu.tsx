@@ -56,7 +56,8 @@ export function ModelMenu({
     const search = useRef<HTMLInputElement>(null);
 
     const scopedList = scoped ?? [];
-    const list = scoped === undefined || tab === "all" ? all : scopedList;
+    // Nothing scoped yet: the tabs still say so, but the list offers the catalog rather than nothing.
+    const list = tab === "all" || scopedList.length === 0 ? all : scopedList;
     const needle = query.trim().toLowerCase();
     const shown = list.filter(
         (model) =>
