@@ -802,3 +802,43 @@ work) and connects to them with `@earendil-works/pi-mcp`. Settings lists them, e
 - The list shows a stdio server's `command` only, never its arguments, environment or headers.
 - Not built: OAuth (`mcp-auth.json`), a project's own `.pi/mcp.json`, reading the file again while
   a server is connected (turn it off and on), `exposure`, resources and prompts.
+
+## Web search
+
+`extensions/web-search` gives Pi one tool, `web_search`: `query` or `queries` (up to five, folded
+into one prompt, not one call each) and optional `urls` to read alongside. There is no search API
+and no key of its own: it asks a model with a built-in search tool, on a subscription already signed
+in, and returns that model's answer followed by `## Sources` and a `Searched with` line.
+
+- The order is ChatGPT, Claude, Kiro. A provider without a login, or whose call fails or times out,
+  hands over to the next; the error lists each reason. A stop ends the chain at once.
+- **ChatGPT**: Pi's `openai` "Sign in with ChatGPT" token, sent to `api.openai.com/v1/responses` with
+  the `web_search` tool on `gpt-6-luna`. An `sk-…` API key is skipped, so the API is never billed.
+- **Claude**: the `sk-ant-oat…` subscription token, sent to `/v1/messages` with the
+  `web_search_20260209` server tool on `claude-haiku-5-5`. The call does not go through Pi's model
+  transport, so it repeats the billing block of `anthropic-subscription` itself (an extension may not
+  import another) with the static Claude Code version; it does not learn a newer one from a
+  rejection, as Pi's own requests do.
+- **Kiro**: `kiro-cli chat --no-interactive --output-format=stream-json` in an empty temporary
+  folder, trusting only Kiro's own `web_search` and `web_fetch`. The process group is killed on stop,
+  timeout or output past 4 MiB, so `kiro-cli-chat` does not outlive the call.
+- Timeouts: 60 s per HTTP provider, 90 s for Kiro. Errors carry a status and at most 200 characters
+  of body, never headers or tokens.
+- The names `web_search` and `queries` match the `pi-web-access` package the Pi CLI uses, so one
+  subagent profile works in both.
+
+## Fetching a page
+
+`extensions/web-fetch` gives Pi `fetch_content`: one `url`, and `offset` to read on. It returns
+`# <title>`, `URL: <final URL>` and the page as Markdown, at most 40 000 characters a call, with a
+note saying which `offset` continues it.
+
+- HTML goes through linkedom, Readability and Turndown (the path of `pi-web-access`'s `extract.ts`);
+  links are made absolute first. When Readability finds no article, the body without navigation,
+  header, footer and asides is converted instead. Plain text, Markdown and JSON come back as they are.
+- The charset comes from `Content-Type`, then from a `<meta>` in the first 4 KiB, else UTF-8.
+- 30 s timeout, a 5 MiB cap on the body (reading stops there), and a content type that is not text,
+  HTML or JSON is refused before the body is read. PDFs are not read.
+- There is no guard against private addresses: the agent has `bash` and `curl` on the same machine,
+  so refusing them here would protect nothing.
+- The name `fetch_content` is the one `pi-web-access` uses, for the same reason as `web_search`.
