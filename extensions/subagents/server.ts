@@ -6,8 +6,7 @@
  */
 
 import type { Context } from "@earendil-works/chord/context";
-import type { ModelThinkingLevel } from "@earendil-works/pi-ai";
-import { clampThinkingLevel } from "@earendil-works/pi-ai";
+import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import {
     type AgentChange,
     AssistantEntry,
@@ -193,13 +192,13 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
         runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
 });
 
-const LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
-
 const NO_WAIT =
     "Its outcome arrives as a message automatically. Do not check its status or sleep to wait for it; end your turn or continue unrelated work.";
 
 const GUIDE = `## Agents
 You are the Orchestrator. Delegate with agent_spawn, picking the smallest suitable profile from the list below.
+
+Agents can only start from existing Markdown profiles. Their model and thinking come only from the profile (omitted thinking means off). Never pass model, thinking, or thinkingLevel overrides to agent_spawn. If a profile is invalid or its model is unavailable, no agent starts: report the tool error, choose another existing profile, or ask the user to fix the profile. Do not invent a replacement model.
 
 Agents do not see this conversation. Each task must be self-contained: goal, scope, paths or links, constraints, expected output, read-only vs edit permission, and, for edits, the check to run.
 
@@ -238,39 +237,51 @@ async function childAgent(
     api: ToolExecutionApi,
     profile: Profile,
     context: Context,
-): Promise<{ change: AgentChange; warnings: string[] }> {
-    const parent = await api.agent(context);
-    const warnings: string[] = [];
-    const [provider = "", modelId = ""] = profile.model?.split(/\/(.*)/s) ?? [];
-    const model =
-        profile.model === undefined
-            ? undefined
-            : (await api.models.getAvailable(provider)).find((each) => each.id === modelId);
-
-    if (profile.model !== undefined && model === undefined) {
-        warnings.push(
-            `model ${profile.model} is not available here; it runs on this conversation's model`,
-        );
+): Promise<{ change: AgentChange } | { error: string }> {
+    if (profile.model === undefined) {
+        return {
+            error: `Profile "${profile.name}": model is required in its Markdown frontmatter.`,
+        };
     }
 
-    const level = LEVELS.find((each) => each === profile.thinking);
-    const known =
-        model ?? (parent.model && api.models.getModel(parent.model.provider, parent.model.modelId));
-    const thinkingLevel: ModelThinkingLevel | undefined =
-        level === undefined || known === undefined ? level : clampThinkingLevel(known, level);
+    const [provider = "", modelId = ""] = profile.model.split(/\/(.*)/s);
+
+    if (provider === "" || modelId === "") {
+        return {
+            error: `Profile "${profile.name}": model must be an exact provider/modelId, got "${profile.model}".`,
+        };
+    }
+
+    const available = await api.models.getAvailable(provider);
+    const model = available.find((each) => each.id === modelId);
+
+    if (model === undefined) {
+        return {
+            error: `Profile "${profile.name}": model "${profile.model}" is not available here. Available for ${provider}: ${available.map((each) => each.id).join(", ") || "none (check provider registration and authentication)"}.`,
+        };
+    }
+
+    const supported = getSupportedThinkingLevels(model);
+    const requested = profile.thinking === undefined ? "off" : profile.thinking;
+    const thinkingLevel = supported.find((each) => each === requested);
+
+    if (thinkingLevel === undefined) {
+        return {
+            error: `Profile "${profile.name}": thinking ${JSON.stringify(requested)} is not supported by ${profile.model}. Supported: ${supported.join(", ")}.`,
+        };
+    }
+
+    const parent = await api.agent(context);
     const wanted = new Set(profile.tools);
     const tools = parent.tools.filter((tool) => wanted.has(tool.name));
 
     return {
         change: {
             instructions: `${profile.instructions}\n\n${PROTOCOL}`.trim(),
-            ...(model === undefined
-                ? {}
-                : { model: { provider: model.provider, modelId: model.id } }),
-            ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
+            model: { provider: model.provider, modelId: model.id },
+            thinkingLevel,
             ...(profile.tools === undefined ? {} : { tools }),
         },
-        warnings,
     };
 }
 
@@ -281,19 +292,22 @@ export default function subagents(host: Host) {
     const spawn = defineTool({
         name: "agent_spawn",
         description:
-            "Start a new agent with a profile from ~/.pi/agent/agents (or the project's .pi/agents) on a self-contained task. It works in its own conversation; its result arrives as a message.",
-        parameters: Type.Object({
-            agent: Type.String({
-                description: "Profile name, from the Agents section of the prompt.",
-            }),
-            task: Type.String({ description: "Self-contained task for the new agent." }),
-            name: Type.Optional(
-                Type.String({
-                    description:
-                        "Name to address it by later; defaults to the title-cased profile name.",
+            "Start a new agent from an existing Markdown profile in ~/.pi/agent/agents (or the project's .pi/agents) on a self-contained task. Model and thinking come only from the profile; overrides are forbidden. An invalid or unavailable model/thinking returns an error without starting an agent. Its result arrives as a message.",
+        parameters: Type.Object(
+            {
+                agent: Type.String({
+                    description: "Profile name, from the Agents section of the prompt.",
                 }),
-            ),
-        }),
+                task: Type.String({ description: "Self-contained task for the new agent." }),
+                name: Type.Optional(
+                    Type.String({
+                        description:
+                            "Name to address it by later; defaults to the title-cased profile name.",
+                    }),
+                ),
+            },
+            { additionalProperties: false },
+        ),
         replay: "safe",
         execute: async (args, api, context) => {
             const task = args.task.trim();
@@ -312,7 +326,16 @@ export default function subagents(host: Host) {
                 );
             }
 
-            const { change, warnings } = await childAgent(api, profile, context);
+            const configured = await childAgent(api, profile, context);
+
+            if ("error" in configured) {
+                return reply(
+                    `No agent was started. ${configured.error} Fix the Markdown profile or choose another existing profile; model and thinking overrides are not allowed.`,
+                    true,
+                );
+            }
+
+            const { change } = configured;
             const explicit = args.name?.trim() ?? "";
             const base = explicit === "" ? titleCase(profile.name) : explicit;
             const started = await api.commit(async (tx) => {
@@ -372,12 +395,7 @@ export default function subagents(host: Host) {
                 `${started.name}: ${task.replace(/\s+/g, " ").slice(0, 60)}`,
             );
 
-            return reply(
-                [
-                    `Agent ${started.name} (${profile.name}) started. ${NO_WAIT}`,
-                    ...warnings.map((warning) => `Warning: ${warning}.`),
-                ].join("\n"),
-            );
+            return reply(`Agent ${started.name} (${profile.name}) started. ${NO_WAIT}`);
         },
     });
 

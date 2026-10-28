@@ -6,8 +6,8 @@ how to check each one. Read it top to bottom once; each open item stands on its 
 
 The current usage and maintenance guide is [README.md](README.md). This handoff preserves the
 original investigation and proposals; its live-database evidence and deployment notes below are
-historical, not a fresh inspection of the owner's running app. Follow-ups 4 (icons) and 5
-(documentation) are complete; items 1–3 remain open.
+historical, not a fresh inspection of the owner's running app. Follow-ups 3 (strict profile model
+and thinking), 4 (icons), and 5 (documentation) are complete; items 1–2 remain open.
 
 ## Where things stand
 
@@ -123,8 +123,9 @@ Agent conversations are the rows of `conversations` whose `record` has an `owner
 | 23703  | AuditCore (reviewer)     | `kiro-acp/claude-opus-5.5`   | `openai/gpt-6.1-sol`              |
 | 23703  | AuditEvidence (reviewer) | `kiro-acp/claude-opus-5.5`   | `openai/gpt-6.1-sol`              |
 
-All three spawns fell back to the parent's model (item 3 below). `AuditCore` and `AuditEvidence`
-have two answers each in `reported`, so follow-ups through `agent_send` delivered.
+All three historical spawns fell back to the parent's model. That fallback is now removed
+(completed item 3 below). `AuditCore` and `AuditEvidence` have two answers each in `reported`, so
+follow-ups through `agent_send` delivered.
 
 ## Open items, in recommended order
 
@@ -198,32 +199,28 @@ folded anyway.
 **Watch out.** Cut on line boundaries; never cut inside a fenced code block if it can be avoided
 (or close the fence). Unit-test the excerpt function — it is the one genuinely fiddly piece.
 
-### 3. A profile model that does not exist here
-
-**Problem.** Proven above: every spawn ran on the parent's model because the profiles name
-`kiro-acp/…` models this app does not have. `childAgent()` in `server.ts` looks the model up with
-`api.models.getAvailable(provider)` and, if missing, keeps the parent's model and returns a
-"Warning: …" line in the spawn result. The orchestrator rarely relays it, so the person believes
-the worker ran on Sonnet.
-
-**Options.**
-
-- **Refuse** the spawn with `isError`, naming the model and the available ones for that provider,
-  so the orchestrator must pick another profile or ask. Most honest.
-- **Map** missing providers: a small table in the extension (e.g. `kiro-acp/claude-opus-5.5` →
-  the same family on a provider that exists), or a project override file. More moving parts.
-- **Keep the fallback, make it loud**: put the actual model into the report header
-  (`[agent X (worker) finished on openai/gpt-6.1-sol]`) and the card. Cheap, and useful anyway.
-
-Recommended: refuse by default, and show the model a report was actually produced on (the answer
-entry's `message.provider/model`) in the report header either way. Ask the owner first whether a
-mapping is wanted — the kiro models may be reachable through an extension later.
-
-**Watch out.** `getAvailable()` checks auth, `getModel()` does not; keep `getAvailable()`. The
-lookup is exact (`provider/id`); Pi's own `resolveCliModel` does fuzzy matching but needs the
-`ModelRuntime`, which an extension does not get.
-
 ## Completed follow-ups
+
+### 3. Strict profile model and thinking
+
+The owner chose profile-only configuration, not model mapping or fallback:
+
+- `agent_spawn` accepts only `agent`, `task`, and optional `name`; schema validation rejects extra
+  arguments, including model/thinking overrides, even when they match the profile.
+- The Markdown profile must specify an exact `provider/modelId`. Missing, malformed, unavailable,
+  or unauthenticated models return `isError` before a child or its background tasks are created.
+  The error identifies the profile/problem and, for an unavailable model, available IDs for that
+  provider. There is no fallback to the parent and no provider mapping.
+- Thinking comes only from the profile, with `off` for an omitted field. Invalid values and
+  unsupported levels are errors, not inherited values or silently clamped alternatives.
+- The orchestrator prompt and tool description explain that a rejected spawn started no agent;
+  choose another existing profile or ask the user to fix the profile/provider/auth setup.
+- Real-Harness tests cover these refusals, a distinct profile model/level, omitted thinking, and
+  keeping the original configuration on a follow-up after editing the profile file.
+
+Keep `getAvailable()` rather than catalog-only `getModel()`: authentication is part of availability.
+The earlier suggestion to add the actual model to report headers was not implemented; it is not
+needed for the owner's chosen refusal policy, and the child's statistics already expose its model.
 
 ### 4. A tool icon for `agent_*`
 
@@ -235,9 +232,9 @@ the owner's app.
 
 ### 5. Documentation
 
-- [README.md](README.md) documents current usage, profile precedence and field semantics, model
-  fallback, the four tools, context inheritance, reports and UI, stop/delete behavior, durable
-  tasks/state, reload rules, checks, troubleshooting, and deliberate limits.
+- [README.md](README.md) documents current usage, profile precedence and field semantics, strict
+  model/thinking validation, the four tools, context inheritance, reports and UI, stop/delete
+  behavior, durable tasks/state, reload rules, checks, troubleshooting, and deliberate limits.
 - [docs/extensions.md](../../docs/extensions.md#subagents) lists this feature as implemented,
   links to the local guide, and no longer lists it among planned folders.
 - [docs/server.md](../../docs/server.md#messages-from-application-authors) describes the generic

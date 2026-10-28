@@ -18,8 +18,9 @@ reload rules are in [docs/extensions.md](../../docs/extensions.md).
 5. Expand the report to read it, or use its open-conversation link to inspect the agent's work.
 
 The **orchestrator** is the agent in the parent conversation. The **profile** is a reusable set of
-instructions and optional model/tool choices. The **agent name** identifies one child conversation
-within that parent; it is what `agent_send`, `agent_stop`, and `agent_status` address.
+instructions, a required model, and optional thinking/tool choices. The **agent name** identifies
+one child conversation within that parent; it is what `agent_send`, `agent_stop`, and `agent_status`
+address.
 
 For example, save this as `.pi/agents/reviewer.md`:
 
@@ -28,6 +29,7 @@ For example, save this as `.pi/agents/reviewer.md`:
 name: reviewer
 description: Read specified files and report concrete defects without editing.
 tools: read
+model: openai/gpt-6.1-sol
 thinking: medium
 ---
 
@@ -35,6 +37,10 @@ Review only the files named in your task. Do not change files.
 Report concrete defects with file paths, evidence, and their impact.
 If the allowed tools cannot establish a claim, say what you could not verify.
 ```
+
+Set `model` to an exact available model ID for your installation; the example is not automatically
+mapped to another provider. Missing or unavailable models fail the spawn instead of inheriting the
+parent's model.
 
 The orchestrator can then make these tool calls. They are JSON arguments to the named tools, not
 HTTP endpoints or commands to paste into a terminal:
@@ -78,6 +84,9 @@ names are case-sensitive; leading and trailing whitespace in tool arguments is t
 
 ### Spawn and naming
 
+- Only `agent`, `task`, and optional `name` are accepted. Extra arguments, including `model`,
+  `thinking`, and `thinkingLevel`, fail schema validation even if they match the profile's values.
+  The orchestrator must choose an existing Markdown profile, not construct or override one inline.
 - `agent` must match a profile's frontmatter `name`, not necessarily its filename.
 - An empty task or an unknown profile returns a tool error. An unknown-profile error lists the
   available profile names.
@@ -127,13 +136,13 @@ skipped; they do not prevent other profiles from loading.
 
 ### Frontmatter
 
-| Field         | Required | Current meaning                                                                         |
-| ------------- | -------- | --------------------------------------------------------------------------------------- |
-| `name`        | Yes      | Non-empty string used to select the profile and stored with the agent.                  |
-| `description` | Yes      | Non-empty string shown with the name in the orchestrator's profile list.                |
-| `tools`       | No       | Comma-separated names or a YAML list; an allowlist intersected with the parent's tools. |
-| `model`       | No       | Exact `provider/modelId`; lookup is limited to available models for that provider.      |
-| `thinking`    | No       | One of `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.                       |
+| Field         | Required      | Current meaning                                                                                         |
+| ------------- | ------------- | ------------------------------------------------------------------------------------------------------- |
+| `name`        | Yes           | Non-empty string used to select the profile and stored with the agent.                                  |
+| `description` | Yes           | Non-empty string shown with the name in the orchestrator's profile list.                                |
+| `tools`       | No            | Comma-separated names or a YAML list; an allowlist intersected with the parent's tools.                 |
+| `model`       | Yes, at spawn | Exact `provider/modelId`; must be available and authenticated.                                          |
+| `thinking`    | No            | Supported string level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`; omitted means `off`. |
 
 The Markdown body becomes the child's instructions followed by the extension's agent protocol.
 Unknown frontmatter fields are ignored. In particular, `skills` does not select skills, and
@@ -153,22 +162,28 @@ Important details:
   tools. An empty list does **not** mean "no tools".
 - With a non-empty list, only tools the parent actually has survive. Unknown names are silently
   dropped; a list containing only unknown names can leave the child with no tools.
-- Omitting `model` inherits the parent's model at creation. With `model`, the provider and model
-  ID must match exactly; there is no fuzzy matching or provider mapping.
-- **An unavailable model currently falls back to the parent's model.** Spawn succeeds and its
-  tool result includes `Warning: model … is not available here; it runs on this conversation's
-  model`. The report header does not name the actual model. Do not treat a profile's requested
-  model as evidence of which model ran; inspect the child's session/model statistics.
+- `model` is required at spawn. The provider and model ID must match exactly; there is no fuzzy
+  matching, provider mapping, or fallback to the parent's model.
+- A missing, malformed, unknown, or unauthenticated model returns a tool error before creating
+  any child conversation or background task. The error identifies the profile and problem; an
+  unavailable-model error lists the available IDs for that provider (or says none).
 - Model availability is checked with `api.models.getAvailable(provider)`, including authentication,
-  not just catalog membership.
-- A recognized thinking level is clamped to what the selected/inherited model supports when the
-  model is known. Missing or unrecognized `thinking` leaves the inherited level unchanged.
+  not just catalog membership. Fix the Markdown profile, provider registration, or authentication;
+  do not work around an error by passing a model override.
+- Omitted `thinking` explicitly means `off`, independent of the parent's level. A supplied value
+  must be a supported string level for that model; invalid values (including null/numbers) and
+  unsupported levels fail the spawn. There is no automatic clamping to a different level.
+- Missing-model profiles stay discoverable so spawn can explain the invalid frontmatter rather
+  than reporting an unknown profile. The report header still omits the actual model; inspect the
+  child's model/statistics if needed. A successful spawn is not proof that a later provider request
+  will succeed.
 
 ## What the child inherits, and what it does not
 
-The harness starts a task-owned child with the parent's agent configuration: model, tools,
-extensions, and working directory. The extension then applies the profile's instructions and any
-model, thinking, and tool overrides.
+The harness starts a task-owned child with the parent's agent configuration, including extensions,
+tools, and working directory. Before creating it, the extension validates the profile's required
+model and thinking (`off` when omitted). It then explicitly sets both, along with the profile's
+instructions and optional tool allowlist. The parent's model and thinking are never used as fallbacks.
 
 **The parent's transcript is not the child's context.** Every task must include the goal, scope,
 relevant paths, constraints, expected output, and whether edits are permitted. Include the check to
@@ -352,19 +367,23 @@ pnpm check
 pnpm test
 ```
 
-The two extension tests use a real `Harness`, real task scheduling, and a temporary SQLite file.
+The extension tests use a real `Harness`, real task scheduling, and a temporary SQLite file.
 A faux model distinguishes parent and child by `## Agent protocol` in the child's system messages.
 They check:
 
 - Spawn creates a separate conversation, applies instructions and the tool allowlist, removes the
   subagents extension, sets the title, and delivers the report with author/source metadata in
-  both directions.
+  both directions. A follow-up keeps the child's original model/thinking even after the profile
+  file is edited.
+- Unknown profiles, missing/malformed/unavailable/unauthenticated models, invalid or unsupported
+  thinking, and inline model/thinking overrides return tool errors without creating a child.
+- Omitted thinking becomes `off` even when the parent uses `high`.
 - `agent_stop` aborts a working child without reporting its unanswered run to the parent.
 
 The tests set `PI_CODING_AGENT_DIR` to a temporary directory so the owner's profiles do not leak
 in. A scripted faux tool call must use `stopReason: "toolUse"`; otherwise the harness treats it as
-an answer. The current suite does **not** establish exhaustive profile parsing, unavailable-model,
-restart/replay, steering-race, or browser behavior coverage. Projection tests in
+an answer. The current suite does **not** establish exhaustive profile parsing, restart/replay,
+steering-race, or browser behavior coverage. Projection tests in
 [`test/projection.test.ts`](../../test/projection.test.ts) separately cover authored entries and
 queued messages.
 
@@ -377,18 +396,18 @@ setup. A successful test run is not evidence that the owner's production bundle 
 
 ## Troubleshooting and known limits
 
-| Symptom                                                 | Check                                                                                                                                                                              |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Profile missing from the prompt / unknown profile error | Required `name` and `description`, readable `.md` file, the session's cwd, nearest project-directory precedence, and `PI_CODING_AGENT_DIR`. Invalid profiles are skipped silently. |
-| Agent runs on an unexpected model                       | Read the spawn warning and the child's actual model. Missing/unavailable profile models currently inherit the parent's model.                                                      |
-| Child has too many or too few tools                     | Empty lists inherit; non-empty lists intersect exact parent tool names. Editing the profile does not reconfigure an existing child.                                                |
-| Spawn says the name exists                              | Continue it with `agent_send`, or choose a fresh name; session titles and tool names are separate.                                                                                 |
-| No report after typing in the child                     | Direct input creates no reporter. Send through the parent when a report is required.                                                                                               |
-| No report after `agent_stop`                            | An unanswered stopped run is intentionally suppressed. Continue with `agent_send`.                                                                                                 |
-| Report exists but is invisible in the UI                | Check for an old server without author projection, an old browser build, or a report still queued at a boundary.                                                                   |
-| Parent starts again after Stop                          | Its background agents/reporters outlive a foreground stop. Stop the specific agents too if that is the intent.                                                                     |
-| Status preview is stale, cut, or empty                  | It reads assistant text from only the newest 20 entries and keeps the last 2000 characters. Open the child transcript.                                                             |
-| Many sidebar rows or a large parent context             | Nesting child sessions and bounding reports are still open items, not implemented behavior.                                                                                        |
+| Symptom                                                 | Check                                                                                                                                                                                   |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Profile missing from the prompt / unknown profile error | Required `name` and `description`, readable `.md` file, the session's cwd, nearest project-directory precedence, and `PI_CODING_AGENT_DIR`. Invalid profiles are skipped silently.      |
+| Spawn rejects a profile's model or thinking             | Read the tool error and fix the Markdown profile or provider/auth setup. `model` is required; thinking must be supported (`off` when omitted). There is no fallback or inline override. |
+| Child has too many or too few tools                     | Empty lists inherit; non-empty lists intersect exact parent tool names. Editing the profile does not reconfigure an existing child.                                                     |
+| Spawn says the name exists                              | Continue it with `agent_send`, or choose a fresh name; session titles and tool names are separate.                                                                                      |
+| No report after typing in the child                     | Direct input creates no reporter. Send through the parent when a report is required.                                                                                                    |
+| No report after `agent_stop`                            | An unanswered stopped run is intentionally suppressed. Continue with `agent_send`.                                                                                                      |
+| Report exists but is invisible in the UI                | Check for an old server without author projection, an old browser build, or a report still queued at a boundary.                                                                        |
+| Parent starts again after Stop                          | Its background agents/reporters outlive a foreground stop. Stop the specific agents too if that is the intent.                                                                          |
+| Status preview is stale, cut, or empty                  | It reads assistant text from only the newest 20 entries and keeps the last 2000 characters. Open the child transcript.                                                                  |
+| Many sidebar rows or a large parent context             | Nesting child sessions and bounding reports are still open items, not implemented behavior.                                                                                             |
 
 Deliberately absent: recursive agents, an `ask_question` tool, a full-result status option, model
 mapping, isolated worktrees, and a status-bar agent count. Questions travel as ordinary final

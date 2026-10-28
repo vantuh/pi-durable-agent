@@ -96,7 +96,22 @@ void describe("subagents", () => {
     let parent: Conversation;
     let titles: Map<number, string>;
     let previousAgentDir: string | undefined;
-    const faux = fauxProvider();
+    const faux = fauxProvider({
+        models: [
+            { id: "parent", reasoning: true },
+            { id: "profile", reasoning: true },
+            { id: "no-thinking", reasoning: false },
+        ],
+    });
+    const profileModel = `${faux.provider.id}/profile`;
+    const locked = fauxProvider({ provider: "locked", models: [{ id: "profile" }] });
+
+    async function writeProfile(fields: string): Promise<void> {
+        await writeFile(
+            join(dir, ".pi", "agents", "counter.md"),
+            `---\nname: counter\ndescription: Counts things\ntools: read, grep\n${fields}\n---\n\nYou count.\n`,
+        );
+    }
 
     async function userTexts(id: ConversationId): Promise<string[]> {
         const page = await harness.commit(
@@ -137,14 +152,15 @@ void describe("subagents", () => {
         previousAgentDir = process.env["PI_CODING_AGENT_DIR"];
         process.env["PI_CODING_AGENT_DIR"] = join(dir, "agent");
         await mkdir(join(dir, ".pi", "agents"), { recursive: true });
-        await writeFile(
-            join(dir, ".pi", "agents", "counter.md"),
-            "---\nname: counter\ndescription: Counts things\ntools: read, grep\n---\n\nYou count.\n",
-        );
+        await writeProfile(`model: ${profileModel}\nthinking: low`);
 
         const models = createModels();
 
         models.setProvider(faux.provider);
+        models.setProvider({
+            ...locked.provider,
+            auth: { apiKey: { name: "Locked", resolve: () => Promise.resolve(undefined) } },
+        });
         titles = new Map();
 
         const registry = createRegistry();
@@ -162,6 +178,7 @@ void describe("subagents", () => {
                 ownership: { kind: "ownerless" },
                 agent: {
                     model: { provider: faux.provider.id, modelId: faux.getModel().id },
+                    thinkingLevel: "high",
                     cwd: dir,
                 },
             },
@@ -181,7 +198,9 @@ void describe("subagents", () => {
             (said) =>
                 said === "count them"
                     ? call("agent_spawn", { agent: "counter", task: "Count the files." })
-                    : fauxAssistantMessage("ok"),
+                    : said === "continue"
+                      ? call("agent_send", { name: "Counter", message: "Count again." })
+                      : fauxAssistantMessage("ok"),
         );
 
         faux.setResponses(Array.from({ length: 10 }, () => step));
@@ -202,7 +221,9 @@ void describe("subagents", () => {
 
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the id came from the conversation the tool created
         const child = await harness.conversation(childId as ConversationId, context);
-        const agent = await child?.agent(context);
+
+        assert.ok(child);
+        const agent = await child.agent(context);
 
         assert.deepEqual(
             agent?.tools.map((tool) => tool.name),
@@ -214,6 +235,8 @@ void describe("subagents", () => {
             "a profile without a tools list still gets no agents of its own",
         );
         assert.match(agent?.instructions ?? "", /^You count\.\n\n## Agent protocol/);
+        assert.deepEqual(agent?.model, { provider: faux.provider.id, modelId: "profile" });
+        assert.equal(agent?.thinkingLevel, "low");
 
         const written = async (id: number, kind: string) =>
             (
@@ -234,6 +257,133 @@ void describe("subagents", () => {
             author: "Orchestrator",
             session: parent.id,
         });
+
+        await writeProfile(`model: ${faux.provider.id}/parent\nthinking: high`);
+        await (await parent.submit({ type: "input", content: "continue" }, context)).wait(context);
+        await reportersDone();
+        await parent.waitForIdle(context);
+
+        const continued = await child.agent(context);
+
+        assert.equal((await userTexts(child.id)).at(-1), "Count again.");
+        assert.deepEqual(continued?.model, { provider: faux.provider.id, modelId: "profile" });
+        assert.equal(continued?.thinkingLevel, "low");
+    });
+
+    for (const test of [
+        { label: "unknown profile", extra: { agent: "invented" }, error: /Unknown agent profile/ },
+        { label: "missing model", fields: "thinking: low", error: /model.*required/i },
+        { label: "malformed model", fields: "model: broken", error: /provider\/modelId/ },
+        {
+            label: "unknown model",
+            fields: `model: ${faux.provider.id}/missing`,
+            error: /missing.*not available/,
+        },
+        {
+            label: "unavailable provider",
+            fields: "model: unavailable-provider/model",
+            error: /unavailable-provider\/model.*not available/,
+        },
+        {
+            label: "unauthenticated model",
+            fields: "model: locked/profile",
+            error: /locked\/profile.*not available/,
+        },
+        {
+            label: "non-string thinking",
+            fields: `model: ${profileModel}\nthinking: 7`,
+            error: /thinking.*7.*not supported/,
+        },
+        {
+            label: "null thinking",
+            fields: `model: ${profileModel}\nthinking: null`,
+            error: /thinking.*null.*not supported/,
+        },
+        {
+            label: "invalid thinking",
+            fields: `model: ${profileModel}\nthinking: turbo`,
+            error: /thinking.*turbo.*not supported/,
+        },
+        {
+            label: "unsupported thinking",
+            fields: `model: ${faux.provider.id}/no-thinking\nthinking: high`,
+            error: /thinking.*high.*not supported/,
+        },
+        { label: "model override", extra: { model: profileModel }, error: /additional/i },
+        { label: "thinking override", extra: { thinking: "low" }, error: /additional/i },
+        { label: "thinkingLevel override", extra: { thinkingLevel: "low" }, error: /additional/i },
+    ]) {
+        void it(`rejects ${test.label} without creating an agent`, async () => {
+            if (test.fields !== undefined) {
+                await writeProfile(test.fields);
+            }
+
+            const step = scripted(
+                () => Promise.resolve(fauxAssistantMessage("Should not run.")),
+                (said) =>
+                    said === "spawn"
+                        ? call("agent_spawn", {
+                              agent: "counter",
+                              task: "Count.",
+                              ...test.extra,
+                          })
+                        : fauxAssistantMessage("ok"),
+            );
+
+            faux.setResponses(Array.from({ length: 10 }, () => step));
+            await (await parent.submit({ type: "input", content: "spawn" }, context)).wait(context);
+            await reportersDone();
+            await parent.waitForIdle(context);
+
+            const entries = await harness.commit(
+                (tx) => tx.scanEntries({ conversationId: parent.id }, 100),
+                context,
+            );
+            const result = entries.items
+                .flatMap((entry) => entry.model ?? [])
+                .find((message) => message.role === "toolResult");
+
+            assert.ok(result?.role === "toolResult");
+            assert.equal(result.isError, true);
+            assert.match(
+                result.content
+                    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+                    .join(""),
+                test.error,
+            );
+            assert.equal(titles.size, 0);
+            const conversations = await harness.commit(
+                (tx) => tx.scanConversations({}, 100),
+                context,
+            );
+
+            assert.deepEqual(
+                conversations.items.map((record) => record.id),
+                [parent.id],
+            );
+        });
+    }
+
+    void it("defaults omitted profile thinking to off, not the parent's level", async () => {
+        await writeProfile(`model: ${profileModel}`);
+        const step = scripted(
+            () => Promise.resolve(fauxAssistantMessage("Done.")),
+            (said) =>
+                said === "spawn"
+                    ? call("agent_spawn", { agent: "counter", task: "Count." })
+                    : fauxAssistantMessage("ok"),
+        );
+
+        faux.setResponses(Array.from({ length: 10 }, () => step));
+        await (await parent.submit({ type: "input", content: "spawn" }, context)).wait(context);
+        await reportersDone();
+        const conversations = await harness.commit((tx) => tx.scanConversations({}, 100), context);
+        const child = conversations.items.find((record) => record.id !== parent.id);
+
+        assert.ok(child);
+        const conversation = await harness.conversation(child.id, context);
+
+        assert.equal((await conversation?.agent(context))?.thinkingLevel, "off");
     });
 
     void it("reports nothing for a run agent_stop ended", async () => {

@@ -17,7 +17,8 @@ export type Profile = {
     tools?: string[];
     /** `provider/model`, as written. */
     model?: string;
-    thinking?: string;
+    /** Preserve invalid values so spawn reports them instead of treating them as absent. */
+    thinking?: unknown;
     instructions: string;
 };
 
@@ -59,7 +60,8 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
 
             const tools = names(frontmatter["tools"]);
             const model = text(frontmatter["model"]);
-            const thinking = text(frontmatter["thinking"]);
+            const rawThinking = frontmatter["thinking"];
+            const thinking = typeof rawThinking === "string" ? rawThinking.trim() : rawThinking;
 
             into.set(name, {
                 name,
