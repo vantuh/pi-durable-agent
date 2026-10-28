@@ -37,27 +37,30 @@ illustrative, not working replacements for the real app.
 ## Version 2: compact horizontal strip
 
 Open <http://127.0.0.1:5193/subagents-compact.html?count=3> separately to compare with
-[version 1](subagents.html?count=3). The original HTML, CSS, and script are unchanged.
+[version 1](subagents.html?count=3). The version 1 CSS and script are unchanged; its HTML only moved the return-to-parent link above the composer.
 Version 2 has its own HTML entry and a small CSS override over the same theme/sample behavior.
 
 - No separate heading above the agents. The count remains available to screen readers.
-- All agents stay on one horizontal line, with the same working mark, name, context bar/percentage,
-  and speed. The whole chip remains a conversation link.
+- All agents stay on one horizontal line, with the same working mark, name, and context
+  bar/percentage. Speed (tok/s) is hidden in this version. The whole chip remains a conversation link.
 - The strip scrolls horizontally when its contents do not fit. This saves vertical space but means
   not all agents are visible at once, especially on a phone. A partially visible next chip and the
   scrollbar indicate more content.
-- Chips are 28px tall on desktop and at least 44px on mobile for touch. Turning **Show model** on
+- Chips are 36px tall on desktop and 40px on mobile. This is below the 44px touch target used in
+  version 1. Turning **Show model** on
   adds the model inline, not a second line. This uses more width; a native desktop scrollbar can
   add height when the strip overflows (11px in the tested browser).
-- Empty state, child navigation, return-to-parent link, and sample-data isolation match version 1.
+- Empty state, child navigation, and sample-data isolation match version 1. In a child
+  conversation, the return-to-parent link replaces the strip above the composer, with the same
+  height, so the composer does not move.
 
 Measured area heights with three sample agents and models hidden (excluding the shared 8px gap
 above the composer):
 
 | Viewport            | Version 1 | Version 2 | Height recovered for the transcript |
 | ------------------- | --------- | --------- | ----------------------------------- |
-| Desktop, 1280 × 800 | 110px     | 32px      | 78px                                |
-| Phone, 390 × 844    | 172px     | 48px      | 124px                               |
+| Desktop, 1280 × 800 | 110px     | 40px      | 70px                                |
+| Phone, 390 × 844    | 172px     | 44px      | 128px                               |
 
 This variant has not been selected for implementation. Compare both before choosing the tradeoff
 between all-at-once visibility and transcript height.
