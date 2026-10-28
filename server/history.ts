@@ -5,7 +5,7 @@
  */
 
 import type { Context } from "@earendil-works/chord/context";
-import type { Conversation, Cursor } from "@earendil-works/pi-durable";
+import type { Conversation, Cursor, EntryId } from "@earendil-works/pi-durable";
 
 import type { ClientEntry, ClientHistory } from "../shared/protocol.ts";
 import { projectEntry } from "./projection.ts";
@@ -39,15 +39,21 @@ export async function historyPage(options: {
 }): Promise<ClientHistory> {
     const { conversation, context, before } = options;
     const collected: ClientEntry[] = [];
+    // Read from below `before`, not from the newest entry down: each older page would read more.
+    const query =
+        before === undefined
+            ? { order: "descending" as const }
+            : // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- an entry id is a number at run time; the brand lives only in the type
+              { order: "descending" as const, maxEntryId: (before - 1) as EntryId };
     let cursor: Cursor | undefined;
 
     for (;;) {
-        const page = await conversation.entries({ order: "descending" }, CHUNK, cursor, context);
+        const page = await conversation.entries(query, CHUNK, cursor, context);
 
         for (const record of page.items) {
             const entry = projectEntry(record);
 
-            if (entry !== undefined && (before === undefined || Number(record.id) < before)) {
+            if (entry !== undefined) {
                 collected.push(entry);
             }
         }
