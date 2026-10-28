@@ -27,7 +27,7 @@ import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { Home } from "./shell/home.tsx";
-import { PanelButtons, PanelHost, panelKey } from "./shell/panels.tsx";
+import { PanelButtons, PanelHost, panelKey, useOpenPanel } from "./shell/panels.tsx";
 import { Sessions } from "./shell/sessions.tsx";
 import { Settings } from "./shell/settings.tsx";
 import { StatusBar } from "./shell/status-bar.tsx";
@@ -55,10 +55,10 @@ export function App() {
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
     const [sheet, setSheet] = useState(false);
     const [settings, setSettings] = useState(false);
-    const [panelOpen, setPanelOpen] = useState<string | null>(null);
     const panels = usePanels();
 
     const { state, send, stop, loadOlder } = useConversation(current);
+    const [panelOpen, setPanelOpen] = useOpenPanel(current);
 
     useEffect(() => {
         let alive = true;
@@ -208,7 +208,7 @@ export function App() {
                                             panels={panels}
                                             open={panelOpen}
                                             onToggle={(key) => {
-                                                setPanelOpen((open) => (open === key ? null : key));
+                                                setPanelOpen(panelOpen === key ? null : key);
                                             }}
                                         />
                                     </>

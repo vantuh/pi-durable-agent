@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useEffect } from "react";
+import { type PointerEvent as ReactPointerEvent, useLayoutEffect, useReducer } from "react";
 
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
@@ -7,6 +7,27 @@ import type { PanelProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
+
+/** Which panel is open, remembered per session. */
+export function useOpenPanel(
+    session: number | null,
+): [string | null, (key: string | null) => void] {
+    const [, rerender] = useReducer((count: number) => count + 1, 0);
+    const storageKey = `panel:${String(session)}`;
+    const open = session === null ? null : localStorage.getItem(storageKey);
+
+    const setOpen = (key: string | null): void => {
+        if (key === null) {
+            localStorage.removeItem(storageKey);
+        } else {
+            localStorage.setItem(storageKey, key);
+        }
+
+        rerender();
+    };
+
+    return [open, setOpen];
+}
 
 /** One header button per panel; the open one stays raised. */
 export function PanelButtons({
@@ -37,16 +58,16 @@ export function PanelButtons({
     });
 }
 
-const WIDTH_KEY = "panelWidth";
+const widthKey = (session: number | undefined): string => `panelWidth:${String(session)}`;
 
-function savedWidth(): number | null {
-    const width = Number(localStorage.getItem(WIDTH_KEY));
+function savedWidth(session: number | undefined): number | null {
+    const width = Number(localStorage.getItem(widthKey(session)));
 
     return width > 0 ? width : null;
 }
 
 /** Without a width the stylesheet's default (46%, at most 720px) applies. */
-function setWidth(wanted: number | null, save: boolean): number | null {
+function setWidth(wanted: number | null, save: string | null): number | null {
     const root = document.documentElement;
 
     if (wanted === null) {
@@ -59,15 +80,15 @@ function setWidth(wanted: number | null, save: boolean): number | null {
 
     root.style.setProperty("--panel-w", `${String(width)}px`);
 
-    if (save) {
-        localStorage.setItem(WIDTH_KEY, String(width));
+    if (save !== null) {
+        localStorage.setItem(save, String(width));
     }
 
     return width;
 }
 
 /** Drag the panel's left edge, or press the arrow keys on it, to resize it; a double click resets it. */
-function ResizeHandle() {
+function ResizeHandle({ storageKey }: { storageKey: string }) {
     const start = (event: ReactPointerEvent<HTMLButtonElement>): void => {
         if (event.button !== 0) {
             return;
@@ -80,7 +101,7 @@ function ResizeHandle() {
         let width: number | null = null;
 
         const move = (each: PointerEvent): void => {
-            width = setWidth(right - each.clientX, false);
+            width = setWidth(right - each.clientX, null);
         };
 
         // Fires after pointerup and pointercancel alike, so one listener ends the drag.
@@ -90,7 +111,7 @@ function ResizeHandle() {
             handle.removeEventListener("lostpointercapture", stop);
 
             if (width !== null) {
-                setWidth(width, true);
+                setWidth(width, storageKey);
             }
         };
 
@@ -112,12 +133,12 @@ function ResizeHandle() {
 
                 if (step !== undefined && current !== undefined) {
                     event.preventDefault();
-                    setWidth(current + step, true);
+                    setWidth(current + step, storageKey);
                 }
             }}
             onDoubleClick={() => {
-                localStorage.removeItem(WIDTH_KEY);
-                setWidth(null, false);
+                localStorage.removeItem(storageKey);
+                setWidth(null, null);
             }}
             className="group absolute inset-y-0 -left-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
@@ -139,13 +160,16 @@ export function PanelHost({
 }) {
     const Body = panel.component;
 
-    useEffect(() => {
-        setWidth(savedWidth(), false);
-    }, []);
+    const id = session?.id;
+
+    // Before paint, so switching sessions does not flash the previous session's width.
+    useLayoutEffect(() => {
+        setWidth(savedWidth(id), null);
+    }, [id]);
 
     return (
         <aside className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,min(46%,720px))]">
-            <ResizeHandle />
+            <ResizeHandle storageKey={widthKey(id)} />
             <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
                 <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
                 <button
