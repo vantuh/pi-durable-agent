@@ -1,30 +1,37 @@
 /** The model picker: the catalog, scoped by Pi's `enabledModels`, and the default for new sessions. */
 
-import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-
 import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
 import { type ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { answer, readJson, record, type Route, string } from "../http.ts";
 import { type Sessions, supportedLevel, THINKING_LEVELS } from "../sessions.ts";
 
-async function enabledModels(): Promise<string[] | undefined> {
-    try {
-        const raw = await readFile(join(homedir(), ".pi/agent/settings.json"), "utf8");
-        const parsed: unknown = JSON.parse(raw);
-        const list =
-            typeof parsed === "object" && parsed !== null && "enabledModels" in parsed
-                ? parsed.enabledModels
-                : undefined;
+/** Read through the manager that saves it, so a model added here is in the next read. */
+export function enabledModels(): string[] | undefined {
+    return SettingsManager.create(process.cwd()).getEnabledModels();
+}
 
-        return Array.isArray(list)
-            ? list.filter((entry): entry is string => typeof entry === "string")
-            : undefined;
-    } catch {
-        return undefined;
+/**
+ * `enabledModels` scopes the catalog, not what has credentials: a model just added from the picker
+ * is in `scoped` at once, instead of vanishing until its provider is configured.
+ */
+export function scopedModels<T extends { provider: string; id: string }>(
+    enabled: string[] | undefined,
+    catalog: readonly T[],
+    available: readonly T[],
+): readonly T[] {
+    if (enabled === undefined) {
+        return available;
     }
+
+    return catalog.filter((model) => {
+        const key = `${model.provider}/${model.id}`;
+
+        // A trailing `:level` in a settings entry is Pi's thinking level for that model.
+        return enabled.some(
+            (entry) => entry === key || entry.slice(0, entry.lastIndexOf(":")) === key,
+        );
+    });
 }
 
 async function addEnabledModel(key: string, fallback: string[]): Promise<void> {
@@ -63,19 +70,8 @@ export function modelRoutes(deps: {
             handle: async (_request, response) => {
                 const available = await models.getAvailable();
                 const list = models.getModels();
-                const enabled = await enabledModels();
-                const scoped =
-                    enabled === undefined
-                        ? available
-                        : available.filter((model) => {
-                              const key = `${model.provider}/${model.id}`;
-
-                              return enabled.some(
-                                  (entry) =>
-                                      entry === key ||
-                                      entry.slice(0, entry.lastIndexOf(":")) === key,
-                              );
-                          });
+                const enabled = enabledModels();
+                const scoped = scopedModels(enabled, list, available);
 
                 const stored = await sessions.defaults();
 

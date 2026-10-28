@@ -182,7 +182,7 @@ export function ModelMenu({
                                                     : ""}
                                             </span>
                                         </span>
-                                        {key === chosen ? (
+                                        {key === current ? (
                                             <Check className="text-accent size-4 shrink-0" />
                                         ) : null}
                                         {onAddScoped !== undefined &&
