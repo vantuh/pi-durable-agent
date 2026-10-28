@@ -112,6 +112,7 @@ export function App() {
                   id: current,
                   cwd: active?.cwd ?? health?.cwd ?? null,
                   busy: state.live.busy,
+                  revision: state.live.revision ?? 0,
                   model: active?.model ?? null,
               };
 

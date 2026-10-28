@@ -223,6 +223,7 @@ function hostOf(options: {
             return Promise.resolve();
         },
         setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
         sessionRequest: () =>
             Promise.resolve({
                 model: options.model ?? model,

@@ -136,6 +136,8 @@ export type ClientLive = {
     usage: ClientUsage;
     queued?: ClientQueued[];
     status?: ClientStatus[];
+    /** Moves when an extension says the session changed in a way its entries do not show; absent until then. */
+    revision?: number;
 };
 
 /**

@@ -171,7 +171,7 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
 ```
 
 The default model is the `app.settings` session document. It survives a restart; `MODEL` is used
-until one is chosen. `live.queued` is `pi.inbox`'s messages; `live.status` is what extensions add.
+until one is chosen. `live.queued` is `pi.inbox`'s messages; `live.status` is what extensions add. `live.revision` moves when an extension called `host.notifySessionChanged` for the session (at most once per 250 ms) and is absent before that.
 
 ## The web shell
 

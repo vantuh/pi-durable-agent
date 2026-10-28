@@ -78,6 +78,12 @@ export type Host = {
      * installed; `undefined` takes it back. Dropped with the version that set it.
      */
     readonly setSessionMark: (session: number, mark: string | undefined) => void;
+    /**
+     * Says that something about a session changed which its own commits do not show, such as a
+     * conversation this extension started on its behalf. The browsers showing it learn within a
+     * moment, through `session.revision`; many calls in that moment make one change.
+     */
+    readonly notifySessionChanged: (session: number) => void;
 };
 
 /** What one request on top of a conversation may ask for beyond its own messages. */
@@ -367,6 +373,7 @@ export class Extensions {
     readonly #sessionName: Host["sessionName"];
     readonly #setSessionTitle: Host["setSessionTitle"];
     readonly #sessionListChanged: () => void;
+    readonly #sessionChanged: (session: number) => void;
     /** Per folder, the marks its live version put on session rows; dropped with that version. */
     readonly #marks = new Map<string, Map<number, string>>();
 
@@ -402,6 +409,7 @@ export class Extensions {
         sessionName?: Host["sessionName"];
         setSessionTitle?: Host["setSessionTitle"];
         sessionListChanged?: () => void;
+        sessionChanged?: (session: number) => void;
     }) {
         this.#registry = options.registry;
         this.#dir = options.dir;
@@ -417,6 +425,7 @@ export class Extensions {
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
         this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
+        this.#sessionChanged = options.sessionChanged ?? (() => undefined);
         // Node resolves symlinks, so the hook sees real paths (macOS: /var is /private/var).
         roots.add(join(realpathSync(options.dir), sep));
         versionHelpers();
@@ -855,6 +864,9 @@ export class Extensions {
                     marks.set(session, mark);
                 }
                 this.#sessionListChanged();
+            },
+            notifySessionChanged: (session) => {
+                this.#sessionChanged(session);
             },
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);

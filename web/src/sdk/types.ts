@@ -8,6 +8,11 @@ export type StatusProps = {
         id: number;
         cwd: string | null;
         busy: boolean;
+        /**
+         * Moves when an extension's server half said this session changed in a way its entries do
+         * not show (`host.notifySessionChanged`); an effect that reads such state lists it as a dependency.
+         */
+        revision: number;
         /** `provider/modelId` of the conversation's agent, or null when the server has not said. */
         model: string | null;
     } | null;

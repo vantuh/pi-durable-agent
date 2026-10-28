@@ -41,6 +41,7 @@ import { fileRoutes } from "./routes/files.ts";
 import { modelRoutes } from "./routes/models.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
 import { knownHost, sameOrigin } from "./same-origin.ts";
+import { sessionChanges } from "./session-changes.ts";
 import { type Opened, Sessions, supportedLevel } from "./sessions.ts";
 import { serveStatic } from "./static.ts";
 
@@ -54,6 +55,8 @@ const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
 /** A burst of changes (a run ending writes several) is sent as one list. */
 const LIST_DELAY_MS = 100;
+/** A child that commits all the time makes its parent's browsers ask again once per this long. */
+const CHANGE_WINDOW_MS = 250;
 /** How long stopping may wait for running work; what is still running resumes in the next process. */
 const STOP_LIMIT_MS = 10_000;
 /** `scripts/serve.ts` starts the server again when it exits with this code, and only it can. */
@@ -72,6 +75,16 @@ const clients = new Set<Client>();
 const listWatchers = new Set<ServerResponse>();
 const busy = new Map<number, boolean>();
 const latest = new Map<number, { opened: Opened; view: View }>();
+const changes = sessionChanges({
+    windowMs: CHANGE_WINDOW_MS,
+    changed: (id) => {
+        const current = latest.get(id);
+
+        if (current !== undefined) {
+            broadcast({ type: "live", session: id, live: liveOf(id, current.view) });
+        }
+    },
+});
 let listQueued = false;
 let listChain: Promise<void> = Promise.resolve();
 
@@ -225,19 +238,24 @@ async function sessionRequestOf(session: number): Promise<SessionRequest | undef
     return createSessionRequest(runtime, model, messages, agent.thinkingLevel);
 }
 
-function liveOf(view: View): ClientLive {
+function liveOf(id: number, view: View): ClientLive {
     const live = projectLive(view.docs["pi.live"], view.docs["pi.usage"], view.docs["pi.inbox"]);
     const status = extensions.statuses({
         entries: view.entries,
         contextWindow: windowOf,
     });
+    const revision = changes.revision(id);
 
-    return status.length === 0 ? live : { ...live, status };
+    return {
+        ...live,
+        ...(status.length === 0 ? {} : { status }),
+        ...(revision === 0 ? {} : { revision }),
+    };
 }
 
 /** Sends what changed since the last commit: only new entries when nothing was rewritten. */
 function publish(opened: Opened, view: View): void {
-    const live = liveOf(view);
+    const live = liveOf(opened.id, view);
     const entries = entriesOf(view);
     const ids = entries.map((entry) => entry.id);
     const grows = ids.length > opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
@@ -341,7 +359,7 @@ async function stream(response: ServerResponse, opened: Opened): Promise<void> {
         type: "hello",
         session: id,
         entries,
-        live: liveOf(view.value),
+        live: liveOf(id, view.value),
         model: MODEL,
         more:
             first === undefined
@@ -413,6 +431,7 @@ async function boot(): Promise<void> {
 
     lifecycle.onStop(() => {
         clearInterval(heartbeat);
+        changes.dispose();
 
         return Promise.resolve();
     });
@@ -451,6 +470,7 @@ async function boot(): Promise<void> {
         sessionName: sessionNameOf,
         setSessionTitle: setSessionTitleOf,
         sessionListChanged: listChanged,
+        sessionChanged: changes.notify,
         registry,
         dir: join(cwd, "extensions"),
         cwd,

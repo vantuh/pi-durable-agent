@@ -63,6 +63,7 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
             return Promise.resolve();
         },
         setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
     };
 }
 

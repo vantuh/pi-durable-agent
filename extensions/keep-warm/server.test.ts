@@ -332,6 +332,7 @@ void test("names the warmed conversations with the titles the core keeps", async
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
         setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
     };
     const at = Date.now();
 
@@ -401,6 +402,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
         setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
     };
     const at = Date.now();
     const sessions = async (): Promise<unknown> =>
@@ -469,6 +471,7 @@ void test("builds no request for a conversation the user left too long ago for a
         sessionName: () => Promise.resolve(null),
         setSessionTitle: () => Promise.resolve(),
         setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
     };
     const at = Date.now();
 
