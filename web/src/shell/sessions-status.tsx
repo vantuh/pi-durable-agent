@@ -1,11 +1,14 @@
 import { House } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState, useSyncExternalStore } from "react";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
 import { useStatusRowItems } from "../extensions.ts";
@@ -23,24 +26,171 @@ type Props = {
 };
 
 const ROW = "gap-3 px-2 py-1.5";
+const NARROW = "(max-width: 639px)";
 
-/** The markers extensions put at the end of one row; the row's link keeps the rest of its width. */
-function RowMarkers({
-    session,
-    sessions,
-    openSession,
-}: {
+function watchNarrow(notify: () => void): () => void {
+    const query = matchMedia(NARROW);
+
+    query.addEventListener("change", notify);
+
+    return () => {
+        query.removeEventListener("change", notify);
+    };
+}
+
+const isNarrow = (): boolean => matchMedia(NARROW).matches;
+
+type RowProps = {
     session: SessionSummary;
     sessions: SessionSummary[];
+    now: number;
+    /** The open session: its row is not a link, and activating it only closes the popover. */
+    isOpen: boolean;
     openSession: (id: number) => void;
-}) {
-    return useStatusRowItems()
-        .filter((item) => item.has(session, sessions))
-        .map(({ folder, id, component: Marker }) => (
-            <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
-                <Marker session={session} sessions={sessions} openSession={openSession} />
-            </ItemBoundary>
-        ));
+    onClose: () => void;
+};
+
+/**
+ * One row. Extensions put markers between its title and its time; if one of them also gives a
+ * submenu, the whole row opens it. Radix opens a submenu on click, so the click and Enter are
+ * taken over here: they still open the session.
+ *
+ * - Wide screens: the row is the submenu's Radix `SubTrigger`. Hovering opens it after Radix's
+ *   short delay; ArrowRight or Space opens it from the keyboard. A touch has no hover, so its first
+ *   tap opens the submenu and the second tap opens the session.
+ * - Narrow screens: Radix puts a submenu beside its row, and a phone has no room beside a row, so
+ *   the submenu opens below it, inside the popover. The first click or tap opens it and the second
+ *   opens the session.
+ */
+function Row({ session, sessions, now, isOpen, openSession, onClose }: RowProps) {
+    const items = useStatusRowItems().filter((item) => item.has(session, sessions));
+    const submenu = items.find((item) => item.submenu !== undefined)?.submenu;
+    const [subOpen, setSubOpen] = useState(false);
+    const pointer = useRef("mouse");
+    const narrow = useSyncExternalStore(watchNarrow, isNarrow);
+    const activate = (): void => {
+        if (isOpen) {
+            onClose();
+        } else {
+            openSession(session.id);
+        }
+    };
+    const content = (
+        <SessionRowContent
+            session={session}
+            now={now}
+            trailing={items.map(({ folder, id, component: Marker }) => (
+                <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+                    <Marker session={session} sessions={sessions} openSession={openSession} />
+                </ItemBoundary>
+            ))}
+        />
+    );
+    const look = isOpen
+        ? `bg-raised data-[highlighted]:bg-raised ${ROW}`
+        : `data-[highlighted]:bg-raised/50 ${ROW}`;
+    const link = (
+        <a
+            href={sessionHref(session.id)}
+            onClick={(event) => {
+                // A modified click is the browser's: a new tab, and the menu stays.
+                if (isPlainClick(event)) {
+                    event.preventDefault();
+                    openSession(session.id);
+                }
+            }}
+        >
+            {content}
+        </a>
+    );
+    // Under a submenu the trigger's own click handler decides, so the anchor has none.
+    const triggerLink = <a href={sessionHref(session.id)}>{content}</a>;
+
+    if (submenu === undefined) {
+        return isOpen ? (
+            <DropdownMenuItem className={look}>{content}</DropdownMenuItem>
+        ) : (
+            <DropdownMenuItem asChild className={look}>
+                {link}
+            </DropdownMenuItem>
+        );
+    }
+
+    const Submenu = submenu;
+    const body = (
+        <ItemBoundary name="status row submenu">
+            <Submenu session={session} sessions={sessions} openSession={openSession} />
+        </ItemBoundary>
+    );
+
+    if (narrow) {
+        return (
+            <>
+                <DropdownMenuItem
+                    asChild={!isOpen}
+                    className={look}
+                    aria-expanded={subOpen}
+                    onClick={(event) => {
+                        if (!isPlainClick(event)) {
+                            return;
+                        }
+
+                        event.preventDefault();
+
+                        if (subOpen) {
+                            activate();
+                        } else {
+                            setSubOpen(true);
+                        }
+                    }}
+                >
+                    {isOpen ? content : triggerLink}
+                </DropdownMenuItem>
+                {subOpen ? (
+                    <div className="border-edge-soft ml-3 max-h-[min(220px,45vh)] overflow-y-auto border-l pl-1">
+                        {body}
+                    </div>
+                ) : null}
+            </>
+        );
+    }
+
+    return (
+        <DropdownMenuSub open={subOpen} onOpenChange={setSubOpen}>
+            <DropdownMenuSubTrigger
+                asChild={!isOpen}
+                className={`w-full ${look}`}
+                onPointerDown={(event) => {
+                    pointer.current = event.pointerType;
+                }}
+                onClick={(event) => {
+                    if (!isPlainClick(event)) {
+                        return;
+                    }
+
+                    // Without preventDefault Radix opens the submenu instead of the session.
+                    event.preventDefault();
+
+                    if (pointer.current !== "mouse" && !subOpen) {
+                        setSubOpen(true);
+                    } else {
+                        activate();
+                    }
+                }}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter" && event.target === event.currentTarget) {
+                        event.preventDefault();
+                        activate();
+                    }
+                }}
+            >
+                {isOpen ? content : triggerLink}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[min(220px,45vh)] min-w-52 overflow-y-auto">
+                {body}
+            </DropdownMenuSubContent>
+        </DropdownMenuSub>
+    );
 }
 
 /** The rows; their clock is read when the menu opens, so the times hold still while it is read. */
@@ -62,38 +212,13 @@ function Rows({
         onClose();
         onOpen(id);
     };
+    const rowProps = { sessions, now, openSession, onClose };
 
     return (
         <>
-            {active === undefined ? null : (
-                <div className="flex items-center">
-                    <DropdownMenuItem className={`bg-raised data-[highlighted]:bg-raised ${ROW}`}>
-                        <SessionRowContent session={active} now={now} />
-                    </DropdownMenuItem>
-                    <RowMarkers session={active} sessions={sessions} openSession={openSession} />
-                </div>
-            )}
+            {active === undefined ? null : <Row session={active} isOpen {...rowProps} />}
             {others.map((session) => (
-                <div key={session.id} className="flex items-center">
-                    <DropdownMenuItem
-                        asChild
-                        className={`data-[highlighted]:bg-raised/50 min-w-0 flex-1 ${ROW}`}
-                    >
-                        <a
-                            href={sessionHref(session.id)}
-                            onClick={(event) => {
-                                // A modified click is the browser's: a new tab, and the menu stays.
-                                if (isPlainClick(event)) {
-                                    event.preventDefault();
-                                    openSession(session.id);
-                                }
-                            }}
-                        >
-                            <SessionRowContent session={session} now={now} />
-                        </a>
-                    </DropdownMenuItem>
-                    <RowMarkers session={session} sessions={sessions} openSession={openSession} />
-                </div>
+                <Row key={session.id} session={session} isOpen={false} {...rowProps} />
             ))}
         </>
     );

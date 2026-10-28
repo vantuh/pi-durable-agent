@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type { SessionSummary } from "../../../shared/protocol.ts";
 
 export const MINUTE = 60_000;
@@ -60,8 +62,19 @@ export function StateMark({ session }: { session: SessionSummary }) {
     );
 }
 
-/** A row of a list across folders: mark, title over folder, and time. The caller makes it a link. */
-export function SessionRowContent({ session, now }: { session: SessionSummary; now: number }) {
+/**
+ * A row of a list across folders: mark, title over folder, and time. The caller makes it a link.
+ * `trailing` sits between the title and the time, inside the same line.
+ */
+export function SessionRowContent({
+    session,
+    now,
+    trailing,
+}: {
+    session: SessionSummary;
+    now: number;
+    trailing?: ReactNode;
+}) {
     return (
         <>
             <StateMark session={session} />
@@ -73,6 +86,7 @@ export function SessionRowContent({ session, now }: { session: SessionSummary; n
                     {folderName(session.cwd)}
                 </span>
             </span>
+            {trailing}
             <span className="text-meta text-faint min-w-7 shrink-0 text-right">
                 {session.activeAt === null ? null : ago(session.activeAt, now)}
             </span>

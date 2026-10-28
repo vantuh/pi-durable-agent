@@ -1,12 +1,7 @@
-import { Bot, ChevronRight } from "lucide-react";
+import { Bot } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import {
-    DropdownMenuItem,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
-} from "@/components/ui/dropdown-menu.tsx";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type {
@@ -387,24 +382,25 @@ function WorkingAgents({
     );
 }
 
-function AgentsMarker({ session, sessions, openSession }: StatusRowProps) {
-    const kids = agentsOf(session.id, sessions).filter((kid) => kid.busy);
+// Inside the row's link, so it is only a mark and a count: the core makes the whole row the trigger.
+function AgentsMarker({ session, sessions }: StatusRowProps) {
+    const count = agentsOf(session.id, sessions).filter((kid) => kid.busy).length;
 
     return (
-        <DropdownMenuSub>
-            <DropdownMenuSubTrigger
-                aria-label={`${String(kids.length)} ${kids.length === 1 ? "agent" : "agents"} working in ${session.title ?? "New session"}`}
-                className="border-edge-soft text-muted data-[highlighted]:text-ink mr-1 min-h-8 shrink-0 gap-1.5 border px-2 py-0 font-mono text-[12px] max-lg:min-h-11"
-            >
-                <span className="state-mark working text-warn" aria-hidden />
-                <span>{kids.length}</span>
-                <ChevronRight className="text-faint !size-3" aria-hidden />
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-[min(220px,45vh)] min-w-52 overflow-y-auto">
-                <WorkingAgents parent={session} kids={kids} openSession={openSession} />
-            </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        <span className="text-meta text-muted flex shrink-0 items-center gap-1.5 tabular-nums">
+            <span className="state-mark working text-warn" aria-hidden />
+            <span aria-hidden>{count}</span>
+            <span className="sr-only">
+                {count} {count === 1 ? "agent" : "agents"} working
+            </span>
+        </span>
     );
+}
+
+function AgentsSubmenu({ session, sessions, openSession }: StatusRowProps) {
+    const kids = agentsOf(session.id, sessions).filter((kid) => kid.busy);
+
+    return <WorkingAgents parent={session} kids={kids} openSession={openSession} />;
 }
 
 export default {
@@ -415,5 +411,7 @@ export default {
     aboveComposer: [{ id: "agents", component: Agents }],
     sidebarBottom: [{ id: "agents", component: AgentsArea }],
     status: [{ id: "agents-working", slot: "start", component: AgentsWorking }],
-    statusRow: [{ id: "agents", has: hasWorkingAgent, component: AgentsMarker }],
+    statusRow: [
+        { id: "agents", has: hasWorkingAgent, component: AgentsMarker, submenu: AgentsSubmenu },
+    ],
 } satisfies WebExtension;

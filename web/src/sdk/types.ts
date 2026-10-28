@@ -111,9 +111,8 @@ export type StatusRowProps = {
 };
 
 /**
- * A marker at the end of a row of the status popover (the list opened from the status bar's
- * "working" count). The component renders inside the popover's Radix menu, so a submenu is
- * `DropdownMenuSub` from `@/components/ui/dropdown-menu`: hover, ArrowRight and Escape work as in any menu.
+ * A marker on a row of the status popover (the list opened from the status bar's "working"
+ * count), and optionally the submenu the row opens.
  */
 export type StatusRowItem = {
     id: string;
@@ -122,8 +121,21 @@ export type StatusRowItem = {
      * is idle. It runs for every session each time the status bar renders, so keep it a cheap filter.
      */
     has: (session: SessionSummary, sessions: SessionSummary[]) => boolean;
-    /** Renders the marker for a session `has` accepted. A plain function component: a `memo` or `forwardRef` object is rejected. */
+    /**
+     * The marker: rendered inside the row's link, between the title and the time, for a session
+     * `has` accepted. It is part of the row, so give it no box, border or background of its own, and
+     * make it small: the row keeps its height. A plain function component: a `memo` or `forwardRef`
+     * object is rejected.
+     */
     component: ComponentType<StatusRowProps>;
+    /**
+     * The content of a submenu opened by the whole row: on hover (Radix's delay), with ArrowRight
+     * or Space, and with the first tap on a touch screen. The core renders the Radix menu around it,
+     * so its rows are `DropdownMenuItem` from `@/components/ui/dropdown-menu`. A click or Enter on
+     * the row itself still opens the session. When several items give a submenu for one row, the
+     * first one wins. A plain function component.
+     */
+    submenu?: ComponentType<StatusRowProps>;
 };
 
 /** One item an extension adds to a session row's menu, above the core's own. */

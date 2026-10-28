@@ -283,9 +283,11 @@ profiles.
   warn colour. It counts the working agents of every parent, except the open one, and is absent
   at 0.
 - In the status popover (the list behind the "working" count), a parent row with an agent
-  working has a marker with the working mark and the count. It opens a submenu of that parent's
-  working agents; a click opens the agent. The popover has no row of its own for an agent. The
-  marker's count includes the open agent: the core does not tell a marker which session is open.
+  working has the working mark and the count inside the row, next to the time. The whole row opens
+  a submenu of that parent's working agents (hover, ArrowRight, Space); a click on the row opens
+  the parent, and a click on an agent in the submenu opens the agent. The popover has no row of
+  its own for an agent. The marker's count includes the open agent: the core does not tell a
+  marker which session is open.
 
 ### Working-agents strip
 

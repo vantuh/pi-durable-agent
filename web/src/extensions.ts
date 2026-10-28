@@ -74,7 +74,13 @@ function isSidebarBottomItem(value: unknown): value is SidebarBottomItem {
 }
 
 function isStatusRowItem(value: unknown): value is StatusRowItem {
-    return isHeaderItem(value) && typeof Reflect.get(value, "has") === "function";
+    if (!isHeaderItem(value) || typeof Reflect.get(value, "has") !== "function") {
+        return false;
+    }
+
+    const submenu: unknown = Reflect.get(value, "submenu");
+
+    return submenu === undefined || typeof submenu === "function";
 }
 
 function isSection(value: unknown): value is SettingsSection {

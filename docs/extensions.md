@@ -435,23 +435,47 @@ session.
 
 ## Markers in the status popover
 
-`web.tsx` may export `statusRow: [{ id, has, component }]`. The status bar's "working" count opens
-a list of the sessions at work. For each session, `has(session, sessions)` says whether the
-extension puts a marker on its row; the rule is generic: **a row that has a marker is listed even
-while its session is idle**, and it does not raise the "working" count. `has` is a plain function
-(no hooks) over the full session list, called for every session whenever the status bar renders,
-so keep it a cheap filter. `component` renders at the end of the row for a session `has` accepted,
-inside an error boundary, with `session`, `sessions` and `openSession(id)` (closes the popover and
-opens the session). It follows the extension's enabled switch.
+`web.tsx` may export `statusRow: [{ id, has, component, submenu? }]`. The status bar's "working"
+count opens a list of the sessions at work. For each session, `has(session, sessions)` says whether
+the extension puts a marker on its row; the rule is generic: **a row that has a marker is listed
+even while its session is idle**, and it does not raise the "working" count. `has` is a plain
+function (no hooks) over the full session list, called for every session whenever the status bar
+renders, so keep it a cheap filter.
 
+- **`component` is the marker.** It renders inside the row's link, between the title and the time,
+  inside an error boundary, with `session`, `sessions` and `openSession(id)` (closes the popover
+  and opens the session). It is part of the row, so it has no box, border or background of its
+  own, and it stays small: the row keeps the height of the other rows. It follows the extension's
+  enabled switch.
+- **`submenu` is optional and is the content of the row's submenu.** The core makes the whole row
+  the trigger of a Radix `DropdownMenuSub` and renders `DropdownMenuSubContent` around the
+  component, so the extension supplies rows (`DropdownMenuItem` from
+  `@/components/ui/dropdown-menu`) and nothing else. The first item with a `submenu` wins for a
+  row. The submenu is mounted only while it is open.
 - **Why `has` and not a component that returns `null`.** The core must know before it renders
   whether a row is listed, and a hidden Radix menu item still takes part in keyboard navigation.
-- **The core owns placement only**: the row is a flex line, the link on the left, the markers at
-  the right. The marker and its submenu are the extension's. The component renders inside the
-  popover's Radix menu, so a submenu is `DropdownMenuSub`, `DropdownMenuSubTrigger` and
-  `DropdownMenuSubContent` from `@/components/ui/dropdown-menu`: hover (after a short delay),
-  click or tap, and ArrowRight open it; ArrowLeft closes it. Radix closes the whole popover on
-  Escape, also from a submenu.
+- **Why the click is handled by the core.** Radix opens a submenu when its trigger is clicked, so
+  a trigger that is also a link needs its `onClick` to call `preventDefault()` (Radix then skips
+  its own open) and open the session itself. Hover, ArrowRight and Space still open the submenu
+  through Radix.
+
+How a row with a submenu behaves:
+
+| Input               | Wide screen (640px and up)                              | Narrow screen                                                         |
+| ------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- |
+| Mouse over the row  | Opens the submenu beside the row after Radix's delay    | Nothing (no hover on a phone)                                         |
+| Leaving the row     | Closes it, unless the pointer crosses into it           | Not applicable                                                        |
+| Click on the row    | Opens the session                                       | First click opens the submenu below the row; second opens the session |
+| Touch, first tap    | Opens the submenu; the second tap opens the session     | As the click above                                                    |
+| Enter               | Opens the session                                       | As the click above                                                    |
+| ArrowRight or Space | Opens the submenu and focuses its first row             | Space is a click                                                      |
+| ArrowLeft, Escape   | ArrowLeft closes the submenu; Escape closes the popover | Escape closes the popover                                             |
+
+Radix puts a submenu beside its row and offers no other side, which on a phone would cover the row
+or run off the screen, so below 640px the submenu opens inline under the row, inside the popover.
+Keyboard focus alone does not open the submenu: it would move focus while someone arrows through
+the list.
+
 - Sessions started from another session (`parent` in the full list) are not rows of the popover,
   as they are not in the sidebar. Whoever started them counts them, so a count of the agents is
   the extension's own status item. A child whose parent is gone is a row like any session.
