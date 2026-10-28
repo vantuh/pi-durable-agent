@@ -225,8 +225,10 @@ export class Sessions {
         }, this.#context);
     }
 
-    /** Deleting only marks the session: the transcript stays in storage, out of every list. */
+    /** Deleting stops the session's run and marks it: the transcript stays in storage, out of every list. */
     async delete(id: ConversationId): Promise<void> {
+        // A deleted session cannot be seen or stopped, so a run left in it would go on working unseen.
+        await (await this.#harness.conversation(id, this.#context))?.abort(this.#context);
         await this.#harness.commit(async (tx) => {
             (await tx.doc(DeletedDoc, id)).deleted = true;
         }, this.#context);

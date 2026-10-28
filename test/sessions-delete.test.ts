@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { createModels, fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { createRegistry, Harness } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
@@ -13,6 +14,59 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { Sessions } from "../server/sessions.ts";
 
 void describe("Sessions.delete", () => {
+    void it("stops a running conversation, so nothing works on unseen", async () => {
+        const dir = await mkdtemp(join(tmpdir(), "sessions-delete-busy-"));
+        const faux = fauxProvider();
+        const models = createModels();
+        let started: () => void = () => undefined;
+        const running = new Promise<void>((done) => {
+            started = done;
+        });
+        let aborted = false;
+
+        models.setProvider(faux.provider);
+        faux.setResponses([
+            (_context, options) =>
+                new Promise((done) => {
+                    started();
+                    options?.signal?.addEventListener("abort", () => {
+                        aborted = true;
+                        done(fauxAssistantMessage("", { stopReason: "aborted" }));
+                    });
+                }),
+        ]);
+
+        const harness = await Harness.open(
+            await openNodeSqliteStorage(join(dir, "state.sqlite")),
+            {
+                models,
+                registry: createRegistry(),
+                env: () => new NodeExecutionEnv({ cwd: dir }),
+            },
+            BACKGROUND_CONTEXT,
+        );
+        const model = { provider: faux.provider.id, modelId: faux.getModel().id };
+        const sessions = new Sessions({ harness, model, models, context: BACKGROUND_CONTEXT });
+
+        harness.resume();
+
+        try {
+            const conversation = await sessions.create(dir);
+
+            await conversation.submit(
+                { type: "input", content: [{ type: "text", text: "work" }] },
+                BACKGROUND_CONTEXT,
+            );
+            await running;
+            await sessions.delete(conversation.id);
+
+            assert.equal(aborted, true, "the model request was aborted");
+        } finally {
+            await harness.close(BACKGROUND_CONTEXT);
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+
     void it("keeps the transcript but hides the session from every list, also after a restart", async () => {
         const dir = await mkdtemp(join(tmpdir(), "sessions-delete-"));
         const model = { provider: "p", modelId: "m" };
