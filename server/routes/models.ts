@@ -12,6 +12,16 @@ export function enabledModels(): string[] | undefined {
 }
 
 /**
+ * A settings entry names a model, and may carry a suffix after a colon: Pi's thinking level for it,
+ * or a provider's own word. Only a colon can start one, so an entry without one names itself alone.
+ */
+function namesModel(entry: string, key: string): boolean {
+    const colon = entry.lastIndexOf(":");
+
+    return entry === key || (colon !== -1 && entry.slice(0, colon) === key);
+}
+
+/**
  * `enabledModels` scopes the catalog, not what has credentials: a model just added from the picker
  * is in `scoped` at once, instead of vanishing until its provider is configured.
  */
@@ -24,14 +34,14 @@ export function scopedModels<T extends { provider: string; id: string }>(
         return available;
     }
 
-    return catalog.filter((model) => {
-        const key = `${model.provider}/${model.id}`;
+    return catalog.filter((model) =>
+        enabled.some((entry) => namesModel(entry, `${model.provider}/${model.id}`)),
+    );
+}
 
-        // A trailing `:level` in a settings entry is Pi's thinking level for that model.
-        return enabled.some(
-            (entry) => entry === key || entry.slice(0, entry.lastIndexOf(":")) === key,
-        );
-    });
+/** The entries left once every entry naming `key` is gone, with its `:level` entries too. */
+export function withoutModel(enabled: readonly string[], key: string): string[] {
+    return enabled.filter((entry) => !namesModel(entry, key));
 }
 
 async function addEnabledModel(key: string, fallback: string[]): Promise<void> {
@@ -42,6 +52,19 @@ async function addEnabledModel(key: string, fallback: string[]): Promise<void> {
         settings.setEnabledModels([...current, key]);
         await settings.flush();
     }
+}
+
+/** Nothing scoped writes an empty list: the picker then offers the catalog, as when none is set. */
+async function removeEnabledModel(key: string): Promise<void> {
+    const settings = SettingsManager.create(process.cwd());
+    const current = settings.getEnabledModels();
+
+    if (current === undefined) {
+        return;
+    }
+
+    settings.setEnabledModels(withoutModel(current, key));
+    await settings.flush();
 }
 
 function modelInfo(model: Model<Api>) {
@@ -108,6 +131,24 @@ export function modelRoutes(deps: {
                     `${provider}/${modelId}`,
                     available.map((model) => `${model.provider}/${model.id}`),
                 );
+                answer(response, 200, { provider, modelId });
+            },
+        },
+        {
+            method: "DELETE",
+            path: /^\/api\/scoped$/,
+            handle: async (request, response) => {
+                const payload = record(await readJson(request));
+                const provider = string(payload?.["provider"]);
+                const modelId = string(payload?.["modelId"]);
+
+                if (provider === undefined || modelId === undefined) {
+                    answer(response, 400, { error: "provider and modelId are required" });
+
+                    return;
+                }
+
+                await removeEnabledModel(`${provider}/${modelId}`);
                 answer(response, 200, { provider, modelId });
             },
         },

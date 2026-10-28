@@ -241,6 +241,14 @@ export async function addScopedModel(choice: ModelChoice): Promise<void> {
     });
 }
 
+export async function removeScopedModel(choice: ModelChoice): Promise<void> {
+    await json("/api/scoped", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: choice.provider, modelId: choice.id }),
+    });
+}
+
 function choices(value: unknown): ModelChoice[] {
     const out: ModelChoice[] = [];
 

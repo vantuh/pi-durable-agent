@@ -17,6 +17,7 @@ import {
     setSessionArchived,
     setSessionTitle,
     addScopedModel,
+    removeScopedModel,
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
@@ -244,6 +245,12 @@ export function App() {
                                         onAddScoped={(choice) => {
                                             void (async () => {
                                                 await addScopedModel(choice);
+                                                setModels(await listModels());
+                                            })();
+                                        }}
+                                        onRemoveScoped={(choice) => {
+                                            void (async () => {
+                                                await removeScopedModel(choice);
                                                 setModels(await listModels());
                                             })();
                                         }}

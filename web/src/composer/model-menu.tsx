@@ -1,4 +1,4 @@
-import { Check, Plus } from "lucide-react";
+import { Check, Minus, Plus } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ type Props = {
     onPick: (choice: ModelChoice, level: string) => void;
     /** Absent: no button to add a model to the scoped list. */
     onAddScoped?: (choice: ModelChoice) => void;
+    /** Absent: no button to take a model out of the scoped list. */
+    onRemoveScoped?: (choice: ModelChoice) => void;
     onMakeDefault?: (choice: ModelChoice, level: string) => void;
     onClose: () => void;
 };
@@ -45,6 +47,7 @@ export function ModelMenu({
     defaultModel,
     onPick,
     onAddScoped,
+    onRemoveScoped,
     onMakeDefault,
     onClose,
 }: Props) {
@@ -200,6 +203,22 @@ export function ModelMenu({
                                                 className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
                                             >
                                                 <Plus className="size-4" />
+                                            </button>
+                                        ) : null}
+                                        {onRemoveScoped !== undefined &&
+                                        tab === "all" &&
+                                        scopedKeys.has(key) ? (
+                                            <button
+                                                type="button"
+                                                title="Remove from scoped models"
+                                                aria-label="Remove from scoped models"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    onRemoveScoped(model);
+                                                }}
+                                                className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
+                                            >
+                                                <Minus className="size-4" />
                                             </button>
                                         ) : null}
                                     </CommandItem>
