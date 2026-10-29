@@ -216,7 +216,7 @@ export function Sessions({
 }: Props) {
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
-    const [all, setAll] = useState(false);
+    const [all, setAll] = useState(true);
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
     const searchBox = useRef<HTMLInputElement>(null);
