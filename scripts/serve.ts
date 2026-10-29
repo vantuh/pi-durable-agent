@@ -3,11 +3,14 @@
  * code 75. Work in flight is durable, so it resumes in the new process.
  *
  * `pnpm serve` and `pnpm start` go through here and only through here: the server cannot start
- * itself again, so without this parent the restart answers 409.
+ * itself again, so without this parent the restart answers 409. `--open` opens the app in its own
+ * window.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
+
+import { openWindow } from "./open.ts";
 
 const RESTART_CODE = 75;
 const SERVER = join(import.meta.dirname, "../server/main.ts");
@@ -44,3 +47,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 run();
+
+if (process.argv.includes("--open")) {
+    void openWindow(`http://127.0.0.1:${process.env["PORT"] ?? "8788"}`);
+}
