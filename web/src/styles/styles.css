@@ -185,6 +185,16 @@ body {
     }
 }
 
+@keyframes drop-in {
+    from {
+        opacity: 0;
+    }
+}
+
+.animate-drop-in {
+    animation: drop-in 150ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .shimmer {
         animation: none;

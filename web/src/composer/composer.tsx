@@ -10,6 +10,7 @@ import { toast } from "../lib/toast.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { Attachments, type Pending } from "../ui/attachments.tsx";
+import { DropOverlay, useDropBatch, useWindowDrop } from "./drop-overlay.tsx";
 import { composerFiles, setComposerFiles } from "./files.ts";
 import { ComposerItems } from "./items.tsx";
 import { Queued } from "./queued.tsx";
@@ -207,6 +208,7 @@ export function Composer({
 
     const how = MODES.find((option) => option.mode === mode);
     const uploading = files.some((file) => file.state === "uploading");
+    const [batch, setBatch] = useDropBatch(files);
     const empty = text.trim() === "" && files.length === 0;
 
     // Each file shows at once as uploading and settles on its own: done with a path, or failed.
@@ -228,6 +230,7 @@ export function Composer({
         });
 
         setFiles((current) => [...current, ...fresh.map(([, pending]) => pending)]);
+        setBatch(fresh.map(([, pending]) => pending.key));
 
         for (const [file, pending] of fresh) {
             void (async () => {
@@ -245,6 +248,10 @@ export function Composer({
             })();
         }
     };
+
+    const dragging = useWindowDrop((dropped) => {
+        addFiles(dropped);
+    });
 
     // ✕ takes it out of `pi.inbox`; the agent never reads it. Answers whether it really went.
     const take = async (item: ClientQueued): Promise<boolean> => {
@@ -348,6 +355,8 @@ export function Composer({
 
     return (
         <div>
+            <DropOverlay dragging={dragging} batch={batch} />
+
             <Queued
                 items={queued}
                 onWithdraw={(item) => {
@@ -362,13 +371,6 @@ export function Composer({
 
             <div
                 className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2"
-                onDragOver={(event) => {
-                    event.preventDefault();
-                }}
-                onDrop={(event) => {
-                    event.preventDefault();
-                    addFiles([...event.dataTransfer.files]);
-                }}
                 onPaste={(event) => {
                     const pasted = [...event.clipboardData.files];
 
