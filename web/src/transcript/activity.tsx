@@ -151,7 +151,10 @@ function Mark({
         <span className="bg-canvas ring-canvas relative shrink-0 rounded-full ring-3">
             <span
                 {...(label === undefined ? {} : { "aria-label": label, role: "img" })}
-                className={cn("grid size-[19px] place-items-center rounded-full", MARK_TONES[tone])}
+                className={cn(
+                    "grid size-[19px] place-items-center rounded-full",
+                    tone === "done" && tool === "skill" ? "bg-warn/15 text-warn" : MARK_TONES[tone],
+                )}
             >
                 {tone === "pending" || tone === "running" ? (
                     <Spinner className="size-2.5" />
@@ -296,13 +299,14 @@ function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
                     tool={skill === undefined ? step.name : "skill"}
                     icons={icons}
                 />
-                {skill === undefined ? (
-                    <span className="text-ink max-w-[45%] shrink-0 truncate font-mono text-[12.5px] font-semibold">
-                        {step.name}
-                    </span>
-                ) : (
-                    <SkillBadge name={skill} />
-                )}
+                <span
+                    className={cn(
+                        "max-w-[45%] shrink-0 truncate font-mono text-[12.5px] font-semibold",
+                        skill === undefined ? "text-ink" : "text-warn",
+                    )}
+                >
+                    {skill ?? step.name}
+                </span>
                 <span className="text-muted min-w-0 flex-1 truncate font-mono text-[12.5px]">
                     {subject ?? ""}
                 </span>
