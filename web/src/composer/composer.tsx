@@ -8,6 +8,7 @@ import { toast } from "../lib/toast.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { Attachments, type Pending } from "../ui/attachments.tsx";
+import { composerFiles, setComposerFiles } from "./files.ts";
 import { ComposerItems } from "./items.tsx";
 import { Queued } from "./queued.tsx";
 
@@ -120,7 +121,13 @@ export function Composer({
             }),
         [sessionId],
     );
-    const [files, setFiles] = useState<Pending[]>([]);
+    const [files, setLocalFiles] = useState<Pending[]>(() => composerFiles(sessionId));
+    // Written through the store too, so an upload that ends after the session was left still lands.
+    const setFiles = (update: (current: Pending[]) => Pending[]): void => {
+        const next = update(composerFiles(sessionId));
+        setComposerFiles(sessionId, next);
+        setLocalFiles(next);
+    };
     // Position in history while browsing with the arrows (null: not browsing) and the draft to come back to.
     const browse = useRef<{ at: number; draft: string } | null>(null);
     const [mode, setMode] = useState<SendMode>("steer");
@@ -328,7 +335,7 @@ export function Composer({
         browse.current = null;
         setText("");
         forget(files);
-        setFiles([]);
+        setFiles(() => []);
         setMode((current) => (current === "interrupt" ? "steer" : current));
         void onSend(body, paths, busy ? mode : undefined);
     };
