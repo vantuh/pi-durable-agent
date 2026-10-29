@@ -1,6 +1,8 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import { listSkills, runCommand, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
 import { thinkingText } from "../lib/thinking.ts";
@@ -422,120 +424,125 @@ export function Composer({
                     }}
                 />
 
-                <textarea
-                    rows={2}
-                    ref={field}
-                    value={text}
-                    placeholder={
-                        busy && how !== undefined
-                            ? `${how.label}: ${how.hint}…`
-                            : "Ask the agent to change something…"
-                    }
-                    className="text-prose text-ink placeholder:text-faint block [field-sizing:content] max-h-[10lh] min-h-[2lh] w-full resize-none overflow-y-auto bg-transparent outline-none"
-                    onChange={(event) => {
-                        const value = event.target.value;
-
-                        setMarked(0);
-
-                        browse.current = null;
-                        setComposerDraft(sessionId, value);
-                        setText(value);
-                    }}
-                    onKeyDown={(event) => {
-                        const chosen = matches[Math.min(marked, matches.length - 1)];
-
-                        if (chosen !== undefined && !event.nativeEvent.isComposing) {
-                            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                                event.preventDefault();
-                                setMarked(
-                                    (marked +
-                                        (event.key === "ArrowDown" ? 1 : -1) +
-                                        matches.length) %
-                                        matches.length,
-                                );
-
-                                return;
-                            }
-
-                            if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
-                                event.preventDefault();
-                                pick(chosen);
-
-                                return;
-                            }
-
-                            if (event.key === "Escape") {
-                                setDismissed(text);
-
-                                return;
-                            }
+                <ScrollArea viewportProps={{ className: "text-prose max-h-[10lh]" }}>
+                    <textarea
+                        rows={2}
+                        ref={field}
+                        value={text}
+                        placeholder={
+                            busy && how !== undefined
+                                ? `${how.label}: ${how.hint}…`
+                                : "Ask the agent to change something…"
                         }
+                        className="text-prose text-ink placeholder:text-faint block [field-sizing:content] min-h-[2lh] w-full resize-none bg-transparent outline-none"
+                        onChange={(event) => {
+                            const value = event.target.value;
 
-                        const up = event.key === "ArrowUp";
-                        const down = event.key === "ArrowDown";
+                            setMarked(0);
 
-                        if (
-                            (up || down) &&
-                            !event.shiftKey &&
-                            !event.altKey &&
-                            !event.ctrlKey &&
-                            !event.metaKey &&
-                            !event.nativeEvent.isComposing
-                        ) {
-                            const box = event.currentTarget;
-                            const { selectionStart, selectionEnd, value } = box;
-                            const collapsed = selectionStart === selectionEnd;
-                            // Only leave the text when the caret is on its first (up) or last (down) line.
-                            const edge = up
-                                ? !value.slice(0, selectionStart).includes("\n")
-                                : !value.slice(selectionEnd).includes("\n");
+                            browse.current = null;
+                            setComposerDraft(sessionId, value);
+                            setText(value);
+                        }}
+                        onKeyDown={(event) => {
+                            const chosen = matches[Math.min(marked, matches.length - 1)];
 
-                            if (collapsed && edge) {
-                                const past = loadHistory(sessionId);
-                                const state = browse.current;
-                                let next: string | undefined;
+                            if (chosen !== undefined && !event.nativeEvent.isComposing) {
+                                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                                    event.preventDefault();
+                                    setMarked(
+                                        (marked +
+                                            (event.key === "ArrowDown" ? 1 : -1) +
+                                            matches.length) %
+                                            matches.length,
+                                    );
 
-                                if (up && past.length > 0) {
-                                    const at = state === null ? past.length - 1 : state.at - 1;
-
-                                    if (at >= 0) {
-                                        browse.current = { at, draft: state?.draft ?? value };
-                                        next = past[at];
-                                    }
-                                } else if (down && state !== null) {
-                                    if (state.at + 1 < past.length) {
-                                        browse.current = { ...state, at: state.at + 1 };
-                                        next = past[state.at + 1];
-                                    } else {
-                                        browse.current = null;
-                                        next = state.draft;
-                                    }
+                                    return;
                                 }
 
-                                if (next !== undefined) {
+                                if (
+                                    event.key === "Tab" ||
+                                    (event.key === "Enter" && !event.shiftKey)
+                                ) {
                                     event.preventDefault();
-                                    setComposerDraft(sessionId, next);
-                                    setText(next);
-                                    // Put the caret at the end once React has applied the text.
-                                    requestAnimationFrame(() => {
-                                        box.setSelectionRange(next.length, next.length);
-                                    });
-                                } else if (up || state !== null) {
-                                    event.preventDefault();
+                                    pick(chosen);
+
+                                    return;
+                                }
+
+                                if (event.key === "Escape") {
+                                    setDismissed(text);
+
+                                    return;
                                 }
                             }
-                        }
 
-                        if (
-                            event.key === "Enter" &&
-                            !event.shiftKey &&
-                            !window.matchMedia("(pointer: coarse)").matches
-                        ) {
-                            event.preventDefault();
-                            submit();
-                        }
-                    }}
-                />
+                            const up = event.key === "ArrowUp";
+                            const down = event.key === "ArrowDown";
+
+                            if (
+                                (up || down) &&
+                                !event.shiftKey &&
+                                !event.altKey &&
+                                !event.ctrlKey &&
+                                !event.metaKey &&
+                                !event.nativeEvent.isComposing
+                            ) {
+                                const box = event.currentTarget;
+                                const { selectionStart, selectionEnd, value } = box;
+                                const collapsed = selectionStart === selectionEnd;
+                                // Only leave the text when the caret is on its first (up) or last (down) line.
+                                const edge = up
+                                    ? !value.slice(0, selectionStart).includes("\n")
+                                    : !value.slice(selectionEnd).includes("\n");
+
+                                if (collapsed && edge) {
+                                    const past = loadHistory(sessionId);
+                                    const state = browse.current;
+                                    let next: string | undefined;
+
+                                    if (up && past.length > 0) {
+                                        const at = state === null ? past.length - 1 : state.at - 1;
+
+                                        if (at >= 0) {
+                                            browse.current = { at, draft: state?.draft ?? value };
+                                            next = past[at];
+                                        }
+                                    } else if (down && state !== null) {
+                                        if (state.at + 1 < past.length) {
+                                            browse.current = { ...state, at: state.at + 1 };
+                                            next = past[state.at + 1];
+                                        } else {
+                                            browse.current = null;
+                                            next = state.draft;
+                                        }
+                                    }
+
+                                    if (next !== undefined) {
+                                        event.preventDefault();
+                                        setComposerDraft(sessionId, next);
+                                        setText(next);
+                                        // Put the caret at the end once React has applied the text.
+                                        requestAnimationFrame(() => {
+                                            box.setSelectionRange(next.length, next.length);
+                                        });
+                                    } else if (up || state !== null) {
+                                        event.preventDefault();
+                                    }
+                                }
+                            }
+
+                            if (
+                                event.key === "Enter" &&
+                                !event.shiftKey &&
+                                !window.matchMedia("(pointer: coarse)").matches
+                            ) {
+                                event.preventDefault();
+                                submit();
+                            }
+                        }}
+                    />
+                </ScrollArea>
 
                 <div className="mt-1.5 flex items-center gap-1.5">
                     <button
