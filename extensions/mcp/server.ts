@@ -1,5 +1,5 @@
 /**
- * MCP: the servers in Pi's own `mcp.json`, each with a switch in Settings.
+ * MCP: the servers in Pi's own `mcp.json`, each with a switch in the Extensions dialog.
  *
  * A server can have dozens of tools, so they are not offered one by one: Pi gets one tool, `mcp`,
  * to list the servers, read a server's tools, and call one. Switching a server off closes its
@@ -18,7 +18,8 @@ import { Connections } from "./connections.ts";
 
 export const meta = {
     title: "MCP servers",
-    description: "Connects to the servers in Pi's mcp.json; switch each one on or off in Settings.",
+    description:
+        "Connects to the servers in Pi's mcp.json; switch each one on or off in the Extensions dialog.",
 };
 
 const GUIDE =
