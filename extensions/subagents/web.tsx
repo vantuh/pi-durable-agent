@@ -15,6 +15,7 @@ import type {
 
 import type { SessionSummary } from "../../shared/protocol.ts";
 import { agentsOf, areaParent, finishedAgo, hasWorkingAgent, workingAgentCount } from "./area.ts";
+import { ProfileModels } from "./profile-models.tsx";
 import { agents, type NamedAgent, type Strip, strip, type StripAgent } from "./refs.ts";
 
 const WARN_ABOVE = 70;
@@ -387,6 +388,10 @@ function AgentsSubmenu({ session, sessions, openSession }: StatusRowProps) {
     return <WorkingAgents parent={session} kids={kids} openSession={openSession} />;
 }
 
+function ModelsSection() {
+    return <ProfileModels compact />;
+}
+
 export default {
     tools: ["agent_spawn", "agent_send", "agent_stop", "agent_status"].map((id) => ({
         id,
@@ -394,6 +399,7 @@ export default {
     })),
     aboveComposer: [{ id: "agents", component: Agents }],
     sidebarBottom: [{ id: "agents", component: AgentsArea }],
+    settings: [{ id: "models", title: "Subagent models", component: ModelsSection }],
     status: [{ id: "agents-working", slot: "start", component: AgentsWorking }],
     statusRow: [
         { id: "agents", has: hasWorkingAgent, component: AgentsMarker, submenu: AgentsSubmenu },
