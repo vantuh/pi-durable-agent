@@ -337,12 +337,23 @@ export function Sessions({
     const topLevel = sidebarSessions(sessions);
     const holding = holdingRow(current, sessions);
     const folders = new Map<string, number>();
+    const lastUse = new Map<string, number>();
 
     for (const session of topLevel) {
         if (session.cwd !== null) {
             folders.set(session.cwd, (folders.get(session.cwd) ?? 0) + 1);
+            lastUse.set(
+                session.cwd,
+                Math.max(lastUse.get(session.cwd) ?? 0, session.activeAt ?? 0),
+            );
         }
     }
+
+    // The folder worked in last first; the path breaks ties, so equal times do not swap rows.
+    const ordered = [...folders].toSorted(
+        ([left], [right]) =>
+            (lastUse.get(right) ?? 0) - (lastUse.get(left) ?? 0) || left.localeCompare(right),
+    );
 
     const newest = (rows: SessionSummary[]): SessionSummary[] =>
         rows.toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
@@ -459,7 +470,7 @@ export function Sessions({
                                     </span>
                                     <span className="text-faint text-meta">{topLevel.length}</span>
                                 </DropdownMenuItem>
-                                {[...folders].map(([cwd, count]) => (
+                                {ordered.map(([cwd, count]) => (
                                     <DropdownMenuItem
                                         key={cwd}
                                         title={cwd}
