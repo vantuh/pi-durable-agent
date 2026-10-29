@@ -2,11 +2,13 @@ import {
     ChevronRight,
     CircleAlert,
     Layers,
+    Lightbulb,
     PanelLeft,
     Settings as SettingsIcon,
 } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,6 +22,28 @@ import { Markdown } from "../ui/markdown.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { AgentMessage } from "./agent-message.tsx";
 import { SessionContext } from "./session.ts";
+
+/** A message that starts with `/skill:name` shows the skill as a badge, then the request. */
+function UserText({ text }: { text: string }) {
+    const match = /^\/skill:(\S+)(?:\s+([\s\S]*))?$/.exec(text.trim());
+    const request = match?.[2];
+
+    if (match === null) {
+        return text === "" ? null : <p className="whitespace-pre-wrap">{text}</p>;
+    }
+
+    return (
+        <div className="flex flex-col items-start gap-1.5">
+            <Badge className="border-warn/40 bg-warn/15 text-warn">
+                <Lightbulb />
+                {match[1]}
+            </Badge>
+            {request === undefined || request === "" ? null : (
+                <p className="whitespace-pre-wrap">{request}</p>
+            )}
+        </div>
+    );
+}
 
 type Props = {
     session: number;
@@ -271,9 +295,7 @@ function TurnView({
                                 state: "done",
                             }))}
                         />
-                        {turn.user.text === "" ? null : (
-                            <p className="whitespace-pre-wrap">{turn.user.text}</p>
-                        )}
+                        <UserText text={turn.user.text} />
                     </div>
                 </div>
             )}
