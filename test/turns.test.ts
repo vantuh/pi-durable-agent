@@ -287,6 +287,19 @@ void describe("summarize", () => {
         );
     });
 
+    void it("says a read of a SKILL.md loaded a skill, and a read of another file did not", () => {
+        const read = (key: string, path: string) =>
+            ({ kind: "tool", key, id: key, name: "read", args: { path }, status: "done" }) as const;
+
+        assert.equal(
+            summarize(
+                [read("a", "/home/me/.pi/agent/skills/tdd/SKILL.md"), read("b", "/w/SKILL.md.bak")],
+                false,
+            ),
+            "Loaded 1 skill and read 1 file",
+        );
+    });
+
     void it("does not read the word in another argument as a commit", () => {
         assert.equal(
             summarize([bash("a", "git log --grep=commit -1"), bash("b", "cat commit.md")], false),

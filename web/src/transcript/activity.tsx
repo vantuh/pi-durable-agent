@@ -3,6 +3,7 @@ import {
     FilePlus,
     FileText,
     Folder,
+    Lightbulb,
     type LucideIcon,
     Minus,
     Pencil,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
@@ -27,6 +29,7 @@ import {
     imagesOf,
     type Item,
     outcomeOf,
+    skillOf,
     type Step,
     type StepStatus,
     subjectOf,
@@ -98,7 +101,18 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
     grep: Search,
     find: Search,
     ls: Folder,
+    skill: Lightbulb,
 };
+
+/** A skill the model loaded, as the badge of a skill the person called. */
+function SkillBadge({ name }: { name: string }) {
+    return (
+        <Badge className="border-warn/40 bg-warn/15 text-warn">
+            <Lightbulb />
+            {name}
+        </Badge>
+    );
+}
 
 type ExtensionIcons = readonly FolderToolIcon[];
 
@@ -269,6 +283,7 @@ function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
         );
     }
 
+    const skill = skillOf(step);
     const subject = subjectOf(step.name, step.args);
     const outcome = outcomeOf(step);
     const took = step.result?.durationMs;
@@ -276,10 +291,18 @@ function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
     return (
         <Collapsible>
             <CollapsibleTrigger className={STEP_HEAD}>
-                <Mark tone={step.status} tool={step.name} icons={icons} />
-                <span className="text-ink max-w-[45%] shrink-0 truncate font-mono text-[12.5px] font-semibold">
-                    {step.name}
-                </span>
+                <Mark
+                    tone={step.status}
+                    tool={skill === undefined ? step.name : "skill"}
+                    icons={icons}
+                />
+                {skill === undefined ? (
+                    <span className="text-ink max-w-[45%] shrink-0 truncate font-mono text-[12.5px] font-semibold">
+                        {step.name}
+                    </span>
+                ) : (
+                    <SkillBadge name={skill} />
+                )}
                 <span className="text-muted min-w-0 flex-1 truncate font-mono text-[12.5px]">
                     {subject ?? ""}
                 </span>
@@ -323,6 +346,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
         (step) => step.kind === "tool" && step.status === "error",
     ).length;
     const until = item.live ? now : item.endedAt;
+    const skills = [...new Set(item.steps.map(skillOf).filter((name) => name !== undefined))];
     const lone = item.steps.length === 1 && last?.kind === "thinking" ? last : undefined;
 
     return (
@@ -333,6 +357,9 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                     <span className={cn("min-w-0 flex-1 truncate", item.live && "shimmer")}>
                         {summarize(item.steps, thinking)}
                     </span>
+                    {skills.map((name) => (
+                        <SkillBadge key={name} name={name} />
+                    ))}
                     {failed > 0 ? (
                         <span className="bg-danger/15 text-danger shrink-0 rounded-full px-1.5 py-px text-[11px] font-medium">
                             {failed} failed

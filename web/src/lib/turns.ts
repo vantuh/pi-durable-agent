@@ -82,6 +82,13 @@ export function argOf(args: unknown, key: string): string | undefined {
     return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
 }
 
+/** The skill a step loaded: Pi loads one by reading its `<name>/SKILL.md`. */
+export function skillOf(step: Step): string | undefined {
+    return step.kind === "tool" && step.name === "read"
+        ? /(?:^|\/)([^/]+)\/SKILL\.md$/.exec(argOf(step.args, "path") ?? "")?.[1]
+        : undefined;
+}
+
 /** The one argument that says what a call was about: its path, command, or pattern. */
 export function subjectOf(name: string, args: unknown): string | undefined {
     for (const key of ["path", "command", "pattern", "url", "query", "name"]) {
@@ -303,7 +310,9 @@ export function summarize(steps: Step[], thinking: boolean): string {
                 : step.name === "bash" && COMMITS.test(argOf(step.args, "command") ?? "")
                   ? // The commit is a command, but a group that folded one should say so by itself.
                     { verb: "committed" }
-                  : (DID[step.name] ?? { verb: `used ${step.name}` });
+                  : skillOf(step) !== undefined
+                    ? { verb: "loaded", noun: "skill", by: "path" }
+                    : (DID[step.name] ?? { verb: `used ${step.name}` });
         const nouns = did.get(kind.verb) ?? new Map<string, Set<string>>();
 
         did.set(kind.verb, nouns);
