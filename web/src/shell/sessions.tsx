@@ -231,14 +231,30 @@ export function Sessions({
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
     const menu = useSessionMenu();
+    const [running, setRunning] = useState<ReadonlySet<string>>(new Set());
+    const runKey = (item: FolderSessionMenuItem, session: SessionSummary): string =>
+        `${String(session.id)}:${item.id}`;
+    const markRunning = (key: string, on: boolean): void => {
+        setRunning((keys) => {
+            const next = new Set(keys);
+            if (on) {
+                next.add(key);
+            } else {
+                next.delete(key);
+            }
+
+            return next;
+        });
+    };
     const runMenuItem = (item: FolderSessionMenuItem, session: SessionSummary): void => {
-        setPending(true);
+        const key = runKey(item, session);
+        markRunning(key, true);
         toast.promise(item.run(session.id), {
             loading: busyLabel(`${labelOf(item, session)}…`),
             error: (error: unknown) =>
                 error instanceof Error ? error.message : "Could not finish the action.",
             finally: () => {
-                setPending(false);
+                markRunning(key, false);
             },
         });
     };
@@ -675,7 +691,9 @@ export function Sessions({
                                                         {menu.map((item) => (
                                                             <DropdownMenuItem
                                                                 key={item.id}
-                                                                disabled={pending}
+                                                                disabled={running.has(
+                                                                    runKey(item, session),
+                                                                )}
                                                                 onSelect={() => {
                                                                     runMenuItem(item, session);
                                                                 }}
