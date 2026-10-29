@@ -212,7 +212,7 @@ export function Composer({
     const empty = text.trim() === "" && files.length === 0;
 
     // Each file shows at once as uploading and settles on its own: done with a path, or failed.
-    const addFiles = (chosen: File[]): void => {
+    const addFiles = (chosen: File[]): string[] => {
         const fresh = chosen.map((file): [File, Pending] => {
             const image = /^image\/(png|jpe?g|gif|webp)$/.test(file.type);
 
@@ -230,7 +230,6 @@ export function Composer({
         });
 
         setFiles((current) => [...current, ...fresh.map(([, pending]) => pending)]);
-        setBatch(fresh.map(([, pending]) => pending.key));
 
         for (const [file, pending] of fresh) {
             void (async () => {
@@ -250,7 +249,7 @@ export function Composer({
     };
 
     const dragging = useWindowDrop((dropped) => {
-        addFiles(dropped);
+        setBatch(addFiles(dropped));
     });
 
     // ✕ takes it out of `pi.inbox`; the agent never reads it. Answers whether it really went.
@@ -325,6 +324,8 @@ export function Composer({
         }
 
         if (name === "compact" && paths.length === 0) {
+
+        return fresh.map(([, pending]) => pending.key);
             setComposerDraft(sessionId, "");
             browse.current = null;
             setText("");
