@@ -216,6 +216,7 @@ export function Sessions({
 }: Props) {
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
+    const [all, setAll] = useState(false);
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
     const searchBox = useRef<HTMLInputElement>(null);
@@ -327,12 +328,13 @@ export function Sessions({
         }
     }
 
+    const newest = (rows: SessionSummary[]): SessionSummary[] =>
+        rows.toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
     const latest = (cwd: string | null): SessionSummary[] =>
-        topLevel
-            .filter((session) => session.cwd === cwd)
-            .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
+        newest(topLevel.filter((session) => session.cwd === cwd));
+    const scope = all ? "All" : folderName(folder);
 
-    const matches = latest(folder)
+    const matches = (all ? newest(topLevel) : latest(folder))
         .filter((session) => session.archived === archived)
         .flatMap((session) => {
             const match = fuzzyMatch(session.title ?? "New session", query);
@@ -418,7 +420,7 @@ export function Sessions({
                             >
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
-                                    {folderName(folder)}
+                                    {scope}
                                 </span>
                                 <ChevronDown className="text-faint size-3.5 shrink-0" />
                             </button>
@@ -428,11 +430,26 @@ export function Sessions({
                             className="w-(--radix-dropdown-menu-trigger-width)"
                         >
                             <ScrollArea viewportProps={{ className: "max-h-72" }}>
+                                <DropdownMenuItem
+                                    onSelect={() => {
+                                        setAll(true);
+                                    }}
+                                    className={
+                                        all ? "bg-raised" : "data-[highlighted]:bg-raised/50"
+                                    }
+                                >
+                                    <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
+                                        All
+                                    </span>
+                                    <span className="text-faint text-meta">{topLevel.length}</span>
+                                </DropdownMenuItem>
                                 {[...folders].map(([cwd, count]) => (
                                     <DropdownMenuItem
                                         key={cwd}
                                         title={cwd}
                                         onSelect={() => {
+                                            setAll(false);
+
                                             const [first] = latest(cwd);
 
                                             if (first !== undefined) {
@@ -440,7 +457,7 @@ export function Sessions({
                                             }
                                         }}
                                         className={
-                                            cwd === folder
+                                            !all && cwd === folder
                                                 ? "bg-raised"
                                                 : "data-[highlighted]:bg-raised/50"
                                         }
@@ -476,7 +493,7 @@ export function Sessions({
                                 type="search"
                                 value={query}
                                 aria-label="Search sessions"
-                                placeholder={`Search in ${folderName(folder)}`}
+                                placeholder={`Search in ${scope}`}
                                 tabIndex={searching ? undefined : -1}
                                 onChange={(event) => {
                                     setQuery(event.target.value);
