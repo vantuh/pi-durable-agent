@@ -23,6 +23,8 @@ import { type FolderToolIcon, useToolIcons } from "../extensions.ts";
 import { langOfPath } from "../lib/highlight.ts";
 import {
     argOf,
+    type GroupImage,
+    imagesOf,
     type Item,
     outcomeOf,
     type Step,
@@ -182,11 +184,6 @@ function StepBody({ step }: { step: Extract<Step, { kind: "tool" }> }) {
     const path = argOf(step.args, "path");
     const content = step.name === "write" ? argOf(step.args, "content") : undefined;
     const failed = step.status === "error";
-    const session = useSession();
-    const images = (step.result?.images ?? []).map((_image, index) => ({
-        src: `/api/entry-image?session=${String(session)}&entry=${String(step.result?.id)}&index=${String(index)}`,
-        name: `${step.name} image ${String(index + 1)}`,
-    }));
 
     if (!failed && step.result?.diff !== undefined) {
         return (
@@ -214,7 +211,6 @@ function StepBody({ step }: { step: Extract<Step, { kind: "tool" }> }) {
             {output === "" ? null : (
                 <Pre {...(failed ? { tone: "danger" as const } : {})}>{output}</Pre>
             )}
-            {session === null || images.length === 0 ? null : <ImageThumbs images={images} />}
             {step.result?.truncated === true ? (
                 <p className="text-meta text-faint">Output cut for the screen.</p>
             ) : null}
@@ -227,6 +223,29 @@ const STEP_HEAD =
 
 /** Under a step's line, in line with its label. */
 const STEP_BODY = "mt-1.5 mr-3.5 mb-3 ml-[42px] flex min-w-0 flex-col gap-2";
+
+function imageUrl(session: number, image: GroupImage): string {
+    return `/api/entry-image?session=${String(session)}&entry=${String(image.entry)}&index=${String(image.index)}`;
+}
+
+/** Pictures the group's calls returned, below its lines: seen without opening a call. */
+function GroupImages({ steps }: { steps: Step[] }) {
+    const session = useSession();
+    const images = imagesOf(steps);
+
+    if (session === null || images.length === 0) {
+        return null;
+    }
+
+    return (
+        <ImageThumbs
+            images={images.map((image) => ({
+                src: imageUrl(session, image),
+                name: image.name,
+            }))}
+        />
+    );
+}
 
 function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
     if (step.kind === "thinking") {
@@ -307,45 +326,48 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
     const lone = item.steps.length === 1 && last?.kind === "thinking" ? last : undefined;
 
     return (
-        <Collapsible className="group/fold rounded-card border-edge-soft min-w-0 overflow-hidden border">
-            <CollapsibleTrigger className="text-tool text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
-                <Chevron />
-                <span className={cn("min-w-0 flex-1 truncate", item.live && "shimmer")}>
-                    {summarize(item.steps, thinking)}
-                </span>
-                {failed > 0 ? (
-                    <span className="bg-danger/15 text-danger shrink-0 rounded-full px-1.5 py-px text-[11px] font-medium">
-                        {failed} failed
+        <>
+            <Collapsible className="group/fold rounded-card border-edge-soft min-w-0 overflow-hidden border">
+                <CollapsibleTrigger className="text-tool text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
+                    <Chevron />
+                    <span className={cn("min-w-0 flex-1 truncate", item.live && "shimmer")}>
+                        {summarize(item.steps, thinking)}
                     </span>
-                ) : null}
-                {item.startedAt === undefined || until === undefined ? null : (
-                    <span
-                        className={cn(
-                            "shrink-0 font-mono text-[11.5px] tabular-nums",
-                            item.live ? "text-accent" : "text-faint",
-                        )}
-                    >
-                        {formatDuration(until - item.startedAt)}
-                    </span>
-                )}
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-                {lone === undefined ? (
-                    <div className="relative py-1.5">
+                    {failed > 0 ? (
+                        <span className="bg-danger/15 text-danger shrink-0 rounded-full px-1.5 py-px text-[11px] font-medium">
+                            {failed} failed
+                        </span>
+                    ) : null}
+                    {item.startedAt === undefined || until === undefined ? null : (
                         <span
-                            aria-hidden="true"
-                            className="bg-edge absolute top-5 bottom-5 left-[22px] w-px"
-                        />
-                        {item.steps.map((step) => (
-                            <StepRow key={step.key} step={step} icons={icons} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="px-3 py-2.5">
-                        <ThoughtBody text={lone.text} />
-                    </div>
-                )}
-            </CollapsibleContent>
-        </Collapsible>
+                            className={cn(
+                                "shrink-0 font-mono text-[11.5px] tabular-nums",
+                                item.live ? "text-accent" : "text-faint",
+                            )}
+                        >
+                            {formatDuration(until - item.startedAt)}
+                        </span>
+                    )}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    {lone === undefined ? (
+                        <div className="relative py-1.5">
+                            <span
+                                aria-hidden="true"
+                                className="bg-edge absolute top-5 bottom-5 left-[22px] w-px"
+                            />
+                            {item.steps.map((step) => (
+                                <StepRow key={step.key} step={step} icons={icons} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="px-3 py-2.5">
+                            <ThoughtBody text={lone.text} />
+                        </div>
+                    )}
+                </CollapsibleContent>
+            </Collapsible>
+            <GroupImages steps={item.steps} />
+        </>
     );
 }

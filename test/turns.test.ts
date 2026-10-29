@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { ClientAnswerStats, ClientEntry, ClientLive } from "../shared/protocol.ts";
-import { outcomeOf, summarize, testOutcome, turnsOf } from "../web/src/lib/turns.ts";
+import type {
+    ClientAnswerStats,
+    ClientEntry,
+    ClientImage,
+    ClientLive,
+} from "../shared/protocol.ts";
+import type { Step } from "../web/src/lib/turns.ts";
+import { imagesOf, outcomeOf, summarize, testOutcome, turnsOf } from "../web/src/lib/turns.ts";
 
 const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
 
@@ -185,6 +191,43 @@ void describe("outcomeOf", () => {
             ),
             { text: "stopped", tone: "danger" },
         );
+    });
+});
+
+void describe("imagesOf", () => {
+    const tool = (id: string, entry: number, images?: ClientImage[]): Step => ({
+        kind: "tool",
+        key: id,
+        id,
+        name: "read",
+        args: {},
+        status: "done",
+        result: {
+            id: entry,
+            kind: "toolResult",
+            callId: id,
+            name: "read",
+            text: "[info] Read image file [image/png].",
+            isError: false,
+            ...(images === undefined ? {} : { images }),
+        },
+    });
+
+    void it("gathers every picture of a group's calls, in the order they came", () => {
+        const png: ClientImage = { mimeType: "image/png" };
+        const steps: Step[] = [
+            tool("a", 7, [png, png]),
+            tool("b", 9),
+            { kind: "thinking", key: "t", text: "hmm", streaming: false },
+            tool("c", 11, [png]),
+        ];
+
+        assert.deepEqual(imagesOf(steps), [
+            { entry: 7, index: 0, name: "read image 1" },
+            { entry: 7, index: 1, name: "read image 2" },
+            { entry: 11, index: 0, name: "read image 1" },
+        ]);
+        assert.deepEqual(imagesOf([]), [], "a group without pictures has no strip");
     });
 });
 

@@ -271,6 +271,27 @@ export function outcomeOf(
     }
 }
 
+/** A picture a group's calls returned: the entry that holds it, and where inside it. */
+export type GroupImage = { entry: number; index: number; name: string };
+
+/** Every picture a group's calls returned, in the order they came: one call's, then the next call's. */
+export function imagesOf(steps: Step[]): GroupImage[] {
+    return steps.flatMap((step) => {
+        if (step.kind !== "tool" || step.result?.images === undefined) {
+            return [];
+        }
+
+        const { id, images } = step.result;
+        const name = step.name;
+
+        return images.map((_image, index) => ({
+            entry: id,
+            index,
+            name: `${name} image ${String(index + 1)}`,
+        }));
+    });
+}
+
 /** "Thought, read 2 files and ran 3 commands": each kind of step once, in the order Pi first did it. */
 export function summarize(steps: Step[], thinking: boolean): string {
     const did = new Map<string, Map<string, Set<string>>>();
