@@ -1,0 +1,2 @@
+Pieces of this folder (the commit rewrite in git.ts, and the pencil and its form in web.tsx) are a
+port of pi-pocket's extensions/git-history, MIT licensed.

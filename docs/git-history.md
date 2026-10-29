@@ -29,6 +29,15 @@ It is independent of `git-stats`: disabling either does not disable the other.
   to this session. Nonempty feedback is **appended to the composer**, preserving existing text,
   once per review per page lifetime. It is **not sent to the model**. Closing without feedback
   adds nothing. Return to the conversation to edit and send the draft yourself.
+- **Pencil** on a commit row opens a small form with the current title and description. It is shown
+  only for a commit the upstream cannot reach: not an incoming commit, and either unpushed or on a
+  branch with no upstream. Saving rewrites the message of that commit and writes every commit
+  after it on the checked-out branch again with the same trees, authors and messages, so those
+  commits get new ids while the files stay exactly as they are. The index and the working tree are
+  never touched; no dirty-tree guard is needed. The branch moves with a compare-and-swap on its old
+  id, so a branch that changed meanwhile fails the save instead of losing a commit; the reflog keeps
+  the old history. Git's own refusal (a pushed commit, a commit of another branch) is shown in the
+  form. This is the only Git write in this extension; it still never fetches, checks out or pushes.
 
 The read-only history preview is limited to 400 KiB. Oversized changes are listed without a full
 preview. New symlinks are listed but never followed into files outside the checkout.

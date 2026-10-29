@@ -1,7 +1,7 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
-import { readChanges, readHistory } from "./git.ts";
+import { readChanges, readHistory, reword as rewordCommit } from "./git.ts";
 import { reviewProxy } from "./proxy.ts";
 import { Reviews } from "./reviews.ts";
 
@@ -54,6 +54,23 @@ export const actions = (host: Host): Record<string, Action> => ({
     },
     changes({ args, session }) {
         return readChanges(sessionOf(session).cwd, targetOf(args));
+    },
+    reword({ args, session }) {
+        const hash = field(args, "hash");
+        const subject = field(args, "subject");
+        const body = field(args, "body");
+        if (typeof hash !== "string" || !/^[0-9a-f]{4,64}$/i.test(hash)) {
+            throw new ActionError("Choose a commit from the history.");
+        }
+        if (typeof subject !== "string" || subject.includes("\n") || subject.trim() === "") {
+            throw new ActionError("A commit needs a title of one line.");
+        }
+        return rewordCommit(
+            sessionOf(session).cwd,
+            hash,
+            subject.trim(),
+            typeof body === "string" ? body.trim() : "",
+        );
     },
     start({ args, session }) {
         const current = sessionOf(session);

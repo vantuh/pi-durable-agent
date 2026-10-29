@@ -1,4 +1,4 @@
-/** Local Git reads only. No fetch, checkout, reword or push. */
+/** Local Git reads, and the one write of giving a local commit a new message. No fetch, checkout or push. */
 import { execFile } from "node:child_process";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
@@ -46,6 +46,53 @@ export async function git(
         throw error;
     }
 }
+function gitMessage(error: unknown): string {
+    if (typeof error === "object" && error !== null && "stderr" in error) {
+        const stderr: unknown = error.stderr;
+        if (typeof stderr === "string" && stderr.trim() !== "") {
+            return stderr.trim();
+        }
+    }
+    return error instanceof Error ? error.message : String(error);
+}
+
+/** A Git command whose failure is the person's answer, with Git's own words. */
+async function must(cwd: string, args: string[]): Promise<string> {
+    try {
+        return await git(cwd, args);
+    } catch (error) {
+        throw new ActionError(gitMessage(error));
+    }
+}
+
+/** `git commit-tree` with the message on its stdin: it prints the new commit's id. */
+function commitTree(
+    cwd: string,
+    args: string[],
+    message: string,
+    env: NodeJS.ProcessEnv,
+): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const child = execFile(
+            "git",
+            ["commit-tree", ...args, "-F", "-"],
+            {
+                cwd,
+                timeout: 15000,
+                env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...env },
+            },
+            (failure, stdout, stderr) => {
+                if (failure === null) {
+                    resolve(stdout.trim());
+                } else {
+                    reject(new ActionError(stderr.trim() || failure.message));
+                }
+            },
+        );
+        child.stdin?.end(message);
+    });
+}
+
 export async function rootOf(cwd: string): Promise<string> {
     try {
         return (await git(cwd, ["rev-parse", "--show-toplevel"])).trimEnd();
@@ -63,11 +110,11 @@ export async function resolveCommit(cwd: string, target: string): Promise<string
     ).trim();
 }
 
-const LOG = "%H%x00%h%x00%an%x00%at%x00%s";
+const LOG = "%H%x00%h%x00%an%x00%at%x00%s%x00%b";
 function commitsOf(output: string, local: Set<string>, remote: boolean): Commit[] {
     const fields = output.split("\0");
     const commits: Commit[] = [];
-    for (let index = 0; index + 4 < fields.length; index += 5) {
+    for (let index = 0; index + 5 < fields.length; index += 6) {
         const hash = fields[index] ?? "";
         commits.push({
             hash,
@@ -75,6 +122,7 @@ function commitsOf(output: string, local: Set<string>, remote: boolean): Commit[
             author: fields[index + 2] ?? "",
             at: Number(fields[index + 3]) * 1000,
             subject: fields[index + 4] ?? "",
+            body: (fields[index + 5] ?? "").trim(),
             unpushed: local.has(hash),
             remote,
         });
@@ -253,4 +301,112 @@ export async function readChanges(cwd: string, target: string, cap = PATCH_CAP):
         }
     }
     return { title, files, patch, truncated };
+}
+
+/**
+ * Gives a commit a new message, and writes again every commit after it on the checked-out branch
+ * with the same trees, authors and messages. Neither the index nor the working files are touched:
+ * no tree changes, so the files stay exactly as they are. A commit the upstream can reach is
+ * refused, since a plain push could not send the new history.
+ */
+export async function reword(
+    cwd: string,
+    hash: string,
+    subject: string,
+    body: string,
+): Promise<{ hash: string }> {
+    const root = await rootOf(cwd);
+    const target = (
+        await must(root, ["rev-parse", "--verify", "--end-of-options", `${hash}^{commit}`])
+    ).trim();
+    const head = (await must(root, ["rev-parse", "--verify", "HEAD"])).trim();
+    const reaches = (ref: string) =>
+        git(root, ["merge-base", "--is-ancestor", target, ref]).then(
+            () => true,
+            () => false,
+        );
+    if (!(await reaches("HEAD"))) {
+        throw new ActionError("Only a commit of the checked-out branch can be edited.");
+    }
+    const upstream = (
+        await git(root, ["rev-parse", "--verify", "--quiet", "@{upstream}"]).catch(() => "")
+    ).trim();
+    if (upstream !== "" && (await reaches(upstream))) {
+        throw new ActionError("This commit is pushed already: its message cannot change here.");
+    }
+    const sign = await git(root, ["config", "--bool", "commit.gpgsign"]).then(
+        (value) => value.trim() === "true",
+        () => false,
+    );
+    const later = (
+        await must(root, [
+            "rev-list",
+            "--reverse",
+            "--topo-order",
+            "--ancestry-path",
+            "--parents",
+            `${target}..${head}`,
+        ])
+    )
+        .split("\n")
+        .filter((line) => line !== "");
+    const parentsOf = async (commit: string) =>
+        (await must(root, ["show", "-s", "--format=%P", commit]))
+            .trim()
+            .split(" ")
+            .filter((parent) => parent !== "");
+    const renamed = new Map<string, string>();
+    const rewritten = (commit: string) => {
+        const found = renamed.get(commit);
+        if (found === undefined) {
+            throw new ActionError("The branch moved while the message was being rewritten.");
+        }
+        return found;
+    };
+    const steps: { commit: string; parents: string[]; message: string | null }[] = [
+        {
+            commit: target,
+            parents: await parentsOf(target),
+            message: `${subject}\n${body === "" ? "" : `\n${body}\n`}`,
+        },
+        ...later.map((line) => {
+            const [commit = "", ...parents] = line.split(" ");
+            return { commit, parents, message: null };
+        }),
+    ];
+    for (const step of steps) {
+        const [tree = "", name = "", email = "", date = "", message = ""] = (
+            await must(root, [
+                "show",
+                "-s",
+                "--date=raw",
+                "--format=%T%x00%an%x00%ae%x00%ad%x00%B",
+                step.commit,
+            ])
+        ).split("\0");
+        renamed.set(
+            step.commit,
+            await commitTree(
+                root,
+                [
+                    tree,
+                    ...step.parents.flatMap((parent) => ["-p", renamed.get(parent) ?? parent]),
+                    ...(sign ? ["-S"] : []),
+                ],
+                step.message ?? `${message.trimEnd()}\n`,
+                { GIT_AUTHOR_NAME: name, GIT_AUTHOR_EMAIL: email, GIT_AUTHOR_DATE: date },
+            ),
+        );
+    }
+    // The old id travels with the move: it fails if the branch moved meanwhile. The reflog keeps the
+    // old history, so nothing is lost.
+    await must(root, [
+        "update-ref",
+        "-m",
+        `git-history: reword ${target.slice(0, 7)}`,
+        "HEAD",
+        rewritten(head),
+        head,
+    ]);
+    return { hash: rewritten(target) };
 }

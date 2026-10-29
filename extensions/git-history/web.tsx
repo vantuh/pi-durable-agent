@@ -3,10 +3,17 @@ import {
     ArrowLeft,
     ArrowDown,
     ArrowUp,
+    Pencil,
     RefreshCw,
     LoaderCircle,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+    type FormEvent,
+    type KeyboardEvent as ReactKeyboardEvent,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 
 import {
     Dialog,
@@ -24,9 +31,11 @@ import {
     cancel,
     changes,
     history,
+    reword,
     review,
     start,
     type Changes,
+    type Commit,
     type History,
     type ReviewState,
 } from "./refs.ts";
@@ -36,6 +45,111 @@ const button =
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const running = (value: ReviewState | null) =>
     value?.state === "starting" || value?.state === "running";
+
+const fieldClass =
+    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent w-full border px-2 py-1.5 outline-none focus-visible:ring-2";
+
+function submitOnEnter(event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+        event.preventDefault();
+        event.currentTarget.form?.requestSubmit();
+    }
+}
+
+function RewordForm({
+    session,
+    commit,
+    onRewritten,
+    onClose,
+}: {
+    session: number;
+    commit: Commit;
+    onRewritten: () => void;
+    onClose: () => void;
+}) {
+    const [subject, setSubject] = useState(commit.subject);
+    const [body, setBody] = useState(commit.body);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+        // Window capture runs before the dialog's own Escape handler, which would close the whole history.
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                event.stopPropagation();
+                onClose();
+            }
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => {
+            window.removeEventListener("keydown", onKey, true);
+        };
+    }, [onClose]);
+    async function save(event: FormEvent) {
+        event.preventDefault();
+        setSaving(true);
+        setError(null);
+        try {
+            await callAction(reword, { hash: commit.hash, subject, body }, session);
+            onRewritten();
+        } catch (failure) {
+            setError(errorText(failure));
+            setSaving(false);
+        }
+    }
+    return (
+        <form
+            onSubmit={(event) => {
+                void save(event);
+            }}
+            className="border-edge-soft bg-panel space-y-2 border-t px-3 py-3"
+        >
+            <p className="text-meta text-muted">
+                <span className="font-mono">{commit.short}</span> and the commits after it get new
+                ids. The files stay as they are.
+            </p>
+            <label className="block">
+                <span className="text-meta text-muted">Title</span>
+                <input
+                    value={subject}
+                    onChange={(event) => {
+                        setSubject(event.target.value);
+                    }}
+                    onKeyDown={submitOnEnter}
+                    className={fieldClass}
+                />
+            </label>
+            <label className="block">
+                <span className="text-meta text-muted">Description</span>
+                <textarea
+                    rows={6}
+                    value={body}
+                    onChange={(event) => {
+                        setBody(event.target.value);
+                    }}
+                    onKeyDown={submitOnEnter}
+                    className={fieldClass}
+                />
+            </label>
+            {error !== null ? (
+                <p role="alert" className="text-danger text-meta">
+                    {error}
+                </p>
+            ) : null}
+            <div className="flex gap-2">
+                <button type="button" className={button} disabled={saving} onClick={onClose}>
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    className="rounded-control bg-accent text-on-accent text-interface px-4 py-1.5 font-medium disabled:opacity-40"
+                    disabled={saving || subject.trim() === ""}
+                >
+                    {saving ? "Saving…" : "Save"}
+                </button>
+            </div>
+        </form>
+    );
+}
 
 function Preview({ session, target }: { session: number; target: string }) {
     const [data, setData] = useState<Changes | null>(null);
@@ -120,6 +234,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
     const [loading, setLoading] = useState(false);
     const [starting, setStarting] = useState(false);
     const [closing, setClosing] = useState(false);
+    const [editing, setEditing] = useState<Commit | null>(null);
     const pendingStart = useRef<Promise<ReviewState | null> | null>(null);
     const [viewer, setViewer] = useState(false);
     const id = session.id;
@@ -238,7 +353,16 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
         }
     }
     const canStart = !starting && !closing && !running(state);
-    const row = (target: string, title: string, detail: string, marker?: "local" | "remote") => (
+    // A commit the upstream can reach keeps its message: a push could not send the new history.
+    const rewritable = (commit: Commit) =>
+        !commit.remote && (data?.upstream === null || commit.unpushed);
+    const row = (
+        target: string,
+        title: string,
+        detail: string,
+        marker?: "local" | "remote",
+        commit?: Commit,
+    ) => (
         <li key={target} className="border-edge-soft border-b">
             <div className="flex items-center gap-2 px-3 py-3">
                 <button
@@ -262,6 +386,19 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                     </span>
                     <span className="text-meta text-faint block truncate">{detail}</span>
                 </button>
+                {commit !== undefined && rewritable(commit) ? (
+                    <button
+                        type="button"
+                        title="Edit the commit message"
+                        aria-label="Edit the commit message"
+                        className={button}
+                        onClick={() => {
+                            setEditing((old) => (old?.hash === commit.hash ? null : commit));
+                        }}
+                    >
+                        <Pencil className="size-3.5" />
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     className={button}
@@ -275,6 +412,21 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             </div>
             {selected === target ? (
                 <Preview key={`${target}:${String(refresh)}`} session={id} target={target} />
+            ) : null}
+            {editing?.hash === target ? (
+                <RewordForm
+                    session={id}
+                    commit={editing}
+                    onClose={() => {
+                        setEditing(null);
+                    }}
+                    onRewritten={() => {
+                        setEditing(null);
+                        setSelected(null);
+                        setLoading(true);
+                        setRefresh((value) => value + 1);
+                    }}
+                />
             ) : null}
         </li>
     );
@@ -460,6 +612,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                                     : commit.unpushed
                                                       ? "local"
                                                       : undefined,
+                                                commit,
                                             ),
                                         )}
                                     </ol>

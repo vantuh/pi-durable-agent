@@ -62,6 +62,13 @@ void describe("git-history reads", () => {
         const log = await readHistory(join(repo, "nested"), 1);
         assert.equal(log.commits.length, 1);
         assert.equal(log.commits[0]?.subject, "second");
+        assert.equal(log.commits[0]?.body, "");
+        await writeFile(join(repo, "file"), "third\n");
+        const described = await commit(repo, "third\n\nthe description");
+        const full = await readHistory(repo, 1);
+        assert.equal(full.commits[0]?.hash, described);
+        assert.equal(full.commits[0]?.subject, "third");
+        assert.equal(full.commits[0]?.body, "the description");
         assert.equal(log.more, true);
         await assert.rejects(readHistory(dir, 50), /not a Git/);
         await assert.rejects(readChanges(repo, "--output=bad"), /Choose a commit/);

@@ -4,6 +4,7 @@ export type Commit = {
     hash: string;
     short: string;
     subject: string;
+    body: string;
     author: string;
     at: number;
     unpushed: boolean;
@@ -41,6 +42,7 @@ function isCommit(value: unknown): value is Commit {
         typeof value["hash"] === "string" &&
         typeof value["short"] === "string" &&
         typeof value["subject"] === "string" &&
+        typeof value["body"] === "string" &&
         typeof value["author"] === "string" &&
         number(value["at"]) &&
         typeof value["unpushed"] === "boolean" &&
@@ -131,6 +133,13 @@ export function parseReview(value: unknown): ReviewState | null {
     }
     return result;
 }
+export type Reword = { hash: string };
+function parseReword(value: unknown): Reword {
+    if (object(value) && typeof value["hash"] === "string") {
+        return { hash: value["hash"] };
+    }
+    throw new Error("Invalid reword response");
+}
 export const history = actionRef<{ limit: number }, History>(
     "git-history",
     "history",
@@ -155,4 +164,9 @@ export const cancel = actionRef<{ id: string }, ReviewState | null>(
     "git-history",
     "cancel",
     parseReview,
+);
+export const reword = actionRef<{ hash: string; subject: string; body: string }, Reword>(
+    "git-history",
+    "reword",
+    parseReword,
 );
