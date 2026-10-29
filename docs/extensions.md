@@ -845,3 +845,7 @@ note saying which `offset` continues it.
 - There is no guard against private addresses: the agent has `bash` and `curl` on the same machine,
   so refusing them here would protect nothing.
 - The name `fetch_content` is the one `pi-web-access` uses, for the same reason as `web_search`.
+
+## Hotkeys
+
+`extensions/hotkeys` binds keys to the shell's commands (`session.new`, `folder.pick`, from `@/sdk/commands.ts`) and to stepping through the sidebar's sessions; the defaults and `~/.pi/agent/hotkeys.json` are described in its `lib.ts`. Keys bind by physical position (`event.code`), so a binding works on any keyboard layout.
