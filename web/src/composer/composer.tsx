@@ -134,6 +134,10 @@ export function Composer({
     const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
     const field = useRef<HTMLTextAreaElement>(null);
+    // App keys the composer by session, so this runs on every session switch.
+    useEffect(() => {
+        field.current?.focus({ preventScroll: true });
+    }, []);
     const sentListeners = useRef(new Set<() => void>());
     const onSent = useCallback((listener: () => void) => {
         sentListeners.current.add(listener);
