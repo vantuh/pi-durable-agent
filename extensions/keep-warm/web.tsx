@@ -78,7 +78,8 @@ function nextLine(warm: WarmState, now: number): string {
 
 function Panel({
     warm,
-    others,
+    rows,
+    current,
     anchor,
     now,
     onToggle,
@@ -87,8 +88,10 @@ function Panel({
     onClose,
 }: {
     warm: WarmState;
-    /** The conversations this one is not: what the pings are for besides this one. */
-    others: WarmSession[];
+    /** Every conversation a ping is coming for. */
+    rows: WarmSession[];
+    /** The conversation the user is in: listed, but not a link. */
+    current: number;
     anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
@@ -167,25 +170,34 @@ function Panel({
                     One small request 55 min after the last, until you have been away 8 h.
                 </div>
             </div>
-            {others.length === 0 ? null : (
+            {rows.length === 0 ? null : (
                 <div className="border-edge-soft mt-2 border-t pt-2">
-                    <div className="text-faint mb-1">Also warming</div>
-                    {others.map((row) => (
+                    <div className="text-faint mb-1">Warming</div>
+                    {rows.map((row) => (
                         <div key={row.id} className="flex items-center gap-2">
-                            <a
-                                href={sessionHref(row.id)}
-                                onClick={(event) => {
-                                    // A modified click is the browser's: a new tab, and the popover stays.
-                                    if (isPlainClick(event)) {
-                                        event.preventDefault();
-                                        onOpen(row.id);
-                                        onClose();
-                                    }
-                                }}
-                                className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
-                            >
-                                {row.label}
-                            </a>
+                            {row.id === current ? (
+                                <span
+                                    aria-current="true"
+                                    className="text-ink min-w-0 flex-1 truncate"
+                                >
+                                    {row.label}
+                                </span>
+                            ) : (
+                                <a
+                                    href={sessionHref(row.id)}
+                                    onClick={(event) => {
+                                        // A modified click is the browser's: a new tab, and the popover stays.
+                                        if (isPlainClick(event)) {
+                                            event.preventDefault();
+                                            onOpen(row.id);
+                                            onClose();
+                                        }
+                                    }}
+                                    className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
+                                >
+                                    {row.label}
+                                </a>
+                            )}
                             <span className="text-faint shrink-0 text-right tabular-nums">
                                 {clock(row.nextAt)}
                             </span>
@@ -288,7 +300,8 @@ function KeepWarm({ session, openSession }: StatusItemProps) {
             {open && anchor !== null ? (
                 <Panel
                     warm={warm}
-                    others={warm.sessions.filter((row) => row.id !== session.id)}
+                    rows={warm.sessions}
+                    current={session.id}
                     anchor={anchor}
                     now={now}
                     onToggle={toggle}
