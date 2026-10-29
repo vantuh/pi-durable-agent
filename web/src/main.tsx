@@ -5,6 +5,7 @@ import { App } from "./App.tsx";
 import { Toaster } from "./components/ui/sonner.tsx";
 import { applyFlavour, currentFlavour } from "./lib/flavour.ts";
 import { registerWorker } from "./lib/register-worker.ts";
+import { followVisualViewport } from "./lib/viewport.ts";
 import { applyWidth, currentWidth } from "./lib/width.ts";
 
 import "./styles/styles.css";
@@ -12,6 +13,7 @@ import "./styles/styles.css";
 applyFlavour(currentFlavour());
 applyWidth(currentWidth());
 registerWorker();
+followVisualViewport();
 
 const root = document.getElementById("root");
 

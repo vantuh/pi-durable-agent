@@ -129,7 +129,12 @@ body,
 }
 
 body {
-    height: 100dvh;
+    position: fixed;
+    top: var(--app-top, 0);
+    left: 0;
+    width: 100%;
+    height: var(--app-height, 100dvh);
+    overflow: hidden;
 }
 
 /* While the sidebar's or a panel's edge is dragged: no text selection, and the resize cursor everywhere. */
