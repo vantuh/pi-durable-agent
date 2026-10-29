@@ -30,15 +30,22 @@ export function SessionMeta({
     sessions,
     status,
     usage,
+    openSession,
 }: {
     session: StatusProps["session"];
     sessions: SessionSummary[];
     status: ClientStatus[];
     usage: ClientUsage;
+    openSession: (id: number) => void;
 }) {
     return (
         <div className="text-meta -mt-1 flex h-6 shrink-0 flex-wrap items-center justify-center gap-x-3 overflow-hidden px-1 [&>*]:h-6">
-            <StatusItems slot="composer" session={session} sessions={sessions} />
+            <StatusItems
+                slot="composer"
+                session={session}
+                sessions={sessions}
+                openSession={openSession}
+            />
             {status
                 .filter((field) => field.slot === "composer")
                 .map((field) => (

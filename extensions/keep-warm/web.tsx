@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Switch } from "@/components/ui/switch";
+import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
-import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
 
 import { TTL } from "./due.ts";
 import {
@@ -82,6 +83,7 @@ function Panel({
     now,
     onToggle,
     onStop,
+    onOpen,
     onClose,
 }: {
     warm: WarmState;
@@ -91,6 +93,7 @@ function Panel({
     now: number;
     onToggle: (on: boolean) => void;
     onStop: (session: number, label: string) => void;
+    onOpen: (session: number) => void;
     onClose: () => void;
 }) {
     const ref = useRef<HTMLDialogElement>(null);
@@ -169,7 +172,20 @@ function Panel({
                     <div className="text-faint mb-1">Also warming</div>
                     {others.map((row) => (
                         <div key={row.id} className="flex items-center gap-2">
-                            <span className="text-muted min-w-0 flex-1 truncate">{row.label}</span>
+                            <a
+                                href={sessionHref(row.id)}
+                                onClick={(event) => {
+                                    // A modified click is the browser's: a new tab, and the popover stays.
+                                    if (isPlainClick(event)) {
+                                        event.preventDefault();
+                                        onOpen(row.id);
+                                        onClose();
+                                    }
+                                }}
+                                className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
+                            >
+                                {row.label}
+                            </a>
                             <span className="text-faint shrink-0 text-right tabular-nums">
                                 {clock(row.nextAt)}
                             </span>
@@ -193,7 +209,7 @@ function Panel({
     );
 }
 
-function KeepWarm({ session }: StatusProps) {
+function KeepWarm({ session, openSession }: StatusItemProps) {
     const [warm, setWarm] = useState<WarmState | null>(null);
     const [open, setOpen] = useState(false);
     const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
@@ -277,6 +293,7 @@ function KeepWarm({ session }: StatusProps) {
                     now={now}
                     onToggle={toggle}
                     onStop={stopWarming}
+                    onOpen={openSession}
                     onClose={close}
                 />
             ) : null}

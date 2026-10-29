@@ -21,6 +21,8 @@ export type StatusProps = {
 export type StatusItemProps = StatusProps & {
     /** Every session, unfiltered: the sidebar's list leaves out those started from another session. */
     sessions: SessionSummary[];
+    /** Opens a session in the app, as a plain click on a link to it does. */
+    openSession: (id: number) => void;
 };
 
 export type StatusItem = {

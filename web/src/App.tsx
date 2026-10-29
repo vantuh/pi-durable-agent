@@ -227,6 +227,7 @@ export function App() {
                                         slot="title"
                                         session={activeSession}
                                         sessions={sessions}
+                                        openSession={go}
                                     />
                                 }
                             />
@@ -323,6 +324,7 @@ export function App() {
                                 sessions={sessions}
                                 status={state.live.status ?? []}
                                 usage={state.live.usage}
+                                openSession={go}
                             />
                         </>
                     )}

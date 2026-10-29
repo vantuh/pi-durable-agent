@@ -8,10 +8,12 @@ export function StatusItems({
     slot,
     session,
     sessions,
+    openSession,
 }: {
     slot: ClientStatus["slot"];
     session: StatusProps["session"];
     sessions: SessionSummary[];
+    openSession: (id: number) => void;
 }) {
     const statusItems = useStatusItems();
 
@@ -19,7 +21,7 @@ export function StatusItems({
         .filter((item) => item.slot === slot)
         .map(({ folder, id, component: Item }) => (
             <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
-                <Item session={session} sessions={sessions} />
+                <Item session={session} sessions={sessions} openSession={openSession} />
             </ItemBoundary>
         ));
 }

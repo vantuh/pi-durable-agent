@@ -50,21 +50,36 @@ export function StatusBar({
                     <span className={tone === "danger" ? "text-danger" : "text-ink"}>{label}</span>
                 </SessionsStatus>
 
-                <StatusItems slot="start" session={session} sessions={sessions} />
+                <StatusItems
+                    slot="start"
+                    session={session}
+                    sessions={sessions}
+                    openSession={onOpen}
+                />
                 {at("start").map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
             </div>
 
             <div className="flex items-center gap-3">
-                <StatusItems slot="center" session={session} sessions={sessions} />
+                <StatusItems
+                    slot="center"
+                    session={session}
+                    sessions={sessions}
+                    openSession={onOpen}
+                />
                 {at("center").map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-3">
-                <StatusItems slot="end" session={session} sessions={sessions} />
+                <StatusItems
+                    slot="end"
+                    session={session}
+                    sessions={sessions}
+                    openSession={onOpen}
+                />
                 {at("end").map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
