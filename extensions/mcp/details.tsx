@@ -3,16 +3,22 @@ import { useEffect, useState } from "react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { callAction } from "@/sdk/actions.ts";
-import type { SettingsProps, WebExtension } from "@/sdk/types.ts";
+import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 
 import { type McpState, state, toggle } from "./refs.ts";
 
-function Servers(_props: SettingsProps) {
+/** The servers from mcp.json, each with a switch. */
+export default function Details({ enabled, installed }: ExtensionDetailsProps) {
+    const active = enabled && installed;
     const [current, setCurrent] = useState<McpState | undefined>();
     const [busy, setBusy] = useState<string | undefined>();
     const [error, setError] = useState<string | undefined>();
 
     useEffect(() => {
+        if (!active) {
+            return undefined;
+        }
+
         let alive = true;
 
         void (async () => {
@@ -34,20 +40,24 @@ function Servers(_props: SettingsProps) {
         return () => {
             alive = false;
         };
-    }, []);
+    }, [active]);
 
-    const change = async (name: string, enabled: boolean) => {
+    const change = async (name: string, on: boolean) => {
         setBusy(name);
         setError(undefined);
 
         try {
-            setCurrent(await callAction(toggle, { name, enabled }, null));
+            setCurrent(await callAction(toggle, { name, enabled: on }, null));
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Something went wrong.");
         } finally {
             setBusy(undefined);
         }
     };
+
+    if (!active) {
+        return <p className="text-faint text-meta">Turn the extension on to see its servers.</p>;
+    }
 
     if (current === undefined) {
         return error === undefined ? (
@@ -89,8 +99,8 @@ function Servers(_props: SettingsProps) {
                         checked={server.status !== "off"}
                         disabled={busy !== undefined}
                         aria-label={server.name}
-                        onCheckedChange={(enabled) => {
-                            void change(server.name, enabled);
+                        onCheckedChange={(on) => {
+                            void change(server.name, on);
                         }}
                     />
                 </div>
@@ -99,7 +109,3 @@ function Servers(_props: SettingsProps) {
         </div>
     );
 }
-
-export default {
-    settings: [{ id: "servers", title: "MCP servers", component: Servers }],
-} satisfies WebExtension;

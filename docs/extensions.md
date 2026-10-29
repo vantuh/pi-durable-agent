@@ -787,7 +787,7 @@ leaves the name alone instead of naming the session after a fragment of the user
 ## MCP servers
 
 `extensions/mcp` reads the servers from Pi's own `mcp.json` (`<agent dir>/mcp.json`, so profiles
-work) and connects to them with `@earendil-works/pi-mcp`. Settings lists them, each with a switch.
+work) and connects to them with `@earendil-works/pi-mcp`. The Extensions dialog lists them (`details.tsx`), each with a switch.
 
 - A server is `command` + `args` + `env` (stdio) or `url` + `headers` (Streamable HTTP). An `env` or
   `headers` value starting with `!` is a shell command whose output is the value, as in Pi's other
