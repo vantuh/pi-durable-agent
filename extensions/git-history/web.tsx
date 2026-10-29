@@ -71,6 +71,10 @@ function RewordForm({
     const [body, setBody] = useState(commit.body);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const titleRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        titleRef.current?.focus();
+    }, []);
     useEffect(() => {
         // Window capture runs before the dialog's own Escape handler, which would close the whole history.
         const onKey = (event: KeyboardEvent) => {
@@ -110,6 +114,7 @@ function RewordForm({
             <label className="block">
                 <span className="text-meta text-muted">Title</span>
                 <input
+                    ref={titleRef}
                     value={subject}
                     onChange={(event) => {
                         setSubject(event.target.value);
