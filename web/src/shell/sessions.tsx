@@ -294,6 +294,15 @@ export function Sessions({
     const dialog = useRef<HTMLDivElement | null>(null);
     // The rows on screen, so a panel opens at the height of the one it acts on instead of at the top.
     const rowNodes = useRef(new Map<number, HTMLDivElement>());
+
+    useShellCommand("session.rename", () => {
+        const target = sessions.find((session) => session.id === current);
+
+        if (target !== undefined) {
+            rowNodes.current.get(target.id)?.scrollIntoView({ block: "nearest" });
+            setRenaming({ id: target.id, name: target.name ?? "" });
+        }
+    });
     const [place, setPlace] = useState(0);
 
     useLayoutEffect(() => {

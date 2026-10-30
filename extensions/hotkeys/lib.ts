@@ -5,6 +5,7 @@ export const COMMANDS = [
     "session.new",
     "folder.pick",
     "session.search",
+    "session.rename",
     "session.prev",
     "session.next",
 ] as const;
@@ -20,6 +21,7 @@ export const DEFAULT_KEYMAP: Keymap = {
         "session.new": ["prefix+c"],
         "folder.pick": ["prefix+s"],
         "session.search": ["prefix+f"],
+        "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],
         "session.next": ["shift+right", "prefix+n"],
     },

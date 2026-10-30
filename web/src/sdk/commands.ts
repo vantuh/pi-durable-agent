@@ -5,6 +5,7 @@ export type ShellCommand =
     | "session.new"
     | "folder.pick"
     | "session.search"
+    | "session.rename"
     | "session.prev"
     | "session.next";
 
