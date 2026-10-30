@@ -7,7 +7,7 @@ import {
     PanelLeft,
     Settings as SettingsIcon,
 } from "lucide-react";
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { memo, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
 import { splitQuote } from "../lib/quote.ts";
-import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
+import { type Item, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
 import { cn } from "../lib/utils.ts";
 import { addComposerQuote } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
@@ -320,48 +320,58 @@ function TurnItem({ item }: { item: Item }) {
     );
 }
 
-function TurnView({
-    turn,
-    onOpenSession,
-}: {
-    turn: Turn;
-    onOpenSession: (session: number) => void;
-}) {
-    return (
-        <div className="flex flex-col gap-3">
-            {turn.compacted === undefined ? null : <CompactionMark {...turn.compacted} />}
-            {turn.user?.author === undefined ? null : (
-                <AgentMessage
-                    text={turn.user.text}
-                    author={turn.user.author}
-                    onOpenSession={onOpenSession}
-                />
-            )}
-            {turn.user === undefined || turn.user.author !== undefined ? null : (
-                <div className="flex justify-end">
-                    <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
-                        <Attachments
-                            files={(turn.user.files ?? []).map((file, index) => ({
-                                ...file,
-                                key: String(index),
-                                state: "done",
-                            }))}
-                        />
-                        <UserText text={turn.user.text} />
+/**
+ * One turn. It renders again only when it shows something new: a chunk of a streamed answer rebuilds every turn of the
+ * transcript, and only the turn at the end differs. `onOpenSession` comes from `useRoute`'s own `useCallback`.
+ */
+const TurnView = memo(
+    function TurnView({
+        turn,
+        onOpenSession,
+    }: {
+        turn: Turn;
+        onOpenSession: (session: number) => void;
+    }) {
+        return (
+            <div className="flex flex-col gap-3">
+                {turn.compacted === undefined ? null : <CompactionMark {...turn.compacted} />}
+                {turn.user?.author === undefined ? null : (
+                    <AgentMessage
+                        text={turn.user.text}
+                        author={turn.user.author}
+                        onOpenSession={onOpenSession}
+                    />
+                )}
+                {turn.user === undefined || turn.user.author !== undefined ? null : (
+                    <div className="flex justify-end">
+                        <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
+                            <Attachments
+                                files={(turn.user.files ?? []).map((file, index) => ({
+                                    ...file,
+                                    key: String(index),
+                                    state: "done",
+                                }))}
+                            />
+                            <UserText text={turn.user.text} />
+                        </div>
                     </div>
-                </div>
-            )}
-            {turn.items.length === 0 && !turn.live ? null : (
-                <div className="flex flex-col gap-2.5">
-                    {turn.stats === undefined && !turn.live ? null : <AnswerHeader turn={turn} />}
-                    {turn.items.map((item) => (
-                        <TurnItem key={item.key} item={item} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
+                )}
+                {turn.items.length === 0 && !turn.live ? null : (
+                    <div className="flex flex-col gap-2.5">
+                        {turn.stats === undefined && !turn.live ? null : (
+                            <AnswerHeader turn={turn} />
+                        )}
+                        {turn.items.map((item) => (
+                            <TurnItem key={item.key} item={item} />
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    },
+    (before, after) =>
+        before.onOpenSession === after.onOpenSession && sameTurn(before.turn, after.turn),
+);
 
 export function Transcript({
     session,

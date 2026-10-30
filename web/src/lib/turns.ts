@@ -557,3 +557,90 @@ function statsOf(turn: Turn, answers: AnswerEntry[]): TurnStats | undefined {
 
     return stats;
 }
+
+const sameStats = (one: TurnStats | undefined, other: TurnStats | undefined): boolean =>
+    one === other ||
+    (one !== undefined &&
+        other !== undefined &&
+        one.model === other.model &&
+        one.thinkingLevel === other.thinkingLevel &&
+        one.responses === other.responses &&
+        one.context === other.context &&
+        one.cached === other.cached &&
+        one.output === other.output &&
+        one.cost === other.cost &&
+        one.startedAt === other.startedAt &&
+        one.endedAt === other.endedAt);
+
+const sameStep = (one: Step, other: Step): boolean => {
+    if (one.kind === "thinking") {
+        return (
+            other.kind === "thinking" &&
+            one.key === other.key &&
+            one.text === other.text &&
+            one.streaming === other.streaming
+        );
+    }
+
+    return (
+        other.kind === "tool" &&
+        one.key === other.key &&
+        one.id === other.id &&
+        one.name === other.name &&
+        one.status === other.status &&
+        one.args === other.args &&
+        one.result === other.result
+    );
+};
+
+const sameItem = (one: Item, other: Item): boolean => {
+    if (one.type === "activity") {
+        return (
+            other.type === "activity" &&
+            one.key === other.key &&
+            one.live === other.live &&
+            one.startedAt === other.startedAt &&
+            one.endedAt === other.endedAt &&
+            one.steps.length === other.steps.length &&
+            one.steps.every((step, at) => {
+                const otherStep = other.steps[at];
+
+                return otherStep !== undefined && sameStep(step, otherStep);
+            })
+        );
+    }
+
+    if (one.type === "reply") {
+        return (
+            other.type === "reply" &&
+            one.key === other.key &&
+            one.text === other.text &&
+            one.streaming === other.streaming
+        );
+    }
+
+    return other.type === "error" && one.key === other.key && one.text === other.text;
+};
+
+const sameCompacted = (one: Turn["compacted"], other: Turn["compacted"]): boolean =>
+    one === undefined || other === undefined ? one === other : one.summary === other.summary;
+
+/**
+ * Whether two of `turnsOf`'s turns show the same thing, for the memo on the screen's turn: a chunk of a streamed answer
+ * builds every turn anew, and only the turn at the end differs. What a turn keeps of the entries — their arguments, a
+ * call's result, the person's message — compares by reference, and is rebuilt only when the turn itself changed.
+ */
+export function sameTurn(one: Turn, other: Turn): boolean {
+    return (
+        one.live === other.live &&
+        one.user === other.user &&
+        sameCompacted(one.compacted, other.compacted) &&
+        sameStats(one.stats, other.stats) &&
+        one.items.length === other.items.length &&
+        one.items.every((item, at) => {
+            const otherItem = other.items[at];
+
+            return otherItem !== undefined && sameItem(item, otherItem);
+        })
+    );
+}

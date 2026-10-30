@@ -7,8 +7,15 @@ import type {
     ClientImage,
     ClientLive,
 } from "../shared/protocol.ts";
-import type { Step } from "../web/src/lib/turns.ts";
-import { imagesOf, outcomeOf, summarize, testOutcome, turnsOf } from "../web/src/lib/turns.ts";
+import type { Item, Step, Turn, TurnStats } from "../web/src/lib/turns.ts";
+import {
+    imagesOf,
+    outcomeOf,
+    sameTurn,
+    summarize,
+    testOutcome,
+    turnsOf,
+} from "../web/src/lib/turns.ts";
 
 const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
 
@@ -150,6 +157,375 @@ void describe("turnsOf", () => {
         assert.equal(turns[1]?.items.length, 0, "and carries no answer of its own");
         assert.equal(new Set(turns.map((turn) => turn.key)).size, 3, "keys stay unique");
         assert.equal(turns[2]?.compacted, undefined, "and does not leak into the turn after it");
+    });
+});
+
+/**
+ * `sameTurn` is what the screen's memo on a turn asks: a chunk of a streamed answer builds every turn anew, and a turn
+ * that shows the same thing must not render again — while one that shows something new must.
+ */
+void describe("sameTurn", () => {
+    /** The turn at `index`, which each fixture below has. */
+    const at = (turns: Turn[], index: number): Turn => {
+        const turn = turns[index];
+
+        assert.ok(turn !== undefined, `turn ${String(index)}`);
+
+        return turn;
+    };
+    const question: ClientEntry = { id: 1, kind: "user", text: "hi", at: 1000 };
+    const listed: ClientEntry[] = [
+        question,
+        { id: 2, kind: "assistant", blocks: [{ type: "text", text: "hello" }], stats: stats(1000) },
+        { id: 3, kind: "user", text: "again", at: 3000 },
+    ];
+
+    void it("holds a turn that the answer arriving at the end cannot change", () => {
+        const before = turnsOf(listed, IDLE);
+        const streaming = turnsOf(listed, {
+            ...IDLE,
+            busy: true,
+            startedAt: 3000,
+            blocks: [{ type: "text", text: "an answer, one chunk at a time" }],
+        });
+
+        assert.equal(
+            sameTurn(at(before, 0), at(streaming, 0)),
+            true,
+            "a settled turn is built anew by every chunk and shows the same",
+        );
+        assert.equal(
+            sameTurn(at(before, 1), at(streaming, 1)),
+            false,
+            "the turn at the end shows the chunk",
+        );
+        assert.equal(
+            at(before, 0).user,
+            question,
+            "a turn keeps the entry it came from, so the memo can compare it by reference",
+        );
+    });
+
+    void it("says a turn changed when any one thing it shows changed", () => {
+        const args = { path: "x" };
+        const entries: ClientEntry[] = [
+            question,
+            {
+                id: 2,
+                kind: "assistant",
+                blocks: [
+                    { type: "thinking", text: "hmm" },
+                    call("a", "read", args),
+                    { type: "text", text: "an answer" },
+                ],
+                stats: stats(1000),
+                error: "the provider gave up",
+            },
+            result(3, "a", false, 2000),
+            { id: 4, kind: "compaction", summary: "so far" },
+            { id: 5, kind: "user", text: "after", at: 4000 },
+        ];
+        const turns = turnsOf(entries, IDLE);
+        /** A turn with the run's mark, a group, words, an error and the counts, and one that only marks a compaction. */
+        const shown = at(turns, 0);
+        const cut = at(turns, 1);
+        const group = (turn: Turn): Extract<Item, { type: "activity" }> => {
+            const item = turn.items[0];
+
+            assert.ok(item?.type === "activity", "the turn starts with a group");
+
+            return item;
+        };
+        const thought = (turn: Turn): Extract<Step, { kind: "thinking" }> => {
+            const step = group(turn).steps[0];
+
+            assert.ok(step?.kind === "thinking", "the group starts with the thinking");
+
+            return step;
+        };
+        const reading = (turn: Turn): Extract<Step, { kind: "tool" }> => {
+            const step = group(turn).steps[1];
+
+            assert.ok(step?.kind === "tool", "the group's call comes second");
+
+            return step;
+        };
+        const counted = (turn: Turn): TurnStats => {
+            assert.ok(turn.stats !== undefined, "the turn counts its spend");
+
+            return turn.stats;
+        };
+        const words = (turn: Turn): Extract<Item, { type: "reply" }> => {
+            const item = turn.items.find((each) => each.type === "reply");
+
+            assert.ok(item?.type === "reply", "the turn answers in words");
+
+            return item;
+        };
+        /** The turn as `turnsOf` builds it again: new containers, the entries a turn keeps still the same objects. */
+        const again = (turn: Turn): Turn => ({
+            ...turn,
+            ...(turn.user === undefined ? {} : { user: turn.user }),
+            ...(turn.compacted === undefined ? {} : { compacted: { ...turn.compacted } }),
+            ...(turn.stats === undefined ? {} : { stats: { ...turn.stats } }),
+            items: turn.items.map((item) =>
+                item.type === "activity"
+                    ? { ...item, steps: item.steps.map((step) => ({ ...step })) }
+                    : { ...item },
+            ),
+        });
+
+        /** Every field of the counts is one the answer's header shows. */
+        const counts: [string, (state: TurnStats) => void][] = [
+            [
+                "the model",
+                (state) => {
+                    state.model = "m2";
+                },
+            ],
+            [
+                "the thinking level",
+                (state) => {
+                    state.thinkingLevel = "high";
+                },
+            ],
+            [
+                "the responses",
+                (state) => {
+                    state.responses += 1;
+                },
+            ],
+            [
+                "the context",
+                (state) => {
+                    state.context += 1;
+                },
+            ],
+            [
+                "the cache",
+                (state) => {
+                    state.cached += 1;
+                },
+            ],
+            [
+                "the output",
+                (state) => {
+                    state.output += 1;
+                },
+            ],
+            [
+                "the spend",
+                (state) => {
+                    state.cost += 1;
+                },
+            ],
+            [
+                "the start",
+                (state) => {
+                    state.startedAt = 1;
+                },
+            ],
+            [
+                "the end",
+                (state) => {
+                    state.endedAt = 1;
+                },
+            ],
+        ];
+
+        for (const [what, change] of counts) {
+            const changed = again(shown);
+
+            change(counted(changed));
+            assert.equal(sameTurn(shown, changed), false, what);
+        }
+
+        assert.equal(sameTurn(shown, again(shown)), true, "built again, a turn shows the same");
+        assert.equal(
+            reading(shown).args,
+            args,
+            "a turn keeps the arguments the entry holds, so the memo can compare them by reference",
+        );
+        assert.equal(
+            sameTurn(cut, again(cut)),
+            true,
+            "and so does one that only marks a compaction",
+        );
+
+        const changes: [string, Turn, (turn: Turn) => void][] = [
+            [
+                "the run's mark",
+                shown,
+                (turn) => {
+                    turn.live = !turn.live;
+                },
+            ],
+            [
+                "what the person asked",
+                shown,
+                (turn) => {
+                    turn.user = { ...question, text: "another question" };
+                },
+            ],
+            [
+                "the group's clock",
+                shown,
+                (turn) => {
+                    group(turn).startedAt = 1;
+                },
+            ],
+            [
+                "the group's end",
+                shown,
+                (turn) => {
+                    group(turn).endedAt = 1;
+                },
+            ],
+            [
+                "the group's mark",
+                shown,
+                (turn) => {
+                    group(turn).live = !group(turn).live;
+                },
+            ],
+            [
+                "a thought's words",
+                shown,
+                (turn) => {
+                    thought(turn).text = "other";
+                },
+            ],
+            [
+                "a thought arriving",
+                shown,
+                (turn) => {
+                    thought(turn).streaming = !thought(turn).streaming;
+                },
+            ],
+            [
+                "a call's name",
+                shown,
+                (turn) => {
+                    reading(turn).name = "bash";
+                },
+            ],
+            [
+                "a call's status",
+                shown,
+                (turn) => {
+                    reading(turn).status = "error";
+                },
+            ],
+            [
+                "a call's arguments",
+                shown,
+                (turn) => {
+                    reading(turn).args = { path: "y" };
+                },
+            ],
+            [
+                "a call's result",
+                shown,
+                (turn) => {
+                    reading(turn).result = {
+                        id: 9,
+                        kind: "toolResult",
+                        callId: "a",
+                        name: "read",
+                        text: "other",
+                        isError: false,
+                    };
+                },
+            ],
+            [
+                "the answer's words",
+                shown,
+                (turn) => {
+                    words(turn).text = "another";
+                },
+            ],
+            [
+                "the answer arriving",
+                shown,
+                (turn) => {
+                    const item = words(turn);
+
+                    item.streaming = !item.streaming;
+                },
+            ],
+            [
+                "the error it shows",
+                shown,
+                (turn) => {
+                    const item = turn.items.find((each) => each.type === "error");
+
+                    if (item?.type === "error") {
+                        item.text = "another";
+                    }
+                },
+            ],
+            [
+                "a step more",
+                shown,
+                (turn) => {
+                    group(turn).steps.push({
+                        kind: "thinking",
+                        key: "t1:a0:9",
+                        text: "more",
+                        streaming: false,
+                    });
+                },
+            ],
+            [
+                "a step fewer",
+                shown,
+                (turn) => {
+                    group(turn).steps.pop();
+                },
+            ],
+            [
+                "an item more",
+                shown,
+                (turn) => {
+                    turn.items.push({
+                        type: "reply",
+                        key: "t1:r9",
+                        text: "more",
+                        streaming: false,
+                    });
+                },
+            ],
+            [
+                "an item fewer",
+                shown,
+                (turn) => {
+                    turn.items.pop();
+                },
+            ],
+            [
+                "the compaction's summary",
+                cut,
+                (turn) => {
+                    if (turn.compacted !== undefined) {
+                        turn.compacted.summary = "another";
+                    }
+                },
+            ],
+            [
+                "a marker with nothing to open",
+                cut,
+                (turn) => {
+                    turn.compacted = {};
+                },
+            ],
+        ];
+
+        for (const [what, turn, change] of changes) {
+            const changed = again(turn);
+
+            change(changed);
+            assert.equal(sameTurn(turn, changed), false, what);
+        }
     });
 });
 
