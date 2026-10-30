@@ -671,9 +671,10 @@ export class Extensions {
 
             const attempt: Disposer[] = [];
             const commits: CommitListener[] = [];
+            const providers: (() => void)[] = [];
 
             try {
-                const built = await this.#build(folder, attempt, commits);
+                const built = await this.#build(folder, attempt, commits, providers);
 
                 if (built === "disabled") {
                     this.#drop(folder, "disabled");
@@ -698,7 +699,7 @@ export class Extensions {
                     this.#deliver(folder, commits, view);
                 }
 
-                await this.#swap(folder, attempt);
+                await this.#swap(folder, attempt, providers);
                 if (changed !== undefined && built !== "disabled") {
                     notices.push({
                         level: "success",
@@ -822,6 +823,7 @@ export class Extensions {
         folder: string,
         attempt: Disposer[],
         commits: CommitListener[],
+        providers: (() => void)[],
     ): Promise<
         | {
               extension: Extension;
@@ -894,11 +896,25 @@ export class Extensions {
                 });
             },
             registerModelProvider: (provider) => {
-                const unregister = this.#registerModelProvider(provider);
+                let unregister: (() => void) | undefined;
+                let stopped = false;
 
-                attempt.push(unregister);
+                // Registered on the swap, not here: a build that throws must leave the live one in place.
+                providers.push(() => {
+                    if (!stopped) {
+                        unregister = this.#registerModelProvider(provider);
+                    }
+                });
 
-                return unregister;
+                const stop = (): void => {
+                    stopped = true;
+                    unregister?.();
+                    unregister = undefined;
+                };
+
+                attempt.push(stop);
+
+                return stop;
             },
             shapeModelRequests: (shape) => {
                 this.#shapers.add(shape);
@@ -967,11 +983,18 @@ export class Extensions {
         this.#log(`extensions: ${folder} ${why}`);
     }
 
-    /** Makes `next` the live disposers of the folder, then runs the ones it replaced. */
-    async #swap(folder: string, next: Disposer[]): Promise<void> {
+    /** Makes `next` the live disposers of the folder, registers its providers, then runs the ones it replaced. */
+    async #swap(
+        folder: string,
+        next: Disposer[],
+        providers: readonly (() => void)[] = [],
+    ): Promise<void> {
         const old = this.#disposers.get(folder) ?? [];
 
         this.#disposers.set(folder, next);
+        for (const register of providers) {
+            register();
+        }
         this.#dropMarks(folder);
         await this.#run(folder, old);
     }

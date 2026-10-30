@@ -84,6 +84,60 @@ void describe("Extensions disposers", () => {
         assert.equal(extensions.requestShapers.length, 0);
     });
 
+    void it("keeps the live model provider when the replacement's build fails", async () => {
+        // Mimics the real registry: replace by id, and unregister only what is still in place.
+        const providers = new Map<string, unknown>();
+        const registering = (fail: boolean): string => `export default function (host) {
+            host.registerModelProvider({ id: "p" });
+            ${fail ? 'throw new Error("broken");' : "return { name: host.name };"}
+        }`;
+        const versioned = new Extensions({
+            notify: (notice) => {
+                notices.push(notice);
+            },
+            registry: createRegistry(),
+            dir,
+            cwd: root,
+            dataDir: root,
+            log: () => undefined,
+            registerModelProvider: (provider) => {
+                providers.set(provider.id, provider);
+
+                return () => {
+                    if (providers.get(provider.id) === provider) {
+                        providers.delete(provider.id);
+                    }
+                };
+            },
+        });
+
+        try {
+            await write("alpha", registering(false));
+            await versioned.load(new Set(["alpha"]));
+            const live = providers.get("p");
+
+            assert.notEqual(live, undefined);
+
+            await write("alpha", registering(true));
+            await versioned.load(new Set(["alpha"]));
+
+            assert.deepEqual(versioned.names, ["alpha"]);
+            assert.equal(providers.get("p"), live);
+            assert.deepEqual(
+                notices.filter(({ level }) => level === "error"),
+                [
+                    {
+                        level: "error",
+                        message:
+                            "Could not load extension “alpha”: broken. Previous version is still active.",
+                    },
+                ],
+            );
+        } finally {
+            await versioned.dispose();
+        }
+    });
+
     beforeEach(async () => {
         root = await mkdtemp(join(tmpdir(), "extensions-test-"));
         dir = join(root, "extensions");
