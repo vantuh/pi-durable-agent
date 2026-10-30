@@ -22,8 +22,7 @@ import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { createServer as createViteServer } from "vite";
 
-import { Chromium } from "../extensions/browser/lib/cdp.ts";
-import { findBrowser } from "../extensions/browser/lib/discovery.ts";
+import type { Chromium } from "../extensions/browser/lib/cdp.ts";
 import { hasOlder, historyPage } from "../server/history.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import { projectEntry } from "../server/projection.ts";
@@ -110,11 +109,43 @@ type Screen = {
     until: (expression: string, within: number) => Promise<boolean>;
 };
 
+/** The Chromium the app is opened in, as the extension that owns it exposes it. */
+type Browser = {
+    launch: (executable: string, profile: string, extra: readonly string[]) => Promise<Chromium>;
+    findBrowser: () => string | undefined;
+};
+
+/**
+ * Driving Chromium is an extension's job, so the core's tests cannot import it statically: a checkout without
+ * `extensions/browser` would fail to run this file instead of skipping it.
+ */
+async function loadBrowser(): Promise<Browser | undefined> {
+    try {
+        const [cdp, discovery] = await Promise.all([
+            import("../extensions/browser/lib/cdp.ts"),
+            import("../extensions/browser/lib/discovery.ts"),
+        ]);
+
+        return {
+            launch: (executable, profile, extra) => cdp.Chromium.launch(executable, profile, extra),
+            findBrowser: discovery.findBrowser,
+        };
+    } catch (error) {
+        // Only an absent folder skips: a file that is there and broken must fail the test, not hide it.
+        if (!(error instanceof Error) || Reflect.get(error, "code") !== "ERR_MODULE_NOT_FOUND") {
+            throw error;
+        }
+
+        return undefined;
+    }
+}
+
 /**
  * The app the person uses, served from its sources, over one conversation with a compaction and a short tail, and
  * opened in a real browser. Everything it needs, it asks for on its own; `when` looks at what it does.
  */
 async function withApp(
+    chromium: Browser,
     executable: string,
     options: {
         /** Every `/api/history` answer is a 500. */
@@ -146,8 +177,12 @@ async function withApp(
         release();
     }
 
+    // A cache of its own: `node_modules/.vite` belongs to the dev server, and a second Vite writing its
+    // dependencies there makes that server re-optimize and reload the page under the person using it.
+    const viteCache = await mkdtemp(join(tmpdir(), "older-page-vite-"));
     const vite = await createViteServer({
         server: { middlewareMode: true, hmr: false },
+        cacheDir: viteCache,
         appType: "spa",
     });
     const server = createServer((request, response) => {
@@ -276,7 +311,7 @@ async function withApp(
 
         assert.ok(address !== null && typeof address === "object");
 
-        browser = await Chromium.launch(executable, profile, []);
+        browser = await chromium.launch(executable, profile, []);
         const connection = browser.connection;
         const opened = await connection.send("Target.createTarget", { url: "about:blank" });
         const attached = await connection.send("Target.attachToTarget", {
@@ -336,6 +371,7 @@ async function withApp(
         server.closeAllConnections();
         await new Promise<void>((done) => server.close(() => done()));
         await vite.close();
+        await rm(viteCache, { recursive: true, force: true });
         await seeded.close();
         await rm(profile, { recursive: true, force: true });
     }
@@ -343,7 +379,15 @@ async function withApp(
 
 void describe("the transcript's older pages", () => {
     void it("asks for them when the view cannot scroll", async (t) => {
-        const executable = findBrowser();
+        const chromium = await loadBrowser();
+
+        if (chromium === undefined) {
+            t.skip("needs extensions/browser to drive Chromium");
+
+            return;
+        }
+
+        const executable = chromium.findBrowser();
 
         if (executable === undefined) {
             t.skip("this machine has no Chromium to open the app in");
@@ -351,7 +395,7 @@ void describe("the transcript's older pages", () => {
             return;
         }
 
-        await withApp(executable, { hold: true }, async (screen) => {
+        await withApp(chromium, executable, { hold: true }, async (screen) => {
             assert.equal(
                 await screen.until(TAIL_SHOWN, LOAD_MS),
                 true,
@@ -402,7 +446,15 @@ void describe("the transcript's older pages", () => {
     // The ask moved into the layout effect, which runs on every commit: a failed answer changes the state, the state
     // changes the commit, and an unguarded effect asks again — a restart or a dropped connection would be a burst.
     void it("asks once for a page that never arrives", async (t) => {
-        const executable = findBrowser();
+        const chromium = await loadBrowser();
+
+        if (chromium === undefined) {
+            t.skip("needs extensions/browser to drive Chromium");
+
+            return;
+        }
+
+        const executable = chromium.findBrowser();
 
         if (executable === undefined) {
             t.skip("this machine has no Chromium to open the app in");
@@ -410,7 +462,7 @@ void describe("the transcript's older pages", () => {
             return;
         }
 
-        await withApp(executable, { fails: true }, async (screen) => {
+        await withApp(chromium, executable, { fails: true }, async (screen) => {
             assert.equal(
                 await screen.until(TAIL_SHOWN, LOAD_MS),
                 true,
