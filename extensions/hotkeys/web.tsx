@@ -1,22 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { callAction } from "@/sdk/actions.ts";
 import { runCommand } from "@/sdk/commands.ts";
-import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
+import type { WebExtension } from "@/sdk/types.ts";
 
-import { DEFAULT_KEYMAP, step, type Command, type Keymap } from "./lib.ts";
-import { neighbour } from "./neighbour.ts";
+import { DEFAULT_KEYMAP, step, type Keymap } from "./lib.ts";
 import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
 
-function Hotkeys(props: StatusItemProps) {
+function Hotkeys() {
     const [label, setLabel] = useState<string | null>(null);
-    const latest = useRef(props);
-
-    useEffect(() => {
-        latest.current = props;
-    });
 
     useEffect(() => {
         let map: Keymap | null = null;
@@ -33,24 +27,6 @@ function Hotkeys(props: StatusItemProps) {
                 timer = setTimeout(() => {
                     arm(false);
                 }, ARMED_MS);
-            }
-        };
-
-        const run = (command: Command): void => {
-            const { session, sessions, openSession } = latest.current;
-
-            if (command === "session.prev" || command === "session.next") {
-                const target = neighbour(
-                    sessions,
-                    session?.id ?? null,
-                    command === "session.next" ? 1 : -1,
-                );
-
-                if (target !== null) {
-                    openSession(target);
-                }
-            } else {
-                runCommand(command);
             }
         };
 
@@ -78,7 +54,7 @@ function Hotkeys(props: StatusItemProps) {
             }
 
             if (result.command !== null && !event.repeat) {
-                run(result.command);
+                runCommand(result.command);
             }
         };
 

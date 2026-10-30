@@ -384,6 +384,31 @@ export function Sessions({
         );
     const shown = matches.map((match) => match.session);
     const hits = new Map(matches.map((match) => [match.session.id, match.ranges]));
+    // The rows in the order they are drawn, so stepping follows the folder, archive and search filters.
+    const visible = GROUPS.flatMap((group) =>
+        shown.filter((session) => groupOf(session.activeAt, now) === group),
+    );
+    const stepTo = (step: 1 | -1): void => {
+        const at = visible.findIndex((session) => session.id === (holding ?? current));
+        const index =
+            at === -1
+                ? step === 1
+                    ? 0
+                    : visible.length - 1
+                : (at + step + visible.length) % visible.length;
+        const target = visible[index];
+
+        if (target !== undefined) {
+            onSelect(target.id);
+        }
+    };
+
+    useShellCommand("session.prev", () => {
+        stepTo(-1);
+    });
+    useShellCommand("session.next", () => {
+        stepTo(1);
+    });
 
     return (
         <aside

@@ -4,9 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import type { SessionSummary } from "../../shared/protocol.ts";
 import { DEFAULT_KEYMAP, mergeKeymap, parseBinding, step, type KeyEvent } from "./lib.ts";
-import { neighbour } from "./neighbour.ts";
 import { readKeymap } from "./server.ts";
 
 function key(code: string, modifiers: Partial<KeyEvent> = {}): KeyEvent {
@@ -22,26 +20,6 @@ function key(code: string, modifiers: Partial<KeyEvent> = {}): KeyEvent {
 }
 
 const ctrlA = key("KeyA", { ctrlKey: true });
-
-function session(
-    id: number,
-    activeAt: number,
-    extra: Partial<SessionSummary> = {},
-): SessionSummary {
-    return {
-        id,
-        archived: false,
-        name: null,
-        title: null,
-        cwd: null,
-        model: null,
-        thinkingLevel: null,
-        busy: false,
-        activeAt,
-        unseen: false,
-        ...extra,
-    };
-}
 
 void test("parseBinding maps keys to layout-independent codes", () => {
     assert.deepEqual(parseBinding("ctrl+a"), {
@@ -211,54 +189,4 @@ void test("readKeymap reads hotkeys.json from the given directory", async () => 
 
     await writeFile(join(dir, "hotkeys.json"), "{ not json");
     assert.deepEqual(await readKeymap(dir), DEFAULT_KEYMAP);
-});
-
-void test("neighbour steps through the sidebar's rows, newest first, and wraps", () => {
-    const sessions = [
-        session(1, 10),
-        session(2, 30),
-        session(3, 20),
-        session(4, 40, { archived: true }),
-    ];
-
-    // Rows: 2, 3, 1.
-    assert.equal(neighbour(sessions, 2, 1), 3);
-    assert.equal(neighbour(sessions, 3, 1), 1);
-    assert.equal(neighbour(sessions, 1, 1), 2);
-    assert.equal(neighbour(sessions, 2, -1), 1);
-    assert.equal(neighbour(sessions, 3, -1), 2);
-});
-
-void test("neighbour from home: next is the first row, previous the last", () => {
-    const sessions = [session(1, 10), session(2, 30), session(3, 20)];
-
-    assert.equal(neighbour(sessions, null, 1), 2);
-    assert.equal(neighbour(sessions, null, -1), 1);
-    assert.equal(neighbour([], null, 1), null);
-});
-
-void test("neighbour steps from an archived session's own place in the list", () => {
-    const sessions = [session(1, 10), session(2, 30, { archived: true }), session(3, 20)];
-
-    // The archived 2 sits first: next is 3, previous wraps to 1.
-    assert.equal(neighbour(sessions, 2, 1), 3);
-    assert.equal(neighbour(sessions, 2, -1), 1);
-});
-
-void test("neighbour steps from the row that holds a nested session", () => {
-    const sessions = [
-        session(1, 30),
-        session(2, 20),
-        session(3, 10),
-        session(4, 50, { parent: 2 }),
-    ];
-
-    // Rows: 1, 2, 3. Session 4 was started from 2.
-    assert.equal(neighbour(sessions, 4, 1), 3);
-    assert.equal(neighbour(sessions, 4, -1), 1);
-});
-
-void test("neighbour with a single row stays on it", () => {
-    assert.equal(neighbour([session(1, 10)], 1, 1), 1);
-    assert.equal(neighbour([session(1, 10)], 1, -1), 1);
 });
