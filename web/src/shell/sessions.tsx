@@ -17,6 +17,7 @@ import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
     useEffect,
+    useLayoutEffect,
     useRef,
     useState,
 } from "react";
@@ -288,6 +289,28 @@ export function Sessions({
         });
     };
     const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
+    const shell = useRef<HTMLElement | null>(null);
+    const form = useRef<HTMLFormElement | null>(null);
+    // The rows on screen, so the form opens at the height of the one it edits instead of at the top.
+    const rowNodes = useRef(new Map<number, HTMLDivElement>());
+    const [place, setPlace] = useState(0);
+
+    useLayoutEffect(() => {
+        const side = shell.current?.getBoundingClientRect();
+        const row = renaming === null ? undefined : rowNodes.current.get(renaming.id);
+
+        if (side === undefined || row === undefined || form.current === null) {
+            return;
+        }
+
+        const rowTop = row.getBoundingClientRect().top - side.top;
+        // Kept inside the sidebar: a row at the bottom would otherwise push the form past its edge.
+        const lowest = side.height - form.current.offsetHeight - 8;
+        const next = Math.min(Math.max(rowTop, 8), Math.max(lowest, 8));
+
+        setPlace(next);
+    }, [renaming]);
+
     const saveName = async (): Promise<void> => {
         if (renaming === null) {
             return;
@@ -433,6 +456,7 @@ export function Sessions({
 
     return (
         <aside
+            ref={shell}
             data-collapsed={collapsed ? "" : undefined}
             className={`group/side rounded-card border-edge-soft bg-canvas shrink-0 flex-col border in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[38px] ${
                 sheet ? "fixed inset-2 z-30 flex" : "hidden"
@@ -679,6 +703,13 @@ export function Sessions({
                                         return (
                                             <div
                                                 key={session.id}
+                                                ref={(node) => {
+                                                    if (node === null) {
+                                                        rowNodes.current.delete(session.id);
+                                                    } else {
+                                                        rowNodes.current.set(session.id, node);
+                                                    }
+                                                }}
                                                 data-holds-open={
                                                     session.id === holding ? "" : undefined
                                                 }
@@ -829,11 +860,13 @@ export function Sessions({
 
             {renaming === null ? null : (
                 <form
+                    ref={form}
                     onSubmit={(event) => {
                         event.preventDefault();
                         void saveName();
                     }}
-                    className="rounded-card border-edge-soft bg-panel absolute inset-x-2 top-14 z-20 flex flex-col gap-2 border p-2 shadow-lg lg:inset-x-auto lg:left-full lg:ml-2 lg:w-64"
+                    style={{ top: place }}
+                    className="rounded-card border-edge-soft bg-panel absolute inset-x-2 z-20 flex flex-col gap-2 border p-2 shadow-lg lg:inset-x-auto lg:left-full lg:ml-2 lg:w-64"
                 >
                     <label className="text-meta text-muted" htmlFor="rename-session">
                         Session name
