@@ -9,11 +9,13 @@ import type { Opened, Sessions } from "../sessions.ts";
 export function sessionRoutes(deps: {
     sessions: Sessions;
     attach: (id: number) => Promise<Opened | undefined>;
+    /** Forgets everything the server still holds for a session that is now deleted. */
+    detach: (id: number) => void;
     /** The session rows as the browser reads them: their marks come from extensions. */
     list: () => Promise<SessionSummary[]>;
     watch: (response: ServerResponse) => Promise<void>;
 }): Route[] {
-    const { sessions, attach } = deps;
+    const { sessions, attach, detach } = deps;
 
     return [
         {
@@ -86,6 +88,7 @@ export function sessionRoutes(deps: {
                 }
 
                 await sessions.delete(opened.id);
+                detach(opened.id);
                 answer(response, 200, { ok: true });
             },
         },

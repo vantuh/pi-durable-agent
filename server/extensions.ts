@@ -575,6 +575,11 @@ export class Extensions {
         }
     }
 
+    /** Forgets a session that is gone, so no version that loads later is replayed its last view. */
+    forget(session: number): void {
+        this.#lastViews.delete(session);
+    }
+
     #deliver(folder: string, listeners: readonly CommitListener[], view: CommitView): void {
         for (const listener of listeners) {
             try {

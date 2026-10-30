@@ -789,6 +789,20 @@ export const status = () => ({ text: "v${value}" });`;
         assert.deepEqual(calls(), ["v1:1", "v2:1", "v2:1"]);
     });
 
+    void it("forgets a session's newest view, so a version that loads later is not replayed it", async () => {
+        await write("alpha", listening("a:"));
+        await extensions.load();
+        extensions.publish({ ...VIEW, session: { id: 3, cwd: null } });
+        extensions.publish({ ...VIEW, session: { id: 4, cwd: null } });
+        extensions.forget(3);
+
+        // A folder loaded later starts from the newest view of each session still worth hearing about.
+        await write("beta", listening("b:"));
+        await extensions.load(new Set(["beta"]));
+
+        assert.deepEqual(calls(), ["a:3", "a:4", "b:4"]);
+    });
+
     void it("keeps the old listener when the replacement fails", async () => {
         await write("alpha", listening("v1:"));
         await extensions.load();

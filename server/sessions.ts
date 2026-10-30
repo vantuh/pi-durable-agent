@@ -261,6 +261,7 @@ export class Sessions {
             (await tx.doc(DeletedDoc, id)).deleted = true;
         }, this.#context);
         this.#open.delete(id);
+        this.#questions.delete(id);
     }
 
     /** Names the session by hand; an empty name goes back to the automatic one. */

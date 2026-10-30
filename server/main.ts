@@ -304,6 +304,8 @@ function observe(opened: Opened, state: View): void {
 }
 
 const attaching = new Map<number, Promise<Opened | undefined>>();
+/** The attached view of each session, so a deleted one stops feeding the server its state. */
+const attached = new Map<number, () => void>();
 
 /** Opens a conversation and starts forwarding its commits. A caller that comes while it opens gets the same open. */
 function attach(id: number): Promise<Opened | undefined> {
@@ -341,12 +343,29 @@ async function attachOnce(id: number): Promise<Opened | undefined> {
 
     opened.watched = true;
     opened.sent = view.value.entries.map((entry) => Number(entry.id));
+    attached.set(id, () => {
+        view.dispose();
+    });
     observe(opened, view.value);
     view.subscribe((state) => {
         observe(opened, state);
     });
 
     return opened;
+}
+
+/**
+ * Drops everything the server holds for a session that is gone: its last state and busy mark, an open
+ * still in flight, its attached view, and the state an extension is replayed after a reload. Without
+ * this the extensions hear of it again on their next reload, and nothing can be sent to it any more.
+ */
+function detach(id: number): void {
+    attached.get(id)?.();
+    attached.delete(id);
+    latest.delete(id);
+    busy.delete(id);
+    attaching.delete(id);
+    extensions.forget(id);
 }
 
 /**
@@ -586,6 +605,7 @@ async function boot(): Promise<void> {
         ...sessionRoutes({
             sessions,
             attach,
+            detach,
             list: sessionRows,
             watch: watchList,
         }),
