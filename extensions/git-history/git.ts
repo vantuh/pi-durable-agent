@@ -152,8 +152,10 @@ export async function readHistory(cwd: string, limit: number): Promise<History> 
             more: false,
         };
     }
+    // A pruned upstream keeps its name in the status but loses branch.ab, and @{upstream} then
+    // cannot be resolved.
     const local =
-        upstream === null
+        upstream === null || counts === null
             ? new Set<string>()
             : new Set(
                   (await git(root, ["rev-list", "HEAD", "--not", "@{upstream}"]))

@@ -122,6 +122,27 @@ void describe("git-history reads", () => {
         assert.equal(log.commits.find((c) => c.hash === incoming)?.remote, true);
         assert.equal(log.commits.filter((c) => c.unpushed).length, 1);
     });
+    void it("reads history when the upstream branch is gone", async () => {
+        const remote = join(dir, "remote.git");
+        await git(dir, ["init", "--bare", remote]);
+        await writeFile(join(repo, "file"), "base\n");
+        const base = await commit();
+        await git(repo, ["remote", "add", "origin", remote]);
+        await git(repo, ["checkout", "-b", "gone"]);
+        await git(repo, ["push", "-u", "origin", "gone"]);
+        await writeFile(join(repo, "file"), "local\n");
+        const local = await commit(repo, "local");
+        await git(repo, ["push", "origin", "--delete", "gone"]);
+        await git(repo, ["fetch", "--prune"]);
+        const log = await readHistory(repo, 50);
+        assert.equal(log.upstream, "origin/gone");
+        assert.equal(log.ahead, 0);
+        assert.equal(log.behind, 0);
+        assert.deepEqual(
+            log.commits.map((entry) => entry.hash),
+            [local, base],
+        );
+    });
     void it("bounds previews and never follows an untracked symlink outside the checkout", async () => {
         await commit();
         await writeFile(join(repo, "large"), "x\n".repeat(1000));
