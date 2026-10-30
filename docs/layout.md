@@ -47,7 +47,7 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   parent owns `open`; each modal calls `onClose`. The sessions sheet below `lg` is not a `Dialog`:
   it is the sidebar itself, shown as a sheet.
 - **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and how long ago
-  a person last wrote to it (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
+  its newest run started (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
   was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each
   with its count; a session with no known time is under `Older` and shows no time.
 - **Started from another session**: a session with `parent` (the one it was started from) is not a
@@ -66,8 +66,9 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 - **Rows are links** (`?session=N`): a plain click opens the session in place, a modified or middle
   click opens it in a new tab.
 - **Where the time comes from**: the `app.clock` document of each conversation (`activeAt`), set when
-  the session is created and on every message sent. A session older than the document takes the start
-  time of its newest message once, then keeps it.
+  the session is created, when any of its runs starts (a person's message, a subagent's task, an
+  extension's input), and on every message a person sends into a run already under way. A session
+  older than the document takes the start time of its newest message once, then keeps it.
 - **Width**: 264px to start. Drag the right edge, or focus it and press `←` / `→` (16px a step),
   to set it between 204px and 464px, never past 40% of the screen. The width is kept in
   `localStorage` (`sidebarWidth`); a double click on the edge puts it back to 264px.

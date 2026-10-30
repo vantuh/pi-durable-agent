@@ -233,6 +233,8 @@ export function conversationRoutes(deps: {
                     },
                     context,
                 );
+                // A run that starts touches it too, but a steer or a follow-up joins a run already going,
+                // and the person's write is what moves the row.
                 await sessions.touch(opened.id);
                 answer(response, 202, { ok: true });
             },

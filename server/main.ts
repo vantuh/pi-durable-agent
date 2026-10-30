@@ -256,8 +256,8 @@ function publish(opened: Opened, view: View): void {
     const grows = ids.length > opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
     const unchanged =
         ids.length === opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
-    // The one entry a row shows: the question that names the session. A row's time moves when a person
-    // writes, which is a request of its own, so the entries a run appends change nothing in the list.
+    // The one entry a row shows: the question that names the session. A row's time is when its newest run
+    // started, which is not an entry: the entries a run appends change nothing in the list.
     const asked = entries.findIndex((entry) => entry.kind === "user" && entry.text.trim() !== "");
     const named = asked !== -1 && asked >= opened.sent.length;
 
@@ -277,6 +277,14 @@ function publish(opened: Opened, view: View): void {
     }
 
     latest.set(opened.id, { opened, view });
+    // A run's start is the row's time, whoever started it: a person's message touches the clock in its own
+    // request, and a subagent, a report or a queued follow-up submits without one.
+    if (live.busy && !isBusy(opened.id)) {
+        void sessions.touch(opened.id).then(listChanged, (error: unknown) => {
+            console.error(error);
+        });
+    }
+
     // Taken before the browsers hear of it, so a `seen` sent the moment it ends is later.
     if (busy.get(opened.id) === true && !live.busy) {
         // An unhandled rejection would end the process, and every conversation in it.

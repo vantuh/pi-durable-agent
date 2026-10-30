@@ -188,7 +188,7 @@ export type SessionSummary = {
      * absent when nothing does. The browser draws it as a mark, with `title` and `aria-label`.
      */
     mark?: string;
-    /** When a person last wrote to the session, or created it; null while unknown. */
+    /** When the session's newest run started, or when it was created; null while unknown. */
     activeAt: number | null;
     /** A run ended after the session was last seen, on any device; never while it works or is archived. */
     unseen: boolean;

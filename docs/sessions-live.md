@@ -23,10 +23,10 @@ POST /api/sessions/seen      { session }  the latest run is seen
 
 The list is sent whole, not as deltas: it is a few dozen rows, and a whole list cannot drift.
 Changes in a burst are sent once. A change is: a session starts or stops working, gains the question
-that names it, a run ends, or any non-`GET` API call (create, rename, archive, delete, model, seen, a
-message). The entries a run appends are not changes: a row's `activeAt` is what a message sets, not
-what a commit appends, and a title only the first question moves. The browser drops its polling; an
-action still re-reads the list, so its own result shows at once.
+that names it, a run starts, ends or is seen, or any non-`GET` API call (create, rename, archive,
+delete, model, seen, a message). The entries a run appends are not changes: a row's `activeAt` is when
+the run started, not what a commit appends, and a title only the first question moves. The browser
+drops its polling; an action still re-reads the list, so its own result shows at once.
 
 ## Seen
 
@@ -37,7 +37,8 @@ the marks survive a restart.
 
 - The list row carries `endedAt` too, so a screen can say how long ago a session finished. It is
   absent until a run has been seen to end, never `0`, and a working session keeps the end of its
-  previous run until the new one ends. `activeAt` is not this time: it moves when a person writes.
+  previous run until the new one ends. `activeAt` is not this time: it is when the newest run started,
+  whoever started it, and it moves again when a person writes into a run already under way.
 - A row is `unseen` when `endedAt > seenAt`, and never while it works or is archived.
 - `endedAt` is taken when the run ends, before the browsers hear of it; `seen` sets `seenAt` to
   now. So a `seen` sent the moment a run ends always covers it, whatever order the writes land in.

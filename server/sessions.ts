@@ -21,7 +21,7 @@ import {
 import type { SessionSummary } from "../shared/protocol.ts";
 import { projectEntry } from "./projection.ts";
 
-/** When a person last wrote to a session, or created it. 0 until something sets it. */
+/** When a session's newest run started, or when it was created. 0 until something sets it. */
 const ClockDoc = defineDoc({
     kind: "app.clock",
     version: 1,
@@ -228,7 +228,11 @@ export class Sessions {
         }, this.#context);
     }
 
-    /** Records that a person just wrote to the session. */
+    /**
+     * Records that a run of the session starts, or that a person wrote into one already under way: a
+     * row's time. Every run start touches it, so a session that only an extension or a subagent gives
+     * work is ordered by when that work began.
+     */
     async touch(id: ConversationId): Promise<void> {
         await this.#harness.commit(async (tx) => {
             (await tx.doc(ClockDoc, id)).activeAt = Date.now();
