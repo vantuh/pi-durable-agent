@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { lstat } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -50,6 +50,25 @@ function totals(output: string): { added: number; deleted: number } {
     return { added, deleted };
 }
 
+function missing(error: unknown): null {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+        return null;
+    }
+    throw error;
+}
+
+/** Git calls a file binary when a NUL sits in its first 8000 bytes, and then reports no lines. */
+const isBinary = (content: Buffer): boolean => content.subarray(0, 8000).includes(0);
+
+/** What numstat gives a new file: a line per newline, plus a last line that has none. */
+function lines(content: Buffer): number {
+    let count = 0;
+    for (let at = content.indexOf(0x0a); at !== -1; at = content.indexOf(0x0a, at + 1)) {
+        count += 1;
+    }
+    return content.length > 0 && content.at(-1) !== 0x0a ? count + 1 : count;
+}
+
 async function readStats(cwd: string): Promise<GitStats | null> {
     let root: string;
     try {
@@ -77,40 +96,19 @@ async function readStats(cwd: string): Promise<GitStats | null> {
         "-z",
     ]);
     for (const path of new Set(untracked.split("\0").filter(Boolean))) {
-        const info = await lstat(join(root, path)).catch((error: unknown) => {
-            if (
-                typeof error === "object" &&
-                error !== null &&
-                "code" in error &&
-                error.code === "ENOENT"
-            ) {
-                return null;
-            }
-            throw error;
-        });
+        const info = await lstat(join(root, path)).catch(missing);
         if (info === null || info.isDirectory()) {
             continue;
         }
-        let output: string;
-        try {
-            output = await git(root, ["diff", "--no-index", ...diffArgs, "--", "/dev/null", path]);
-        } catch (error) {
-            // git diff --no-index returns 1 for a successful diff with changes.
-            if (
-                typeof error !== "object" ||
-                error === null ||
-                !("code" in error) ||
-                error.code !== 1 ||
-                !("stdout" in error) ||
-                typeof error.stdout !== "string"
-            ) {
-                throw error;
-            }
-            output = error.stdout;
+        // Git diffs a link as its target text: one line, and following it may leave the checkout.
+        if (info.isSymbolicLink()) {
+            result.added += 1;
+            continue;
         }
-        const lines = totals(output);
-        result.added += lines.added;
-        result.deleted += lines.deleted;
+        const content = await readFile(join(root, path)).catch(missing);
+        if (content !== null && !isBinary(content)) {
+            result.added += lines(content);
+        }
     }
     return result;
 }

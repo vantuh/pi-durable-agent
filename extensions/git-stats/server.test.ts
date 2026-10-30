@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -22,6 +22,30 @@ void describe("git-stats", () => {
         return await action({ args: undefined, session: { id: 1, cwd } });
     };
     const stats = async (cwd = repo) => statsRef.parse(await call("stats", cwd));
+    const failedStdout = (error: unknown): string => {
+        if (
+            typeof error === "object" &&
+            error !== null &&
+            "stdout" in error &&
+            typeof error.stdout === "string"
+        ) {
+            return error.stdout;
+        }
+        throw error;
+    };
+    /** What real Git reports for that new file, whatever the code under test decides to do. */
+    const numstatAdded = async (name: string): Promise<number> => {
+        const output = await run(
+            "git",
+            ["diff", "--no-index", "--numstat", "--", "/dev/null", name],
+            { cwd: repo },
+        )
+            .then((result) => result.stdout)
+            // git diff --no-index exits 1 after a successful diff.
+            .catch(failedStdout);
+        const added = output.split("\t")[0] ?? "-";
+        return added === "-" ? 0 : Number(added);
+    };
     const commit = async (cwd = repo) => {
         await git(cwd, "add", ".");
         await git(
@@ -94,6 +118,49 @@ void describe("git-stats", () => {
             upstream: null,
         });
         await assert.rejects(call("push"), /No upstream/);
+    });
+    void it("counts untracked lines the way Git's numstat does", async () => {
+        await commit();
+        await writeFile(join(repo, "with-newline"), "one\ntwo\n");
+        await writeFile(join(repo, "without-newline"), "one\ntwo");
+        await writeFile(join(repo, "empty"), "");
+        await writeFile(join(repo, "binary"), Buffer.from("one\0two"));
+        await symlink("with-newline", join(repo, "link"));
+        let expected = 0;
+        for (const name of ["with-newline", "without-newline", "empty", "binary", "link"]) {
+            expected += await numstatAdded(name);
+        }
+        assert.equal(expected, 5);
+        assert.equal((await stats())?.added, expected);
+    });
+    void it("counts many untracked files without running Git for each one", async () => {
+        await commit();
+        const bin = await mkdtemp(join(tmpdir(), "git-stats-bin-"));
+        const log = join(bin, "calls");
+        const real = (await run("/bin/sh", ["-c", "command -v git"])).stdout.trim();
+        // A stand-in `git` on PATH that records its arguments and then does the real work.
+        await writeFile(
+            join(bin, "git"),
+            `#!/bin/sh\nprintf '%s\\n' "$*" >> "${log}"\nexec "${real}" "$@"\n`,
+        );
+        await chmod(join(bin, "git"), 0o755);
+        for (let index = 0; index < 600; index += 1) {
+            await writeFile(join(repo, `untracked-${index}`), "one\ntwo\n");
+        }
+        const path = process.env["PATH"];
+        process.env["PATH"] = bin;
+        try {
+            assert.equal((await stats())?.added, 1200);
+        } finally {
+            process.env["PATH"] = path;
+        }
+        const calls = (await readFile(log, "utf8")).split("\n").filter((line) => line !== "");
+        await rm(bin, { recursive: true, force: true });
+        assert.deepEqual(
+            calls.filter((line) => line.includes("--no-index")),
+            [],
+        );
+        assert.ok(calls.some((line) => line.startsWith("ls-files")));
     });
     void it("counts divergence and safely pushes only to a temporary local remote", async () => {
         const remote = join(dir, "remote.git");
