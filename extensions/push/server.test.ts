@@ -592,6 +592,38 @@ void describe("push", () => {
             assert.equal((await store.read()).seen["3"], 3);
         });
 
+        void it("sends one push for a burst of turns that finished while no device was subscribed", async () => {
+            await ready();
+            await call("subscribe", { subscription: device() });
+
+            const { sends, commit } = wire();
+
+            // With a device the point is saved; without one only the in-memory baseline moves.
+            await commit(entries(["pi.user"]), false);
+            await call("unsubscribe", { endpoint: device().endpoint });
+
+            const burst = entries(
+                ["pi.user"],
+                ["pi.assistant", "stop"],
+                ["pi.user"],
+                ["pi.assistant", "stop"],
+                ["pi.user"],
+                ["pi.assistant", "stop"],
+            );
+
+            await commit(burst, false);
+            assert.equal(sends.length, 0, "nothing is sent without a device");
+
+            await call("subscribe", { subscription: device() });
+            await commit(burst, false);
+
+            assert.equal(
+                sends.length,
+                1,
+                "one notification for the conversation, not one per turn",
+            );
+        });
+
         void it("stops sending after its version is disposed", async () => {
             await ready();
             await call("subscribe", { subscription: device() });

@@ -126,7 +126,9 @@ export function listen(host: Host, store: PushStore, transport: Transport): void
             };
         });
 
-        for (let turn = 0; turn < done; turn += 1) {
+        // One notification for the conversation however many turns landed in it: the tag is the same
+        // and a browser would fold them into one anyway.
+        if (done > 0) {
             void notifyAll(store, transport, finishedPayload(view.session.id)).catch(() => {
                 host.log("push: a notification could not be sent");
             });
