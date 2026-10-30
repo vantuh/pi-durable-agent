@@ -219,11 +219,16 @@ export function Sessions({
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
     const [scopeOpen, setScopeOpen] = useState(false);
+    const chosen = useRef<HTMLDivElement | null>(null);
 
     useShellCommand("folder.pick", () => {
         localStorage.setItem(COLLAPSED_KEY, "0");
         setCollapsed(false);
         setScopeOpen(true);
+        // Opened from the keyboard, the menu marks its first row; the folder in use takes the mark after.
+        setTimeout(() => {
+            chosen.current?.focus();
+        }, 0);
     });
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
@@ -494,6 +499,7 @@ export function Sessions({
                                     onSelect={() => {
                                         setAll(true);
                                     }}
+                                    ref={all ? chosen : undefined}
                                     className={
                                         all ? "bg-raised" : "data-[highlighted]:bg-raised/50"
                                     }
@@ -516,6 +522,7 @@ export function Sessions({
                                                 onFolder(first.id);
                                             }
                                         }}
+                                        ref={!all && cwd === folder ? chosen : undefined}
                                         className={
                                             !all && cwd === folder
                                                 ? "bg-raised"
