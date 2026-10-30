@@ -104,6 +104,21 @@ void describe("writeProfileModel", () => {
         assert.equal((await stat(file)).mode & 0o777, 0o640);
     });
 
+    void it("finishes two edits started together, leaving one whole file", async () => {
+        await writeFile(file, profile(FRONTMATTER));
+
+        await Promise.all([
+            writeProfileModel(file, { model: "faux/one", thinking: "low" }),
+            writeProfileModel(file, { model: "faux/two", thinking: "high" }),
+        ]);
+
+        const content = await read();
+
+        assert.equal(content.match(/^model: /gm)?.length, 1, "one model line, from one of the two");
+        assert.equal(content.match(/^thinking: /gm)?.length, 1);
+        assert.match(content, /^model: "faux\/(one|two)"$/m);
+    });
+
     void it("refuses a file without a complete frontmatter block", async () => {
         await writeFile(file, "Just instructions.\n");
 

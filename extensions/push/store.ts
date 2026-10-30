@@ -1,6 +1,7 @@
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { writeJsonFile } from "../../server/sdk.ts";
 import type { DeviceSubscription } from "./refs.ts";
 
 export type Vapid = { publicKey: string; privateKey: string };
@@ -113,10 +114,8 @@ function parseFile(text: string): PushFile {
  */
 export class PushStore {
     readonly #file: string;
-    readonly #dir: string;
 
     constructor(dataDir: string) {
-        this.#dir = dataDir;
         this.#file = join(dataDir, "push.json");
     }
 
@@ -142,7 +141,7 @@ export class PushStore {
             const { file, result } = change(await this.read());
 
             if (file !== null) {
-                await this.#write(file);
+                await writeJsonFile(this.#file, file, { mode: 0o600 });
             }
 
             return result;
@@ -161,15 +160,6 @@ export class PushStore {
         });
 
         return run;
-    }
-
-    async #write(file: PushFile): Promise<void> {
-        const temp = `${this.#file}.tmp`;
-
-        await mkdir(this.#dir, { recursive: true });
-        await writeFile(temp, JSON.stringify(file), { mode: 0o600 });
-        await chmod(temp, 0o600);
-        await rename(temp, this.#file);
     }
 }
 

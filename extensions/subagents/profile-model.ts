@@ -6,12 +6,12 @@
  * that would change any other field is refused instead of written.
  */
 
-import { open, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 
-import { ActionError } from "../../server/sdk.ts";
+import { ActionError, writeFileAtomic } from "../../server/sdk.ts";
 
 /** What to write; null removes the line, so the profile names neither. */
 export type ProfileModel = {
@@ -124,23 +124,6 @@ export async function writeProfileModel(filePath: string, edit: ProfileModel): P
     }
 
     const { mode } = await stat(target);
-    const temporary = `${target}.pi-durable-model.tmp`;
 
-    try {
-        const file = await open(temporary, "wx", mode);
-
-        try {
-            await file.writeFile(updated);
-            // chmod keeps the permissions even when the process umask is stricter.
-            await file.chmod(mode);
-        } finally {
-            await file.close();
-        }
-
-        await rename(temporary, target);
-    } catch (error) {
-        await unlink(temporary).catch(() => undefined);
-
-        throw error;
-    }
+    await writeFileAtomic(target, updated, { mode: mode & 0o777 });
 }

@@ -1,6 +1,8 @@
 /** The setting file: `{"auto":true}` names a session after its run. A missing or broken file means off. */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+
+import { writeJsonFile } from "../../server/sdk.ts";
 
 const FILE = "auto-session-name.json";
 
@@ -17,10 +19,5 @@ export async function readAuto(dir: string): Promise<boolean> {
 }
 
 export async function writeAuto(dir: string, auto: boolean): Promise<void> {
-    const file = join(dir, FILE);
-    const temporary = `${file}.${String(process.pid)}.tmp`;
-
-    await mkdir(dir, { recursive: true });
-    await writeFile(temporary, `${JSON.stringify({ auto })}\n`);
-    await rename(temporary, file);
+    await writeJsonFile(join(dir, FILE), { auto });
 }

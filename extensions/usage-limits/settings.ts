@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { writeJsonFile } from "../../server/sdk.ts";
 import { PROVIDERS, type Settings } from "./refs.ts";
 
 const KNOWN: readonly string[] = PROVIDERS.map((each) => each.id);
@@ -25,10 +26,5 @@ export async function readSettings(dir: string): Promise<Settings> {
 }
 
 export async function writeSettings(dir: string, settings: Settings): Promise<void> {
-    const file = join(dir, "usage-limits.json");
-    const temporary = `${file}.${String(process.pid)}.tmp`;
-
-    await mkdir(dir, { recursive: true });
-    await writeFile(temporary, `${JSON.stringify(settings)}\n`);
-    await rename(temporary, file);
+    await writeJsonFile(join(dir, "usage-limits.json"), settings);
 }

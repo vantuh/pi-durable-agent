@@ -1,13 +1,12 @@
 /** The state file: the switch, the stopped conversations and the last ping of each. A missing or broken file means on. */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { writeJsonFile } from "../../server/sdk.ts";
 import type { Ping } from "./refs.ts";
 import type { Stored } from "./warm.ts";
 
 const FILE = "keep-warm.json";
-/** The write in front of the next one; a failed write is swallowed here so it cannot stop the rest. */
-let queue: Promise<unknown> = Promise.resolve();
 
 function pingOf(value: unknown): Ping | undefined {
     if (typeof value !== "object" || value === null) {
@@ -77,18 +76,5 @@ export async function readStore(dir: string): Promise<Stored> {
 }
 
 export async function writeStore(dir: string, store: Stored): Promise<void> {
-    const write = queue.then(() => writeNow(dir, store));
-
-    queue = write.catch(() => undefined);
-    await write;
-}
-
-/** Every write goes through the same temporary file, so two at once would truncate and rename each other's. */
-async function writeNow(dir: string, store: Stored): Promise<void> {
-    const file = join(dir, FILE);
-    const temporary = `${file}.${String(process.pid)}.tmp`;
-
-    await mkdir(dir, { recursive: true });
-    await writeFile(temporary, `${JSON.stringify(store)}\n`);
-    await rename(temporary, file);
+    await writeJsonFile(join(dir, FILE), store);
 }
