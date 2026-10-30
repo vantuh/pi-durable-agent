@@ -14,7 +14,6 @@ import type {
 
 export type ConversationState = {
     session: number | null;
-    model: string;
     entries: ClientEntry[];
     live: ClientLive;
     issue: string | null;
@@ -24,11 +23,10 @@ export type ConversationState = {
     exhausted: boolean;
 };
 
-export const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
+const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
 
 export const START: ConversationState = {
     session: null,
-    model: "",
     entries: [],
     live: IDLE,
     issue: null,
@@ -67,7 +65,6 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
                 session: event.session,
                 entries: mergeEntries(same ? state.entries : [], event.entries),
                 live: event.live,
-                model: event.model,
                 loadingOlder: same ? state.loadingOlder : false,
                 exhausted: same ? state.exhausted || !event.more : !event.more,
                 issue: null,

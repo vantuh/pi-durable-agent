@@ -1,6 +1,5 @@
 import type {
     ClientHistory,
-    ClientUsage,
     CommandResult,
     DefaultModel,
     ModelChoice,
@@ -10,10 +9,8 @@ import type {
 import { parseHistory } from "./event.ts";
 
 export type Health = {
-    model: string;
     cwd: string;
     home: string;
-    session: number;
 };
 
 export type UploadedFile = {
@@ -69,10 +66,8 @@ export async function getHealth(): Promise<Health | undefined> {
         }
 
         return {
-            model: str(body["model"], ""),
             cwd: str(body["cwd"], ""),
             home: str(body["home"], ""),
-            session: num(body["session"], 0),
         };
     } catch {
         return undefined;
@@ -431,8 +426,6 @@ export async function listFolders(path: string, hidden: boolean): Promise<Folder
         return undefined;
     }
 }
-
-export type { ClientUsage };
 
 export type ExtensionInfo = {
     name: string;
