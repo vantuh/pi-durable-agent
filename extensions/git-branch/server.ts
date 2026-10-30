@@ -29,24 +29,27 @@ export const actions: Record<string, Action> = {
         }
 
         try {
-            const { stdout } = await run(
-                "git",
-                [
-                    "rev-parse",
-                    "--abbrev-ref",
-                    "HEAD",
-                    "--path-format=absolute",
-                    "--git-dir",
-                    "--git-common-dir",
-                    "--show-toplevel",
-                ],
-                { cwd, timeout: 5000 },
-            );
-            const [name = "", gitDir, commonDir, top = ""] = stdout.trim().split("\n");
-
-            if (name === "") {
-                return null;
-            }
+            const [{ stdout: paths }, { stdout: named }] = await Promise.all([
+                run(
+                    "git",
+                    [
+                        "rev-parse",
+                        "--path-format=absolute",
+                        "--git-dir",
+                        "--git-common-dir",
+                        "--show-toplevel",
+                    ],
+                    { cwd, timeout: 5000 },
+                ),
+                // A repository with no commit yet has no HEAD revision for `rev-parse --abbrev-ref`
+                // to describe, but the reference it points at already has its name.
+                run("git", ["symbolic-ref", "--short", "-q", "HEAD"], { cwd, timeout: 5000 }).catch(
+                    () => ({ stdout: "" }),
+                ),
+            ]);
+            const [gitDir, commonDir, top = ""] = paths.trim().split("\n");
+            // Nothing printed means a detached HEAD.
+            const name = named.trim() === "" ? "HEAD" : named.trim();
 
             // A linked worktree keeps its own git dir beside the shared one; the main checkout's are the same.
             return { branch: name, worktree: gitDir === commonDir ? null : basename(top) };

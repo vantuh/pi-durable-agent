@@ -78,4 +78,18 @@ void describe("git-branch branch action", () => {
     void it("gives null without a session folder", async () => {
         assert.equal(await branch(null), null);
     });
+
+    void it("names the branch of a repository that has no commit yet", async () => {
+        await run("git", ["init", "-b", "unborn"], { cwd: dir });
+
+        assert.deepEqual(await branch(dir), { branch: "unborn", worktree: null });
+    });
+
+    void it("names a detached head HEAD", async () => {
+        await run("git", ["init", "-b", "topic"], { cwd: dir });
+        await commit(dir);
+        await run("git", ["checkout", "--detach"], { cwd: dir });
+
+        assert.deepEqual(await branch(dir), { branch: "HEAD", worktree: null });
+    });
 });
