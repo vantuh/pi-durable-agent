@@ -10,7 +10,8 @@ import { toast } from "./toast.ts";
 
 export function useConversation(session: number | null): {
     state: ConversationState;
-    send: (text: string, files: string[], mode?: SendMode) => Promise<void>;
+    /** Resolves true when the server took the message; false when it refused it or did not answer. */
+    send: (text: string, files: string[], mode?: SendMode) => Promise<boolean>;
     stop: () => Promise<void>;
     /** Fetches the page older than the oldest entry on screen; nothing happens while one is on its way. */
     loadOlder: () => Promise<void>;
@@ -73,9 +74,9 @@ export function useConversation(session: number | null): {
     const shown = state.session === session ? state : START;
 
     const send = useCallback(
-        async (text: string, files: string[], mode?: SendMode) => {
+        async (text: string, files: string[], mode?: SendMode): Promise<boolean> => {
             if (session === null) {
-                return;
+                return false;
             }
 
             setState((current) => ({ ...current, issue: null }));
@@ -89,8 +90,12 @@ export function useConversation(session: number | null): {
                         issue: "the server refused the message",
                     }));
                 }
+
+                return accepted;
             } catch {
                 setState((current) => ({ ...current, issue: "the server did not answer" }));
+
+                return false;
             }
         },
         [session],

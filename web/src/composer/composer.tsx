@@ -132,7 +132,7 @@ type Props = {
     level: string | null;
     menuOpen: boolean;
     onToggleMenu: () => void;
-    onSend: (text: string, files: string[], mode?: SendMode) => Promise<void>;
+    onSend: (text: string, files: string[], mode?: SendMode) => Promise<boolean>;
     onStop: () => void;
     /** Opens a new session in the folder this one works in. */
     onNewSession: () => void;
@@ -452,16 +452,27 @@ export function Composer({
         }
 
         const body = withQuotes(quotes, written);
+        const sending = files;
 
         remember(sessionId, body);
         setComposerDraft(sessionId, "");
         clearComposerQuotes(sessionId);
         browse.current = null;
         setText("");
-        forget(files);
         setFiles(() => []);
         setMode((current) => (current === "interrupt" ? "steer" : current));
-        void onSend(body, paths, busy ? mode : undefined);
+
+        void (async () => {
+            if (await onSend(body, paths, busy ? mode : undefined)) {
+                forget(sending);
+
+                return;
+            }
+
+            // The words come back from ↑; the uploaded files cannot, so they return themselves, with the
+            // previews a send that never went did not revoke.
+            setFiles((current) => [...sending, ...current]);
+        })();
     };
 
     return (
