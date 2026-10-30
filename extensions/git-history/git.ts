@@ -226,6 +226,19 @@ export function filesOf(output: string): ChangedFile[] {
     return files;
 }
 
+/** The longest run of whole files that fits: only a file header starts a line, never a content line. */
+function patchWithin(patch: string, cap: number): string {
+    let kept = "";
+    for (const part of patch.split(/\n(?=diff --git )/)) {
+        const next = kept === "" ? part : `${kept}\n${part}`;
+        if (Buffer.byteLength(next) > cap) {
+            break;
+        }
+        kept = next;
+    }
+    return kept;
+}
+
 /**
  * Preview is bounded; review patches are never silently truncated. `stat` is injected so a test can
  * hold the listing and the reading apart, as a file vanishing between them does in real life.
@@ -261,7 +274,9 @@ export async function readChanges(
     const args = ["diff", ...FLAGS, "-M"];
     const files = filesOf(await git(root, [...args, "--numstat", "-z", ...range, "--"]));
     let truncated = false;
-    let patch = await git(root, [...args, ...range, "--"], cap).catch((error: unknown) => {
+    // Git cannot hand back part of an oversized diff, it fails the whole run, so the preview reads more
+    // than it shows and cuts at a file boundary: a big commit keeps its first files instead of none.
+    const whole = await git(root, [...args, ...range, "--"]).catch((error: unknown) => {
         if (
             typeof error === "object" &&
             error !== null &&
@@ -273,6 +288,11 @@ export async function readChanges(
         }
         throw error;
     });
+    let patch = whole;
+    if (Buffer.byteLength(whole) > cap) {
+        patch = patchWithin(whole, cap);
+        truncated = true;
+    }
     if (work) {
         const untracked = (await git(root, ["ls-files", "--others", "--exclude-standard", "-z"]))
             .split("\0")

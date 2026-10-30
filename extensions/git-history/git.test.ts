@@ -155,6 +155,24 @@ void describe("git-history reads", () => {
         assert.doesNotMatch(diff.patch, /OUTSIDE SECRET/);
         assert.deepEqual(diff.files.map((f) => f.path).sort(), ["large", "link"]);
     });
+    void it("keeps the files that fit when a commit's diff is larger than the preview", async () => {
+        await writeFile(join(repo, "one"), "a\n");
+        await commit();
+        await writeFile(join(repo, "one"), "b\n".repeat(200));
+        await writeFile(join(repo, "two"), "c\n".repeat(4000));
+        const diff = await readChanges(repo, await commit(), 8000);
+        assert.equal(diff.truncated, true);
+        assert.deepEqual(
+            diff.files.map((file) => file.path),
+            ["one", "two"],
+        );
+        assert.deepEqual(
+            parsePatchFiles(diff.patch, undefined, true)
+                .flatMap((patch) => patch.files)
+                .map((file) => file.name),
+            ["one"],
+        );
+    });
     void it("matches Pierre file names to Git stats for commits and the working tree", async () => {
         await writeFile(join(repo, "before.ts"), "export const value = 1;\n");
         await writeFile(join(repo, "removed"), "gone\n");

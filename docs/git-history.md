@@ -39,8 +39,9 @@ It is independent of `git-stats`: disabling either does not disable the other.
   the old history. Git's own refusal (a pushed commit, a commit of another branch) is shown in the
   form. This is the only Git write in this extension; it still never fetches, checks out or pushes.
 
-The read-only history preview is limited to 400 KiB. Oversized changes are listed without a full
-preview. New symlinks are listed but never followed into files outside the checkout.
+The read-only history preview stops at 400 KiB of diff: the files that fit keep theirs, the rest are
+listed without one, and no file is dropped from the list. New symlinks are listed but never followed
+into files outside the checkout.
 
 ## Processes, settings and limits
 
