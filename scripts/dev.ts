@@ -1,13 +1,11 @@
 /**
  * One command for the whole app in development: Vite with HMR for the web, and the server under
  * `scripts/serve.ts`, so the Restart button in the app has a parent that starts it again.
- * Ctrl+C stops both, and so does either of them dying. `--open` opens the app in its own window.
+ * Ctrl+C stops both, and so does either of them dying.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
-
-import { openWindow } from "./open.ts";
 
 const ROOT = join(import.meta.dirname, "..");
 
@@ -44,8 +42,4 @@ for (const child of children) {
             process.exit(code ?? 0);
         }
     });
-}
-
-if (process.argv.includes("--open")) {
-    void openWindow("http://localhost:5190");
 }
