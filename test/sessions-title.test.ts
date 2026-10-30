@@ -65,6 +65,21 @@ void describe("Sessions.title", () => {
             assert.equal(await sessions.title(silent.id), null, "nothing asked, nothing named");
             assert.equal(await listed(silent.id), null);
 
+            await harness.commit(
+                (tx) =>
+                    tx.appendEntry(silent.id, {
+                        kind: "pi.user",
+                        data: { text: "asked after the list was read" },
+                    }),
+                BACKGROUND_CONTEXT,
+            );
+
+            assert.equal(
+                await listed(silent.id),
+                "asked after the list was read",
+                "a list that found no question does not remember that nothing",
+            );
+
             await sessions.delete(asked.id);
 
             assert.equal(await sessions.title(asked.id), null, "a deleted session has no name");

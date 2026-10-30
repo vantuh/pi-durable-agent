@@ -7,6 +7,7 @@
 import type { Context } from "@earendil-works/chord/context";
 import { type Api, clampThinkingLevel, type Model } from "@earendil-works/pi-ai";
 import {
+    AgentDoc,
     type Conversation,
     type ConversationDocToken,
     type ConversationId,
@@ -14,6 +15,7 @@ import {
     defineDoc,
     type Harness,
     type JsonObject,
+    type Tx,
 } from "@earendil-works/pi-durable";
 
 import type { SessionSummary } from "../shared/protocol.ts";
@@ -116,12 +118,50 @@ function oneLine(text: string): string {
     return text.replace(/\s+/g, " ").trim();
 }
 
+/** The first question in the log, cut: what a session is called until someone names it. */
+async function firstQuestion(tx: Tx, id: ConversationId): Promise<string | null> {
+    const page = await tx.scanEntries({ conversationId: id, order: "ascending" }, 5);
+
+    for (const record of page.items) {
+        const entry = projectEntry(record);
+
+        if (entry?.kind === "user") {
+            const line = oneLine(entry.text);
+
+            if (line !== "") {
+                return line.slice(0, 80);
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * The start time of a session's newest message, which the model message carries, stored in the clock as it is
+ * read: a session older than the clock has no other time. Null when it has no message either.
+ */
+async function stamped(tx: Tx, id: ConversationId): Promise<number | null> {
+    const page = await tx.scanEntries({ conversationId: id, order: "descending" }, 1);
+    const stamp = page.items[0]?.model?.[0]?.timestamp;
+
+    if (stamp === undefined) {
+        return null;
+    }
+
+    (await tx.doc(ClockDoc, id)).activeAt = stamp;
+
+    return stamp;
+}
+
 export class Sessions {
     readonly #harness: Harness;
     readonly #model: ModelRef;
     readonly #models: ModelCatalog;
     readonly #context: Context;
     readonly #open = new Map<ConversationId, Opened>();
+    /** The first question of a conversation, once it has one: it never changes, and names the session. */
+    readonly #questions = new Map<ConversationId, string>();
 
     constructor(options: {
         harness: Harness;
@@ -281,50 +321,94 @@ export class Sessions {
 
     async list(busy: (id: ConversationId) => boolean): Promise<SessionSummary[]> {
         const summaries: SessionSummary[] = [];
+        let cursor: Cursor | undefined;
 
-        for (const id of await this.ids()) {
-            const conversation = await this.#harness.conversation(id, this.#context);
+        do {
+            const next: Cursor | undefined = cursor;
+            const page = await this.#harness.commit(
+                (tx) => tx.scanConversations({}, 100, next),
+                this.#context,
+            );
 
-            if (conversation === undefined) {
-                continue;
+            for (const { id } of page.items) {
+                const row = await this.#row(id, busy(id));
+
+                if (row !== undefined) {
+                    summaries.push(row);
+                }
             }
 
-            const agent = await conversation.agent(this.#context);
-            const cwd = agent.cwd ?? null;
+            cursor = page.next;
+        } while (cursor !== undefined);
 
-            const name = await this.name(id);
-            const working = busy(id);
-            const { archived, endedAt, seenAt, owner } = await this.#harness.commit(async (tx) => {
-                const attention = await tx.doc(AttentionDoc, id);
+        return summaries;
+    }
 
-                return {
-                    archived: (await tx.doc(ArchiveDoc, id)).archived,
-                    endedAt: attention.endedAt,
-                    seenAt: attention.seenAt,
-                    owner: (await tx.conversation(id))?.owner?.conversationId,
-                };
-            }, this.#context);
+    /**
+     * One row, from one commit: the harness runs one commit or read at a time, so a row that asked for its
+     * documents, record, agent and question one at a time would hold that line six times.
+     */
+    async #row(id: ConversationId, working: boolean): Promise<SessionSummary | undefined> {
+        const remembered = this.#questions.get(id);
+        const read = await this.#harness.commit(async (tx) => {
+            if ((await tx.doc(DeletedDoc, id)).deleted) {
+                return undefined;
+            }
 
-            summaries.push({
-                id,
-                name,
-                title: name ?? (await this.#question(id)),
-                cwd,
+            const record = await tx.conversation(id);
+
+            if (record === undefined) {
+                return undefined;
+            }
+
+            // The three fields a row shows from `pi.agent`, as `resolveAgent()` derives them: resolving the
+            // whole agent would compose its tools and sections for every conversation in the list.
+            const agent = await tx.doc(AgentDoc, id);
+            const chosen = (await tx.doc(TitleDoc, id)).title;
+            const attention = await tx.doc(AttentionDoc, id);
+            const archived = (await tx.doc(ArchiveDoc, id)).archived;
+            const clock = await tx.doc(ClockDoc, id);
+            const activeAt = clock.activeAt > 0 ? clock.activeAt : await stamped(tx, id);
+
+            return {
+                name: chosen === "" ? null : oneLine(chosen),
+                asked: chosen === "" ? (remembered ?? (await firstQuestion(tx, id))) : null,
+                cwd: agent.cwd ?? null,
                 model:
                     agent.model === undefined
                         ? null
                         : `${agent.model.provider}/${agent.model.modelId}`,
-                thinkingLevel: agent.thinkingLevel,
-                busy: working,
+                thinkingLevel: agent.thinkingLevel ?? "off",
                 archived,
-                activeAt: await this.#activeAt(id),
-                unseen: !working && !archived && endedAt > seenAt,
-                ...(endedAt > 0 ? { endedAt } : {}),
-                ...(owner === undefined ? {} : { parent: Number(owner) }),
-            });
+                endedAt: attention.endedAt,
+                seenAt: attention.seenAt,
+                activeAt,
+                owner: record.owner?.conversationId,
+            };
+        }, this.#context);
+
+        if (read === undefined) {
+            return undefined;
         }
 
-        return summaries;
+        if (read.asked !== null) {
+            this.#questions.set(id, read.asked);
+        }
+
+        return {
+            id,
+            name: read.name,
+            title: read.name ?? read.asked,
+            cwd: read.cwd,
+            model: read.model,
+            thinkingLevel: read.thinkingLevel,
+            busy: working,
+            archived: read.archived,
+            activeAt: read.activeAt,
+            unseen: !working && !read.archived && read.endedAt > read.seenAt,
+            ...(read.endedAt > 0 ? { endedAt: read.endedAt } : {}),
+            ...(read.owner === undefined ? {} : { parent: Number(read.owner) }),
+        };
     }
 
     /** The conversation that started this one, from the immutable record; undefined for a session a person created. */
@@ -353,37 +437,6 @@ export class Sessions {
         );
     }
 
-    /**
-     * The stored time, or, for a session older than the clock, the start time of its newest message,
-     * which the model message carries. A session with neither has no time.
-     */
-    async #activeAt(id: ConversationId): Promise<number | null> {
-        const stored = await this.#harness.commit(
-            async (tx) => (await tx.doc(ClockDoc, id)).activeAt,
-            this.#context,
-        );
-
-        if (stored > 0) {
-            return stored;
-        }
-
-        const page = await this.#harness.commit(
-            (tx) => tx.scanEntries({ conversationId: id, order: "descending" }, 1),
-            this.#context,
-        );
-        const stamp = page.items[0]?.model?.[0]?.timestamp;
-
-        if (stamp === undefined) {
-            return null;
-        }
-
-        await this.#harness.commit(async (tx) => {
-            (await tx.doc(ClockDoc, id)).activeAt = stamp;
-        }, this.#context);
-
-        return stamp;
-    }
-
     /** The name the sidebar shows: the one set by hand, else the first question. None for a deleted session, which no list shows. */
     async title(id: ConversationId): Promise<string | null> {
         if (await this.#isDeleted(id)) {
@@ -403,25 +456,20 @@ export class Sessions {
         return chosen === "" ? null : oneLine(chosen);
     }
 
-    /** The first question, cut: what a session is called until someone names it. */
+    /** The first question, read from the log only until it is found. */
     async #question(id: ConversationId): Promise<string | null> {
-        const page = await this.#harness.commit(
-            (tx) => tx.scanEntries({ conversationId: id, order: "ascending" }, 5),
-            this.#context,
-        );
+        const remembered = this.#questions.get(id);
 
-        for (const record of page.items) {
-            const entry = projectEntry(record);
-
-            if (entry?.kind === "user") {
-                const line = oneLine(entry.text);
-
-                if (line !== "") {
-                    return line.slice(0, 80);
-                }
-            }
+        if (remembered !== undefined) {
+            return remembered;
         }
 
-        return null;
+        const asked = await this.#harness.commit((tx) => firstQuestion(tx, id), this.#context);
+
+        if (asked !== null) {
+            this.#questions.set(id, asked);
+        }
+
+        return asked;
     }
 }
