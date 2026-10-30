@@ -59,16 +59,22 @@ export function mergeEntries(
 
 export function withEvent(state: ConversationState, event: ServerEvent): ConversationState {
     switch (event.type) {
-        case "hello":
+        case "hello": {
+            // A reconnect repeats hello for the conversation already on screen, carrying only the newest page: the pages
+            // read before it stay, and a start already reached stays reached.
+            const same = state.session === event.session;
+
             return {
                 ...state,
                 session: event.session,
-                entries: mergeEntries([], event.entries),
+                entries: mergeEntries(same ? state.entries : [], event.entries),
                 live: event.live,
                 model: event.model,
-                loadingOlder: false,
-                exhausted: !event.more,
+                loadingOlder: same ? state.loadingOlder : false,
+                exhausted: same ? state.exhausted || !event.more : !event.more,
+                issue: null,
             };
+        }
 
         case "entries":
             return { ...state, entries: mergeEntries(state.entries, event.entries) };

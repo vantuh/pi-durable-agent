@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { ClientEntry, ServerEvent } from "../shared/protocol.ts";
-import { mergeEntries, START, withEvent } from "../web/src/lib/conversation-state.ts";
+import { mergeEntries, START, withEvent, withOlder } from "../web/src/lib/conversation-state.ts";
 
 const said = (id: number, text: string): ClientEntry => ({ id, kind: "user", text });
 
@@ -64,6 +64,57 @@ void describe("withEvent", () => {
 
         assert.deepEqual(idsOf(withEvent(read, hello).entries), [1]);
         assert.equal(withEvent(read, hello).session, 1);
+    });
+
+    void it("keeps the pages read before a reconnect, and that the start is already on screen", () => {
+        const read = withOlder(
+            { ...START, session: 1, entries: [said(9, "the tail")] },
+            {
+                entries: [said(1, "the start"), said(2, "second")],
+                more: false,
+            },
+        );
+        const hello: ServerEvent = {
+            type: "hello",
+            session: 1,
+            entries: [said(9, "the tail"), said(10, "just committed")],
+            live: START.live,
+            model: "m1",
+            more: true,
+        };
+
+        const reconnected = withEvent(read, hello);
+
+        assert.deepEqual(
+            idsOf(reconnected.entries),
+            [1, 2, 9, 10],
+            "the same session's stream only carries the newest page, and the rest is still the conversation",
+        );
+        assert.equal(
+            reconnected.exhausted,
+            true,
+            "the start is on screen, so a reconnect does not make it worth asking for again",
+        );
+    });
+
+    void it("drops the last session's error on hello", () => {
+        const read = {
+            ...START,
+            session: 7,
+            entries: [said(9, "from session 7")],
+            issue: "the older messages did not arrive",
+        };
+
+        const hello: ServerEvent = {
+            type: "hello",
+            session: 1,
+            entries: [],
+            live: START.live,
+            model: "m1",
+            more: false,
+        };
+
+        assert.equal(withEvent(read, hello).issue, null);
     });
 
     void it("knows from hello whether the start is still to be asked for", () => {
