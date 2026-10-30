@@ -131,6 +131,9 @@ function langOf(className: unknown): string {
     return found === undefined ? "" : found.slice("language-".length);
 }
 
+const LINK_CLASS =
+    "text-info decoration-info/40 hover:decoration-info underline underline-offset-2";
+
 const COMPONENTS: Components = {
     pre({ node }) {
         const code = node?.children[0];
@@ -155,15 +158,18 @@ const COMPONENTS: Components = {
     },
     a({ href, children }) {
         return (
-            <a
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                className="text-info decoration-info/40 hover:decoration-info underline underline-offset-2"
-            >
+            <a href={href} target="_blank" rel="noreferrer" className={LINK_CLASS}>
                 {children}
             </a>
         );
+    },
+    img({ src, alt }) {
+        // An image would load from wherever a model answer names, unasked; a link waits for the click.
+        return typeof src === "string" && src !== "" ? (
+            <a href={src} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                {alt === undefined || alt === "" ? src : alt}
+            </a>
+        ) : null;
     },
     h1: ({ children }) => <h3 className="text-ink mt-2 text-lg font-semibold">{children}</h3>,
     h2: ({ children }) => <h3 className="text-ink mt-2 text-base font-semibold">{children}</h3>,
