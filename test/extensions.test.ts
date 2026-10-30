@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -736,6 +736,10 @@ export const status = () => ({ text: "v${value}" });`;
         await write("beta", named("b1"));
         await extensions.load();
         await extensions.setEnabled("alpha", false);
+
+        assert.deepEqual(JSON.parse(await readFile(join(root, "extensions.json"), "utf8")), {
+            disabled: ["alpha"],
+        });
 
         const next = make();
 

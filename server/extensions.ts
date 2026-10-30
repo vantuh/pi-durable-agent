@@ -5,7 +5,7 @@
  */
 
 import { type FSWatcher, realpathSync, watch } from "node:fs";
-import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
@@ -29,6 +29,7 @@ import type {
 } from "@earendil-works/pi-durable";
 
 import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
+import { writeJsonFile } from "./atomic-write.ts";
 import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
 
 /** What an extension's `server.ts` receives. It grows only when a feature needs more. */
@@ -482,13 +483,9 @@ export class Extensions {
                 disabled.add(name);
             }
 
-            await mkdir(this.#dataDir, { recursive: true });
-
-            const file = join(this.#dataDir, STATE_FILE);
-            const temp = `${file}.tmp`;
-
-            await writeFile(temp, JSON.stringify({ disabled: [...disabled].sort() }));
-            await rename(temp, file);
+            await writeJsonFile(join(this.#dataDir, STATE_FILE), {
+                disabled: [...disabled].sort(),
+            });
             // Only this folder: reloading the rest would run their disposers (a pause lets go, MCP reconnects).
             await this.#load(new Set([name]));
 
