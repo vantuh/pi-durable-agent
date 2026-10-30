@@ -291,25 +291,28 @@ export function Sessions({
     const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
     const shell = useRef<HTMLElement | null>(null);
     const form = useRef<HTMLFormElement | null>(null);
-    // The rows on screen, so the form opens at the height of the one it edits instead of at the top.
+    const dialog = useRef<HTMLDivElement | null>(null);
+    // The rows on screen, so a panel opens at the height of the one it acts on instead of at the top.
     const rowNodes = useRef(new Map<number, HTMLDivElement>());
     const [place, setPlace] = useState(0);
 
     useLayoutEffect(() => {
         const side = shell.current?.getBoundingClientRect();
-        const row = renaming === null ? undefined : rowNodes.current.get(renaming.id);
+        const target = renaming ?? deleting;
+        // Only one panel is open at a time; the height of that one decides how low it may sit.
+        const panel = renaming === null ? dialog.current : form.current;
+        const row = target === null ? undefined : rowNodes.current.get(target.id);
 
-        if (side === undefined || row === undefined || form.current === null) {
+        if (side === undefined || row === undefined || panel === null) {
             return;
         }
 
         const rowTop = row.getBoundingClientRect().top - side.top;
-        // Kept inside the sidebar: a row at the bottom would otherwise push the form past its edge.
-        const lowest = side.height - form.current.offsetHeight - 8;
-        const next = Math.min(Math.max(rowTop, 8), Math.max(lowest, 8));
+        // Kept inside the sidebar: a row at the bottom would otherwise push the panel past its edge.
+        const lowest = side.height - panel.offsetHeight - 8;
 
-        setPlace(next);
-    }, [renaming]);
+        setPlace(Math.min(Math.max(rowTop, 8), Math.max(lowest, 8)));
+    }, [renaming, deleting]);
 
     const saveName = async (): Promise<void> => {
         if (renaming === null) {
@@ -912,9 +915,11 @@ export function Sessions({
 
             {deleting === null ? null : (
                 <div
+                    ref={dialog}
                     role="alertdialog"
                     aria-label="Delete session"
-                    className="rounded-card border-edge-soft bg-panel absolute inset-x-2 top-14 z-20 flex flex-col gap-2 border p-2 shadow-lg lg:inset-x-auto lg:left-full lg:ml-2 lg:w-64"
+                    style={{ top: place }}
+                    className="rounded-card border-edge-soft bg-panel absolute inset-x-2 z-20 flex flex-col gap-2 border p-2 shadow-lg lg:inset-x-auto lg:left-full lg:ml-2 lg:w-64"
                 >
                     <p className="text-meta text-ink break-words">
                         Delete “{deleting.title ?? "New session"}”? It disappears for good.
