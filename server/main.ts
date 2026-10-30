@@ -256,6 +256,10 @@ function publish(opened: Opened, view: View): void {
     const grows = ids.length > opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
     const unchanged =
         ids.length === opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
+    // The one entry a row shows: the question that names the session. A row's time moves when a person
+    // writes, which is a request of its own, so the entries a run appends change nothing in the list.
+    const asked = entries.findIndex((entry) => entry.kind === "user" && entry.text.trim() !== "");
+    const named = asked !== -1 && asked >= opened.sent.length;
 
     if (grows) {
         const fresh = entries.slice(opened.sent.length);
@@ -267,8 +271,8 @@ function publish(opened: Opened, view: View): void {
         broadcast({ type: "entries", session: opened.id, entries });
     }
 
-    // New entries name a session and move its time; a run starting or ending moves its mark.
-    if (!unchanged || isBusy(opened.id) !== live.busy) {
+    // A run starting or ending moves the row's mark and its unseen state; a first question names it.
+    if (named || isBusy(opened.id) !== live.busy) {
         listChanged();
     }
 
@@ -588,6 +592,8 @@ async function boot(): Promise<void> {
     });
 
     const stopObserving = observeNewConversations(harness, (id) => {
+        // A conversation nobody asked for is a new row, and no request of its own brings it to the list.
+        listChanged();
         attach(id).catch((error: unknown) => {
             console.error(error);
         });

@@ -17,14 +17,16 @@ access to the list.
 ## The list streams
 
 ```text
-GET  /api/sessions/events    SSE: { type: "sessions", sessions } at once, then after every change
+GET  /api/sessions/events    SSE: { type: "sessions", sessions } at once, then after every change a row shows
 POST /api/sessions/seen      { session }  the latest run is seen
 ```
 
 The list is sent whole, not as deltas: it is a few dozen rows, and a whole list cannot drift.
-Changes in a burst are sent once. A change is: a session starts or stops working, gains or loses
-entries (its title and time come from them), or any non-`GET` API call (create, rename, archive,
-delete, model, seen, a message). The browser drops its polling; an action still re-reads the list, so its own result shows at once.
+Changes in a burst are sent once. A change is: a session starts or stops working, gains the question
+that names it, a run ends, or any non-`GET` API call (create, rename, archive, delete, model, seen, a
+message). The entries a run appends are not changes: a row's `activeAt` is what a message sets, not
+what a commit appends, and a title only the first question moves. The browser drops its polling; an
+action still re-reads the list, so its own result shows at once.
 
 ## Seen
 
