@@ -10,17 +10,6 @@ import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
 
-/** Shift and the arrows are text editing too, so they act only where there is no text to edit. */
-function holdsText(element: Element | null): boolean {
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-        return element.value !== "";
-    }
-
-    return (
-        element instanceof HTMLElement && element.isContentEditable && element.textContent !== ""
-    );
-}
-
 function Hotkeys(props: StatusItemProps) {
     const [label, setLabel] = useState<string | null>(null);
     const latest = useRef(props);
@@ -78,10 +67,6 @@ function Hotkeys(props: StatusItemProps) {
             }
 
             const result = step(map, armed, event);
-
-            if (!armed && result.command !== null && holdsText(focus)) {
-                return;
-            }
 
             if (result.consume) {
                 event.preventDefault();
