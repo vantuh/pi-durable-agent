@@ -12,6 +12,9 @@ It is independent of `git-stats`: disabling either does not disable the other.
   rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. Each file has
   its own foldable header and line counts; files start expanded. Untracked non-ignored files
   are included; binary files are listed without a text diff.
+- The preview is virtualized: only the files near the viewport are in the page, so a commit of
+  hundreds of files opens as fast as a small one. A commit's diff cannot change, so reopening it is
+  a cache hit; the working tree is read again every time.
 - In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
   **Side by side** for history previews. The choice is saved in this browser, applies to all
   sessions and updates open previews. Plannotator's layout is controlled inside its own UI.

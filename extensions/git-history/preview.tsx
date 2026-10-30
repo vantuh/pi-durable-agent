@@ -6,17 +6,10 @@ import {
     registerCustomCSSVariableTheme,
     type FileDiffMetadata,
 } from "@pierre/diffs";
-import { FileDiff } from "@pierre/diffs/react";
-import { ChevronDown } from "lucide-react";
+import { CodeView, type CodeViewDiffItem } from "@pierre/diffs/react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible.tsx";
-
-import { diffStyle, subscribeDiffStyle, type DiffStyle } from "./preferences.ts";
+import { diffStyle, subscribeDiffStyle } from "./preferences.ts";
 import type { ChangedFile, Changes } from "./refs.ts";
 
 const theme = "git-history-roles";
@@ -43,7 +36,6 @@ if (!hasResolvedThemes([theme])) {
 const options = {
     theme,
     overflow: "scroll",
-    disableFileHeader: true,
     hunkSeparators: "metadata",
     unsafeCSS: `:host {
         color-scheme: inherit;
@@ -57,33 +49,18 @@ const options = {
         --diffs-deletion-color-override: var(--role-danger);
         --diffs-modified-color-override: var(--role-info);
     }`,
-} satisfies NonNullable<Parameters<typeof FileDiff>[0]["options"]>;
+} satisfies NonNullable<Parameters<typeof CodeView>[0]["options"]>;
 
-function FilePreview({
-    file,
-    diff,
-    style,
-}: {
-    file: ChangedFile;
-    diff: FileDiffMetadata | undefined;
-    style: DiffStyle;
-}) {
-    const [open, setOpen] = useState(true);
-    const name = diff?.prevName === undefined ? file.path : `${diff.prevName} → ${file.path}`;
+/** Files the patch does not carry: binary, or cut off by the preview's size limit. */
+function WithoutDiff({ files }: { files: ChangedFile[] }) {
     return (
-        <Collapsible
-            open={open}
-            onOpenChange={setOpen}
-            className="border-edge-soft min-w-0 border-t"
-        >
-            <CollapsibleTrigger asChild>
-                <button
-                    type="button"
-                    title={name}
-                    className="hover:bg-raised text-meta flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left"
+        <ul>
+            {files.map((file) => (
+                <li
+                    key={file.path}
+                    className="border-edge-soft text-meta flex items-center gap-2 border-t px-3 py-2"
                 >
-                    <ChevronDown className={`size-3.5 shrink-0 ${open ? "" : "-rotate-90"}`} />
-                    <span className="min-w-0 flex-1 truncate font-mono">{name}</span>
+                    <span className="min-w-0 flex-1 truncate font-mono">{file.path}</span>
                     {file.binary ? (
                         <span className="text-muted shrink-0">binary</span>
                     ) : (
@@ -92,35 +69,17 @@ function FilePreview({
                             <span className="text-danger">−{file.deleted}</span>
                         </span>
                     )}
-                </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="min-w-0">
-                {file.binary ? (
-                    <p className="text-muted text-meta px-3 py-2">Binary file: no text diff.</p>
-                ) : diff === undefined ? (
-                    <p className="text-muted text-meta px-3 py-2">
-                        Diff omitted from this preview.
-                    </p>
-                ) : diff.hunks.length === 0 ? (
-                    <p className="text-muted text-meta px-3 py-2">
-                        No text changes (rename or file mode only).
-                    </p>
-                ) : (
-                    <FileDiff
-                        fileDiff={diff}
-                        options={{ ...options, diffStyle: style }}
-                        className="block min-w-0"
-                    />
-                )}
-            </CollapsibleContent>
-        </Collapsible>
+                    <span className="text-muted shrink-0">no text diff</span>
+                </li>
+            ))}
+        </ul>
     );
 }
 
 export function PatchPreview({ data }: { data: Changes }) {
     const style = useSyncExternalStore(subscribeDiffStyle, diffStyle);
     const [parsed, setParsed] = useState<{
-        files: Map<string, FileDiffMetadata>;
+        files: FileDiffMetadata[];
         error: string | null;
     } | null>(null);
     useEffect(() => {
@@ -136,14 +95,11 @@ export function PatchPreview({ data }: { data: Changes }) {
                     langs: files.map((file) => getFiletypeFromFileName(file.name)),
                 });
                 if (alive) {
-                    setParsed({
-                        files: new Map(files.map((file) => [file.name, file])),
-                        error: null,
-                    });
+                    setParsed({ files, error: null });
                 }
             } catch (error) {
                 if (alive) {
-                    setParsed({ files: new Map(), error: String(error) });
+                    setParsed({ files: [], error: String(error) });
                 }
             }
         })();
@@ -154,21 +110,30 @@ export function PatchPreview({ data }: { data: Changes }) {
     if (parsed === null) {
         return <p className="text-muted text-meta px-3 py-2">Rendering diff…</p>;
     }
+    if (parsed.error !== null) {
+        return (
+            <p role="alert" className="text-danger text-meta px-3 py-2">
+                Could not render this diff: {parsed.error}
+            </p>
+        );
+    }
+    const inPatch = new Set(parsed.files.map((file) => file.name));
+    const items: CodeViewDiffItem[] = parsed.files.map((file, index) => ({
+        id: `${String(index)}:${file.name}`,
+        type: "diff",
+        fileDiff: file,
+    }));
     return (
-        <div className="min-w-0">
-            {parsed.error === null ? null : (
-                <p role="alert" className="text-danger text-meta px-3 py-2">
-                    Could not render this diff: {parsed.error}
-                </p>
-            )}
-            {data.files.map((file) => (
-                <FilePreview
-                    key={file.path}
-                    file={file}
-                    diff={parsed.files.get(file.path)}
-                    style={style}
+        <>
+            {/* CodeView renders only the files near the viewport: a 400 KiB commit costs one file. */}
+            {items.length === 0 ? null : (
+                <CodeView
+                    items={items}
+                    options={{ ...options, diffStyle: style }}
+                    className="h-[70vh] min-h-0 overflow-auto"
                 />
-            ))}
-        </div>
+            )}
+            <WithoutDiff files={data.files.filter((file) => !inPatch.has(file.path))} />
+        </>
     );
 }

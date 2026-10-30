@@ -157,14 +157,59 @@ function RewordForm({
     );
 }
 
+/** A commit's diff never changes, so reopening it is free; only the working tree is read each time. */
+const patches = new Map<string, Changes>();
+const pendingPatches = new Map<string, Promise<Changes>>();
+const PATCHES_KEPT = 20;
+
+const patchKey = (session: number, target: string): string => `${String(session)}:${target}`;
+
+function cachedPatch(session: number, target: string): Changes | undefined {
+    return patches.get(patchKey(session, target));
+}
+
+/** A second click waits for the request already in flight rather than starting its own. */
+function loadChanges(session: number, target: string): Promise<Changes> {
+    if (target === "worktree") {
+        return callAction(changes, { target }, session);
+    }
+    const found = cachedPatch(session, target);
+    if (found !== undefined) {
+        return Promise.resolve(found);
+    }
+    const key = patchKey(session, target);
+    const pending = pendingPatches.get(key);
+    if (pending !== undefined) {
+        return pending;
+    }
+    const request = callAction(changes, { target }, session)
+        .then((result) => {
+            patches.set(key, result);
+            const oldest = patches.keys().next().value;
+            if (patches.size > PATCHES_KEPT && oldest !== undefined) {
+                patches.delete(oldest);
+            }
+            return result;
+        })
+        .finally(() => {
+            pendingPatches.delete(key);
+        });
+    pendingPatches.set(key, request);
+    return request;
+}
+
+function forgetPatches(): void {
+    patches.clear();
+}
+
 function Preview({ session, target }: { session: number; target: string }) {
-    const [data, setData] = useState<Changes | null>(null);
+    const [data, setData] = useState<Changes | null>(() => cachedPatch(session, target) ?? null);
     const [error, setError] = useState<string | null>(null);
     useEffect(() => {
         let alive = true;
         void (async () => {
             try {
-                const found = await callAction(changes, { target }, session);
+                const found = await loadChanges(session, target);
                 if (alive) {
                     setData(found);
                 }
@@ -201,8 +246,8 @@ function Preview({ session, target }: { session: number; target: string }) {
             </div>
             {data.truncated ? (
                 <p className="text-warn text-meta px-3 pb-2">
-                    Preview is limited to 400 KiB and {UNTRACKED_FILE_CAP} new files; oversized
-                    changes or new symlinks are listed without their diff.
+                    Preview stops at 400 KiB and {UNTRACKED_FILE_CAP} new files: files that fit keep
+                    their diff, the rest are listed without one.
                 </p>
             ) : null}
             {data.files.length === 0 ? (
@@ -430,6 +475,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                         setEditing(null);
                         setSelected(null);
                         setLoading(true);
+                        forgetPatches();
                         setRefresh((value) => value + 1);
                     }}
                 />
@@ -506,6 +552,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                 className={button}
                                 onClick={() => {
                                     setLoading(true);
+                                    forgetPatches();
                                     setRefresh((value) => value + 1);
                                 }}
                             >
