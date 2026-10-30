@@ -63,7 +63,7 @@ export async function inside(cwd: string, path: string): Promise<string> {
 export async function listFolder(dir: string): Promise<Folder> {
     const found = await readdir(dir, { withFileTypes: true });
     const entries = await Promise.all(
-        found.slice(0, VIEW_ENTRIES).map(async (entry) => ({
+        found.map(async (entry) => ({
             name: entry.name,
             // A link shows as what it points to; one that points nowhere is a file.
             dir: entry.isSymbolicLink()
@@ -77,7 +77,12 @@ export async function listFolder(dir: string): Promise<Folder> {
 
     entries.sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
 
-    return { entries, truncated: found.length > VIEW_ENTRIES };
+    // The cut comes after the sort, so the folders and names that survive it are the ones that sort
+    // first, not the ones readdir happened to return first.
+    return {
+        entries: entries.slice(0, VIEW_ENTRIES),
+        truncated: found.length > VIEW_ENTRIES,
+    };
 }
 
 export async function readFile(file: string): Promise<File> {

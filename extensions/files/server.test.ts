@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { actions } from "./server.ts";
+import { actions, listFolder } from "./server.ts";
 
 void describe("files actions", () => {
     let dir: string;
@@ -47,6 +47,33 @@ void describe("files actions", () => {
             ],
             truncated: false,
         });
+    });
+
+    void it("sorts before it truncates, so a folder past the readdir order's first page is listed", async () => {
+        const big = join(dir, "big");
+        const count = 1200;
+
+        await mkdir(big);
+        for (let index = 0; index < count; index += 1) {
+            await writeFile(join(big, `f${String(index).padStart(4, "0")}.txt`), "");
+        }
+        // Names sort after every file, and readdir does not: folders first puts it in the list anyway.
+        await mkdir(join(big, "zzz-folder"));
+
+        const folder = await listFolder(big);
+
+        assert.equal(folder.truncated, true);
+        assert.equal(folder.entries.length, 1000);
+        assert.deepEqual(folder.entries[0], { name: "zzz-folder", dir: true });
+        assert.deepEqual(
+            folder.entries.slice(1, 4),
+            [
+                { name: "f0000.txt", dir: false },
+                { name: "f0001.txt", dir: false },
+                { name: "f0002.txt", dir: false },
+            ],
+            "the files dropped are the last by name, not by readdir order",
+        );
     });
 
     void it("reads text, and names binary and image files", async () => {
