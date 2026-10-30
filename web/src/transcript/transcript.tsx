@@ -391,6 +391,8 @@ export function Transcript({
     const sent = newest?.kind === "user" && newest.author === undefined;
     const counted = useRef(entries.length);
     const first = entries[0]?.id;
+    /** The first entry an automatic ask was made for: a page that arrives moves it, an answer that never came does not. */
+    const autoAsked = useRef<number | undefined>(undefined);
 
     useLayoutEffect(() => {
         const target = scroller.current;
@@ -422,8 +424,9 @@ export function Transcript({
         }
 
         // A tail too short to scroll fires no scroll event, so a compaction's short view would never ask for what it
-        // set aside; the same rule as the scroll handler, applied to where the box has settled.
-        if (!exhausted && target.scrollTop < OLDER_AT) {
+        // set aside. Once per first entry: a failed answer must not be asked for again by the commit it caused.
+        if (!exhausted && target.scrollTop < OLDER_AT && autoAsked.current !== first) {
+            autoAsked.current = first;
             void onLoadOlder();
         }
     });
