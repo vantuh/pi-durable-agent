@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Paperclip, TriangleAlert, X } from "lucide-react";
-import { useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import {
     Attachment,
@@ -89,10 +89,11 @@ function Lightbox({
     onIndex: (index: number) => void;
     onClose: () => void;
 }) {
+    const content = useRef<HTMLDivElement>(null);
     const shot = shots[index];
     const many = shots.length > 1;
 
-    function onKeyDown(event: KeyboardEvent) {
+    function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
         if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
             return;
         }
@@ -100,9 +101,13 @@ function Lightbox({
         const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
         const next = index + step;
 
-        if (many && step !== 0 && next >= 0 && next < shots.length) {
+        if (many && step !== 0) {
             event.preventDefault();
-            onIndex(next);
+            event.currentTarget.focus();
+
+            if (next >= 0 && next < shots.length) {
+                onIndex(next);
+            }
         }
     }
 
@@ -120,7 +125,12 @@ function Lightbox({
             }}
         >
             <DialogContent
+                ref={content}
                 aria-describedby={undefined}
+                onOpenAutoFocus={(event) => {
+                    event.preventDefault();
+                    content.current?.focus();
+                }}
                 onKeyDown={onKeyDown}
                 className="bg-panel border-edge rounded-card inset-auto top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 gap-1.5 border p-1.5 sm:max-h-[calc(100dvh-2rem)] sm:w-auto sm:max-w-[calc(100vw-2rem)]"
             >
