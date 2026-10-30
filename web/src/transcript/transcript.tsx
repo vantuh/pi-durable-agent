@@ -1,6 +1,7 @@
 import {
     ChevronRight,
     CircleAlert,
+    File,
     Layers,
     Lightbulb,
     PanelLeft,
@@ -23,13 +24,39 @@ import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { AgentMessage } from "./agent-message.tsx";
 import { SessionContext } from "./session.ts";
 
+/** `@path` after whitespace, anywhere in the text; the punctuation that ends a sentence is not part of the path. */
+const MENTION = /(^|\s)@([^\s@]*[^\s@.,;:!?)\]])/g;
+
+/** The text with each `@path` drawn as a file badge. */
+function WithFiles({ text }: { text: string }) {
+    const parts: ReactNode[] = [];
+    let at = 0;
+
+    for (const match of text.matchAll(MENTION)) {
+        const start = match.index + (match[1]?.length ?? 0);
+
+        parts.push(text.slice(at, start));
+        parts.push(
+            <Badge key={start} className="border-info/40 bg-info/15 text-info align-middle">
+                <File />
+                {match[2]}
+            </Badge>,
+        );
+        at = start + 1 + (match[2]?.length ?? 0);
+    }
+
+    parts.push(text.slice(at));
+
+    return <p className="whitespace-pre-wrap">{parts}</p>;
+}
+
 /** A message that starts with `/skill:name` shows the skill as a badge, then the request. */
 function UserText({ text }: { text: string }) {
     const match = /^\/skill:(\S+)(?:\s+([\s\S]*))?$/.exec(text.trim());
     const request = match?.[2];
 
     if (match === null) {
-        return text === "" ? null : <p className="whitespace-pre-wrap">{text}</p>;
+        return text === "" ? null : <WithFiles text={text} />;
     }
 
     return (
@@ -38,9 +65,7 @@ function UserText({ text }: { text: string }) {
                 <Lightbulb />
                 {match[1]}
             </Badge>
-            {request === undefined || request === "" ? null : (
-                <p className="whitespace-pre-wrap">{request}</p>
-            )}
+            {request === undefined || request === "" ? null : <WithFiles text={request} />}
         </div>
     );
 }

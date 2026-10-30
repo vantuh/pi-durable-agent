@@ -186,6 +186,13 @@ export async function listSkills(session: number): Promise<SkillInfo[]> {
     });
 }
 
+/** The files of the session's folder, as paths relative to it. */
+export async function listProjectFiles(session: number): Promise<string[]> {
+    return list(
+        record(await json(`/api/project-files?session=${String(session)}`))?.["files"],
+    ).filter((path): path is string => typeof path === "string");
+}
+
 export async function getFavourites(): Promise<string[]> {
     return list(record(await json("/api/favourites"))?.["folders"]).filter(
         (entry): entry is string => typeof entry === "string",

@@ -1,10 +1,18 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
-import { listSkills, runCommand, type SkillInfo, uploadFile, withdrawQueued } from "../lib/api.ts";
+import {
+    listProjectFiles,
+    listSkills,
+    runCommand,
+    type SkillInfo,
+    uploadFile,
+    withdrawQueued,
+} from "../lib/api.ts";
+import { fuzzyScore } from "../lib/fuzzy.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { toast } from "../lib/toast.ts";
 import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
@@ -30,7 +38,45 @@ const COMMANDS: { name: string; description: string; takesArgs: boolean }[] = [
     { name: "compact", description: "Summarize the earlier messages", takesArgs: true },
 ];
 
-type Candidate = { label: string; description: string; insert: string };
+/** `replace` is the part of the text the pick takes the place of; without it the pick is the whole text. */
+type Candidate = {
+    label: string;
+    description: string;
+    insert: string;
+    replace?: [number, number];
+};
+
+const FILE_MATCHES = 30;
+
+/**
+ * Commands and skills whose name matches what follows `/`, the closest first: a letter anywhere in a name finds it,
+ * and typing one more letter only takes matches away.
+ */
+function slashCandidates(typed: string, skills: readonly SkillInfo[]): Candidate[] {
+    const named: (Candidate & { name: string })[] = [
+        ...COMMANDS.map((command) => ({
+            name: command.name,
+            label: `/${command.name}`,
+            description: command.description,
+            insert: `/${command.name}${command.takesArgs ? " " : ""}`,
+        })),
+        ...skills.map((skill) => ({
+            name: skill.name,
+            label: `/skill:${skill.name}`,
+            description: skill.description,
+            insert: `/skill:${skill.name} `,
+        })),
+    ];
+
+    return named
+        .flatMap((candidate) => {
+            const score = fuzzyScore(candidate.name, typed);
+
+            return score === null ? [] : [{ candidate, score }];
+        })
+        .toSorted((left, right) => right.score - left.score)
+        .map((each) => each.candidate);
+}
 
 // Sent messages are remembered per session, so an empty chat never recalls another chat's text.
 function loadHistory(sessionId: string): string[] {
@@ -150,48 +196,80 @@ export function Composer({
         };
     }, []);
     const [skills, setSkills] = useState<SkillInfo[]>([]);
+    const [projectFiles, setProjectFiles] = useState<string[]>([]);
+    const [caret, setCaret] = useState(0);
     const [marked, setMarked] = useState(0);
     // The list closes on Escape and opens again when the text changes.
     const [dismissed, setDismissed] = useState<string | null>(null);
 
     useEffect(() => {
         void listSkills(Number(sessionId)).then(setSkills);
+        void listProjectFiles(Number(sessionId)).then(setProjectFiles);
     }, [sessionId]);
 
-    // "/" or "/ne" (no space yet) asks for a command or a skill; names that start with the typed letters come
-    // first. A picked command is inserted without a trailing space, so the pick closes the list itself.
+    // "/" or "/ne" (no space yet) asks for a command or a skill, the closest name first. A picked command is
+    // inserted without a trailing space, so the pick closes the list itself.
     const typed = /^\/(?:skill:)?([\w-]*)$/.exec(text)?.[1]?.toLowerCase();
-    const skillsByName =
-        typed === undefined
+    // "@" at the start of a word, wherever the caret is in the text, asks for a file of the folder.
+    const mention = typed === undefined ? /(^|\s)@([^\s@]*)$/.exec(text.slice(0, caret)) : null;
+    const mentioned = mention?.[2];
+    const fileMatches = useMemo((): string[] => {
+        if (mentioned === undefined) {
+            return [];
+        }
+
+        const usable = projectFiles.filter((path) => !/\s/.test(path));
+
+        if (mentioned === "") {
+            return usable
+                .toSorted((left, right) => left.length - right.length)
+                .slice(0, FILE_MATCHES);
+        }
+
+        return usable
+            .flatMap((path) => {
+                const score = fuzzyScore(path, mentioned);
+
+                return score === null ? [] : [{ path, score }];
+            })
+            .toSorted(
+                (left, right) => right.score - left.score || left.path.length - right.path.length,
+            )
+            .slice(0, FILE_MATCHES)
+            .map((each) => each.path);
+    }, [projectFiles, mentioned]);
+    const mentionAt = caret - (mentioned?.length ?? 0) - 1;
+    const fileCandidates: Candidate[] =
+        mentioned === undefined || dismissed === text
             ? []
-            : [
-                  ...skills.filter((skill) => skill.name.toLowerCase().startsWith(typed)),
-                  ...(typed.length < 2
-                      ? []
-                      : skills.filter(
-                            (skill) =>
-                                !skill.name.toLowerCase().startsWith(typed) &&
-                                skill.name.toLowerCase().includes(typed),
-                        )),
-              ];
+            : fileMatches.map((path): Candidate => {
+                  const slash = path.lastIndexOf("/");
+
+                  return {
+                      label: path.slice(slash + 1),
+                      description: slash < 0 ? "" : path.slice(0, slash),
+                      insert: `@${path} `,
+                      replace: [mentionAt, caret],
+                  };
+              });
     const matches: Candidate[] =
-        typed === undefined || dismissed === text
-            ? []
-            : [
-                  ...COMMANDS.filter((command) => command.name.startsWith(typed)).map(
-                      (command): Candidate => ({
-                          label: `/${command.name}`,
-                          description: command.description,
-                          insert: `/${command.name}${command.takesArgs ? " " : ""}`,
-                      }),
-                  ),
-                  ...skillsByName.map((skill): Candidate => ({
-                      label: `/skill:${skill.name}`,
-                      description: skill.description,
-                      insert: `/skill:${skill.name} `,
-                  })),
-              ];
+        typed === undefined || dismissed === text ? fileCandidates : slashCandidates(typed, skills);
     const pick = (candidate: Candidate): void => {
+        if (candidate.replace !== undefined) {
+            const [from, to] = candidate.replace;
+            const next = text.slice(0, from) + candidate.insert + text.slice(to);
+            const end = from + candidate.insert.length;
+
+            setComposerDraft(sessionId, next);
+            setText(next);
+            setCaret(end);
+            requestAnimationFrame(() => {
+                field.current?.setSelectionRange(end, end);
+            });
+
+            return;
+        }
+
         setComposerDraft(sessionId, candidate.insert);
         setText(candidate.insert);
         setDismissed(candidate.insert);
@@ -246,6 +324,8 @@ export function Composer({
                 );
             })();
         }
+
+        return fresh.map(([, pending]) => pending.key);
     };
 
     const dragging = useWindowDrop((dropped) => {
@@ -324,8 +404,6 @@ export function Composer({
         }
 
         if (name === "compact" && paths.length === 0) {
-
-        return fresh.map(([, pending]) => pending.key);
             setComposerDraft(sessionId, "");
             browse.current = null;
             setText("");
@@ -384,7 +462,7 @@ export function Composer({
                 {matches.length === 0 ? null : (
                     <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 flex max-h-64 flex-col overflow-y-auto border p-1 shadow-lg">
                         {matches.map((candidate, index) => (
-                            <li key={candidate.label}>
+                            <li key={candidate.insert}>
                                 <button
                                     type="button"
                                     aria-current={index === marked}
@@ -442,10 +520,14 @@ export function Composer({
                             const value = event.target.value;
 
                             setMarked(0);
+                            setCaret(event.target.selectionStart);
 
                             browse.current = null;
                             setComposerDraft(sessionId, value);
                             setText(value);
+                        }}
+                        onSelect={(event) => {
+                            setCaret(event.currentTarget.selectionStart);
                         }}
                         onKeyDown={(event) => {
                             const chosen = matches[Math.min(marked, matches.length - 1)];

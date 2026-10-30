@@ -10,6 +10,7 @@ import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-dur
 import { runCommand } from "../commands.ts";
 import { entryAt, historyPage } from "../history.ts";
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
+import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
 import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
 import { expandSkillCommand, skillsFor } from "../skills.ts";
@@ -388,6 +389,16 @@ export function conversationRoutes(deps: {
                         description: skill.description,
                     })),
                 });
+            },
+        },
+        {
+            method: "GET",
+            path: /^\/api\/project-files$/,
+            handle: async (_request, response, url) => {
+                const opened = await attach(querySession(url));
+                const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
+
+                answer(response, 200, { files: await projectFiles(cwd) });
             },
         },
     ];
