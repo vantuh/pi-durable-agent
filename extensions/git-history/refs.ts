@@ -1,5 +1,8 @@
 import { actionRef } from "../../shared/extension-api.ts";
 
+/** Listing untracked files costs a Git process each, so a preview stops here and says it did. */
+export const UNTRACKED_FILE_CAP = 500;
+
 export type Commit = {
     hash: string;
     short: string;

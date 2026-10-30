@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { parsePatchFiles } from "@pierre/diffs";
 
 import { PATCH_CAP, filesOf, git, readChanges, readHistory } from "./git.ts";
+import { UNTRACKED_FILE_CAP } from "./refs.ts";
 
 void describe("git-history reads", () => {
     let dir: string;
@@ -202,6 +203,27 @@ void describe("git-history reads", () => {
         assert.deepEqual(
             diff.files.map((file) => file.path),
             ["kept"],
+        );
+    });
+    void it("stops listing untracked files at the cap and says the preview is truncated", async () => {
+        await writeFile(join(repo, "a-real"), "line\n");
+        // A symlink row costs no Git process, so the cap is reached in a fraction of a second;
+        // it is the same listing that ordinary files are capped on.
+        for (let index = 0; index < UNTRACKED_FILE_CAP; index += 1) {
+            await symlink("a-real", join(repo, `link-${String(index).padStart(3, "0")}`));
+        }
+        const diff = await readChanges(repo, "worktree");
+        assert.equal(diff.files.length, UNTRACKED_FILE_CAP);
+        assert.equal(diff.truncated, true);
+        assert.deepEqual(
+            diff.files.slice(0, 2).map((file) => file.path),
+            ["a-real", "link-000"],
+        );
+        assert.equal(
+            diff.files.some(
+                (file) => file.path === `link-${String(UNTRACKED_FILE_CAP - 1).padStart(3, "0")}`,
+            ),
+            false,
         );
     });
     void it("parses binary and renamed numstat records with unusual paths", () => {

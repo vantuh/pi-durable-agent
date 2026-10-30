@@ -28,6 +28,7 @@ import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
 import { PatchPreview } from "./preview.tsx";
 import {
+    UNTRACKED_FILE_CAP,
     cancel,
     changes,
     history,
@@ -200,8 +201,8 @@ function Preview({ session, target }: { session: number; target: string }) {
             </div>
             {data.truncated ? (
                 <p className="text-warn text-meta px-3 pb-2">
-                    Preview is limited to 400 KiB; oversized changes or new symlinks are listed
-                    without their diff.
+                    Preview is limited to 400 KiB and {UNTRACKED_FILE_CAP} new files; oversized
+                    changes or new symlinks are listed without their diff.
                 </p>
             ) : null}
             {data.files.length === 0 ? (

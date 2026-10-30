@@ -6,7 +6,13 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError } from "../../server/sdk.ts";
-import type { ChangedFile, Changes, Commit, History } from "./refs.ts";
+import {
+    UNTRACKED_FILE_CAP,
+    type ChangedFile,
+    type Changes,
+    type Commit,
+    type History,
+} from "./refs.ts";
 
 const run = promisify(execFile);
 export const PATCH_CAP = 400 * 1024;
@@ -271,7 +277,10 @@ export async function readChanges(
         const untracked = (await git(root, ["ls-files", "--others", "--exclude-standard", "-z"]))
             .split("\0")
             .filter(Boolean);
-        for (const path of untracked) {
+        if (untracked.length > UNTRACKED_FILE_CAP) {
+            truncated = true;
+        }
+        for (const path of untracked.slice(0, UNTRACKED_FILE_CAP)) {
             const info = await stat(join(root, path)).catch((error: unknown) => {
                 // Something removed a file Git had listed, before it was read: it is not there.
                 if (
