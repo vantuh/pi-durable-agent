@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import type { Stats } from "node:fs";
+import { chmod, lstat, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { parsePatchFiles } from "@pierre/diffs";
 
-import { filesOf, git, readChanges, readHistory } from "./git.ts";
+import { PATCH_CAP, filesOf, git, readChanges, readHistory } from "./git.ts";
 
 void describe("git-history reads", () => {
     let dir: string;
@@ -183,6 +184,25 @@ void describe("git-history reads", () => {
             );
             assert.equal(files.find((file) => file.name === "removed")?.type, "deleted");
         }
+    });
+    void it("skips an untracked file that is gone before it is read", async () => {
+        await writeFile(join(repo, "kept"), "kept\n");
+        await writeFile(join(repo, "vanished"), "gone\n");
+        // Git lists and the code reads are two moments; a stat that already reports the file gone
+        // is the only way to hold that race still.
+        const stat = (path: string): Promise<Stats> =>
+            path.endsWith("vanished")
+                ? Promise.reject(
+                      Object.assign(new Error("ENOENT: no such file or directory"), {
+                          code: "ENOENT",
+                      }),
+                  )
+                : lstat(path);
+        const diff = await readChanges(repo, "worktree", PATCH_CAP, stat);
+        assert.deepEqual(
+            diff.files.map((file) => file.path),
+            ["kept"],
+        );
     });
     void it("parses binary and renamed numstat records with unusual paths", () => {
         assert.deepEqual(filesOf("-\t-\tbinary\0"), [

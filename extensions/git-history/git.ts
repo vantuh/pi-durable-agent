@@ -1,5 +1,6 @@
 /** Local Git reads, and the one write of giving a local commit a new message. No fetch, checkout or push. */
 import { execFile } from "node:child_process";
+import type { Stats } from "node:fs";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -219,8 +220,16 @@ export function filesOf(output: string): ChangedFile[] {
     return files;
 }
 
-/** Preview is bounded; review patches are never silently truncated. */
-export async function readChanges(cwd: string, target: string, cap = PATCH_CAP): Promise<Changes> {
+/**
+ * Preview is bounded; review patches are never silently truncated. `stat` is injected so a test can
+ * hold the listing and the reading apart, as a file vanishing between them does in real life.
+ */
+export async function readChanges(
+    cwd: string,
+    target: string,
+    cap = PATCH_CAP,
+    stat: (path: string) => Promise<Stats> = lstat,
+): Promise<Changes> {
     const root = await rootOf(cwd);
     const work = target === "worktree";
     let title = "Uncommitted changes";
@@ -263,8 +272,19 @@ export async function readChanges(cwd: string, target: string, cap = PATCH_CAP):
             .split("\0")
             .filter(Boolean);
         for (const path of untracked) {
-            const info = await lstat(join(root, path));
-            if (info.isDirectory()) {
+            const info = await stat(join(root, path)).catch((error: unknown) => {
+                // Something removed a file Git had listed, before it was read: it is not there.
+                if (
+                    typeof error === "object" &&
+                    error !== null &&
+                    "code" in error &&
+                    error.code === "ENOENT"
+                ) {
+                    return null;
+                }
+                throw error;
+            });
+            if (info === null || info.isDirectory()) {
                 continue;
             }
             // --no-index may follow symlinks; never read their external targets.
