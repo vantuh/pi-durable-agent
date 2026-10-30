@@ -14,7 +14,6 @@ import type {
 
 export type ConversationState = {
     session: number | null;
-    connected: boolean;
     model: string;
     entries: ClientEntry[];
     live: ClientLive;
@@ -29,7 +28,6 @@ export const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cos
 
 export const START: ConversationState = {
     session: null,
-    connected: false,
     model: "",
     entries: [],
     live: IDLE,

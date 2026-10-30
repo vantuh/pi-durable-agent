@@ -5,6 +5,7 @@ import { refreshExtensions } from "../extensions.ts";
 import { fetchHistory, sendMessage, stopRun } from "./api.ts";
 import { type ConversationState, START, withEvent, withOlder } from "./conversation-state.ts";
 import { parseEvent } from "./event.ts";
+import { reopenDelay } from "./stream.ts";
 import { toast } from "./toast.ts";
 
 export function useConversation(session: number | null): {
@@ -22,29 +23,49 @@ export function useConversation(session: number | null): {
             return undefined;
         }
 
-        const source = new EventSource(`/api/events?session=${String(session)}`);
+        let source: EventSource | undefined;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let failures = 0;
 
-        source.onopen = () => {
-            setState((current) => ({ ...current, connected: true }));
-        };
-        source.onerror = () => {
-            setState((current) => ({ ...current, connected: false }));
-        };
-        source.onmessage = (message: MessageEvent<string>) => {
-            const event = parseEvent(message.data);
+        // A stream the browser closes for good is opened again from here: it retries only a connection it lost.
+        const connect = (): void => {
+            const stream = new EventSource(`/api/events?session=${String(session)}`);
 
-            if (event !== undefined && event.session === session) {
-                if (event.type === "extension-notice") {
-                    toast[event.notice.level](event.notice.message);
-                    void refreshExtensions();
-                } else {
-                    setState((current) => withEvent(current, event));
+            source = stream;
+            stream.onopen = () => {
+                failures = 0;
+            };
+            stream.onerror = () => {
+                // Anything else is the browser reconnecting on its own, and it does that better than this would.
+                if (stream.readyState !== EventSource.CLOSED) {
+                    return;
                 }
-            }
+
+                timer = setTimeout(connect, reopenDelay(failures));
+                failures += 1;
+            };
+            stream.onmessage = (message: MessageEvent<string>) => {
+                const event = parseEvent(message.data);
+
+                if (event !== undefined && event.session === session) {
+                    if (event.type === "extension-notice") {
+                        toast[event.notice.level](event.notice.message);
+                        void refreshExtensions();
+                    } else {
+                        setState((current) => withEvent(current, event));
+                    }
+                }
+            };
         };
+
+        connect();
 
         return () => {
-            source.close();
+            if (timer !== undefined) {
+                clearTimeout(timer);
+            }
+
+            source?.close();
         };
     }, [session]);
 
