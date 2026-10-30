@@ -420,6 +420,12 @@ export function Transcript({
         } else if (following.current) {
             target.scrollTop = target.scrollHeight;
         }
+
+        // A tail too short to scroll fires no scroll event, so a compaction's short view would never ask for what it
+        // set aside; the same rule as the scroll handler, applied to where the box has settled.
+        if (!exhausted && target.scrollTop < OLDER_AT) {
+            void onLoadOlder();
+        }
     });
 
     // Rows that grow between renders (code highlighting, images) keep the bottom in view while following.
