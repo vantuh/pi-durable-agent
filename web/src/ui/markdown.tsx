@@ -1,5 +1,5 @@
 import { Check, Copy } from "lucide-react";
-import { memo, type ReactNode, useEffect, useState } from "react";
+import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ThemedToken } from "shiki";
@@ -10,6 +10,9 @@ import { classOf, tokensOf } from "../lib/highlight.ts";
 
 type Highlighted = { code: string; lines: ThemedToken[][] };
 
+/** How long a block that is still arriving waits for its text to pause before it is highlighted again. */
+const HIGHLIGHT_DELAY_MS = 150;
+
 /**
  * A fenced block: its language and a copy button above, the code highlighted below. While the code still grows, the
  * last highlighted version shows with the new text after it plain, so a streamed block does not flicker.
@@ -17,6 +20,8 @@ type Highlighted = { code: string; lines: ThemedToken[][] };
 export function CodeBlock({ code, lang, title }: { code: string; lang: string; title?: string }) {
     const [shown, setShown] = useState<Highlighted | undefined>(undefined);
     const [copied, setCopied] = useState(false);
+    /** A block that arrived whole is highlighted at once; one whose text is still coming waits for it to pause. */
+    const first = useRef(true);
 
     useEffect(() => {
         let current = true;
@@ -37,10 +42,20 @@ export function CodeBlock({ code, lang, title }: { code: string; lang: string; t
             }
         };
 
-        void highlight();
+        // Shiki's tokens are the whole block, so re-highlighting one that is still arriving would redo all of it for
+        // every 100 ms chunk: it waits for the text to stop instead, and the new text shows plain meanwhile.
+        const timer = setTimeout(
+            () => {
+                void highlight();
+            },
+            first.current ? 0 : HIGHLIGHT_DELAY_MS,
+        );
+
+        first.current = false;
 
         return () => {
             current = false;
+            clearTimeout(timer);
         };
     }, [code, lang]);
 
