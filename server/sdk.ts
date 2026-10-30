@@ -12,4 +12,5 @@ export {
     type StatusProvider,
 } from "./extensions.ts";
 export type { FetchWrapper, ModelFetch, RequestModel, ResolveModelAuth } from "./model-requests.ts";
+export { writeFileAtomic, writeJsonFile, type WriteOptions } from "./atomic-write.ts";
 export { skillsFor } from "./skills.ts";
