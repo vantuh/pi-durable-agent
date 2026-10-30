@@ -848,4 +848,4 @@ note saying which `offset` continues it.
 
 ## Hotkeys
 
-`extensions/hotkeys` binds keys to the shell's commands (`session.new`, `folder.pick`, from `@/sdk/commands.ts`) and to stepping through the sidebar's sessions; the defaults and `~/.pi/agent/hotkeys.json` are described in its `lib.ts`. Keys bind by physical position (`event.code`), so a binding works on any keyboard layout.
+`extensions/hotkeys` binds keys to the shell's commands (`session.new`, `folder.pick`, from `@/sdk/commands.ts`) and to stepping through the sidebar's sessions; the defaults and `data/hotkeys.json` are described in its `lib.ts`. Keys bind by physical position (`event.code`), so a binding works on any keyboard layout.

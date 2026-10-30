@@ -3,7 +3,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import type { Action, Host } from "../../server/sdk.ts";
@@ -12,7 +11,7 @@ import { mergeKeymap, type Keymap } from "./lib.ts";
 export const meta = {
     title: "Hotkeys",
     description:
-        "Keyboard shortcuts for new session, folder picker and switching sessions. Rebind them in hotkeys.json of the agent directory.",
+        "Keyboard shortcuts for new session, folder picker and switching sessions. Rebind them in data/hotkeys.json.",
 };
 
 export default function hotkeys(host: Host) {
@@ -28,6 +27,6 @@ export async function readKeymap(dir: string): Promise<Keymap> {
     }
 }
 
-export const actions: Record<string, Action> = {
-    keymap: () => readKeymap(getAgentDir()),
-};
+export const actions = (host: Host): Record<string, Action> => ({
+    keymap: () => readKeymap(host.dataDir),
+});
