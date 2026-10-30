@@ -165,11 +165,37 @@ void describe("Extensions disposers", () => {
     });
 
     /** Waits until `count` notices have arrived, which is how a watcher load makes itself known. */
-    async function nextNotice(count: number): Promise<ExtensionNotice | undefined> {
-        const deadline = Date.now() + 5000;
+    async function nextNotice(count: number, waitMs = 5000): Promise<ExtensionNotice | undefined> {
+        const deadline = Date.now() + waitMs;
         while (notices.length < count && Date.now() < deadline) {
             await setTimeout(20);
         }
+        assert.equal(notices.length, count);
+        return notices[count - 1];
+    }
+
+    /**
+     * Runs `change` and asserts the notice it must produce, again and again while none arrives: a
+     * change made while the new watcher is still arming is lost outright, and never arrives later.
+     */
+    async function noticeFor(
+        change: () => Promise<void>,
+        count: number,
+    ): Promise<ExtensionNotice | undefined> {
+        const deadline = Date.now() + 15000;
+
+        for (;;) {
+            await change();
+
+            const attempt = Date.now() + 2000;
+            while (notices.length < count && Date.now() < attempt) {
+                await setTimeout(20);
+            }
+            if (notices.length >= count || Date.now() > deadline) {
+                break;
+            }
+        }
+
         assert.equal(notices.length, count);
         return notices[count - 1];
     }
@@ -183,8 +209,7 @@ void describe("Extensions disposers", () => {
         await setTimeout(500);
         extensions.watch();
 
-        await write("alpha", source({ tags: ["alpha-v2"] }));
-        assert.deepEqual(await nextNotice(1), {
+        assert.deepEqual(await noticeFor(() => write("alpha", source({ tags: ["alpha-v2"] })), 1), {
             level: "success",
             message: "Extension “alpha” reloaded",
         });
@@ -237,8 +262,7 @@ void describe("Extensions disposers", () => {
         assert.deepEqual(notices, []);
         assert.deepEqual(calls(), []);
 
-        await write("alpha", source({ tags: ["v2"] }));
-        assert.deepEqual(await nextNotice(1), {
+        assert.deepEqual(await noticeFor(() => write("alpha", source({ tags: ["v2"] })), 1), {
             level: "success",
             message: "Extension “alpha” reloaded",
         });
