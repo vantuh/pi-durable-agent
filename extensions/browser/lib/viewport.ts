@@ -1,8 +1,10 @@
 /** Page sizes for the built-in browser: the presets people pick and Pi names, and sizes read from either. */
+import type { Viewport } from "../refs.ts";
+
 export type ViewportPreset = "mobile" | "tablet" | "desktop";
 
 /** A page's size in CSS pixels, its device pixel ratio, and whether it acts as a phone or tablet (touch, mobile layout). */
-export type Viewport = { width: number; height: number; scale: number; mobile: boolean };
+export type { Viewport };
 
 const isPreset = (name: string): name is ViewportPreset => Object.hasOwn(VIEWPORTS, name);
 

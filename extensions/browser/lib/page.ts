@@ -2,6 +2,7 @@
  * One conversation's page in the built-in browser: its events, screencast frames, console, and navigation, and what Pi
  * and people do to it.
  */
+import type { BrowserState, LogEntry } from "../refs.ts";
 import { BrowserError, type Connection, type Json } from "./cdp.ts";
 import { KEYS, keyEvents, parseKeys } from "./keys.ts";
 import {
@@ -11,29 +12,10 @@ import {
     SELECT_OPTION_SCRIPT,
     SNAPSHOT_SCRIPT,
 } from "./page-scripts.ts";
-import { clamp, presetOf, type Viewport, type ViewportPreset } from "./viewport.ts";
+import { clamp, presetOf, type Viewport } from "./viewport.ts";
 
-export type BrowserState = {
-    /** A browser to run was found on this machine. */
-    available: boolean;
-    /** The conversation's page is open. */
-    open: boolean;
-    url: string;
-    title: string;
-    loading: boolean;
-    viewport: Viewport;
-    preset?: ViewportPreset;
-    canGoBack: boolean;
-    canGoForward: boolean;
-    /** Console errors since the page last loaded. */
-    errors: number;
-    /** How many console lines there are, to know when to fetch them again. */
-    logs: number;
-    /** Why the page could not open, or that it crashed. */
-    problem?: string;
-};
-
-export type LogEntry = { seq: number; at: number; level: string; text: string; source?: string };
+// The panel and the tools read the same state, so the wire types are declared once, for both sides.
+export type { BrowserState, LogEntry };
 
 export type Frame = { seq: number; data: Buffer; width: number; height: number };
 
