@@ -233,8 +233,14 @@ export function Sessions({
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
     const searchBox = useRef<HTMLInputElement>(null);
+    // Where a hotkey found the focus, so Escape gives it back there instead of to the search button.
+    const searchFrom = useRef<HTMLElement | null>(null);
 
     useShellCommand("session.search", () => {
+        if (document.activeElement !== searchBox.current) {
+            searchFrom.current =
+                document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        }
         localStorage.setItem(COLLAPSED_KEY, "0");
         setCollapsed(false);
         setSearching(true);
@@ -246,7 +252,10 @@ export function Sessions({
         setSearching(false);
         setQuery("");
         // The box is only hidden, not unmounted, so it would keep the keys pressed after Escape.
-        searchTrigger.current?.focus();
+        const back = searchFrom.current?.isConnected ? searchFrom.current : searchTrigger.current;
+
+        searchFrom.current = null;
+        back?.focus();
     };
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
