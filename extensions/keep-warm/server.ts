@@ -41,8 +41,14 @@ const QUESTION =
 let seen = new Map<number, Seen>();
 let stored: Stored = {};
 let running: Promise<void> | undefined;
+/** Set by dispose: before it a version may ping and write, after it nothing, however long a ping runs. */
+let gone = false;
 
 async function remember(host: Host, session: number, attempt: Ping): Promise<void> {
+    if (gone) {
+        return;
+    }
+
     stored = { ...stored, last: { ...stored.last, [String(session)]: attempt } };
     await writeStore(host.dataDir, stored);
 }
@@ -106,6 +112,10 @@ async function tick(host: Host): Promise<void> {
     }
 
     for (const session of [...seen.keys()]) {
+        if (gone) {
+            return;
+        }
+
         const known = seen.get(session);
         const inputAt = known?.inputAt;
 
@@ -188,6 +198,7 @@ async function stateOf(host: Host, session: number | undefined): Promise<WarmSta
 export default async function keepWarm(host: Host) {
     stored = await readStore(host.dataDir);
     seen = new Map();
+    gone = false;
     host.onCommit((view) => {
         observe(seen, view);
     });
@@ -203,7 +214,9 @@ export default async function keepWarm(host: Host) {
     }, TICK);
 
     host.onDispose(async () => {
+        gone = true;
         clearInterval(timer);
+        // The one ping already in flight finishes; the loop then sends and writes nothing more.
         await running;
     });
 

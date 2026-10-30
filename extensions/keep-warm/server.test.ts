@@ -5,13 +5,13 @@ import { join } from "node:path";
 import { mock, test } from "node:test";
 import { setTimeout } from "node:timers/promises";
 
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type { CommitListener, CommitView, Host } from "../../server/sdk.ts";
 import { due, IDLE_STOP, LEAD, TTL } from "./due.ts";
 import keepWarm, { actions } from "./server.ts";
-import { readStore } from "./store.ts";
+import { readStore, writeStore } from "./store.ts";
 import {
     activityOf,
     cached,
@@ -502,6 +502,150 @@ void test("builds no request for a conversation the user left too long ago for a
             await dispose();
         }
 
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a hand-made model, without the catalog that types one
+const warmModel = {
+    id: "opus",
+    provider: "anthropic",
+    api: "anthropic-messages",
+    reasoning: true,
+} as unknown as Model<Api>;
+
+/** What a ping's request answers: a stop whose cache read makes the ping count as a request. */
+const pinged = (): AssistantMessage => ({
+    role: "assistant",
+    api: "anthropic-messages",
+    provider: "anthropic",
+    model: "opus",
+    stopReason: "stop",
+    timestamp: 0,
+    usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 1_000,
+        cacheWrite: 0,
+        totalTokens: 1_000,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+    content: [],
+});
+
+void test("sends no second ping and writes nothing after dispose", async () => {
+    mock.timers.enable({ apis: ["setInterval"] });
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    const commits: CommitListener[] = [];
+    const disposers: (() => void | Promise<void>)[] = [];
+    const sent: number[] = [];
+    let release: () => void = () => undefined;
+    const inFlight = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const host: Host = {
+        name: "keep-warm",
+        cwd: dir,
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: (listener) => {
+            commits.push(listener);
+        },
+        onDispose: (dispose) => {
+            disposers.push(dispose);
+        },
+        shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
+        wrapModelFetch: () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
+        sessionRequest: (session) =>
+            Promise.resolve({
+                model: warmModel,
+                messages: [],
+                send: async () => {
+                    sent.push(session);
+                    // The first ping stays in flight while the version that sent it is disposed.
+                    await inFlight;
+
+                    return pinged();
+                },
+            }),
+        sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
+        setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
+    };
+    const at = Date.now();
+    const warm = async (session: number): Promise<void> => {
+        await commits[0]?.({
+            session: { id: session, cwd: `/work/${String(session)}` },
+            entries: [
+                asked(session, "how do I plug mcp in", at - minutes(10)),
+                answered(session, at - LEAD - 1_000),
+            ],
+            busy: false,
+        });
+    };
+
+    try {
+        await keepWarm(host);
+        await warm(1);
+        await warm(2);
+
+        mock.timers.tick(60_000);
+        await setTimeout(50);
+        assert.deepEqual(sent, [1], "the first conversation's ping is in flight");
+
+        const disposed = Promise.all(disposers.map((dispose) => Promise.resolve(dispose())));
+        release();
+        await disposed;
+
+        assert.deepEqual(sent, [1], "a disposed version sends no further ping");
+        const written = await readStore(dir);
+        assert.deepEqual(Object.keys(written.last ?? {}), ["1"], "and writes for no other session");
+        assert.equal(
+            written.last?.["1"]?.error,
+            "interrupted",
+            "the answer to the ping in flight lands nowhere",
+        );
+    } finally {
+        mock.timers.reset();
+
+        for (const dispose of disposers) {
+            await dispose();
+        }
+
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+void test("runs the store's writes one after another, so two at once both land", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    const stored = { stop: { "9": 1_700 }, last: { "9": { at: 1_700, model: "opus" } } };
+
+    try {
+        await Promise.all([writeStore(dir, { off: true }), writeStore(dir, stored)]);
+
+        assert.deepEqual(await readStore(dir), stored, "the last write is the one on disk");
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+void test("a write that fails leaves the next one working", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    const blocked = join(dir, "a-file-where-a-folder-should-be");
+
+    try {
+        await writeFile(blocked, "");
+        await assert.rejects(writeStore(blocked, { off: true }));
+        await writeStore(join(dir, "state"), { off: true });
+
+        assert.deepEqual(await readStore(join(dir, "state")), { off: true });
+    } finally {
         await rm(dir, { recursive: true, force: true });
     }
 });
