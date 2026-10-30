@@ -232,7 +232,8 @@ function runKiroUsage(signal: AbortSignal): Promise<string | undefined> {
         execFile(
             "kiro-cli",
             ["chat", "--no-interactive", "/usage"],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) },
+            // The caller's signal is the timed one: a timer here would only ever be cut short by it.
+            { signal },
             (error, stdout, stderr) => {
                 if (error === null) {
                     resolve(stdout + stderr);
