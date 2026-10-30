@@ -8,7 +8,7 @@ import type { Message } from "@earendil-works/pi-ai";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host, type SessionRequest } from "../../server/sdk.ts";
-import { due, IDLE_STOP, PROVIDER } from "./due.ts";
+import { due, IDLE_STOP, LEAD, PROVIDER } from "./due.ts";
 import { type Ping, type WarmSession, type WarmState } from "./refs.ts";
 import { readStore, writeStore } from "./store.ts";
 import {
@@ -125,6 +125,18 @@ async function tick(host: Host): Promise<void> {
             inputAt === undefined ||
             Date.now() - inputAt >= IDLE_STOP ||
             stopped(stored, session, inputAt)
+        ) {
+            continue;
+        }
+
+        // The times a ping is read from, both of them: while every one that exists is younger than
+        // the lead, no model can be due, so the conversation's context is not built at all.
+        const marks = [known?.cached?.at, stored.last?.[String(session)]?.at];
+        const now = Date.now();
+
+        if (
+            marks.some((at) => at !== undefined) &&
+            marks.every((at) => at === undefined || now - at < LEAD)
         ) {
             continue;
         }

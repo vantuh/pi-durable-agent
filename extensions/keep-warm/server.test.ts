@@ -416,7 +416,8 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
             session: { id: 4, cwd: "/work/mcp" },
             entries: [
                 asked(4, "how do I plug mcp in", at - minutes(10)),
-                answered(4, at - minutes(9)),
+                // Past the lead, so the tick has reason to build a request and find the session gone.
+                answered(4, at - LEAD - 1_000),
             ],
             busy: false,
         });
@@ -424,7 +425,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         // The list is built from the commits alone, so it promises a ping before the tick has looked.
         assert.deepEqual(await sessions(), {
             on: true,
-            sessions: [{ id: 4, label: "mcp", nextAt: at - minutes(9) + LEAD }],
+            sessions: [{ id: 4, label: "mcp", nextAt: at - 1_000 }],
         });
 
         mock.timers.tick(60_000);
@@ -495,6 +496,80 @@ void test("builds no request for a conversation the user left too long ago for a
         await setTimeout(50);
 
         assert.deepEqual(built, [6]);
+    } finally {
+        mock.timers.reset();
+
+        for (const dispose of disposers) {
+            await dispose();
+        }
+
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+void test("builds no request for a conversation no ping can be due for yet", async () => {
+    mock.timers.enable({ apis: ["setInterval"] });
+    const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
+    // A ping a minute ago is the newest request session 7 had, so nothing is due for it either.
+    await writeStore(dir, { last: { "7": { at: Date.now() - minutes(1), model: "opus" } } });
+
+    const commits: CommitListener[] = [];
+    const disposers: (() => void | Promise<void>)[] = [];
+    const built: number[] = [];
+    const host: Host = {
+        name: "keep-warm",
+        cwd: dir,
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: (listener) => {
+            commits.push(listener);
+        },
+        onDispose: (dispose) => {
+            disposers.push(dispose);
+        },
+        shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
+        wrapModelFetch: () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
+        sessionRequest: (session) => {
+            built.push(session);
+
+            return Promise.resolve(undefined);
+        },
+        sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
+        setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
+    };
+    const at = Date.now();
+
+    try {
+        await keepWarm(host);
+        // Past the lead: a ping is due, so the request has to be built.
+        await commits[0]?.({
+            session: { id: 5, cwd: "/work/stale" },
+            entries: [asked(5, "a while ago", at - minutes(10)), answered(5, at - LEAD - 1_000)],
+            busy: false,
+        });
+        // An answer nine minutes old renews the hour for another forty-six.
+        await commits[0]?.({
+            session: { id: 6, cwd: "/work/fresh" },
+            entries: [asked(6, "just now", at - minutes(10)), answered(6, at - minutes(9))],
+            busy: false,
+        });
+        await commits[0]?.({
+            session: { id: 7, cwd: "/work/pinged" },
+            entries: [asked(7, "pinged a minute ago", at - minutes(5))],
+            busy: false,
+        });
+
+        mock.timers.tick(60_000);
+        await setTimeout(50);
+
+        assert.deepEqual(built, [5]);
     } finally {
         mock.timers.reset();
 
