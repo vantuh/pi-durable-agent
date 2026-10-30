@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
+import type { Host } from "../../server/sdk.ts";
+import { record } from "./http.ts";
 import { MAX_BYTES, Parts, toSamples } from "./parts.ts";
-import { candidates, Dictation, models } from "./server.ts";
+import dictation, { actions, candidates, Dictation, http, models } from "./server.ts";
 import { DictationStore } from "./store.ts";
 
 const run = promisify(execFile);
@@ -32,6 +35,34 @@ function skipReason(): string | undefined {
     }
 
     return existsSync(first) ? undefined : `the whisper model ${first} is not here`;
+}
+
+type Disposal = Parameters<Host["onDispose"]>[0];
+
+/** A host with only what the routes and the actions read: the data directory and the disposal hook. */
+function hostOf(dataDir: string, disposed: Disposal[]): Host {
+    return {
+        name: "dictation",
+        cwd: dataDir,
+        dataDir,
+        log: () => undefined,
+        onCommit: () => undefined,
+        onDispose: (dispose) => {
+            disposed.push(dispose);
+        },
+        shapeModelRequests: () => undefined,
+        wrapModelFetch: () => undefined,
+        registerModelProvider: () => () => undefined,
+        resolveModelAuth: () => Promise.resolve(undefined),
+        contextWindow: () => undefined,
+        sessionRequest: () => Promise.resolve(undefined),
+        sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
+        setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
+    };
 }
 
 /** The mono 16-bit PCM of a WAV file: `say` writes a JUNK chunk first, so the data is not at a fixed offset. */
@@ -335,6 +366,77 @@ void describe("the model", () => {
                 assert.match(text.toLowerCase(), /диктування/, `recognised: ${text}`);
             } finally {
                 local.dispose();
+                await rm(dir, { recursive: true, force: true });
+            }
+        },
+    );
+});
+
+void describe("a model the settings no longer name", () => {
+    void it(
+        "is what the next dictation loads, not the one already in memory",
+        { skip: skipReason() },
+        async () => {
+            const dir = await tempDir("dictation-model-change");
+            const disposed: Disposal[] = [];
+            const host = hostOf(dir, disposed);
+            const routes = http(host);
+            const server = createServer((request, response) => {
+                void routes({ request, response, path: request.url ?? "/" });
+            });
+
+            await new Promise<void>((resolve) => {
+                server.listen(0, "127.0.0.1", resolve);
+            });
+
+            const address = server.address();
+
+            assert.ok(address !== null && typeof address !== "string");
+
+            const base = `http://127.0.0.1:${String(address.port)}`;
+            const warm = async () => {
+                const response = await fetch(`${base}/warm`, { method: "POST", body: "{}" });
+                const body: unknown = JSON.parse(await response.text());
+                const error = record(body)?.["error"];
+
+                return { status: response.status, error: typeof error === "string" ? error : "" };
+            };
+
+            try {
+                // The installation the routes and the actions share, still on its default settings.
+                dictation(host);
+                assert.equal((await warm()).status, 200, "the model the settings name loads");
+
+                // A GGUF that is not here stands in for one the person just picked: reading the
+                // settings again has to try it, and holding the loaded model would serve it again.
+                const chosen = join(dir, "whisper-small-q5_1.gguf");
+                const save = actions(host)["saveSettings"];
+
+                assert.ok(save);
+                await save({
+                    args: { language: "uk", model: chosen, idleMinutes: 10 },
+                    session: null,
+                });
+
+                const after = await warm();
+
+                assert.equal(
+                    after.status,
+                    503,
+                    "the loaded model does not survive the new settings",
+                );
+                assert.match(after.error, /whisper-small-q5_1\.gguf/);
+            } finally {
+                for (const dispose of disposed) {
+                    await dispose();
+                }
+
+                await new Promise<void>((resolve) => {
+                    server.close(() => {
+                        resolve();
+                    });
+                    server.closeAllConnections();
+                });
                 await rm(dir, { recursive: true, force: true });
             }
         },

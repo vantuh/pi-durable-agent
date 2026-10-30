@@ -179,7 +179,7 @@ export class Dictation {
     dispose(): void {
         this.#gone = true;
         this.parts.clear();
-        this.#unload();
+        this.unload();
     }
 
     // Loaded at the first use, not with the module: a reload then never holds two models at once.
@@ -232,7 +232,11 @@ export class Dictation {
         return started;
     }
 
-    #unload(): void {
+    /**
+     * Drops the loaded model, so the next dictation reads the settings again and loads what they
+     * name. The native teardown waits behind a transcription in flight, which keeps its text.
+     */
+    unload(): void {
         const current = this.#loading;
 
         clearTimeout(this.#idle);
@@ -257,13 +261,13 @@ export class Dictation {
 
         if (afterMs === 0) {
             // Zero minutes: the model goes as soon as the dictation that needed it ends.
-            this.#unload();
+            this.unload();
 
             return;
         }
 
         this.#idle = setTimeout(() => {
-            this.#unload();
+            this.unload();
         }, afterMs);
         this.#idle.unref();
     }
@@ -391,6 +395,9 @@ export const actions = (host: Host): Record<string, Action> => {
             const wanted = checkedSettings(args);
 
             await store.write(wanted);
+
+            // What is loaded was chosen from the settings this save replaced.
+            instances.get(host)?.unload();
 
             return settingsAnswer(wanted);
         },
