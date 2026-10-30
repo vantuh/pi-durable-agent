@@ -971,9 +971,6 @@ export class BrowserPage {
         y: number;
         label: string;
         covered?: string;
-        editable?: boolean;
-        kind?: string;
-        password?: boolean;
     }> {
         if (typeof target.x === "number" && typeof target.y === "number") {
             return {

@@ -197,8 +197,7 @@ export const LOCATE_SCRIPT = String.raw`(async (target) => {${DEEP}	const clip =
 	const covered = hit && !within(el, hit) && !within(hit, el) ? describe(hit) : undefined;
 	const view = window.visualViewport;
 	const scale = view?.scale ?? 1;
-	const kind = el.tagName === "INPUT" ? (el.type || "text") : el.tagName === "TEXTAREA" ? "textarea" : el.tagName.toLowerCase();
-	return { x: (x - (view?.offsetLeft ?? 0)) * scale, y: (y - (view?.offsetTop ?? 0)) * scale, label: describe(el), covered, editable: el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName), kind, password: kind === "password" };
+	return { x: (x - (view?.offsetLeft ?? 0)) * scale, y: (y - (view?.offsetTop ?? 0)) * scale, label: describe(el), covered };
 })`;
 
 /**
