@@ -705,6 +705,9 @@ export function Sessions({
 
                             return (
                                 <div key={group}>
+                                    <hr
+                                        className={`bg-edge-soft mx-2 mt-1 mb-0.5 h-px border-0 ${FADE} ${FOLD}`}
+                                    />
                                     <div
                                         className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE} ${FOLD}`}
                                     >
