@@ -23,6 +23,22 @@ let windowOf: Host["contextWindow"] = () => undefined;
 
 const estimate = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
 
+/**
+ * Whether the provider counted this answer's usage: pi-ai fills it as the stream speaks, so one that
+ * failed or was stopped before its stream started carries only zeros.
+ */
+function counted(entry: EntryRecord | undefined): boolean {
+    const message = entry?.model?.[0];
+
+    if (message?.role !== "assistant") {
+        return false;
+    }
+
+    const { input, output, cacheRead, cacheWrite } = message.usage;
+
+    return input + output + cacheRead + cacheWrite > 0;
+}
+
 /** The text of a tagged section without its `<key>` wrapper, on one line. */
 function previewOf(key: string, text: string): string {
     const inner = text.startsWith(`<${key}>`)
@@ -85,10 +101,11 @@ function promptOf(entries: readonly EntryRecord[]): { sections: Part[]; tools: P
  */
 function scaleOf(entries: readonly EntryRecord[]): number | undefined {
     const index = entries.findIndex((entry) => entry.kind === "pi.assistant");
-    const answer = entries[index]?.model?.[0];
+    const first = entries[index];
+    const answer = first?.model?.[0];
     const before = entries.slice(0, index);
 
-    if (answer?.role !== "assistant" || answer.stopReason === "error") {
+    if (!counted(first) || answer?.role !== "assistant") {
         return undefined;
     }
 
@@ -139,7 +156,8 @@ export default function contextMeter(host: Host) {
 export const actions: Record<string, Action> = {
     breakdown({ session }): Breakdown | null {
         const entries = session === null ? undefined : views.get(session.id);
-        const last = entries?.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
+        const last = entries?.findLast((entry) => entry.kind === "pi.assistant" && counted(entry))
+            ?.model?.[0];
 
         if (entries === undefined || last?.role !== "assistant") {
             return null;
