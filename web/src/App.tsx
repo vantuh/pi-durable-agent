@@ -91,6 +91,11 @@ export function App() {
 
     const active = sessions.find((session) => session.id === current);
 
+    // The tab, and an installed window, carry the session's name; the list streams a rename at once.
+    useEffect(() => {
+        document.title = active?.title ? `Pi · ${active.title}` : "Pi";
+    }, [active?.title]);
+
     useFinishedToasts(sessions, current, (id) => {
         go(id);
         setSheet(false);

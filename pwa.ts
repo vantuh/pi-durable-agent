@@ -155,8 +155,8 @@ export function pwa(): Plugin {
             }
 
             const manifest = JSON.stringify({
-                name: "pi-durable-agent",
-                short_name: "pi agent",
+                name: "Pi",
+                short_name: "Pi",
                 start_url: "/",
                 scope: "/",
                 display: "standalone",

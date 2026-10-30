@@ -12,7 +12,8 @@ An extension UI slot cannot reach them. All of it is in `pwa.ts` (a Vite plugin)
 ## What the build emits
 
 - `manifest.webmanifest`. Its colours come from the Mocha palette through the `--role-canvas` and
-  `--role-panel` roles. No colour is written twice.
+  `--role-panel` roles. No colour is written twice. Its name is `Pi`; the document title starts as
+  `Pi` and, while a conversation is open, is `Pi · <session>` (`web/src/App.tsx`).
 - `sw.js`. It has a version (a hash of the worker, manifest, built HTML, precache list and icon bytes) and a precache list: `/`, the entry chunk with
   its static imports, CSS and assets, and the icons. Lazy chunks (the Shiki languages and themes)
   are not precached.
