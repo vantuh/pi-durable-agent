@@ -110,6 +110,13 @@ pushes already send. See [sessions-live.md](sessions-live.md).
       they are the conversation, they are just no longer what the model is sent. The mark is
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.
     - A person's message: a `raised` card on the right, at most 80% wide.
+    - **Quoting an answer**: words selected inside an answer bring a `Quote` button past their
+      right corner, off the end of the line; a tap takes them to the composer, where they wait as a
+      `panel` card with a quote mark in its corner, above what is being written. A quote is the
+      message's own leading blockquote (`web/src/lib/quote.ts`): it reaches the model as `> …`, the
+      sent message shows one card per quote, in the same order, above the person's words, and the
+      raw `>` never appears. Only an answer is quotable — not the activity line, not a person's own
+      message.
     - An answer: plain prose at 15px, no card, no name. Above it, one mono line of statistics:
       `model · level` on the left, `↻cached% · ↑context ↓output · $cost · time` on the right (the
       turn's newest prompt, how much of it the provider served from its cache, and output and cost

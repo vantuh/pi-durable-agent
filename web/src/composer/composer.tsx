@@ -13,11 +13,22 @@ import {
     withdrawQueued,
 } from "../lib/api.ts";
 import { fuzzyScore } from "../lib/fuzzy.ts";
+import { splitQuote, withQuotes } from "../lib/quote.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { toast } from "../lib/toast.ts";
-import { composerDraft, setComposerDraft, subscribeComposerDraft } from "../sdk/composer.ts";
+import {
+    addComposerQuote,
+    clearComposerQuotes,
+    composerDraft,
+    composerQuotes,
+    removeComposerQuote,
+    setComposerDraft,
+    subscribeComposerDraft,
+    subscribeComposerQuotes,
+} from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { Attachments, type Pending } from "../ui/attachments.tsx";
+import { QuoteCard } from "../ui/quote.tsx";
 import { DropOverlay, useDropBatch, useWindowDrop } from "./drop-overlay.tsx";
 import { composerFiles, setComposerFiles } from "./files.ts";
 import { ComposerItems } from "./items.tsx";
@@ -171,6 +182,14 @@ export function Composer({
         [sessionId],
     );
     const [files, setLocalFiles] = useState<Pending[]>(() => composerFiles(sessionId));
+    const [quotes, setQuotes] = useState<string[]>(() => composerQuotes(sessionId));
+    useEffect(
+        () =>
+            subscribeComposerQuotes(() => {
+                setQuotes(composerQuotes(sessionId));
+            }),
+        [sessionId],
+    );
     // Written through the store too, so an upload that ends after the session was left still lands.
     const setFiles = (update: (current: Pending[]) => Pending[]): void => {
         const next = update(composerFiles(sessionId));
@@ -287,7 +306,7 @@ export function Composer({
     const how = MODES.find((option) => option.mode === mode);
     const uploading = files.some((file) => file.state === "uploading");
     const [batch, setBatch] = useDropBatch(files);
-    const empty = text.trim() === "" && files.length === 0;
+    const empty = text.trim() === "" && files.length === 0 && quotes.length === 0;
 
     // Each file shows at once as uploading and settles on its own: done with a path, or failed.
     const addFiles = (chosen: File[]): string[] => {
@@ -357,7 +376,15 @@ export function Composer({
         }
 
         const draft = composerDraft(sessionId).trim();
-        const next = draft === "" ? item.text : `${draft}\n\n${item.text}`;
+        // A quote comes back as a quote, not as the `>` lines it was sent as.
+        const written = splitQuote(item.text);
+
+        for (const quote of written?.quotes ?? []) {
+            addComposerQuote(sessionId, quote);
+        }
+
+        const rest = written?.rest ?? item.text;
+        const next = draft === "" ? rest : `${draft}\n\n${rest}`;
 
         if (draft !== "") {
             toast.info("Added below what you were writing");
@@ -371,7 +398,7 @@ export function Composer({
     };
 
     const submit = (): void => {
-        const body = text.trim();
+        const written = text.trim();
 
         if (empty || uploading) {
             return;
@@ -381,7 +408,7 @@ export function Composer({
             file.state === "done" && file.path !== undefined ? [file.path] : [],
         );
 
-        if (body === "" && paths.length === 0) {
+        if (written === "" && paths.length === 0 && quotes.length === 0) {
             return;
         }
 
@@ -390,12 +417,13 @@ export function Composer({
         }
 
         // A command is not a message: it never enters the transcript, and its arguments are not files.
-        const command = /^\/(\w+)(?:\s+([\s\S]*))?$/.exec(body);
+        const command = quotes.length === 0 ? /^\/(\w+)(?:\s+([\s\S]*))?$/.exec(written) : null;
         const name = command?.[1];
         const args = command?.[2]?.trim() ?? "";
 
         if (name === "new" && args === "" && paths.length === 0) {
             setComposerDraft(sessionId, "");
+            clearComposerQuotes(sessionId);
             browse.current = null;
             setText("");
             onNewSession();
@@ -405,6 +433,7 @@ export function Composer({
 
         if (name === "compact" && paths.length === 0) {
             setComposerDraft(sessionId, "");
+            clearComposerQuotes(sessionId);
             browse.current = null;
             setText("");
             void (async () => {
@@ -422,8 +451,11 @@ export function Composer({
             return;
         }
 
+        const body = withQuotes(quotes, written);
+
         remember(sessionId, body);
         setComposerDraft(sessionId, "");
+        clearComposerQuotes(sessionId);
         browse.current = null;
         setText("");
         forget(files);
@@ -504,6 +536,20 @@ export function Composer({
                         setFiles((current) => current.filter((file) => file.key !== key));
                     }}
                 />
+
+                {quotes.length === 0 ? null : (
+                    <div className="mb-1.5 flex flex-col gap-1.5">
+                        {quotes.map((quote, index) => (
+                            <QuoteCard
+                                key={quote}
+                                text={quote}
+                                onRemove={() => {
+                                    removeComposerQuote(sessionId, index);
+                                }}
+                            />
+                        ))}
+                    </div>
+                )}
 
                 <ScrollArea viewportProps={{ className: "text-prose max-h-[10lh]" }}>
                     <textarea

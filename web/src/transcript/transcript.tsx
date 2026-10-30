@@ -16,12 +16,16 @@ import { Spinner } from "@/components/ui/spinner";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
+import { splitQuote } from "../lib/quote.ts";
 import { type Item, type Turn, turnsOf } from "../lib/turns.ts";
 import { cn } from "../lib/utils.ts";
+import { addComposerQuote } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
+import { QuoteCard } from "../ui/quote.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { AgentMessage } from "./agent-message.tsx";
+import { SelectionQuote } from "./selection-quote.tsx";
 import { SessionContext } from "./session.ts";
 
 /** `@path` after whitespace, anywhere in the text; the punctuation that ends a sentence is not part of the path. */
@@ -51,7 +55,7 @@ function WithFiles({ text }: { text: string }) {
 }
 
 /** A message that starts with `/skill:name` shows the skill as a badge, then the request. */
-function UserText({ text }: { text: string }) {
+function MessageBody({ text }: { text: string }) {
     const match = /^\/skill:(\S+)(?:\s+([\s\S]*))?$/.exec(text.trim());
     const request = match?.[2];
 
@@ -67,6 +71,24 @@ function UserText({ text }: { text: string }) {
             </Badge>
             {request === undefined || request === "" ? null : <WithFiles text={request} />}
         </div>
+    );
+}
+
+/** What the person sent: the words they quoted from an answer, then their own. */
+function UserText({ text }: { text: string }) {
+    const quoted = splitQuote(text);
+
+    if (quoted === undefined) {
+        return <MessageBody text={text} />;
+    }
+
+    return (
+        <>
+            {quoted.quotes.map((quote) => (
+                <QuoteCard key={quote} text={quote} />
+            ))}
+            {quoted.rest === "" ? null : <MessageBody text={quoted.rest} />}
+        </>
     );
 }
 
@@ -290,7 +312,12 @@ function TurnItem({ item }: { item: Item }) {
         return <ErrorNotice text={item.text} />;
     }
 
-    return <Markdown text={item.text} streaming={item.streaming} />;
+    // Marked here and nowhere else: a selection inside an answer is what the Quote button follows.
+    return (
+        <div data-quoteable>
+            <Markdown text={item.text} streaming={item.streaming} />
+        </div>
+    );
 }
 
 function TurnView({
@@ -312,7 +339,7 @@ function TurnView({
             )}
             {turn.user === undefined || turn.user.author !== undefined ? null : (
                 <div className="flex justify-end">
-                    <div className="rounded-card bg-raised text-prose text-ink max-w-[80%] px-3 py-2">
+                    <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
                         <Attachments
                             files={(turn.user.files ?? []).map((file, index) => ({
                                 ...file,
@@ -518,6 +545,12 @@ export function Transcript({
                     ) : null}
                 </div>
             </ScrollArea>
+
+            <SelectionQuote
+                onQuote={(text) => {
+                    addComposerQuote(String(session), text);
+                }}
+            />
         </section>
     );
 }

@@ -2,6 +2,8 @@ import { Bot, Clock, Paperclip, Pencil, X, Zap } from "lucide-react";
 import { useState } from "react";
 
 import type { ClientQueued } from "../../../shared/protocol.ts";
+import { splitQuote } from "../lib/quote.ts";
+import { QuoteCard } from "../ui/quote.tsx";
 
 /**
  * What a mode means, told on the card itself: the colour, the stripe, and the words the send menu uses.
@@ -53,6 +55,9 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                 const mode = MODES[item.mode];
                 const look = item.author === undefined ? mode : AGENT;
                 const Icon = look.icon;
+                // A message may start with words quoted from an answer: they read as a quote here too.
+                const written = splitQuote(item.text);
+                const body = written?.rest ?? item.text;
 
                 return (
                     <li
@@ -73,18 +78,27 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                                 </span>
                                 <span className="text-faint hidden sm:inline">· {mode.hint}</span>
                             </span>
-                            <button
-                                type="button"
-                                // The queue is a draft waiting for a boundary: reading it is the one thing a tap does.
-                                onClick={() => {
-                                    setOpen((current) => (current === item.id ? null : item.id));
-                                }}
-                                className={`text-prose text-ink mt-0.5 text-left break-words whitespace-pre-wrap ${
-                                    open === item.id ? "" : "line-clamp-2"
-                                }`}
-                            >
-                                {item.text}
-                            </button>
+                            {written === undefined
+                                ? null
+                                : written.quotes.map((quote) => (
+                                      <QuoteCard key={quote} text={quote} />
+                                  ))}
+                            {body === "" ? null : (
+                                <button
+                                    type="button"
+                                    // The queue is a draft waiting for a boundary: reading it is the one thing a tap does.
+                                    onClick={() => {
+                                        setOpen((current) =>
+                                            current === item.id ? null : item.id,
+                                        );
+                                    }}
+                                    className={`text-prose text-ink mt-0.5 text-left break-words whitespace-pre-wrap ${
+                                        open === item.id ? "" : "line-clamp-2"
+                                    }`}
+                                >
+                                    {body}
+                                </button>
+                            )}
                             {item.files === undefined ? null : (
                                 <span className="text-meta text-faint mt-1 flex min-w-0 items-center gap-1">
                                     <Paperclip className="size-3 shrink-0" />
