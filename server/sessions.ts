@@ -366,6 +366,20 @@ export class Sessions {
                 return undefined;
             }
 
+            // A session that a deleted one started has no row to hang under, and the sidebar would show
+            // it as a session of its own. Its own children have the same problem, so walk the whole chain.
+            const owner = record.owner?.conversationId;
+
+            for (
+                let ancestor = owner;
+                ancestor !== undefined;
+                ancestor = (await tx.conversation(ancestor))?.owner?.conversationId
+            ) {
+                if ((await tx.doc(DeletedDoc, ancestor)).deleted) {
+                    return undefined;
+                }
+            }
+
             // The three fields a row shows from `pi.agent`, as `resolveAgent()` derives them: resolving the
             // whole agent would compose its tools and sections for every conversation in the list.
             const agent = await tx.doc(AgentDoc, id);
@@ -388,7 +402,7 @@ export class Sessions {
                 endedAt: attention.endedAt,
                 seenAt: attention.seenAt,
                 activeAt,
-                owner: record.owner?.conversationId,
+                owner,
             };
         }, this.#context);
 

@@ -8,7 +8,9 @@ Deleting writes nothing but a note: the `app.deleted` conversation document, def
 migration. The conversation, its entries and its documents stay in `data/state.sqlite` exactly as
 they were; `Sessions.ids()` skips the marked ones, so they are absent from the sidebar, from the list
 API and from the streams, also after a restart. `Sessions.open()` refuses them too, so a stale link
-cannot bring one back.
+cannot bring one back. A session started from a deleted one goes with it, at every depth: the sidebar
+hides a child only while its starter has a row, so a surviving child would appear as a session of its
+own.
 
 This is deliberately a mark and not a purge. pi-durable has no delete call — conversations and
 entries are immutable and `Storage` only appends — and removing rows underneath a running harness

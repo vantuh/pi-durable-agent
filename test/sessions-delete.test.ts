@@ -7,11 +7,31 @@ import { describe, it } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createModels, fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { createRegistry, Harness } from "@earendil-works/pi-durable";
+import {
+    type ConversationId,
+    createRegistry,
+    defineTask,
+    Harness,
+} from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 
 import { Sessions } from "../server/sessions.ts";
+
+const Anchor = defineTask<null, { phase: "done" }, null>({
+    name: "test.anchor",
+    version: 1,
+    initial: () => ({ phase: "done" }),
+    phases: {
+        done: (_task, runtime, context) =>
+            runtime.commit(
+                () => ({ status: "terminal", outcome: { status: "completed", result: null } }),
+                context,
+            ),
+    },
+    abort: (_task, runtime, context) =>
+        runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
+});
 
 void describe("Sessions.delete", () => {
     void it("stops a running conversation, so nothing works on unseen", async () => {
@@ -133,6 +153,61 @@ void describe("Sessions.delete", () => {
             );
         } finally {
             await reopened.close(BACKGROUND_CONTEXT);
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+
+    void it("hides the sessions started from it, and what those started", async () => {
+        const dir = await mkdtemp(join(tmpdir(), "sessions-delete-children-"));
+        const model = { provider: "p", modelId: "m" };
+        const models = await ModelRuntime.create();
+        const harness = await Harness.open(
+            await openNodeSqliteStorage(join(dir, "state.sqlite")),
+            { models, registry: createRegistry(), env: () => new NodeExecutionEnv({ cwd: dir }) },
+            BACKGROUND_CONTEXT,
+        );
+        const started = async (from: ConversationId): Promise<ConversationId> =>
+            harness.commit(async (tx) => {
+                const anchor = await tx.createTask(Anchor, null, {
+                    ownership: { kind: "conversation" },
+                    conversationId: from,
+                    background: true,
+                });
+                const child = await tx.createConversation({
+                    ownership: { kind: "task", taskId: anchor },
+                });
+
+                return child.id;
+            }, BACKGROUND_CONTEXT);
+
+        try {
+            const sessions = new Sessions({ harness, model, models, context: BACKGROUND_CONTEXT });
+            const parent = await sessions.create(dir);
+            const child = await started(parent.id);
+            const grandchild = await started(child);
+            const alone = await sessions.create(dir);
+            const listed = async (): Promise<number[]> =>
+                (await sessions.list(() => false)).map((row) => row.id);
+
+            assert.deepEqual(
+                await listed(),
+                [parent.id, child, grandchild, alone.id],
+                "every session is listed while the one that started it is",
+            );
+
+            await sessions.delete(parent.id);
+
+            assert.deepEqual(
+                await listed(),
+                [alone.id],
+                "a session started from a deleted one has no row to hang under",
+            );
+            assert.ok(
+                await harness.conversation(child, BACKGROUND_CONTEXT),
+                "and its transcript stays in storage",
+            );
+        } finally {
+            await harness.close(BACKGROUND_CONTEXT);
             await rm(dir, { recursive: true, force: true });
         }
     });
