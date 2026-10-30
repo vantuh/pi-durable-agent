@@ -3,15 +3,17 @@ import { useEffect } from "react";
 /** What the shell can be told to do from outside it, by name. */
 export type ShellCommand = "session.new" | "folder.pick";
 
-let handlers: Partial<Record<ShellCommand, () => void>> = {};
+const handlers: Partial<Record<ShellCommand, () => void>> = {};
 
-/** The shell calls this once, with the current handlers. */
-export function useShellCommands(next: Record<ShellCommand, () => void>): void {
+/** The part of the shell that owns `name` calls this with the current handler. */
+export function useShellCommand(name: ShellCommand, run: () => void): void {
     useEffect(() => {
-        handlers = next;
+        handlers[name] = run;
 
         return () => {
-            handlers = {};
+            if (handlers[name] === run) {
+                delete handlers[name];
+            }
         };
     });
 }

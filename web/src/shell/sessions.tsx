@@ -37,6 +37,7 @@ import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { toast } from "../lib/toast.ts";
+import { useShellCommand } from "../sdk/commands.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
@@ -217,6 +218,13 @@ export function Sessions({
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
+    const [scopeOpen, setScopeOpen] = useState(false);
+
+    useShellCommand("folder.pick", () => {
+        localStorage.setItem(COLLAPSED_KEY, "0");
+        setCollapsed(false);
+        setScopeOpen(true);
+    });
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
     const searchBox = useRef<HTMLInputElement>(null);
@@ -439,7 +447,7 @@ export function Sessions({
                 </header>
 
                 <div className={`border-edge-soft border-b ${FADE} ${FOLD}`}>
-                    <DropdownMenu modal={false}>
+                    <DropdownMenu modal={false} open={scopeOpen} onOpenChange={setScopeOpen}>
                         <DropdownMenuTrigger asChild>
                             <button
                                 type="button"

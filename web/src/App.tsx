@@ -24,7 +24,7 @@ import { useConversation } from "./lib/conversation.ts";
 import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
-import { useShellCommands } from "./sdk/commands.ts";
+import { useShellCommand } from "./sdk/commands.ts";
 import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
@@ -134,19 +134,14 @@ export function App() {
         })();
     };
 
-    useShellCommands({
-        "session.new": () => {
-            const start = folder ?? health?.home ?? null;
+    useShellCommand("session.new", () => {
+        const start = folder ?? health?.home ?? null;
 
-            if (start === null) {
-                setPicker(true);
-            } else {
-                openSession(start);
-            }
-        },
-        "folder.pick": () => {
+        if (start === null) {
             setPicker(true);
-        },
+        } else {
+            openSession(start);
+        }
     });
 
     return (
