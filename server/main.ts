@@ -177,6 +177,22 @@ function entriesOf(view: View): ClientEntry[] {
         .filter((entry): entry is ClientEntry => entry !== undefined);
 }
 
+/** The state `publish` last stored for a session; `attach` stores one before it returns the open. */
+function viewOf(id: number): View {
+    const current = latest.get(id);
+
+    if (current === undefined) {
+        throw new Error(`session ${String(id)} is not attached`);
+    }
+
+    return current.view;
+}
+
+/** The first entry of a session as `hello` will carry it, `undefined` before it has any. */
+function firstEntryId(id: number): number | undefined {
+    return entriesOf(viewOf(id))[0]?.id;
+}
+
 function windowOf(provider: string, modelId: string): number | undefined {
     return models.getModels().find((model) => model.provider === provider && model.id === modelId)
         ?.contextWindow;
@@ -369,10 +385,34 @@ async function attachOnce(id: number): Promise<Opened | undefined> {
     return opened;
 }
 
-/** Starts the event stream of a session: the whole state first, then every change. */
+/**
+ * Starts the event stream of a session: the whole state first, then every change. The state is the one `publish`
+ * stored for the attached view, the same state the browsers were sent up to, so no commit can reach this client
+ * ahead of the `hello` that already carries it; nothing may await from reading that state to sending it.
+ */
 async function stream(response: ServerResponse, opened: Opened): Promise<void> {
-    const view = await opened.conversation.viewState(context);
     const id = Number(opened.id);
+    let first = firstEntryId(id);
+    let more = false;
+
+    // `hasOlder` reads through the conversation's line, where a commit can land ahead of it: its answer is
+    // about the first entry it asked with, so ask again until that entry stays put.
+    for (;;) {
+        more =
+            first !== undefined &&
+            (await hasOlder({ conversation: opened.conversation, context, id: first }));
+
+        const now = firstEntryId(id);
+
+        if (now === first) {
+            break;
+        }
+
+        first = now;
+    }
+
+    const view = viewOf(id);
+    const entries = entriesOf(view);
 
     response.writeHead(200, {
         "content-type": "text/event-stream",
@@ -386,19 +426,13 @@ async function stream(response: ServerResponse, opened: Opened): Promise<void> {
         clients.delete(client);
     });
 
-    const entries = entriesOf(view.value);
-    const first = entries[0];
-
     send(client, {
         type: "hello",
         session: id,
         entries,
-        live: liveOf(id, view.value),
+        live: liveOf(id, view),
         model: MODEL,
-        more:
-            first === undefined
-                ? false
-                : await hasOlder({ conversation: opened.conversation, context, id: first.id }),
+        more,
     });
 }
 
