@@ -38,6 +38,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [hidden, setHidden] = useState(false);
     const [error, setError] = useState(false);
     const [favourites, setFavourites] = useState<string[]>([]);
+    /** The stored list is here: a star pressed before it would save one folder over all of them. */
+    const [favouritesLoaded, setFavouritesLoaded] = useState(false);
     const openRef = useRef<HTMLButtonElement>(null);
     const recents = [...new Set(recent)].filter((folder) => !favourites.includes(folder));
 
@@ -51,7 +53,12 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     };
 
     useEffect(() => {
-        void getFavourites().then(setFavourites);
+        void (async () => {
+            const stored = await getFavourites().catch(() => []);
+
+            setFavourites(stored);
+            setFavouritesLoaded(true);
+        })();
     }, []);
 
     useEffect(() => {
@@ -89,9 +96,13 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                                 className={`size-4 ${favourites.includes(folder) ? "text-warn fill-current" : ""}`}
                             />
                         }
-                        onIcon={() => {
-                            toggle(folder);
-                        }}
+                        {...(favouritesLoaded
+                            ? {
+                                  onIcon: () => {
+                                      toggle(folder);
+                                  },
+                              }
+                            : {})}
                         label={folder.split("/").pop() ?? folder}
                         active={folder === page?.path}
                         onClick={() => {
