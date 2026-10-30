@@ -1,7 +1,13 @@
 /** Key bindings, the keymap and the prefix state machine. Browser-safe: no imports. */
 
-/** The first two are the shell's own (`ShellCommand`); `web.tsx` fails to compile when they drift apart. */
-export const COMMANDS = ["session.new", "folder.pick", "session.prev", "session.next"] as const;
+/** The shell's commands (`ShellCommand`); `web.tsx` fails to compile when they drift apart. */
+export const COMMANDS = [
+    "session.new",
+    "folder.pick",
+    "session.search",
+    "session.prev",
+    "session.next",
+] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
@@ -13,6 +19,7 @@ export const DEFAULT_KEYMAP: Keymap = {
     keys: {
         "session.new": ["prefix+c"],
         "folder.pick": ["prefix+s"],
+        "session.search": ["prefix+f"],
         "session.prev": ["shift+left", "prefix+p"],
         "session.next": ["shift+right", "prefix+n"],
     },

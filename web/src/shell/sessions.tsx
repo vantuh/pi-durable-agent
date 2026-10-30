@@ -233,6 +233,13 @@ export function Sessions({
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
     const searchBox = useRef<HTMLInputElement>(null);
+
+    useShellCommand("session.search", () => {
+        localStorage.setItem(COLLAPSED_KEY, "0");
+        setCollapsed(false);
+        setSearching(true);
+        searchBox.current?.focus();
+    });
     const searchTrigger = useRef<HTMLButtonElement>(null);
     const list = useRef<HTMLDivElement>(null);
     const stopSearch = (): void => {

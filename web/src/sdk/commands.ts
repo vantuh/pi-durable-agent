@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 
 /** What the shell can be told to do from outside it, by name. */
-export type ShellCommand = "session.new" | "folder.pick" | "session.prev" | "session.next";
+export type ShellCommand =
+    | "session.new"
+    | "folder.pick"
+    | "session.search"
+    | "session.prev"
+    | "session.next";
 
 const handlers: Partial<Record<ShellCommand, () => void>> = {};
 

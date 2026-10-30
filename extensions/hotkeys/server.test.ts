@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { DEFAULT_KEYMAP, mergeKeymap, parseBinding, step, type KeyEvent } from "./lib.ts";
+import { COMMANDS, DEFAULT_KEYMAP, mergeKeymap, parseBinding, step, type KeyEvent } from "./lib.ts";
 import { readKeymap } from "./server.ts";
 
 function key(code: string, modifiers: Partial<KeyEvent> = {}): KeyEvent {
@@ -79,6 +79,7 @@ void test("prefix then a bound key runs its command, then goes idle", () => {
     });
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyS")).command, "folder.pick");
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyP")).command, "session.prev");
+    assert.equal(step(DEFAULT_KEYMAP, true, key("KeyF")).command, "session.search");
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyN")).command, "session.next");
 });
 
@@ -162,7 +163,7 @@ void test("mergeKeymap lays valid entries over the defaults and drops the rest",
     assert.deepEqual(merged.keys["folder.pick"], ["prefix+f"]);
     assert.deepEqual(merged.keys["session.prev"], DEFAULT_KEYMAP.keys["session.prev"]);
     assert.deepEqual(merged.keys["session.next"], []);
-    assert.equal(Object.keys(merged.keys).length, 4);
+    assert.deepEqual(Object.keys(merged.keys).toSorted(), [...COMMANDS].toSorted());
 });
 
 void test("mergeKeymap refuses a prefix without a modifier and a bare printable key", () => {
