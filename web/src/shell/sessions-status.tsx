@@ -16,6 +16,7 @@ import { useStatusRowItems } from "../extensions.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { holdingRow } from "../lib/session-nesting.ts";
 import { statusRows } from "../lib/status-rows.ts";
+import { CountSuffix } from "../ui/count-suffix.tsx";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { SessionRowContent } from "./session-parts.tsx";
 
@@ -261,10 +262,16 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
                 >
                     {children}
                     {working.length === 0 ? null : (
-                        <span className="text-accent">· {working.length} working</span>
+                        <span className="text-accent">
+                            · {working.length}
+                            <CountSuffix>{" working"}</CountSuffix>
+                        </span>
                     )}
                     {unseen.length === 0 ? null : (
-                        <span className="text-ok">· {unseen.length} new</span>
+                        <span className="text-ok">
+                            · {unseen.length}
+                            <CountSuffix>{" new"}</CountSuffix>
+                        </span>
                     )}
                 </button>
             </DropdownMenuTrigger>

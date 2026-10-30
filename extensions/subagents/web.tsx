@@ -12,6 +12,7 @@ import type {
     StatusRowProps,
     WebExtension,
 } from "@/sdk/types.ts";
+import { CountSuffix } from "@/ui/count-suffix.tsx";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
 import { agentsOf, areaParent, finishedAgo, hasWorkingAgent, workingAgentCount } from "./area.ts";
@@ -327,7 +328,8 @@ function AgentsWorking({ session, sessions }: StatusItemProps) {
 
     return (
         <span className="text-warn shrink-0">
-            · {count} {count === 1 ? "agent" : "agents"} working
+            · {count}
+            <CountSuffix>{` ${count === 1 ? "agent" : "agents"} working`}</CountSuffix>
         </span>
     );
 }
