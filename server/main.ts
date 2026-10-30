@@ -172,9 +172,7 @@ async function watchList(response: ServerResponse): Promise<void> {
 }
 
 function entriesOf(view: View): ClientEntry[] {
-    return view.entries
-        .map(projectEntry)
-        .filter((entry): entry is ClientEntry => entry !== undefined);
+    return view.entries.map(projectEntry);
 }
 
 /** The state `publish` last stored for a session; `attach` stores one before it returns the open. */
@@ -294,10 +292,10 @@ function publish(opened: Opened, view: View): void {
         const fresh = entries.slice(opened.sent.length);
 
         opened.sent = ids;
-        broadcast({ type: "entries", session: opened.id, entries: fresh, replace: false });
+        broadcast({ type: "entries", session: opened.id, entries: fresh });
     } else if (!unchanged) {
         opened.sent = ids;
-        broadcast({ type: "entries", session: opened.id, entries, replace: true });
+        broadcast({ type: "entries", session: opened.id, entries });
     }
 
     // New entries name a session and move its time; a run starting or ending moves its mark.

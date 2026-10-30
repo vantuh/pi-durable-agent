@@ -10,7 +10,6 @@ const entries = (ids: number[]): ServerEvent => ({
     type: "entries",
     session: 1,
     entries: ids.map((id) => said(id, `entry ${String(id)}`)),
-    replace: true,
 });
 
 const idsOf = (list: readonly ClientEntry[]): number[] => list.map((entry) => entry.id);

@@ -283,8 +283,8 @@ function summaryOf(message: Record<string, unknown> | undefined): string | undef
     return kept === "" ? undefined : kept;
 }
 
-/** One entry for the browser, or `undefined` for bookkeeping the screen never shows. */
-export function projectEntry(entry: EntryRecord): ClientEntry | undefined {
+/** One entry as the browser shows it. */
+export function projectEntry(entry: EntryRecord): ClientEntry {
     const id = Number(entry.id);
     const message = recordOf(Array.isArray(entry.model) ? entry.model[0] : undefined);
 

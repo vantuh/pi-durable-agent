@@ -69,11 +69,7 @@ export async function historyPage(options: {
         const page = await conversation.entries(query, CHUNK, cursor, context);
 
         for (const record of page.items) {
-            const entry = projectEntry(record);
-
-            if (entry !== undefined) {
-                collected.push(entry);
-            }
+            collected.push(projectEntry(record));
         }
 
         cursor = page.next;

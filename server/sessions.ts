@@ -125,7 +125,7 @@ async function firstQuestion(tx: Tx, id: ConversationId): Promise<string | null>
     for (const record of page.items) {
         const entry = projectEntry(record);
 
-        if (entry?.kind === "user") {
+        if (entry.kind === "user") {
             const line = oneLine(entry.text);
 
             if (line !== "") {

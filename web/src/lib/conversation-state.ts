@@ -80,9 +80,6 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
         case "extension-notice":
             return state;
 
-        case "error":
-            return { ...state, issue: event.message };
-
         default:
             return state;
     }

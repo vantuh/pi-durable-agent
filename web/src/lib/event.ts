@@ -6,7 +6,7 @@
 
 import type { ClientHistory, ServerEvent } from "../../../shared/protocol.ts";
 
-const TYPES: readonly unknown[] = ["hello", "entries", "live", "extension-notice", "error"];
+const TYPES: readonly unknown[] = ["hello", "entries", "live", "extension-notice"];
 
 /** A known event type with a session: the rest of the shape is `ServerEvent` by contract. */
 function isEvent(value: object): value is ServerEvent {

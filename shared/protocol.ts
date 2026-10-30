@@ -166,11 +166,10 @@ export type ServerEvent = { session: number } & (
           /** The log holds entries older than these, so the screen has a start still to ask for. */
           more: boolean;
       }
-    /** `replace` says the server rewrote the active view; the browser adds by id either way, it never swaps. */
-    | { type: "entries"; entries: ClientEntry[]; replace: boolean }
+    /** The active view as it is: the browser adds by id and never swaps, so a rewrite needs no flag. */
+    | { type: "entries"; entries: ClientEntry[] }
     | { type: "live"; live: ClientLive }
     | { type: "extension-notice"; notice: ExtensionNotice }
-    | { type: "error"; message: string }
 );
 
 /** One row of the session list. */
