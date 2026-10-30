@@ -1,5 +1,5 @@
 import type { ModelFetch, RequestModel } from "../../server/sdk.ts";
-import type { Diagnostics } from "./refs.ts";
+import { MARKER, type Diagnostics, record } from "./refs.ts";
 import { hintedResponse, readVersionRejection, recoveryHint } from "./version-rejection.ts";
 import { cliVersion, higherVersion } from "./version.ts";
 
@@ -15,10 +15,6 @@ export function requestFrom(
     init: Parameters<ModelFetch>[1],
 ): Request {
     return new Request(input instanceof Request ? input.clone() : input, init);
-}
-
-export function record(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export async function payloadOf(request: Request): Promise<unknown> {
@@ -44,7 +40,7 @@ function billingBlock(payload: unknown): string | undefined {
         if (
             record(block) &&
             typeof block["text"] === "string" &&
-            block["text"].startsWith("x-anthropic-billing-header:")
+            block["text"].startsWith(MARKER)
         ) {
             return block["text"];
         }

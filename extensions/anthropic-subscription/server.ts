@@ -4,7 +4,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { lookupAccount } from "./account.ts";
-import { DEFAULT_VERSION, type Diagnostics } from "./refs.ts";
+import { DEFAULT_VERSION, type Diagnostics, MARKER, record } from "./refs.ts";
 import { oauthTransport } from "./transport.ts";
 
 const states = new WeakMap<Host, Diagnostics>();
@@ -29,12 +29,6 @@ export const meta = {
     description:
         "Adds Claude Code billing identity to Anthropic OAuth requests. API keys are unchanged; subscription billing is not guaranteed.",
 };
-
-const MARKER = "x-anthropic-billing-header:";
-
-function record(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** Billing recipe used by pi-anthropic-auth and Pi Pocket; this is not a real Claude Code client. */
 export function shapeRequest(payload: unknown, version: string): unknown {

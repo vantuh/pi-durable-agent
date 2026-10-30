@@ -1,6 +1,13 @@
 import { actionRef } from "../../shared/extension-api.ts";
 
 export const DEFAULT_VERSION = "2.1.280";
+/** The system block this extension adds; what marks a request as already shaped. */
+export const MARKER = "x-anthropic-billing-header:";
+
+export function record(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export type ShapeOutcome = "applied" | "not-oauth" | "already-shaped" | "no-user-text";
 export type VersionError = { requiredVersion: string | null; hint: string; at: number };
 export type Diagnostics = {

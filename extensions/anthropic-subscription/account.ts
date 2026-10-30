@@ -4,7 +4,7 @@
  */
 import type { ModelFetch, ResolveModelAuth } from "../../server/sdk.ts";
 import type { AccountResult } from "./account-refs.ts";
-import { record } from "./transport.ts";
+import { record } from "./refs.ts";
 
 function text(source: Record<string, unknown>, key: string): string | null {
     return typeof source[key] === "string" ? source[key] : null;

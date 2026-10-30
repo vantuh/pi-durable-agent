@@ -2,12 +2,8 @@
  * Adapted from pi-anthropic-auth's version-rejection and billing-version-sync.
  * Copyright (c) 2026 Christopher D. Lasher. MIT; see LICENSE.pi-anthropic-auth.
  */
-import type { Diagnostics } from "./refs.ts";
+import { type Diagnostics, record } from "./refs.ts";
 import { higherVersion } from "./version.ts";
-
-function record(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export type VersionRejection = {
     requiredVersion: string | null;
