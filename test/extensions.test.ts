@@ -164,16 +164,17 @@ void describe("Extensions disposers", () => {
         await rm(root, { recursive: true, force: true });
     });
 
-    void it("watches only the changed folder and reports reload, failure, recovery and removal", async () => {
-        async function nextNotice(count: number): Promise<ExtensionNotice | undefined> {
-            const deadline = Date.now() + 5000;
-            while (notices.length < count && Date.now() < deadline) {
-                await setTimeout(20);
-            }
-            assert.equal(notices.length, count);
-            return notices[count - 1];
+    /** Waits until `count` notices have arrived, which is how a watcher load makes itself known. */
+    async function nextNotice(count: number): Promise<ExtensionNotice | undefined> {
+        const deadline = Date.now() + 5000;
+        while (notices.length < count && Date.now() < deadline) {
+            await setTimeout(20);
         }
+        assert.equal(notices.length, count);
+        return notices[count - 1];
+    }
 
+    void it("watches only the changed folder and reports reload, failure, recovery and removal", async () => {
         await write("alpha", source({ tags: ["alpha-v1"] }));
         await write("beta", source({ tags: ["beta"] }));
         await extensions.load();
@@ -218,6 +219,38 @@ void describe("Extensions disposers", () => {
             level: "success",
             message: "Extension “alpha” loaded",
         });
+    });
+
+    void it("reloads a folder only when its server code changes", async () => {
+        await write("alpha", source({ tags: ["v1"] }));
+        await extensions.load();
+        // macOS FSEvents can still deliver the writes above to a watcher started right after them.
+        await setTimeout(500);
+        extensions.watch();
+
+        await writeFile(join(dir, "alpha", "web.tsx"), "export default { status: [] };\n");
+        await writeFile(join(dir, "alpha", "server.test.ts"), "export {};\n");
+        await writeFile(join(dir, "alpha", "README.md"), "# alpha\n");
+        // A negative needs a wait: the watcher loads after 150 ms of quiet, so this is far past it.
+        // The reloads below wait on their notice instead.
+        await setTimeout(600);
+        assert.deepEqual(notices, []);
+        assert.deepEqual(calls(), []);
+
+        await write("alpha", source({ tags: ["v2"] }));
+        assert.deepEqual(await nextNotice(1), {
+            level: "success",
+            message: "Extension “alpha” reloaded",
+        });
+        assert.deepEqual(calls(), ["v1"]);
+
+        // The folder itself, not only the files in it: a removal arrives as the folder's path.
+        await rm(join(dir, "alpha"), { recursive: true });
+        assert.deepEqual(await nextNotice(2), {
+            level: "success",
+            message: "Extension “alpha” removed",
+        });
+        assert.deepEqual(calls(), ["v1", "v2"]);
     });
 
     void it("keeps failures from untouched folders during a targeted reload", async () => {

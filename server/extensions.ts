@@ -615,6 +615,14 @@ export class Extensions {
             if (folder === undefined || folder.startsWith(".") || folder.startsWith("_")) {
                 return;
             }
+            // Only the server half: `web.tsx` goes live through Vite, a test file is never loaded.
+            // A name with no dot is the folder or a subfolder, which may have taken a `.ts` with it.
+            const name = filename.slice(filename.lastIndexOf(sep) + 1);
+            const serverHalf = name.endsWith(".ts") && !name.endsWith(".test.ts");
+
+            if (!serverHalf && name.includes(".")) {
+                return;
+            }
             this.#pending.add(folder);
             if (this.#timer !== undefined) {
                 clearTimeout(this.#timer);
