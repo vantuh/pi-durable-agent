@@ -27,11 +27,15 @@ export default function usageLimits(host: Host) {
 export const actions = (host: Host): Record<string, Action> => {
     let cache: UsageResult | undefined;
     let inflight: Promise<UsageResult> | undefined;
+    // Bumped by every change that makes a reading already running stale.
+    let generation = 0;
     // Changes to the file run one after another, so two quick toggles cannot lose one.
     let queue: Promise<unknown> = Promise.resolve();
 
     const keep = createKeeper();
     const load = (): Promise<UsageResult> => {
+        const started = generation;
+
         // One lookup serves every caller that arrives while it runs.
         inflight ??= readSettings(host.dataDir)
             .then(({ hidden }) =>
@@ -41,7 +45,17 @@ export const actions = (host: Host): Record<string, Action> => {
                     }),
                 ),
             )
-            .then((providers) => (cache = { providers, at: Date.now() }))
+            .then((providers) => {
+                const result = { providers, at: Date.now() };
+
+                // A toggle while this ran read the providers before it: the answer must not become
+                // the cache, or the provider it hid would stay shown until the cache expires.
+                if (started === generation) {
+                    cache = result;
+                }
+
+                return result;
+            })
             .finally(() => {
                 inflight = undefined;
             });
@@ -75,6 +89,9 @@ export const actions = (host: Host): Record<string, Action> => {
 
                 await writeSettings(host.dataDir, next);
                 cache = undefined;
+                // A reading that started before this read the old list: the next caller reads again.
+                inflight = undefined;
+                generation += 1;
 
                 return next;
             });

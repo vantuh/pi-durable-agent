@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import type { Host, ResolveModelAuth } from "../../server/sdk.ts";
+import type { Action, Host, ResolveModelAuth } from "../../server/sdk.ts";
 import { createKeeper } from "./keeper.ts";
 import { collect, readCodex, readKiro, toMs, type Fetch } from "./readers.ts";
-import { readerFor, type ProviderUsage } from "./refs.ts";
+import { providers as providersRef, readerFor, type ProviderUsage } from "./refs.ts";
 import { actions } from "./server.ts";
 import { readSettings } from "./settings.ts";
 
@@ -246,6 +246,80 @@ void test("settings: missing or broken file shows everything; actions validate a
         hidden: ["anthropic"],
     });
     assert.deepEqual(await readSettings(dir), { hidden: ["anthropic"] });
+});
+
+void test("a toggle while a reading runs keeps its answer out of the cache", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "usage-"));
+    // Only Anthropic is asked: the other readers read the CLI sign-ins and the home folder.
+    await writeFile(join(dir, "usage-limits.json"), JSON.stringify({ hidden: ["codex", "kiro"] }));
+
+    let started: () => void = () => undefined;
+    let release: () => void = () => undefined;
+    const entered = new Promise<void>((resolve) => {
+        started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const original = globalThis.fetch;
+
+    globalThis.fetch = () => {
+        started();
+
+        return held.then(() => json({ five_hour: { utilization: 42, resets_at: null } }));
+    };
+
+    const host: Host = {
+        name: "usage-limits",
+        cwd: ".",
+        dataDir: dir,
+        log: () => undefined,
+        onCommit: () => undefined,
+        onDispose: () => undefined,
+        shapeModelRequests: () => undefined,
+        registerModelProvider: () => () => undefined,
+        wrapModelFetch: () => undefined,
+        resolveModelAuth: auth({ anthropic: "sk-ant-oat-x" }),
+        contextWindow: () => undefined,
+        sessionRequest: () => Promise.resolve(undefined),
+        sessionTitle: () => Promise.resolve(null),
+        sessionName: () => Promise.resolve(null),
+        setSessionTitle: () => Promise.resolve(),
+        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
+        setSessionMark: () => undefined,
+        notifySessionChanged: () => undefined,
+    };
+
+    const call = async (action: Action | undefined, args: unknown): Promise<unknown> => {
+        assert.ok(action);
+
+        return await Promise.resolve(action({ args, session: null }));
+    };
+
+    try {
+        const { providers, setShown } = actions(host);
+
+        // The reading starts with Anthropic shown, and answers after the toggle.
+        const first = call(providers, undefined);
+
+        await entered;
+        await call(setShown, { id: "anthropic", shown: false });
+        release();
+
+        assert.deepEqual(
+            providersRef.parse(await first).providers.map((each) => each.id),
+            ["anthropic"],
+            "the reading that was already running is the one it started",
+        );
+        assert.deepEqual(
+            providersRef.parse(await call(providers, undefined)).providers.map((each) => each.id),
+            [],
+            "the provider the toggle hid is gone on the next read",
+        );
+    } finally {
+        globalThis.fetch = original;
+        await rm(dir, { recursive: true, force: true });
+    }
 });
 
 void test("a rate-limited provider keeps its last reading and is left alone for a while", async () => {
