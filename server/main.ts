@@ -13,11 +13,9 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import {
     type Conversation,
-    type ConversationDocToken,
     type ConversationId,
     createRegistry,
     Harness,
-    type JsonObject,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
@@ -196,41 +194,13 @@ function windowOf(provider: string, modelId: string): number | undefined {
         ?.contextWindow;
 }
 
-/** The name the sidebar shows for a session, for an extension that has to name it too. */
-async function sessionTitleOf(session: number): Promise<string | null> {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
-    return await sessions.title(session as ConversationId);
-}
-
-/** The session that started this one, for the extensions' view of it. */
-async function sessionOwnerOf(session: number): Promise<number | undefined> {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
-    return await sessions.owner(session as ConversationId);
-}
-
-/** The name someone gave a session, without the first question the sidebar falls back to. */
-async function sessionNameOf(session: number): Promise<string | null> {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
-    return await sessions.name(session as ConversationId);
-}
-
-/** A conversation document's value for an extension that reads outside a tool call. */
-async function readDocOf<T extends JsonObject>(
-    doc: ConversationDocToken<T>,
-    session: number,
-): Promise<Readonly<T>> {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
-    return await sessions.readDoc(doc, session as ConversationId);
-}
-
 /**
- * Names a session from an extension. The title lives in a document, so no commit carries it to the
- * browsers: the list is sent again here, or the sidebar would show the old name.
+ * A session id as the harness brands it. The brand lives only in the type, and every id here came
+ * from the harness or from a JSON number, so this is the one place the two are taken for the same.
  */
-async function setSessionTitleOf(session: number, title: string): Promise<void> {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
-    await sessions.setTitle(session as ConversationId, title);
-    listChanged();
+function idOf(session: number): ConversationId {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- an id is a number at run time; the brand lives only in the type
+    return session as ConversationId;
 }
 
 /**
@@ -239,8 +209,7 @@ async function setSessionTitleOf(session: number, title: string): Promise<void> 
  * fetch wrappers shape both. The request sends the messages it is given, the conversation's or its own.
  */
 async function sessionRequestOf(session: number): Promise<SessionRequest | undefined> {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value is a conversation id that came from a JSON number
-    const opened = await sessions.open(session as ConversationId);
+    const opened = await sessions.open(idOf(session));
 
     if (opened === undefined) {
         return undefined;
@@ -322,7 +291,7 @@ const announce = commitAnnouncer({
 
         return agent?.cwd ?? null;
     },
-    ownerOf: sessionOwnerOf,
+    ownerOf: (session) => sessions.owner(idOf(session)),
     publish: (view) => {
         extensions.publish(view);
     },
@@ -358,10 +327,7 @@ function attach(id: number): Promise<Opened | undefined> {
 }
 
 async function attachOnce(id: number): Promise<Opened | undefined> {
-    // Session ids come from the browser as plain numbers; the harness brands its own.
-    // A conversation id is a number at run time; the brand lives only in the type.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value came from a conversation id or a JSON number
-    const opened = await sessions.open(id as ConversationId);
+    const opened = await sessions.open(idOf(id));
 
     if (opened === undefined) {
         return undefined;
@@ -532,10 +498,14 @@ async function boot(): Promise<void> {
             };
         },
         sessionRequest: sessionRequestOf,
-        sessionTitle: sessionTitleOf,
-        sessionName: sessionNameOf,
-        setSessionTitle: setSessionTitleOf,
-        readDoc: readDocOf,
+        sessionTitle: (session) => sessions.title(idOf(session)),
+        sessionName: (session) => sessions.name(idOf(session)),
+        // The title lives in a document, so no commit carries it to the browsers: the list goes again.
+        setSessionTitle: async (session, title) => {
+            await sessions.setTitle(idOf(session), title);
+            listChanged();
+        },
+        readDoc: (doc, session) => sessions.readDoc(doc, idOf(session)),
         sessionListChanged: listChanged,
         sessionChanged: changes.notify,
         registry,
@@ -621,7 +591,11 @@ async function boot(): Promise<void> {
         }),
         ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
         ...fileRoutes({ dataDir: DATA_DIR }),
-        ...extensionRoutes({ extensions, attach, ownerOf: sessionOwnerOf }),
+        ...extensionRoutes({
+            extensions,
+            attach,
+            ownerOf: (session) => sessions.owner(idOf(session)),
+        }),
         {
             // The app's restart button; 409 without the supervisor, which would leave nothing to start it.
             method: "POST",
