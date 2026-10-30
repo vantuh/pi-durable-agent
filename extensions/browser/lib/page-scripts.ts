@@ -61,8 +61,6 @@ export const SNAPSHOT_SCRIPT = String.raw`(() => {
 	const refs = new Map();
 	window.__piPocketRefs = refs;
 	let count = 0;
-	// The same controls as data, for extensions (host.browser): never a password value, whatever it holds.
-	const items = [];
 	let size = 0;
 	let full = false;
 	const lines = [];
@@ -99,18 +97,6 @@ export const SNAPSHOT_SCRIPT = String.raw`(() => {
 		if (expanded) line += expanded === "true" ? " (expanded)" : " (collapsed)";
 		if (["aria-checked", "aria-selected", "aria-pressed"].some((attr) => el.getAttribute(attr) === "true")) line += " (selected)";
 		if (el.disabled || el.getAttribute("aria-disabled") === "true") line += " (disabled)";
-		if (items.length < 500) {
-			const kind = el.tagName === "INPUT" ? (el.type || "text") : el.tagName === "TEXTAREA" ? "textarea" : el.tagName.toLowerCase();
-			const box = el.getBoundingClientRect();
-			const item = { ref, role: role ?? "clickable", name: clip(nameOf(el), 120), kind, disabled: Boolean(el.disabled || el.getAttribute("aria-disabled") === "true"), inView: box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth };
-			if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-				if (kind === "checkbox" || kind === "radio") item.checked = el.checked;
-				else if (!["button", "submit", "reset", "image"].includes(kind)) { item.value = kind === "password" ? (el.value ? "••••" : "") : clip(el.value, 200); if (el.placeholder) item.placeholder = clip(el.placeholder, 80); }
-			}
-			if (el.tagName === "SELECT") { item.value = clip(el.selectedOptions?.[0]?.text ?? "", 80); item.options = [...el.options].slice(0, 50).map((option) => clip(option.text, 60)); }
-			if (role === "link") { const href = el.getAttribute("href"); if (href && !href.startsWith("javascript:")) item.href = clip(href, 300); }
-			items.push(item);
-		}
 		return line;
 	};
 	const visit = (node, depth) => {
@@ -156,12 +142,12 @@ export const SNAPSHOT_SCRIPT = String.raw`(() => {
 	const walk = (el, depth) => { for (const child of (el.shadowRoot ?? el).childNodes) visit(child, depth); };
 	if (document.body) walk(document.body, 0);
 	const scrolling = document.scrollingElement ?? document.documentElement;
-	return { lines: lines.join("\n"), truncated: full, controls: count, items, scrollY: Math.round(scrollY), scrollHeight: Math.round(scrolling.scrollHeight), innerHeight: Math.round(innerHeight) };
+	return { lines: lines.join("\n"), truncated: full, scrollY: Math.round(scrollY), scrollHeight: Math.round(scrolling.scrollHeight), innerHeight: Math.round(innerHeight) };
 })()`;
 
 /**
  * Helpers that see into shadow roots, as a person does: what is at a point, what has the focus, and whether one node
- * holds another (through slots and shadow hosts). Put into the scripts that check what a fill reaches.
+ * holds another (through slots and shadow hosts). Put into the scripts that need them.
  */
 const DEEP = String.raw`
 	const deepAt = (x, y) => { let hit = document.elementFromPoint(x, y); while (hit?.shadowRoot) { const inner = hit.shadowRoot.elementFromPoint(x, y); if (!inner || inner === hit) break; hit = inner; } return hit; };
@@ -201,8 +187,6 @@ export const LOCATE_SCRIPT = String.raw`(async (target) => {${DEEP}	const clip =
 		// A label stands for its field.
 		if (el.tagName === "LABEL" && el.control) el = el.control;
 	}
-	// What was found last, so a fill can check that the focus reached it (FOCUSED_SCRIPT).
-	window.__piPocketLocated = new WeakRef(el);
 	el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
 	await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
 	const box = el.getBoundingClientRect();
@@ -215,26 +199,6 @@ export const LOCATE_SCRIPT = String.raw`(async (target) => {${DEEP}	const clip =
 	const scale = view?.scale ?? 1;
 	const kind = el.tagName === "INPUT" ? (el.type || "text") : el.tagName === "TEXTAREA" ? "textarea" : el.tagName.toLowerCase();
 	return { x: (x - (view?.offsetLeft ?? 0)) * scale, y: (y - (view?.offsetTop ?? 0)) * scale, label: describe(el), covered, editable: el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName), kind, password: kind === "password" };
-})`;
-
-/**
- * Whether the focus is on what `LOCATE_SCRIPT` found last, or inside it, in a shadow root too; or on the editor that
- * holds it, for a part of an editable element (a span in a rich text editor).
- */
-export const FOCUSED_SCRIPT = String.raw`(() => {${DEEP}
-	const el = window.__piPocketLocated?.deref();
-	const active = deepActive();
-	return Boolean(el && active && (within(el, active) || (active.isContentEditable && within(active, el))));
-})()`;
-
-/** What is at a point of the viewport: its description, kind, and whether it is a field or a password field. */
-export const POINT_SCRIPT = String.raw`((x, y) => {${DEEP}
-	const el = deepAt(x, y);
-	if (!el) throw new Error("Nothing is at " + Math.round(x) + "," + Math.round(y) + ".");
-	const kind = el.tagName === "INPUT" ? (el.type || "text") : el.tagName === "TEXTAREA" ? "textarea" : el.tagName.toLowerCase();
-	const value = kind === "password" ? "" : el.value;
-	const name = String(el.getAttribute("aria-label") || el.innerText || value || el.getAttribute("placeholder") || el.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 60);
-	return { label: el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") + (name ? ' "' + name + '"' : ""), kind, editable: el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName), password: kind === "password" };
 })`;
 
 /**

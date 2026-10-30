@@ -29,15 +29,11 @@ export interface BrowsersOptions {
     dataDir: string;
     /** The browser to run. Undefined finds one; null means there is none (tests). */
     executable?: string | null;
-    /** Extra Chromium flags, such as `--no-sandbox` where sandboxes are not available. */
-    args?: readonly string[];
     /** A conversation's saved address and size, to open its page again. */
     load?(conversationId: number): Promise<Saved | undefined>;
     /** Called when a page's address or size changed. */
     save?(conversationId: number, saved: Saved): void;
     log?(line: string): void;
-    /** A page nobody used or watched for this long closes. */
-    idleMs?: number;
 }
 
 /**
@@ -50,8 +46,6 @@ export class Browsers {
     #chromium: Promise<Chromium> | undefined;
     readonly #pages = new Map<number, BrowserPage>();
     readonly #opening = new Map<number, Promise<BrowserPage>>();
-    readonly #listeners = new Set<(conversationId: number, state: BrowserState) => void>();
-    readonly #pending = new Map<number, NodeJS.Timeout>();
     readonly #problems = new Map<number, string>();
     readonly #reaper: NodeJS.Timeout;
     #idleSince = Date.now();
@@ -77,12 +71,6 @@ export class Browsers {
 
     get available(): boolean {
         return this.executable !== undefined;
-    }
-
-    subscribe(listener: (conversationId: number, state: BrowserState) => void): () => void {
-        this.#listeners.add(listener);
-
-        return () => this.#listeners.delete(listener);
     }
 
     /** A conversation's page as it is now; a closed one has no address. */
@@ -118,25 +106,6 @@ export class Browsers {
         return page === undefined || page.closed ? undefined : page;
     }
 
-    /** Coalesce a page's changes: frames of logs and loads arrive in bursts. */
-    #changed(conversationId: number): void {
-        if (this.#pending.has(conversationId)) {
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            this.#pending.delete(conversationId);
-            const state = this.state(conversationId);
-
-            for (const listener of this.#listeners) {
-                listener(conversationId, state);
-            }
-        }, 120);
-
-        timer.unref();
-        this.#pending.set(conversationId, timer);
-    }
-
     async #browser(): Promise<Chromium> {
         const executable = this.executable;
 
@@ -158,10 +127,7 @@ export class Browsers {
             throw new BrowserError("The server is stopping.");
         }
 
-        const extra = [
-            ...(this.#options.args ?? []),
-            ...(process.env["PI_DURABLE_BROWSER_ARGS"]?.split(/\s+/).filter(Boolean) ?? []),
-        ];
+        const extra = process.env["PI_DURABLE_BROWSER_ARGS"]?.split(/\s+/).filter(Boolean) ?? [];
         const launching = Chromium.launch(
             executable,
             profileFolder(executable, this.#options.dataDir),
@@ -245,7 +211,6 @@ export class Browsers {
         const created = this.#create(conversationId, options);
 
         this.#opening.set(conversationId, created);
-        this.#changed(conversationId);
 
         try {
             const page = await created;
@@ -259,7 +224,6 @@ export class Browsers {
             throw error;
         } finally {
             this.#opening.delete(conversationId);
-            this.#changed(conversationId);
         }
     }
 
@@ -301,7 +265,6 @@ export class Browsers {
                 userAgent: chromium.userAgent,
                 viewport: viewportFrom(saved?.viewport) ??
                     options.viewport ?? { ...VIEWPORTS.desktop },
-                changed: () => this.#changed(conversationId),
                 saved: (value) => this.#options.save?.(conversationId, value),
             });
             await page.init();
@@ -334,15 +297,6 @@ export class Browsers {
         }
     }
 
-    /** Close a conversation's page. Its saved address stays, to open it again later. */
-    async close(conversationId: number): Promise<void> {
-        const page = this.#pages.get(conversationId);
-
-        if (page !== undefined) {
-            await this.#discard(conversationId, page);
-        }
-    }
-
     /** Forget a page and free its browser context, which holds its cookies and storage. */
     async #discard(conversationId: number, page: BrowserPage): Promise<void> {
         if (this.#pages.get(conversationId) === page) {
@@ -355,7 +309,6 @@ export class Browsers {
             this.#idleSince = Date.now();
         }
 
-        this.#changed(conversationId);
         const chromium = await this.#chromium?.catch(() => undefined);
 
         await chromium?.connection
@@ -364,7 +317,7 @@ export class Browsers {
     }
 
     #reap(): void {
-        const idle = this.#options.idleMs ?? 30 * 60_000;
+        const idle = 30 * 60_000;
 
         for (const [id, page] of this.#pages) {
             if (page.closed || Date.now() - page.usedAt > idle) {
@@ -406,29 +359,11 @@ export class Browsers {
             clearInterval(this.#reaper);
         }
 
-        const ids = [...this.#pages.keys()];
-
         for (const page of this.#pages.values()) {
             page.close();
         }
 
         this.#pages.clear();
-
-        if (options.final === true) {
-            // After the pages closed, which announces them: nobody listens any more.
-            for (const timer of this.#pending.values()) {
-                clearTimeout(timer);
-            }
-
-            this.#pending.clear();
-        }
-
         await this.#stopBrowser();
-
-        if (options.final !== true) {
-            for (const id of ids) {
-                this.#changed(id);
-            }
-        }
     }
 }
