@@ -1,5 +1,6 @@
 /** Uploads, the folder browser of the session picker, and its favourite folders. */
 
+import { randomInt } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve, sep } from "node:path";
@@ -57,10 +58,14 @@ export function fileRoutes({ dataDir }: { dataDir: string }): Route[] {
             handle: async (request, response) => {
                 const raw = request.headers["x-filename"];
                 const name = basename(decodeURIComponent(typeof raw === "string" ? raw : "file"));
-                const saved = join(uploadDir, `${String(Date.now())}-${name}`);
+                const saved = join(
+                    uploadDir,
+                    `${String(Date.now())}${String(randomInt(1_000_000))}-${name}`,
+                );
                 const data = await readBytes(request);
 
-                await writeFile(saved, data);
+                // `wx` makes the rare collision an error the composer shows, never a lost upload.
+                await writeFile(saved, data, { flag: "wx" });
                 answer(response, 201, {
                     path: saved,
                     name,
