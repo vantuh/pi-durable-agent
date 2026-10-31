@@ -10,6 +10,7 @@ import {
 import { CodeView, type CodeViewDiffItem, type CodeViewHandle } from "@pierre/diffs/react";
 import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -112,6 +113,49 @@ export function warmPreview(patch: string): Promise<FileDiffMetadata[]> {
     return entry.started;
 }
 
+// Matches the row that holds a diff (`duration-200` in web.tsx): a file folds at the speed its commit opens.
+const FOLD_MS = 200;
+// The library reserves this height for a folded file, and its header is all that is left of it.
+const FOLDED_HEIGHT = options.itemMetrics.diffHeaderHeight;
+
+/** A file's box, and the list height that holds every box: both have to move on the same frames. */
+interface Fold {
+    box: HTMLElement;
+    list: HTMLElement;
+}
+
+/** The item's own element is the host the library clips the diff into; the list is two levels up. */
+function foldOf(header: Element): Fold | undefined {
+    const box = header.closest("diffs-container");
+    const list = box?.parentElement?.parentElement;
+    return box instanceof HTMLElement && list instanceof HTMLElement ? { box, list } : undefined;
+}
+
+/**
+ * Animates the height the library will settle on, over the inline value it already wrote; the last
+ * frame is that value, so the re-render that ends the fold moves nothing.
+ */
+function animateFold(
+    fold: Fold,
+    height: { from: number; to: number },
+    list: { from: number; to: number },
+): [Animation, Animation] {
+    const timing: KeyframeAnimationOptions = {
+        duration: FOLD_MS,
+        easing: "ease-out",
+        fill: "forwards",
+    };
+    const keyframes = (values: { from: number; to: number }): Keyframe[] => [
+        { height: `${String(values.from)}px` },
+        { height: `${String(values.to)}px` },
+    ];
+    fold.box.style.overflow = "hidden";
+    return [
+        fold.box.animate(keyframes(height), timing),
+        fold.list.animate(keyframes(list), timing),
+    ];
+}
+
 const itemId = (file: FileDiffMetadata, index: number): string => `${String(index)}:${file.name}`;
 
 const countsOf = (file: FileDiffMetadata): { added: number; deleted: number } =>
@@ -135,13 +179,15 @@ function FileHeader({
     previous: string | undefined;
     counts: { added: number; deleted: number };
     open: boolean;
-    onToggle: () => void;
+    onToggle: (header: HTMLButtonElement) => void;
 }) {
     return (
         <button
             type="button"
             aria-expanded={open}
-            onClick={onToggle}
+            onClick={(event) => {
+                onToggle(event.currentTarget);
+            }}
             className="bg-panel border-edge-soft text-meta text-muted hover:bg-raised flex h-9 w-full items-center gap-2 border-t px-3 text-left font-mono"
         >
             <ChevronRight
@@ -219,11 +265,72 @@ export function PatchPreview({ data }: { data: Changes }) {
             alive = false;
         };
     }, [data.patch]);
-    const toggle = useCallback((id: string) => {
-        setFolded((old) => ({ ...old, [id]: old[id] !== true }));
-        // A folded item only repaints when its version moves, not when the header callback does.
-        setVersions((old) => ({ ...old, [id]: (old[id] ?? 0) + 1 }));
-    }, []);
+    // An item mid-fold is not listening: a second click would animate from a height nobody shows.
+    const folding = useRef(new Set<string>());
+    const toggle = useCallback(
+        (id: string, header?: HTMLElement) => {
+            const fold = header === undefined ? undefined : foldOf(header);
+            const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            const commit = (): void => {
+                setFolded((old) => ({ ...old, [id]: old[id] !== true }));
+                // A folded item only repaints when its version moves, not when the header callback does.
+                setVersions((old) => ({ ...old, [id]: (old[id] ?? 0) + 1 }));
+            };
+            if (fold === undefined || reduced) {
+                commit();
+                return;
+            }
+            if (folding.current.has(id)) {
+                return;
+            }
+            folding.current.add(id);
+            let settled = false;
+            const list = fold.list.getBoundingClientRect().height;
+            // Opening: the library lays the file out at once, from a list that already holds the
+            // height it is growing into. Closing: the row folds under its own header first, and the
+            // library then drops the diff onto exactly the height already on screen.
+            const opening = folded[id] === true;
+            if (opening) {
+                flushSync(commit);
+            }
+            const height = fold.box.getBoundingClientRect().height;
+            const animations = opening
+                ? animateFold(
+                      fold,
+                      { from: FOLDED_HEIGHT, to: height },
+                      { from: list, to: fold.list.getBoundingClientRect().height },
+                  )
+                : animateFold(
+                      fold,
+                      { from: height, to: FOLDED_HEIGHT },
+                      {
+                          from: list,
+                          to: list - (height - FOLDED_HEIGHT),
+                      },
+                  );
+            const settle = (): void => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                animations.forEach((animation) => {
+                    animation.cancel();
+                });
+                fold.box.style.overflow = "";
+                folding.current.delete(id);
+            };
+            const [box] = animations;
+            box.onfinish = (): void => {
+                if (!opening) {
+                    flushSync(commit);
+                }
+                settle();
+            };
+            // Cancelling settles too, or a fold stopped midway would keep the item unclickable.
+            box.oncancel = settle;
+        },
+        [folded],
+    );
     const header = useCallback(
         (item: CodeViewItem<undefined>) =>
             item.type === "diff" ? (
@@ -232,8 +339,8 @@ export function PatchPreview({ data }: { data: Changes }) {
                     previous={item.fileDiff.prevName}
                     counts={countsOf(item.fileDiff)}
                     open={folded[item.id] !== true}
-                    onToggle={() => {
-                        toggle(item.id);
+                    onToggle={(element) => {
+                        toggle(item.id, element);
                     }}
                 />
             ) : null,

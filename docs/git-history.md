@@ -12,8 +12,10 @@ It is independent of `git-stats`: disabling either does not disable the other.
   rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. The box takes
   the height its diff needs, up to 70% of the window, and scrolls beyond that. The opened row moves
   to the top of the list, so the diff starts at the top of the screen. Each file has its own header
-  with its line counts: clicking it folds the file, and it stays at the top of the diff until the
-  next file's header takes its place. Files start expanded. On a wide screen a file tree beside the
+  with its line counts: clicking it folds the file under that header, and it stays at the top of the
+  diff until the next file's header takes its place. The fold takes 200 ms, as the commit row does,
+  and the files below move with it rather than after it; a reduced-motion setting folds at once.
+  Files start expanded. On a wide screen a file tree beside the
   diff lists every file with its line counts and scrolls to the one clicked; it is left out when the
   change touches a single file, and a phone shows the diff alone. Every file carries a mark for its
   kind, in the tree and in its diff header. Untracked non-ignored files are
