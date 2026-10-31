@@ -18,7 +18,6 @@ import {
     createRegistry,
     Harness,
 } from "@earendil-works/pi-durable";
-import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
@@ -31,6 +30,7 @@ import type {
     SessionsEvent,
 } from "../shared/protocol.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
+import { executionEnv } from "./execution-env.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import {
@@ -751,7 +751,7 @@ async function boot(): Promise<void> {
                 models: runtime,
                 registry,
                 settings: { stream: STREAM },
-                env: () => new NodeExecutionEnv({ cwd }),
+                env: executionEnv(cwd),
                 onReport: (error, info) => {
                     if (info.type === "session_failed") {
                         console.error("pi-durable-agent: storage session failed", error);

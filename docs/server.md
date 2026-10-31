@@ -194,6 +194,11 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
                              400 bad body or ActionError · 404 unknown extension, action or session · 500
 ```
 
+A conversation runs its tools where it was created: the folder of its agent document is the
+`cwd` of every tool call, taken at each use, so a session started in a worktree works there and not
+where the server runs. A folder that is gone ends every call with `Working directory does not
+exist: <folder>`; the conversation stays readable all the same.
+
 The default model is the `app.settings` session document. It survives a restart; `MODEL` is used
 until one is chosen. `live.queued` is `pi.inbox`'s messages; `live.status` is what extensions add. `live.revision` moves when an extension called `host.notifySessionChanged` for the session (at most once per 250 ms) and is absent before that.
 
