@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { cn } from "@/lib/utils";
 
 import { FileTree } from "./file-tree.tsx";
+import { FileMark } from "./icons.tsx";
 import { diffStyle, subscribeDiffStyle } from "./preferences.ts";
 import type { ChangedFile, Changes } from "./refs.ts";
 import type { TreeFile } from "./tree.ts";
@@ -146,6 +147,7 @@ function FileHeader({
             <ChevronRight
                 className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
             />
+            <FileMark name={path} />
             <span className="text-ink min-w-0 flex-1 truncate">
                 {previous === undefined ? null : <span className="text-faint">{previous} → </span>}
                 {path}

@@ -1,54 +1,10 @@
-import {
-    ChevronRight,
-    Database,
-    File,
-    FileCode,
-    FileCog,
-    FileImage,
-    FileJson,
-    FileTerminal,
-    FileText,
-    Palette,
-    type LucideIcon,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { FileMark } from "./icons.tsx";
 import { treeOf, type TreeBranch, type TreeFile } from "./tree.ts";
-
-/** The shape only says what kind of file it is; the name and the counts carry the rest. */
-const ICONS: Record<string, LucideIcon> = {
-    ts: FileCode,
-    tsx: FileCode,
-    js: FileCode,
-    jsx: FileCode,
-    mjs: FileCode,
-    cjs: FileCode,
-    md: FileText,
-    txt: FileText,
-    json: FileJson,
-    yml: FileCog,
-    yaml: FileCog,
-    toml: FileCog,
-    css: Palette,
-    scss: Palette,
-    sh: FileTerminal,
-    bash: FileTerminal,
-    sql: Database,
-    png: FileImage,
-    jpg: FileImage,
-    jpeg: FileImage,
-    gif: FileImage,
-    webp: FileImage,
-    svg: FileImage,
-};
-
-function iconOf(name: string): LucideIcon {
-    const extension = name.split(".").pop() ?? "";
-
-    return ICONS[extension.toLowerCase()] ?? File;
-}
 
 const toggleFolded = (folded: Record<string, boolean>, path: string): Record<string, boolean> => ({
     ...folded,
@@ -98,7 +54,6 @@ function Rows({
             {branches.map((branch) => {
                 const file = branch.file;
                 const open = folded[branch.path] !== true;
-                const Icon = iconOf(branch.name);
                 return (
                     <li key={branch.path}>
                         {file === undefined ? (
@@ -129,7 +84,7 @@ function Rows({
                                 className="hover:bg-raised flex w-full items-center gap-1.5 py-0.5 pr-2 text-left"
                                 style={{ paddingLeft: `${String(depth * 10 + 6 + 16)}px` }}
                             >
-                                <Icon className="text-muted size-3.5 shrink-0" />
+                                <FileMark name={branch.name} />
                                 <span className="text-ink min-w-0 flex-1 truncate font-mono">
                                     {branch.name}
                                 </span>
