@@ -369,7 +369,6 @@ function toolsOf(value: unknown): ClientTool[] {
         const callId = stringOf(slot, "callId");
         const name = stringOf(slot, "name");
         const status = stringOf(slot, "status");
-        const output = stringOf(slot, "output");
 
         if (callId === undefined || name === undefined || status === undefined) {
             continue;
@@ -379,7 +378,6 @@ function toolsOf(value: unknown): ClientTool[] {
             callId,
             name,
             status: status === "running" ? "running" : status === "done" ? "done" : "pending",
-            ...(output === undefined ? {} : { output }),
         });
     }
 

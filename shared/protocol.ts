@@ -88,7 +88,6 @@ export type ClientTool = {
     callId: string;
     name: string;
     status: "pending" | "running" | "done";
-    output?: string;
 };
 
 /** The conversation's spend so far, summed over every model and tool bucket. */

@@ -201,3 +201,29 @@ void describe("messages the person did not type", () => {
         });
     });
 });
+
+void describe("live tools", () => {
+    void it("say that a call runs, not what it has printed so far", () => {
+        const live = projectLive(
+            {
+                run: {},
+                tools: [
+                    {
+                        callId: "c1",
+                        name: "bash",
+                        status: "running",
+                        output: "line\n".repeat(2000),
+                    },
+                    { callId: "c2", name: "read", status: "done", output: "done" },
+                ],
+            },
+            undefined,
+            undefined,
+        );
+
+        assert.deepEqual(live.tools, [
+            { callId: "c1", name: "bash", status: "running" },
+            { callId: "c2", name: "read", status: "done" },
+        ]);
+    });
+});
