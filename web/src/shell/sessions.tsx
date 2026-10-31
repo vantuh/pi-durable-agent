@@ -17,6 +17,7 @@ import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
     memo,
+    useCallback,
     useEffect,
     useLayoutEffect,
     useRef,
@@ -202,6 +203,154 @@ function ResizeHandle() {
     );
 }
 
+const runKey = (item: FolderSessionMenuItem, session: SessionSummary): string =>
+    `${String(session.id)}:${item.id}`;
+/** One list for every row without a search, so a row whose title did not change gets an equal prop. */
+const NO_RANGES: [number, number][] = [];
+
+type RowProps = {
+    session: SessionSummary;
+    /** Sessions started from this one that are working, shown as its mark. */
+    working: number;
+    /** Null when the session has no activity time yet. */
+    time: string | null;
+    ranges: [number, number][];
+    current: boolean;
+    holding: boolean;
+    menu: readonly FolderSessionMenuItem[];
+    running: ReadonlySet<string>;
+    pending: boolean;
+    registerRow: (id: number, node: HTMLDivElement | null) => void;
+    onOpen: (id: number) => void;
+    onRunItem: (item: FolderSessionMenuItem, session: SessionSummary) => void;
+    onRename: (session: SessionSummary) => void;
+    onArchive: (id: number, archived: boolean) => Promise<void>;
+    onDelete: (session: SessionSummary) => void;
+};
+
+// Every prop is a primitive, a row object that keeps its identity until the row changes, or a callback
+// that Sessions keeps stable: a session-list event then re-renders only the rows it touched.
+const SessionRow = memo(function SessionRow({
+    session,
+    working,
+    time,
+    ranges,
+    current,
+    holding,
+    menu,
+    running,
+    pending,
+    registerRow,
+    onOpen,
+    onRunItem,
+    onRename,
+    onArchive,
+    onDelete,
+}: RowProps) {
+    const attach = useCallback(
+        (node: HTMLDivElement | null) => {
+            registerRow(session.id, node);
+        },
+        [registerRow, session.id],
+    );
+
+    return (
+        <div
+            ref={attach}
+            data-holds-open={holding ? "" : undefined}
+            className={`session-row group rounded-control relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
+        >
+            <a
+                href={sessionHref(session.id)}
+                onClick={(event) => {
+                    if (!isPlainClick(event)) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    onOpen(session.id);
+                }}
+                aria-current={current ? "page" : holding ? "true" : undefined}
+                className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
+            >
+                <StateMark session={session} working={working} />
+                <span className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}>
+                    {segments(session.title ?? "New session", ranges).map((part, index) => (
+                        <span
+                            key={`${String(index)}-${part.text}`}
+                            className={part.hit ? "bg-warn/30 text-ink rounded-[2px]" : undefined}
+                        >
+                            {part.text}
+                        </span>
+                    ))}
+                </span>
+                <span
+                    className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
+                >
+                    {time}
+                </span>
+            </a>
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={`Actions for ${session.title ?? "New session"}`}
+                        title="Session actions"
+                        className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center lg:group-data-[collapsed]/side:hidden"
+                    >
+                        <MoreHorizontal className="size-4" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                    align="end"
+                    onCloseAutoFocus={(event) => {
+                        event.preventDefault();
+                    }}
+                >
+                    {menu.map((item) => (
+                        <DropdownMenuItem
+                            key={item.id}
+                            disabled={running.has(runKey(item, session))}
+                            onSelect={() => {
+                                onRunItem(item, session);
+                            }}
+                        >
+                            {iconOf(item.icon, session)}
+                            {labelOf(item, session)}
+                        </DropdownMenuItem>
+                    ))}
+                    {menu.length === 0 ? null : <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            onRename(session);
+                        }}
+                    >
+                        <Pencil />
+                        Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        disabled={pending}
+                        onSelect={() => {
+                            void onArchive(session.id, !session.archived);
+                        }}
+                    >
+                        {session.archived ? <ArchiveRestore /> : <Archive />}
+                        {session.archived ? "Restore" : "Archive"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            onDelete(session);
+                        }}
+                    >
+                        <Trash2 />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+});
+
 export const Sessions = memo(function Sessions({
     sessions,
     current,
@@ -250,7 +399,7 @@ export const Sessions = memo(function Sessions({
     });
     const searchTrigger = useRef<HTMLButtonElement>(null);
     const list = useRef<HTMLDivElement>(null);
-    const stopSearch = (): void => {
+    const stopSearch = useCallback((): void => {
         setSearching(false);
         setQuery("");
         // The box is only hidden, not unmounted, so it would keep the keys pressed after Escape.
@@ -258,43 +407,62 @@ export const Sessions = memo(function Sessions({
 
         searchFrom.current = null;
         back?.focus();
-    };
+    }, []);
+    const openRow = useCallback(
+        (id: number): void => {
+            onSelect(id);
+            stopSearch();
+        },
+        [onSelect, stopSearch],
+    );
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
     const menu = useSessionMenu();
     const [running, setRunning] = useState<ReadonlySet<string>>(new Set());
-    const runKey = (item: FolderSessionMenuItem, session: SessionSummary): string =>
-        `${String(session.id)}:${item.id}`;
-    const markRunning = (key: string, on: boolean): void => {
-        setRunning((keys) => {
-            const next = new Set(keys);
-            if (on) {
-                next.add(key);
-            } else {
-                next.delete(key);
-            }
+    const runMenuItem = useCallback(
+        (item: FolderSessionMenuItem, session: SessionSummary): void => {
+            const key = runKey(item, session);
+            const markRunning = (on: boolean): void => {
+                setRunning((keys) => {
+                    const next = new Set(keys);
+                    if (on) {
+                        next.add(key);
+                    } else {
+                        next.delete(key);
+                    }
 
-            return next;
-        });
-    };
-    const runMenuItem = (item: FolderSessionMenuItem, session: SessionSummary): void => {
-        const key = runKey(item, session);
-        markRunning(key, true);
-        toast.promise(item.run(session.id), {
-            loading: busyLabel(`${labelOf(item, session)}…`),
-            error: (error: unknown) =>
-                error instanceof Error ? error.message : "Could not finish the action.",
-            finally: () => {
-                markRunning(key, false);
-            },
-        });
-    };
+                    return next;
+                });
+            };
+
+            markRunning(true);
+            toast.promise(item.run(session.id), {
+                loading: busyLabel(`${labelOf(item, session)}…`),
+                error: (error: unknown) =>
+                    error instanceof Error ? error.message : "Could not finish the action.",
+                finally: () => {
+                    markRunning(false);
+                },
+            });
+        },
+        [],
+    );
     const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
     const shell = useRef<HTMLElement | null>(null);
     const form = useRef<HTMLFormElement | null>(null);
     const dialog = useRef<HTMLDivElement | null>(null);
     // The rows on screen, so a panel opens at the height of the one it acts on instead of at the top.
     const rowNodes = useRef(new Map<number, HTMLDivElement>());
+    const registerRow = useCallback((id: number, node: HTMLDivElement | null): void => {
+        if (node === null) {
+            rowNodes.current.delete(id);
+        } else {
+            rowNodes.current.set(id, node);
+        }
+    }, []);
+    const startRename = useCallback((target: SessionSummary): void => {
+        setRenaming({ id: target.id, name: target.name ?? "" });
+    }, []);
 
     useShellCommand("session.rename", () => {
         const target = sessions.find((session) => session.id === current);
@@ -340,30 +508,33 @@ export const Sessions = memo(function Sessions({
             setPending(false);
         }
     };
-    const changeArchive = async (id: number, value: boolean): Promise<void> => {
-        setPending(true);
-        try {
-            await onArchive(id, value);
-            toast.success(value ? "Session archived" : "Session restored", {
-                id: `archive-${String(id)}`,
-                duration: 4000,
-                action: {
-                    label: "Undo",
-                    onClick: () => {
-                        toast.promise(onArchive(id, !value), {
-                            loading: busyLabel("Undoing…"),
-                            success: value ? "Session restored" : "Session archived",
-                            error: "Could not undo. Please try again.",
-                        });
+    const changeArchive = useCallback(
+        async (id: number, value: boolean): Promise<void> => {
+            setPending(true);
+            try {
+                await onArchive(id, value);
+                toast.success(value ? "Session archived" : "Session restored", {
+                    id: `archive-${String(id)}`,
+                    duration: 4000,
+                    action: {
+                        label: "Undo",
+                        onClick: () => {
+                            toast.promise(onArchive(id, !value), {
+                                loading: busyLabel("Undoing…"),
+                                success: value ? "Session restored" : "Session archived",
+                                error: "Could not undo. Please try again.",
+                            });
+                        },
                     },
-                },
-            });
-        } catch {
-            toast.error("Could not update the archive. Please try again.");
-        } finally {
-            setPending(false);
-        }
-    };
+                });
+            } catch {
+                toast.error("Could not update the archive. Please try again.");
+            } finally {
+                setPending(false);
+            }
+        },
+        [onArchive],
+    );
     const remove = async (id: number): Promise<void> => {
         setPending(true);
         try {
@@ -441,6 +612,11 @@ export const Sessions = memo(function Sessions({
         );
     const shown = matches.map((match) => match.session);
     const hits = new Map(matches.map((match) => [match.session.id, match.ranges]));
+    const rangesOf = (id: number): [number, number][] => {
+        const ranges = hits.get(id);
+
+        return ranges === undefined || ranges.length === 0 ? NO_RANGES : ranges;
+    };
     // The rows in the order they are drawn, so stepping follows the folder, archive and search filters.
     const visible = GROUPS.flatMap((group) =>
         shown.filter((session) => groupOf(session.activeAt, now) === group),
@@ -715,152 +891,30 @@ export const Sessions = memo(function Sessions({
                                         {group} {rows.length}
                                     </div>
 
-                                    {rows.map((session) => {
-                                        return (
-                                            <div
-                                                key={session.id}
-                                                ref={(node) => {
-                                                    if (node === null) {
-                                                        rowNodes.current.delete(session.id);
-                                                    } else {
-                                                        rowNodes.current.set(session.id, node);
-                                                    }
-                                                }}
-                                                data-holds-open={
-                                                    session.id === holding ? "" : undefined
-                                                }
-                                                className={`session-row group rounded-control relative flex items-center ${session.id === current || session.id === holding ? "bg-raised" : "hover:bg-raised/50"}`}
-                                            >
-                                                <a
-                                                    href={sessionHref(session.id)}
-                                                    onClick={(event) => {
-                                                        if (!isPlainClick(event)) {
-                                                            return;
-                                                        }
-
-                                                        event.preventDefault();
-                                                        onSelect(session.id);
-                                                        stopSearch();
-                                                    }}
-                                                    aria-current={
-                                                        session.id === current
-                                                            ? "page"
-                                                            : session.id === holding
-                                                              ? "true"
-                                                              : undefined
-                                                    }
-                                                    className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
-                                                >
-                                                    <StateMark
-                                                        session={session}
-                                                        working={workingChildren(
-                                                            session.id,
-                                                            sessions,
-                                                        )}
-                                                    />
-                                                    <span
-                                                        className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}
-                                                    >
-                                                        {segments(
-                                                            session.title ?? "New session",
-                                                            hits.get(session.id) ?? [],
-                                                        ).map((part, index) => (
-                                                            <span
-                                                                key={`${String(index)}-${part.text}`}
-                                                                className={
-                                                                    part.hit
-                                                                        ? "bg-warn/30 text-ink rounded-[2px]"
-                                                                        : undefined
-                                                                }
-                                                            >
-                                                                {part.text}
-                                                            </span>
-                                                        ))}
-                                                    </span>
-                                                    <span
-                                                        className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
-                                                    >
-                                                        {session.activeAt === null
-                                                            ? null
-                                                            : ago(session.activeAt, now)}
-                                                    </span>
-                                                </a>
-                                                <DropdownMenu modal={false}>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            aria-label={`Actions for ${session.title ?? "New session"}`}
-                                                            title="Session actions"
-                                                            className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center lg:group-data-[collapsed]/side:hidden"
-                                                        >
-                                                            <MoreHorizontal className="size-4" />
-                                                        </button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent
-                                                        align="end"
-                                                        onCloseAutoFocus={(event) => {
-                                                            event.preventDefault();
-                                                        }}
-                                                    >
-                                                        {menu.map((item) => (
-                                                            <DropdownMenuItem
-                                                                key={item.id}
-                                                                disabled={running.has(
-                                                                    runKey(item, session),
-                                                                )}
-                                                                onSelect={() => {
-                                                                    runMenuItem(item, session);
-                                                                }}
-                                                            >
-                                                                {iconOf(item.icon, session)}
-                                                                {labelOf(item, session)}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                        {menu.length === 0 ? null : (
-                                                            <DropdownMenuSeparator />
-                                                        )}
-                                                        <DropdownMenuItem
-                                                            onSelect={() => {
-                                                                setRenaming({
-                                                                    id: session.id,
-                                                                    name: session.name ?? "",
-                                                                });
-                                                            }}
-                                                        >
-                                                            <Pencil />
-                                                            Rename
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            disabled={pending}
-                                                            onSelect={() => {
-                                                                void changeArchive(
-                                                                    session.id,
-                                                                    !session.archived,
-                                                                );
-                                                            }}
-                                                        >
-                                                            {session.archived ? (
-                                                                <ArchiveRestore />
-                                                            ) : (
-                                                                <Archive />
-                                                            )}
-                                                            {session.archived
-                                                                ? "Restore"
-                                                                : "Archive"}
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onSelect={() => {
-                                                                setDeleting(session);
-                                                            }}
-                                                        >
-                                                            <Trash2 />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        );
-                                    })}
+                                    {rows.map((session) => (
+                                        <SessionRow
+                                            key={session.id}
+                                            session={session}
+                                            working={workingChildren(session.id, sessions)}
+                                            time={
+                                                session.activeAt === null
+                                                    ? null
+                                                    : ago(session.activeAt, now)
+                                            }
+                                            ranges={rangesOf(session.id)}
+                                            current={session.id === current}
+                                            holding={session.id === holding}
+                                            menu={menu}
+                                            running={running}
+                                            pending={pending}
+                                            registerRow={registerRow}
+                                            onOpen={openRow}
+                                            onRunItem={runMenuItem}
+                                            onRename={startRename}
+                                            onArchive={changeArchive}
+                                            onDelete={setDeleting}
+                                        />
+                                    ))}
                                 </div>
                             );
                         })}
