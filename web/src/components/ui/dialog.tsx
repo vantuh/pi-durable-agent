@@ -20,7 +20,10 @@ export function DialogContent({
 }: ComponentProps<typeof DialogPrimitive.Content>) {
     return (
         <DialogPrimitive.Portal>
-            <DialogPrimitive.Overlay className="bg-sunken/70 fixed inset-0 z-50" />
+            <DialogPrimitive.Overlay
+                data-slot="dialog-overlay"
+                className="bg-sunken/70 fixed inset-0 z-50"
+            />
             <DialogPrimitive.Content
                 data-slot="dialog-content"
                 className={cn(

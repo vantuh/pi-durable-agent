@@ -191,11 +191,35 @@ body {
     }
 }
 
+@keyframes drop-out {
+    to {
+        opacity: 0;
+    }
+}
+
 .animate-drop-in {
     animation: drop-in 150ms ease-out;
 }
 
+/* Radix holds a dialog mounted until its out animation ends, so a close fades instead of jumping. */
+[data-slot="dialog-content"],
+[data-slot="dialog-overlay"] {
+    animation: drop-in 150ms ease-out;
+}
+
+[data-slot="dialog-content"][data-state="closed"],
+[data-slot="dialog-overlay"][data-state="closed"] {
+    animation: drop-out 150ms ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
+    [data-slot="dialog-content"],
+    [data-slot="dialog-overlay"],
+    [data-slot="dialog-content"][data-state="closed"],
+    [data-slot="dialog-overlay"][data-state="closed"] {
+        animation: none;
+    }
+
     .shimmer {
         animation: none;
         color: var(--role-muted);
