@@ -202,6 +202,41 @@ function forgetPatches(): void {
     patches.clear();
 }
 
+const PREFETCHED = 3;
+const HOVER_DELAY = 120;
+
+function prefetch(session: number, target: string | undefined): void {
+    if (target === undefined) {
+        return;
+    }
+    void loadChanges(session, target).catch(() => undefined);
+}
+
+/** Sweeping the mouse down the list must not read every commit it crosses. */
+let hoverTimer: ReturnType<typeof setTimeout> | undefined;
+function prefetchSoon(session: number, target: string | undefined): void {
+    clearTimeout(hoverTimer);
+    if (target === undefined) {
+        return;
+    }
+    hoverTimer = setTimeout(() => {
+        prefetch(session, target);
+    }, HOVER_DELAY);
+}
+
+function whenIdle(run: () => void): () => void {
+    if (typeof requestIdleCallback !== "function") {
+        const timer = setTimeout(run, 200);
+        return () => {
+            clearTimeout(timer);
+        };
+    }
+    const handle = requestIdleCallback(run, { timeout: 1500 });
+    return () => {
+        cancelIdleCallback(handle);
+    };
+}
+
 function Preview({ session, target }: { session: number; target: string }) {
     const [data, setData] = useState<Changes | null>(() => cachedPatch(session, target) ?? null);
     const [error, setError] = useState<string | null>(null);
@@ -318,6 +353,34 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Refresh explicitly reloads the same Git query
     }, [id, open, limit, refresh]);
 
+    // The newest commits are the ones opened next: read them while nobody is waiting.
+    useEffect(() => {
+        if (!open || data === null) {
+            return undefined;
+        }
+        let alive = true;
+        let stop: () => void = () => undefined;
+        const warm = async (index: number): Promise<void> => {
+            const commit = data.commits[index];
+            if (!alive || commit === undefined || index >= PREFETCHED) {
+                return;
+            }
+            await loadChanges(id, commit.hash).catch(() => undefined);
+            if (alive) {
+                stop = whenIdle(() => {
+                    void warm(index + 1);
+                });
+            }
+        };
+        stop = whenIdle(() => {
+            void warm(0);
+        });
+        return () => {
+            alive = false;
+            stop();
+        };
+    }, [id, open, data]);
+
     useEffect(() => {
         if (!open) {
             return undefined;
@@ -421,6 +484,15 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                     aria-expanded={selected === target}
                     onClick={() => {
                         setSelected((old) => (old === target ? null : target));
+                    }}
+                    onPointerEnter={() => {
+                        prefetchSoon(id, commit?.hash);
+                    }}
+                    onPointerLeave={() => {
+                        prefetchSoon(id, undefined);
+                    }}
+                    onFocus={() => {
+                        prefetchSoon(id, commit?.hash);
                     }}
                     className="min-w-0 flex-1 text-left"
                 >
