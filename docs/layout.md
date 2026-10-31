@@ -117,10 +117,11 @@ pushes already send. See [sessions-live.md](sessions-live.md).
       is one click away. A tool's pictures under an activity line are chips too.
     - **The viewer**: a `Dialog` that fills the screen (a card, up to 72rem, from `sm`) with the
       picture fitted inside it: 1× to 8× from there, the wheel or a trackpad pinch on a desktop and
-      two fingers on a phone, a drag to move it, and a double click or tap back to whole. Arrows and
-      `ArrowLeft`/`ArrowRight` step between the pictures of one message without wrapping, and a new
-      picture starts whole. The zoom is `react-zoom-pan-pinch`; `web/src/ui/attachments.tsx` owns the
-      viewer.
+      two fingers on a phone, a drag to move it, and a double click or tap back to whole. The space
+      the picture does not fill is a button that closes the viewer — on a phone that is most of the
+      screen. Arrows and `ArrowLeft`/`ArrowRight` step between the pictures of one message without
+      wrapping, and a new picture starts whole. The zoom is `react-zoom-pan-pinch`;
+      `web/src/ui/attachments.tsx` owns the viewer.
     - **Quoting an answer**: words selected inside an answer bring a `Quote` button past their
       right corner, off the end of the line; a tap takes them to the composer, where they wait as a
       `panel` card with a quote mark in its corner, above what is being written. A quote is the

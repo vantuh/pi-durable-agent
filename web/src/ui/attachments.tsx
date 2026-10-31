@@ -141,6 +141,13 @@ function Lightbox({
             >
                 <DialogTitle className="sr-only">{shot.name}</DialogTitle>
                 <div className="relative min-h-0 flex-1 overflow-hidden">
+                    {/* The space a picture does not fill is a way out of the viewer, and on a phone it is most of it. */}
+                    <button
+                        type="button"
+                        aria-label="Close preview"
+                        onClick={onClose}
+                        className="focus-visible:ring-accent absolute inset-0 touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                    />
                     {/* A new picture starts whole: the wrapper is keyed by it. */}
                     <TransformWrapper
                         key={shot.src}
@@ -152,13 +159,21 @@ function Lightbox({
                         keyboard={{ disabled: true }}
                     >
                         <TransformComponent
-                            wrapperStyle={{ width: "100%", height: "100%", touchAction: "none" }}
+                            wrapperStyle={{
+                                width: "100%",
+                                height: "100%",
+                                touchAction: "none",
+                                pointerEvents: "none",
+                            }}
                             contentStyle={{ width: "100%", height: "100%" }}
                             contentClass="items-center justify-center"
                         >
+                            {/* Inline, because the library's own stylesheet turns images transparent to the pointer, and
+                                this one has to take it: the blank space under it is the way out of the viewer. */}
                             <img
                                 src={shot.src}
                                 alt={shot.name}
+                                style={{ pointerEvents: "auto" }}
                                 className="block max-h-full max-w-full object-contain"
                             />
                         </TransformComponent>
