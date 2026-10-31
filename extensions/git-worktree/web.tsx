@@ -114,20 +114,19 @@ function Worktree({ use, refused }: NewSessionProps) {
                     New worktree
                 </label>
 
-                {on ? (
-                    <Input
-                        ref={field}
-                        type="text"
-                        value={name}
-                        onChange={(event) => {
-                            setName(event.target.value);
-                        }}
-                        aria-label="Worktree name"
-                        aria-invalid={failed}
-                        aria-describedby={failed ? "worktree-refused" : undefined}
-                        className="text-meta w-56"
-                    />
-                ) : null}
+                {/* In the row from the start, unseen until ticked: none of the rows around it move. */}
+                <Input
+                    ref={field}
+                    type="text"
+                    value={name}
+                    onChange={(event) => {
+                        setName(event.target.value);
+                    }}
+                    aria-label="Worktree name"
+                    aria-invalid={failed}
+                    aria-describedby={failed ? "worktree-refused" : undefined}
+                    className={on ? "text-meta w-56" : "text-meta invisible w-56"}
+                />
             </div>
 
             {failed ? (
