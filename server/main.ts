@@ -42,6 +42,7 @@ import {
     writeEvent,
 } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
+import { liveWindow } from "./live-window.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
 import { projectEntry, projectLive } from "./projection.ts";
@@ -80,6 +81,12 @@ const LIST_DELAY_MS = 100;
 const RECONCILE_MS = 30_000;
 /** A child that commits all the time makes its parent's browsers ask again once per this long. */
 const CHANGE_WINDOW_MS = 250;
+/**
+ * A commit lands about every 100 ms while an answer streams, and each one used to send a whole frame to every
+ * browser. One frame per window is four a second, the same window `CHANGE_WINDOW_MS` gives extension-notified
+ * changes, so both sources of a live frame behave alike.
+ */
+const LIVE_FRAME_MS = 250;
 /** How long stopping may wait for running work; what is still running resumes in the next process. */
 const STOP_LIMIT_MS = 10_000;
 /** `scripts/serve.ts` starts the server again when it exits with this code, and only it can. */
@@ -100,14 +107,20 @@ const clients = new Set<Client>();
 const listWatchers = new Set<EventStream>();
 const busy = new Map<number, boolean>();
 const latest = new Map<number, { opened: Opened; view: View }>();
-const changes = sessionChanges({
-    windowMs: CHANGE_WINDOW_MS,
-    changed: (id) => {
+const liveFrames = liveWindow({
+    windowMs: LIVE_FRAME_MS,
+    send: (id) => {
         const current = latest.get(id);
 
         if (current !== undefined) {
             broadcast({ type: "live", session: id, live: liveOf(id, current.view) });
         }
+    },
+});
+const changes = sessionChanges({
+    windowMs: CHANGE_WINDOW_MS,
+    changed: (id) => {
+        liveFrames.changed(id);
     },
 });
 let listQueued = false;
@@ -400,7 +413,13 @@ function publish(opened: Opened, view: View): void {
     }
 
     busy.set(opened.id, live.busy);
-    broadcast({ type: "live", session: opened.id, live });
+
+    // An entry that finishes the streamed answer comes with the frame that clears it, or the answer shows twice.
+    if (!unchanged) {
+        liveFrames.flush(opened.id);
+    } else {
+        liveFrames.changed(opened.id);
+    }
 }
 
 const announce = commitAnnouncer({
@@ -480,6 +499,7 @@ async function attachOnce(id: number): Promise<Opened | undefined> {
 function detach(id: number): void {
     attached.get(id)?.();
     attached.delete(id);
+    liveFrames.forget(id);
     latest.delete(id);
     busy.delete(id);
     attaching.delete(id);
@@ -621,6 +641,7 @@ async function boot(): Promise<void> {
     lifecycle.onStop(() => {
         clearInterval(heartbeat);
         changes.dispose();
+        liveFrames.dispose();
 
         if (reconcile !== undefined) {
             clearInterval(reconcile);
