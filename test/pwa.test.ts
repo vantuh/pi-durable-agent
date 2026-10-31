@@ -187,14 +187,17 @@ void describe("pwa build helpers", () => {
         assert.notEqual(shellVersion(["ab", "c"]), shellVersion(["a", "bc"]));
     });
 
-    void it("precaches the static import graph, not lazy chunks", () => {
+    void it("precaches the static import graph, not lazy chunks or fonts", () => {
         const css = new Set(["assets/index-1.css"]);
         const urls = precacheUrls({
             "assets/index-1.js": {
                 isEntry: true,
                 fileName: "assets/index-1.js",
                 imports: ["assets/vendor-2.js"],
-                viteMetadata: { importedCss: css, importedAssets: new Set() },
+                viteMetadata: {
+                    importedCss: css,
+                    importedAssets: new Set(["assets/Mono-1.woff2"]),
+                },
             },
             "assets/vendor-2.js": { isEntry: false, fileName: "assets/vendor-2.js", imports: [] },
             "assets/shiki-lang-3.js": {
@@ -210,6 +213,7 @@ void describe("pwa build helpers", () => {
                 urls.includes("/assets/index-1.css"),
         );
         assert.ok(!urls.some((url) => url.includes("shiki")));
+        assert.ok(!urls.some((url) => url.endsWith(".woff2")));
         assert.ok(urls.includes("/") && urls.includes("/icons/apple-touch-icon.png"));
     });
 });

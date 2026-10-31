@@ -48,7 +48,7 @@ export function roleColor(
     return value;
 }
 
-/** The entry's static import graph with its CSS and assets; lazy chunks stay out. */
+/** The entry's static import graph with its CSS; lazy chunks and font files stay out. */
 export function precacheUrls(chunks: Record<string, ShellChunk>): string[] {
     const urls = new Set(STATIC_SHELL);
     const seen = new Set<string>();
@@ -62,10 +62,9 @@ export function precacheUrls(chunks: Record<string, ShellChunk>): string[] {
         seen.add(fileName);
         urls.add(`/${fileName}`);
 
-        for (const file of [
-            ...(chunk.viteMetadata?.importedCss ?? []),
-            ...(chunk.viteMetadata?.importedAssets ?? []),
-        ]) {
+        // importedAssets (the mono fonts, 231 KB) stay out: a first visit should not pay for them.
+        // They are fetched with the first code block and cached by the browser.
+        for (const file of chunk.viteMetadata?.importedCss ?? []) {
             urls.add(`/${file}`);
         }
 

@@ -15,8 +15,10 @@ An extension UI slot cannot reach them. All of it is in `pwa.ts` (a Vite plugin)
   `--role-panel` roles. No colour is written twice. Its name is `Pi`; the document title starts as
   `Pi` and, while a conversation is open, is `Pi · <session>` (`web/src/App.tsx`).
 - `sw.js`. It has a version (a hash of the worker, manifest, built HTML, precache list and icon bytes) and a precache list: `/`, the entry chunk with
-  its static imports, CSS and assets, and the icons. Lazy chunks (the Shiki languages and themes)
-  are not precached.
+  its static imports, CSS, and the icons. Lazy chunks (Shiki itself, its languages and themes) and
+  the two mono font files are not precached: the browser fetches them on first use and its HTTP
+  cache (`immutable`) keeps them. Offline, before they were ever fetched, mono text falls back to
+  the system mono font.
 - Icons are in `web/public/icons/`, made from `web/public/favicon.png`. The `maskable` icon is
   opaque and padded. The favicon is 128 px, so the 512 px icons are enlarged and soft.
 

@@ -4,17 +4,7 @@
  * colour comes from shiki itself. Grammars load on first use, each in its own chunk.
  */
 
-import {
-    type BundledLanguage,
-    bundledLanguages,
-    createHighlighter,
-    createJavaScriptRegexEngine,
-    type Highlighter,
-    type ThemedToken,
-} from "shiki";
-import { createCssVariablesTheme } from "shiki/core";
-
-const THEME = createCssVariablesTheme({ name: "roles", fontStyle: true });
+import type { BundledLanguage, Highlighter, ThemedToken, ThemeRegistration } from "shiki";
 
 const CLASSES: Record<string, string> = {
     "var(--shiki-foreground)": "text-ink",
@@ -32,20 +22,34 @@ const CLASSES: Record<string, string> = {
     "var(--shiki-token-changed)": "text-warn",
 };
 
-let highlighter: Promise<Highlighter> | undefined;
-
-function load(): Promise<Highlighter> {
-    highlighter ??= createHighlighter({
-        themes: [THEME],
-        langs: [],
-        engine: createJavaScriptRegexEngine(),
-    });
-
-    return highlighter;
+interface Loaded {
+    shiki: Highlighter;
+    languages: Record<string, unknown>;
+    theme: ThemeRegistration;
 }
 
-function isBundled(lang: string): lang is BundledLanguage {
-    return Object.hasOwn(bundledLanguages, lang);
+function isBundled(languages: Loaded["languages"], id: string): id is BundledLanguage {
+    return Object.hasOwn(languages, id);
+}
+
+let loaded: Promise<Loaded> | undefined;
+
+/** shiki is imported here, not at the top: a static import would put its engine in the entry chunk. */
+export function load(): Promise<Loaded> {
+    loaded ??= (async () => {
+        const [{ bundledLanguages, createHighlighter, createJavaScriptRegexEngine }, core] =
+            await Promise.all([import("shiki"), import("shiki/core")]);
+        const theme = core.createCssVariablesTheme({ name: "roles", fontStyle: true });
+        const shiki = await createHighlighter({
+            themes: [theme],
+            langs: [],
+            engine: createJavaScriptRegexEngine(),
+        });
+
+        return { shiki, languages: bundledLanguages, theme };
+    })();
+
+    return loaded;
 }
 
 /** The token's class: its role colour, and italic or bold as the grammar says. */
@@ -65,17 +69,22 @@ export function classOf(token: ThemedToken): string {
 export async function tokensOf(code: string, lang: string): Promise<ThemedToken[][] | undefined> {
     const id = lang.toLowerCase();
 
-    if (!isBundled(id)) {
+    // A block with no language is the common plain case; it must not pull the engine in.
+    if (id === "") {
         return undefined;
     }
 
-    const shiki = await load();
+    const { shiki, languages, theme } = await load();
+
+    if (!isBundled(languages, id)) {
+        return undefined;
+    }
 
     if (!shiki.getLoadedLanguages().includes(id)) {
         await shiki.loadLanguage(id);
     }
 
-    return shiki.codeToTokensBase(code, { lang: id, theme: THEME });
+    return shiki.codeToTokensBase(code, { lang: id, theme });
 }
 
 /** A file's language, from its path's extension: shiki knows most by it (`ts`, `py`, `yml`, `sh`). */
