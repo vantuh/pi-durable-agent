@@ -438,15 +438,19 @@ void describe("the bytes a phone waits for", () => {
 
         try {
             await watching.until(1, FIRST_FRAME_MS);
-            await startSession(base, cwd);
+            const created = await startSession(base, cwd);
 
             const next = eventOf(await watching.until(2, NEXT_FRAME_MS));
 
-            if (next.type !== "sessions") {
-                assert.fail("the second frame is the list");
+            if (next.type !== "rows") {
+                assert.fail("the second frame carries the change, not the list again");
             }
 
-            assert.equal(next.sessions.length, ROWS + 2, "the second frame carries the new row");
+            assert.deepEqual(
+                next.rows.map((row) => row.id),
+                [created],
+                "the second frame carries the new row, written without waiting",
+            );
         } finally {
             watching.stop();
         }

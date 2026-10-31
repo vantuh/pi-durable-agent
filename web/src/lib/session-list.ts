@@ -1,8 +1,34 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 
-import type { SessionSummary } from "../../../shared/protocol.ts";
-import { sessionsOf } from "./api.ts";
+import type { SessionSummary, SessionsEvent } from "../../../shared/protocol.ts";
+import { sessionsEventOf } from "./api.ts";
 import { reopenDelay } from "./stream.ts";
+
+/**
+ * The list after one frame of the stream: a `sessions` frame replaces it, a `rows` frame upserts the rows it
+ * carries and drops the ids it says are gone. The sidebar sorts and groups by itself, so the order is nothing
+ * this has to keep.
+ */
+export function withSessionsEvent(
+    current: SessionSummary[],
+    event: SessionsEvent,
+): SessionSummary[] {
+    if (event.type === "sessions") {
+        return event.sessions;
+    }
+
+    const rows = new Map(current.map((row) => [row.id, row]));
+
+    for (const id of event.gone) {
+        rows.delete(id);
+    }
+
+    for (const row of event.rows) {
+        rows.set(row.id, row);
+    }
+
+    return [...rows.values()];
+}
 
 /** Every session, as the server streams it; the setter is for a change shown before the server confirms it. */
 export function useSessionList(): {
@@ -39,7 +65,9 @@ export function useSessionList(): {
                 failures += 1;
             };
             stream.onmessage = (message: MessageEvent<string>) => {
-                setRows(sessionsOf(JSON.parse(message.data)));
+                const event = sessionsEventOf(JSON.parse(message.data));
+
+                setRows((current) => withSessionsEvent(current, event));
             };
         };
 

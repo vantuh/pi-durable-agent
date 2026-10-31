@@ -17,16 +17,21 @@ access to the list.
 ## The list streams
 
 ```text
-GET  /api/sessions/events    SSE: { type: "sessions", sessions } at once, then after every change a row shows
+GET  /api/sessions/events    SSE: { type: "sessions", sessions } at once, then after every change
+                             { type: "rows", rows, gone }
 POST /api/sessions/seen      { session }  the latest run is seen
 ```
 
-The list is sent whole, not as deltas: it is a few dozen rows, and a whole list cannot drift.
-Changes in a burst are sent once. A change is: a session starts or stops working, gains the question
-that names it, a run starts, ends or is seen, or any non-`GET` API call (create, rename, archive,
-delete, model, seen, a message). The entries a run appends are not changes: a row's `activeAt` is when
-the run started, not what a commit appends, and a title only the first question moves. The browser
-drops its polling; an action still re-reads the list, so its own result shows at once.
+The first frame a client gets is the whole list: it has nothing to apply a diff to, and a stream that reconnects
+must not start from a gap. Every frame after it carries only what changed — `rows` are the rows that differ from
+what the last frame left, `gone` are the ids that are no longer listed — because a phone on a slow link pays for
+these bytes on every rename, busy flip and archive, not once when it opens. Every client holds the same list, so
+one diff serves them all; a row is compared as the browser holds it, `JSON.stringify` of the row, so nothing here
+has to know which field moved. Changes in a burst are sent once. A change is: a session starts or stops working,
+gains the question that names it, a run starts, ends or is seen, or any non-`GET` API call (create, rename,
+archive, delete, model, seen, a message). The entries a run appends are not changes: a row's `activeAt` is when
+the run started, not what a commit appends, and a title only the first question moves. The browser drops its
+polling; an action still re-reads the list, so its own result shows at once.
 
 ## Seen
 

@@ -44,6 +44,7 @@ import { modelRoutes } from "./routes/models.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
 import { knownHost, sameOrigin } from "./same-origin.ts";
 import { sessionChanges } from "./session-changes.ts";
+import { SessionList } from "./session-list.ts";
 import { type Opened, Sessions, supportedLevel } from "./sessions.ts";
 import { serveStatic } from "./static.ts";
 
@@ -62,7 +63,7 @@ const IDLE_HEARTBEAT_MS = 20_000;
  * `/api/history` page away, which the transcript asks for when it scrolls up.
  */
 const HELLO_BYTES = 128 * 1024;
-/** A burst of changes (a run ending writes several) is sent as one list. */
+/** A burst of changes (a run ending writes several) is sent as one frame. */
 const LIST_DELAY_MS = 100;
 /** A child that commits all the time makes its parent's browsers ask again once per this long. */
 const CHANGE_WINDOW_MS = 250;
@@ -103,6 +104,7 @@ let models: ModelRuntime;
 let runtime: ModelRuntime;
 let extensions: Extensions;
 let sessions: Sessions;
+let list: SessionList;
 let harness: Harness;
 let lifecycle: Lifecycle;
 let rootId: number;
@@ -135,45 +137,62 @@ async function sessionRows(): Promise<SessionSummary[]> {
     });
 }
 
-async function sendList(watchers: Iterable<EventStream>): Promise<void> {
-    const list: SessionsEvent = { type: "sessions", sessions: await sessionRows() };
-    const event = `data: ${JSON.stringify(list)}\n\n`;
+/** One frame, written once for every watcher: one `writeEvent` per frame, so the gzip stream flushes it as it is. */
+function sendFrame(watchers: Iterable<EventStream>, event: SessionsEvent): void {
+    const data = `data: ${JSON.stringify(event)}\n\n`;
 
     for (const watcher of watchers) {
-        writeEvent(watcher.response, event, watcher.gzip);
+        writeEvent(watcher.response, data, watcher.gzip);
     }
 }
 
-/** Sends the whole list to every list stream, once per burst; in order, so an older list never lands last. */
+/**
+ * One send after another: a watcher's whole list always comes before any frame of changes it would lack, and an
+ * older frame never lands after a newer one.
+ */
+function queueListSend(task: () => Promise<void>): Promise<void> {
+    const sent = listChain.then(task);
+
+    listChain = sent.catch((error: unknown) => {
+        console.error(error);
+    });
+
+    return listChain;
+}
+
+/** Sends the rows that changed to every list stream, once per burst. */
 function listChanged(): void {
     if (listQueued || listWatchers.size === 0) {
         return;
     }
 
     listQueued = true;
-    listChain = listChain.then(flushList);
+    void queueListSend(flushList);
 }
 
 async function flushList(): Promise<void> {
     await delay(LIST_DELAY_MS);
     listQueued = false;
 
-    try {
-        await sendList(listWatchers);
-    } catch (error) {
-        console.error(error);
+    const frame = await list.flush();
+
+    if (frame !== undefined) {
+        sendFrame(listWatchers, { type: "rows", rows: frame.rows, gone: frame.gone });
     }
 }
 
-/** The session list stream: the whole list now, then after every change. */
+/** The session list stream: the whole list now, then the rows that changed after every change. */
 async function watchList(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const watcher: EventStream = { response, gzip: openEventStream(request, response) };
 
-    listWatchers.add(watcher);
     response.on("close", () => {
         listWatchers.delete(watcher);
     });
-    await sendList([watcher]);
+    // Queued like every flush, so no frame of changes this watcher lacks can be diffed before the list it starts from.
+    await queueListSend(async () => {
+        listWatchers.add(watcher);
+        sendFrame([watcher], { type: "sessions", sessions: await list.whole() });
+    });
 }
 
 function entriesOf(view: View): ClientEntry[] {
@@ -626,6 +645,7 @@ async function boot(): Promise<void> {
 
     rootId = Number(root.id);
     sessions = new Sessions({ harness, model: { provider, modelId }, models, context });
+    list = new SessionList(sessionRows);
     extensions.onChange(() => {
         for (const { opened, view } of latest.values()) {
             publish(opened, view);

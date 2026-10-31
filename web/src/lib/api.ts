@@ -5,6 +5,7 @@ import type {
     ModelChoice,
     SendMode,
     SessionSummary,
+    SessionsEvent,
 } from "../../../shared/protocol.ts";
 import { parseHistory } from "./event.ts";
 
@@ -80,10 +81,31 @@ export async function listSessions(): Promise<SessionSummary[]> {
 
 /** The rows of a list answer or of a `sessions` event; both carry them as `sessions`. */
 export function sessionsOf(value: unknown): SessionSummary[] {
+    return rowsOf(record(value)?.["sessions"]);
+}
+
+/**
+ * One frame of the list stream: the whole list, or the rows that changed since the last frame and the ids that
+ * are gone. Anything else is read as a whole list, which replaces whatever the screen holds.
+ */
+export function sessionsEventOf(value: unknown): SessionsEvent {
     const body = record(value);
+
+    if (body?.["type"] !== "rows") {
+        return { type: "sessions", sessions: rowsOf(body?.["sessions"]) };
+    }
+
+    return {
+        type: "rows",
+        rows: rowsOf(body["rows"]),
+        gone: list(body["gone"]).filter((id): id is number => typeof id === "number"),
+    };
+}
+
+function rowsOf(value: unknown): SessionSummary[] {
     const rows: SessionSummary[] = [];
 
-    for (const raw of list(body?.["sessions"])) {
+    for (const raw of list(value)) {
         const row = record(raw);
         const id = num(row?.["id"], 0);
 

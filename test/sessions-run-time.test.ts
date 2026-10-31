@@ -15,6 +15,7 @@ import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { SessionSummary, SessionsEvent } from "../shared/protocol.ts";
+import { withSessionsEvent } from "../web/src/lib/session-list.ts";
 
 const REPO = join(import.meta.dirname, "..");
 /** A debounce is 100 ms: this covers the last frame of a run plus the settle that follows it. */
@@ -115,10 +116,11 @@ async function post(base: string, path: string, body: unknown): Promise<unknown>
     return await response.json();
 }
 
-/** Every list the sidebar's stream sends, as it arrives. */
+/** One entry per frame, folded into the list the screen holds; the count is the frames that arrived. */
 function watchList(base: string): { lists: SessionSummary[][]; stop: () => void } {
     const lists: SessionSummary[][] = [];
     const abort = new AbortController();
+    let held: SessionSummary[] = [];
 
     void (async () => {
         const response = await fetch(`${base}/api/sessions/events`, { signal: abort.signal });
@@ -135,7 +137,8 @@ function watchList(base: string): { lists: SessionSummary[][]; stop: () => void 
             for (const frame of frames) {
                 if (frame.startsWith("data: ")) {
                     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the server writes SessionsEvent JSON
-                    lists.push((JSON.parse(frame.slice(6)) as SessionsEvent).sessions);
+                    held = withSessionsEvent(held, JSON.parse(frame.slice(6)) as SessionsEvent);
+                    lists.push(held);
                 }
             }
         }

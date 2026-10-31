@@ -201,8 +201,13 @@ export type SessionSummary = {
     endedAt?: number;
 };
 
-/** What `GET /api/sessions/events` sends: the whole list, at once and after every change. */
-export type SessionsEvent = { type: "sessions"; sessions: SessionSummary[] };
+/**
+ * What `GET /api/sessions/events` sends: the whole list to a client that just connected, then after every change
+ * only the rows that differ and the ids that are gone. All clients hold the same list, so one diff serves them.
+ */
+export type SessionsEvent =
+    | { type: "sessions"; sessions: SessionSummary[] }
+    | { type: "rows"; rows: SessionSummary[]; gone: number[] };
 
 /** One model the picker offers. */
 export type ModelChoice = {
