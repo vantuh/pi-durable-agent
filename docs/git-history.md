@@ -9,9 +9,15 @@ It is independent of `git-stats`: disabling either does not disable the other.
 - Open History to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
   50 local commits. Load older commits up to 200. Refresh reads local Git only; it never fetches.
 - Uncommitted changes appear above the commits. Click a row for a bounded diff preview
-  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. Each file has
-  its own foldable header and line counts; files start expanded. Untracked non-ignored files
-  are included; binary files are listed without a text diff.
+  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. The box takes
+  the height its diff needs, up to 70% of the window, and scrolls beyond that. The opened row moves
+  to the top of the list, so the diff starts at the top of the screen. Each file has its own header
+  with its line counts: clicking it folds the file, and it stays at the top of the diff until the
+  next file's header takes its place. Files start expanded. On a wide screen a file tree beside the
+  diff lists every file with its line counts and scrolls to the one clicked; it is left out when the
+  change touches a single file, and a phone shows the diff alone. Every file carries a mark for its
+  kind, in the tree and in its diff header. Untracked non-ignored files are
+  included; binary files are listed without a text diff.
 - The preview is virtualized: only the files near the viewport are in the page, so a commit of
   hundreds of files opens as fast as a small one. A commit's diff cannot change, so reopening it is
   a cache hit; the working tree is read again every time.
@@ -88,6 +94,30 @@ read eight at a time.
 
 `@pierre/diffs` 1.5.2 hard-codes 200 px of overscroll around the visible files; it is not an option,
 so the diff's scroll on a phone cannot be tuned from here.
+
+The preview's file header is our own row, 36 px tall, and `itemMetrics.diffHeaderHeight` says the
+same. A header of another height leaves every file below it a little too low, and a click in the
+tree then lands beside the header it meant.
+
+The marks beside a file name are Nerd Font glyphs — 27 of them, 6.6 KB — subsetted from the
+JetBrains Mono Nerd Font an editor uses, so the tree shows the same pictures a terminal does without
+an icon package. The colour is a theme role picked by family: `text-info` for TypeScript,
+`text-agent` for components, `text-warn` for JavaScript and JSON, `text-accent` for styles and
+media, `text-ok` for shells, `text-spark` for config and data, `text-ember` for markup, SQL and
+Rust. A kind of file that has no mark yet falls back to plain lines; a new one goes into
+`icons.tsx` and the subset is rebuilt:
+
+```bash
+uvx --with fonttools --with brotli python -c "
+from fontTools import subset
+subset.main([
+    '/Users/vantuh/Library/Fonts/JetBrainsMonoNLNerdFont-Regular.ttf',
+    '--unicodes=e628,e60c,e625,e73e,e64e,eb0f,e615,e8eb,e672,e614,e60e,e691,e706,e60d,e698,e6a0,e606,e724,e68b,e66d,e608,e605,e699,e634,e620,e650,f0fc3',
+    '--output-file=extensions/git-history/icons.woff2',
+    '--flavor=woff2', '--no-hinting', '--desubroutinize', '--layout-features=', '--drop-tables+=DSIG',
+])
+"
+```
 
 ## Embedding and security
 

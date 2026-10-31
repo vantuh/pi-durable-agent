@@ -322,7 +322,22 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
     const [editing, setEditing] = useState<Commit | null>(null);
     const pendingStart = useRef<Promise<ReviewState | null> | null>(null);
     const [viewer, setViewer] = useState(false);
+    const scroller = useRef<HTMLDivElement | null>(null);
+    const rows = useRef(new Map<string, HTMLLIElement>());
     const id = session.id;
+
+    // The opened row moves to the top of the list so its diff starts at the top of the screen.
+    useEffect(() => {
+        const row = selected === null ? undefined : rows.current.get(selected);
+        const box = scroller.current;
+        if (row === undefined || box === null) {
+            return;
+        }
+        box.scrollTo({
+            top: box.scrollTop + row.getBoundingClientRect().top - box.getBoundingClientRect().top,
+            behavior: "smooth",
+        });
+    }, [selected]);
 
     useEffect(() => {
         if (!open) {
@@ -476,7 +491,17 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
         marker?: "local" | "remote",
         commit?: Commit,
     ) => (
-        <li key={target} className="border-edge-soft border-b">
+        <li
+            key={target}
+            ref={(element) => {
+                if (element === null) {
+                    rows.current.delete(target);
+                } else {
+                    rows.current.set(target, element);
+                }
+            }}
+            className="border-edge-soft border-b"
+        >
             <div className="flex items-center gap-2 px-3 py-3">
                 <button
                     type="button"
@@ -712,7 +737,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                             Review is not running. Return to history to start another.
                         </div>
                     ) : (
-                        <div className="min-h-0 flex-1 overflow-auto">
+                        <div className="min-h-0 flex-1 overflow-auto" ref={scroller}>
                             {data === null && loading ? (
                                 <p className="text-muted p-4">Reading Git history…</p>
                             ) : null}
