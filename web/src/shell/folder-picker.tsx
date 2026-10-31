@@ -44,6 +44,14 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     /** What an option's `place` threw last time: the option, and what it said. */
     const [problem, setProblem] = useState<{ id: string; message: string } | null>(null);
     const [opening, setOpening] = useState(false);
+    /** The parent drops this dialog the moment it is told to close; it stays until its exit is over. */
+    const [open, setOpen] = useState(true);
+    const after = useRef<(() => void) | null>(null);
+
+    const leave = (then: () => void): void => {
+        after.current = then;
+        setOpen(false);
+    };
     /** What an option collected, held still while the dialog renders; a change takes its last failure away. */
     const remember = useCallback((id: string, value: NewSessionCollected | null): void => {
         setProblem(null);
@@ -171,21 +179,28 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
             setOpening(false);
         }
 
-        onOpen(where);
+        leave(() => {
+            onOpen(where);
+        });
     };
 
     return (
         <Dialog
-            open
-            onOpenChange={(open) => {
-                if (!open) {
-                    onClose();
+            open={open}
+            onOpenChange={(next) => {
+                if (!next) {
+                    leave(onClose);
                 }
             }}
         >
             <DialogContent
                 aria-describedby={undefined}
                 className="sm:max-w-3xl"
+                onAnimationEnd={(event) => {
+                    if (!open && event.target === event.currentTarget) {
+                        after.current?.();
+                    }
+                }}
                 onOpenAutoFocus={(event) => {
                     // Radix focuses the first tabbable (the Up button) unless the default is cancelled.
                     event.preventDefault();
@@ -318,7 +333,9 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         <div className="flex shrink-0 items-center gap-2">
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={() => {
+                                    leave(onClose);
+                                }}
                                 className="rounded-control bg-raised text-ink text-interface px-3 py-1.5"
                             >
                                 Cancel
