@@ -23,7 +23,7 @@ export type History = {
     more: boolean;
 };
 export type ChangedFile = { path: string; added: number; deleted: number; binary: boolean };
-export type Changes = { title: string; files: ChangedFile[]; patch: string; truncated: boolean };
+export type Changes = { files: ChangedFile[]; patch: string; truncated: boolean };
 export type ReviewState = {
     id: string;
     target: string;
@@ -88,14 +88,12 @@ function isFile(value: unknown): value is ChangedFile {
 function parseChanges(value: unknown): Changes {
     if (
         object(value) &&
-        typeof value["title"] === "string" &&
         typeof value["patch"] === "string" &&
         typeof value["truncated"] === "boolean" &&
         Array.isArray(value["files"]) &&
         value["files"].every(isFile)
     ) {
         return {
-            title: value["title"],
             patch: value["patch"],
             truncated: value["truncated"],
             files: value["files"],

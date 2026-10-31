@@ -16,6 +16,8 @@ import {
 
 const run = promisify(execFile);
 export const PATCH_CAP = 400 * 1024;
+// A folder stays in the repository it was opened in: the root is read once per process.
+const roots = new Map<string, string>();
 const FLAGS = [
     "--no-color",
     "--no-ext-diff",
@@ -101,11 +103,18 @@ function commitTree(
 }
 
 export async function rootOf(cwd: string): Promise<string> {
+    const known = roots.get(cwd);
+    if (known !== undefined) {
+        return known;
+    }
+    let root: string;
     try {
-        return (await git(cwd, ["rev-parse", "--show-toplevel"])).trimEnd();
+        root = (await git(cwd, ["rev-parse", "--show-toplevel"])).trimEnd();
     } catch {
         throw new ActionError("This session's folder is not a Git working tree.");
     }
+    roots.set(cwd, root);
+    return root;
 }
 
 export async function resolveCommit(cwd: string, target: string): Promise<string> {
@@ -251,7 +260,6 @@ export async function readChanges(
 ): Promise<Changes> {
     const root = await rootOf(cwd);
     const work = target === "worktree";
-    let title = "Uncommitted changes";
     let range: string[];
     if (work) {
         const head = await git(root, ["rev-parse", "--verify", "HEAD"]).then(
@@ -260,16 +268,25 @@ export async function readChanges(
         );
         range = [head ?? (await git(root, ["hash-object", "-t", "tree", "/dev/null"])).trim()];
     } else {
-        const full = await resolveCommit(root, target);
-        const parent = await git(root, ["rev-parse", "--verify", `${full}^1`]).then(
-            (s) => s.trim(),
-            () => undefined,
-        );
+        if (!/^[0-9a-f]{4,64}$/i.test(target)) {
+            throw new ActionError("Choose a commit from the history.");
+        }
+        // One process answers with the commit and its first parent, as a root commit has none.
+        const [full = "", parent] = (
+            await must(root, [
+                "rev-list",
+                "--parents",
+                "-n1",
+                "--end-of-options",
+                `${target}^{commit}`,
+            ])
+        )
+            .trim()
+            .split(" ");
         range = [
             parent ?? (await git(root, ["hash-object", "-t", "tree", "/dev/null"])).trim(),
             full,
         ];
-        title = (await git(root, ["log", "-1", "--format=%s", full])).trimEnd();
     }
     const args = ["diff", ...FLAGS, "-M"];
     const files = filesOf(await git(root, [...args, "--numstat", "-z", ...range, "--"]));
@@ -351,7 +368,7 @@ export async function readChanges(
             }
         }
     }
-    return { title, files, patch, truncated };
+    return { files, patch, truncated };
 }
 
 /**

@@ -57,7 +57,6 @@ void describe("git-history reads", () => {
         await writeFile(join(repo, "file"), "first\n");
         const root = await commit(repo, "root commit");
         const diff = await readChanges(repo, root);
-        assert.equal(diff.title, "root commit");
         assert.equal(diff.files[0]?.added, 1);
         await commit(repo, "second");
         await mkdir(join(repo, "nested"));
