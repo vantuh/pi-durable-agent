@@ -8,7 +8,7 @@
 
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError } from "../../server/sdk.ts";
@@ -62,6 +62,25 @@ export function slugOf(name: string): string {
         .replace(/^[-.]+|[-.]+$/g, "")
         .slice(0, 40)
         .replace(/[-.]+$/, "");
+}
+
+/**
+ * Whether `cwd` is one of the worktrees this server made, and whether its folder is still there: the
+ * answer a session shows when the worktree it works in was deleted under it.
+ */
+export function worktreeOf(dataDir: string, cwd: string): { name: string; gone: boolean } | null {
+    const root = join(dataDir, "worktrees");
+    const at = relative(root, cwd);
+    const parts = at.split(sep).filter((part) => part !== "");
+
+    // `<repository>/<name>` and anything below it; nothing beside the root, and nothing above it.
+    const name = parts[1];
+
+    if (name === undefined || at.startsWith("..")) {
+        return null;
+    }
+
+    return { name, gone: !existsSync(cwd) };
 }
 
 /**

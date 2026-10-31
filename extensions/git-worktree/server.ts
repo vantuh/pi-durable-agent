@@ -4,7 +4,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import type { MadeWorktree } from "./refs.ts";
-import { makeWorktree } from "./worktree.ts";
+import { makeWorktree, worktreeOf } from "./worktree.ts";
 
 export const meta = {
     title: "Git worktree",
@@ -29,5 +29,8 @@ function text(args: unknown, key: string): string {
 export const actions = (host: Host): Record<string, Action> => ({
     make({ args }): Promise<MadeWorktree> {
         return makeWorktree(host.dataDir, text(args, "cwd"), text(args, "name"));
+    },
+    state({ args }) {
+        return worktreeOf(host.dataDir, text(args, "cwd"));
     },
 });

@@ -1,17 +1,83 @@
+import { FolderX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { callAction } from "@/sdk/actions.ts";
-import type { NewSessionCollected, NewSessionProps, WebExtension } from "@/sdk/types.ts";
+import type {
+    NewSessionCollected,
+    NewSessionProps,
+    StatusProps,
+    WebExtension,
+} from "@/sdk/types.ts";
 
-import { make } from "./refs.ts";
+import { make, state, type WorktreeState } from "./refs.ts";
 
 const NAME = "name";
+
+// Shown on a phone too, unlike the branch badges: a session whose folder is gone cannot work at all.
+const GONE =
+    "border-danger text-danger inline-flex h-4 max-w-full min-w-0 shrink px-1.5 [&>svg]:size-2.5";
 
 function nameOf(collected: NewSessionCollected | null): string {
     const name: unknown = collected?.[NAME];
 
     return typeof name === "string" ? name.trim() : "";
+}
+
+/**
+ * The worktree of the open session, read again whenever the run state changes: the session keeps no
+ * word of its own that it was a worktree, so the server answers instead.
+ */
+function useWorktree(session: StatusProps["session"]): WorktreeState | null {
+    const [found, setFound] = useState<WorktreeState | null>(null);
+    const id = session?.id ?? null;
+    const cwd = session?.cwd ?? null;
+    const busy = session?.busy ?? false;
+
+    useEffect(() => {
+        let alive = true;
+
+        void (async () => {
+            let read: WorktreeState | null = null;
+
+            try {
+                read = cwd === null ? null : await callAction(state, { cwd }, id);
+            } catch {
+                read = null;
+            }
+
+            if (alive) {
+                setFound(read);
+            }
+        })();
+
+        return () => {
+            alive = false;
+        };
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) is when the folder may have gone
+    }, [id, cwd, busy]);
+
+    return found;
+}
+
+/** The worktree a session works in, in red once its folder is gone: then nothing it runs can work. */
+function Gone({ session }: StatusProps) {
+    const worktree = useWorktree(session);
+
+    if (worktree === null || !worktree.gone) {
+        return null;
+    }
+
+    return (
+        <Badge
+            title={`The worktree ${worktree.name} was deleted: this session's folder is gone`}
+            className={GONE}
+        >
+            <FolderX />
+            <span className="truncate">{worktree.name}</span>
+        </Badge>
+    );
 }
 
 /** A name, and the field that says when it will not do. */
@@ -74,6 +140,7 @@ function Worktree({ use, refused }: NewSessionProps) {
 }
 
 export default {
+    status: [{ id: "worktree", slot: "title", component: Gone }],
     newSession: [
         {
             id: "worktree",

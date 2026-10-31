@@ -885,6 +885,13 @@ on each other's files.
   stays after the session is deleted, with whatever was committed on it; nothing removes it yet.
 - `extensions/git-branch` then shows two badges: the branch, and the worktree it is a linked
   checkout of.
+- **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
+  the folder it was created in, the transcript stays readable, and the stream keeps working. What
+  ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting
+  a worktree from the terminal leaves the session like that, so the header shows the worktree's
+  name in red instead of the branch badges, with the session's own folder in its tooltip. It is
+  read through the `state` action of `git-worktree`, again whenever the session's run state
+  changes, so a worktree deleted while the app is open shows red at the next message, not at once.
 
 ## Hotkeys
 

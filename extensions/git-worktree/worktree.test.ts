@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
-import { makeWorktree, slugOf } from "./worktree.ts";
+import { makeWorktree, slugOf, worktreeOf } from "./worktree.ts";
 
 const run = promisify(execFile);
 
@@ -156,6 +156,42 @@ void describe("git-worktree", () => {
         await git(repo, ["branch", "taken"]);
 
         await assert.rejects(makeWorktree(data, repo, "taken"), /already has a branch named taken/);
+    });
+});
+
+void describe("git-worktree worktreeOf", () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "git-worktree-of-"));
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    void it("names the worktree of a folder that is one of ours, and says it is there", async () => {
+        await mkdir(join(dir, "worktrees", "repo", "try-it", "packages"), { recursive: true });
+
+        const at = join(dir, "worktrees", "repo", "try-it");
+
+        assert.deepEqual(worktreeOf(dir, at), { name: "try-it", gone: false });
+        assert.deepEqual(worktreeOf(dir, join(at, "packages")), { name: "try-it", gone: false });
+    });
+
+    void it("says a worktree that is not there any more is gone", () => {
+        assert.deepEqual(worktreeOf(dir, join(dir, "worktrees", "repo", "gone-one")), {
+            name: "gone-one",
+            gone: true,
+        });
+    });
+
+    void it("knows nothing of a folder that is no worktree of ours", () => {
+        assert.equal(worktreeOf(dir, join(dir, "worktrees")), null);
+        assert.equal(worktreeOf(dir, join(dir, "worktrees", "repo")), null);
+        assert.equal(worktreeOf(dir, join(dir, "worktrees-somewhere", "repo", "x")), null);
+        assert.equal(worktreeOf(dir, join(dir, "repo")), null);
+        assert.equal(worktreeOf(dir, join(dir, "worktrees", "..", "repo")), null);
     });
 });
 
