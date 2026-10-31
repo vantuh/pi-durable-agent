@@ -88,6 +88,11 @@ export function argOf(args: unknown, key: string): string | undefined {
     return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
 }
 
+/** The last segment of a path: what the person calls the file. */
+function fileNameOf(path: string): string {
+    return /(?:^|\/)([^/]*)$/.exec(path)?.[1] ?? path;
+}
+
 /** The skill a step loaded: Pi loads one by reading its `<name>/SKILL.md`. */
 export function skillOf(step: Step): string | undefined {
     return step.kind === "tool" && step.name === "read"
@@ -287,7 +292,10 @@ export function outcomeOf(
 /** A picture a group's calls returned: the entry that holds it, and where inside it. */
 export type GroupImage = { entry: number; index: number; name: string };
 
-/** Every picture a group's calls returned, in the order they came: one call's, then the next call's. */
+/**
+ * Every picture a group's calls returned, in the order they came: one call's, then the next call's. Its name is
+ * the file it was read from — "read image 1" says nothing about which screenshot this is.
+ */
 export function imagesOf(steps: Step[]): GroupImage[] {
     return steps.flatMap((step) => {
         if (step.kind !== "tool" || step.result?.images === undefined) {
@@ -295,12 +303,16 @@ export function imagesOf(steps: Step[]): GroupImage[] {
         }
 
         const { id, images } = step.result;
-        const name = step.name;
+        const path = argOf(step.args, "path");
+        const file = path === undefined ? undefined : fileNameOf(path);
+        const label = file ?? `${step.name} image`;
 
         return images.map((_image, index) => ({
             entry: id,
             index,
-            name: `${name} image ${String(index + 1)}`,
+            // One picture is the file itself; several need telling apart.
+            name:
+                file !== undefined && images.length === 1 ? file : `${label} ${String(index + 1)}`,
         }));
     });
 }

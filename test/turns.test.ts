@@ -571,12 +571,12 @@ void describe("outcomeOf", () => {
 });
 
 void describe("imagesOf", () => {
-    const tool = (id: string, entry: number, images?: ClientImage[]): Step => ({
+    const tool = (id: string, entry: number, images?: ClientImage[], args: unknown = {}): Step => ({
         kind: "tool",
         key: id,
         id,
         name: "read",
-        args: {},
+        args,
         status: "done",
         result: {
             id: entry,
@@ -604,6 +604,20 @@ void describe("imagesOf", () => {
             { entry: 11, index: 0, name: "read image 1" },
         ]);
         assert.deepEqual(imagesOf([]), [], "a group without pictures has no strip");
+    });
+
+    void it("names a picture by the file it was read from", () => {
+        const png: ClientImage = { mimeType: "image/png" };
+        const steps: Step[] = [
+            tool("a", 7, [png], { path: "/tmp/aa/d-mixed.png" }),
+            tool("b", 9, [png, png], { path: "/tmp/aa/pages.pdf" }),
+        ];
+
+        assert.deepEqual(imagesOf(steps), [
+            { entry: 7, index: 0, name: "d-mixed.png" },
+            { entry: 9, index: 0, name: "pages.pdf 1" },
+            { entry: 9, index: 1, name: "pages.pdf 2" },
+        ]);
     });
 });
 
