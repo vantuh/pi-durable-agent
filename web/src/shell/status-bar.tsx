@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
@@ -28,7 +30,7 @@ function toneOf(status: "ok" | "warn" | "danger"): string {
 }
 
 /** The state of the app, not of one conversation: that is shown by the composer and the header. */
-export function StatusBar({
+export const StatusBar = memo(function StatusBar({
     connected,
     session,
     status,
@@ -86,4 +88,4 @@ export function StatusBar({
             </div>
         </footer>
     );
-}
+});

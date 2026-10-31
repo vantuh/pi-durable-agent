@@ -7,6 +7,7 @@ import type { ThemedToken } from "shiki";
 import { cn } from "@/lib/utils";
 
 import { classOf, tokensOf } from "../lib/highlight.ts";
+import { splitStable } from "../lib/markdown-split.ts";
 
 type Highlighted = { code: string; lines: ThemedToken[][] };
 
@@ -215,7 +216,19 @@ const COMPONENTS: Components = {
     ),
 };
 
-/** Pi's words as Markdown, GitHub's flavour: tables, task lists, strikethrough, autolinks. */
+const Blocks = memo(function Blocks({ text }: { text: string }): ReactNode {
+    return (
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
+            {text}
+        </ReactMarkdown>
+    );
+});
+
+/**
+ * Pi's words as Markdown, GitHub's flavour: tables, task lists, strikethrough, autolinks. A reply that is
+ * still arriving is parsed in two parts, so a frame re-parses its last blocks and not the whole text; a
+ * finished one is a single parse.
+ */
 export const Markdown = memo(function Markdown({
     text,
     streaming = false,
@@ -223,6 +236,8 @@ export const Markdown = memo(function Markdown({
     text: string;
     streaming?: boolean;
 }): ReactNode {
+    const { stable, tail } = streaming ? splitStable(text) : { stable: "", tail: text };
+
     return (
         <div
             className={cn(
@@ -230,9 +245,8 @@ export const Markdown = memo(function Markdown({
                 streaming && "streaming",
             )}
         >
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
-                {text}
-            </ReactMarkdown>
+            {stable === "" ? null : <Blocks text={stable} />}
+            <Blocks text={tail} />
         </div>
     );
 });

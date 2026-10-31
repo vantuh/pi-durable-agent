@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { ClientStatus } from "../../shared/protocol.ts";
 import { AboveComposerItems } from "./composer/above-items.tsx";
 import { Composer } from "./composer/composer.tsx";
 import { SessionMeta } from "./composer/meta.tsx";
@@ -37,6 +38,8 @@ import { Transcript } from "./transcript/transcript.tsx";
 import { StatusItems } from "./ui/status-fields.tsx";
 
 const SESSION_KEY = "session";
+// A new array per render would defeat the status bar's memo on every frame.
+const NO_STATUS: ClientStatus[] = [];
 
 function shortName(model: string | null): string {
     if (model === null) {
@@ -118,16 +121,18 @@ export function App() {
     });
 
     const model = shortName(active?.model ?? null);
-    const activeSession =
-        current === null
-            ? null
-            : {
-                  id: current,
-                  cwd: active?.cwd ?? health?.cwd ?? null,
-                  busy: state.live.busy,
-                  revision: state.live.revision ?? 0,
-                  model: active?.model ?? null,
-              };
+    const sessionCwd = active?.cwd ?? health?.cwd ?? null;
+    const activeModel = active?.model ?? null;
+    const { busy } = state.live;
+    const revision = state.live.revision ?? 0;
+    // Stable between frames, so the memoized sidebar and status bar skip the ones that only grow the reply.
+    const activeSession = useMemo(
+        () =>
+            current === null
+                ? null
+                : { id: current, cwd: sessionCwd, busy, revision, model: activeModel },
+        [current, sessionCwd, busy, revision, activeModel],
+    );
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
 
@@ -135,6 +140,48 @@ export function App() {
         setSettings(true);
         setSettingsEpoch(settingsEpoch + 1);
     };
+
+    const select = useCallback(
+        (id: number | null) => {
+            go(id);
+            setSheet(false);
+        },
+        [go],
+    );
+    const home = useCallback(() => {
+        select(null);
+    }, [select]);
+    const archive = useCallback(
+        async (id: number, archived: boolean) => {
+            await setSessionArchived(id, archived);
+            setSessions((rows) => rows.map((row) => (row.id === id ? { ...row, archived } : row)));
+        },
+        [setSessions],
+    );
+    const remove = useCallback(
+        async (id: number) => {
+            await deleteSession(id);
+            setSessions((rows) => rows.filter((row) => row.id !== id));
+
+            if (id === current) {
+                go(null);
+            }
+        },
+        [setSessions, current, go],
+    );
+    const rename = useCallback(
+        async (id: number, name: string) => {
+            await setSessionTitle(id, name);
+            setSessions(await listSessions());
+        },
+        [setSessions],
+    );
+    const askFolder = useCallback(() => {
+        setPicker(true);
+    }, []);
+    const closeSheet = useCallback(() => {
+        setSheet(false);
+    }, []);
 
     // A new session in `path`, opened at once.
     const openSession = (path: string): void => {
@@ -168,40 +215,15 @@ export function App() {
                     current={current}
                     session={activeSession}
                     folder={folder}
-                    onHome={() => {
-                        go(null);
-                        setSheet(false);
-                    }}
-                    onArchive={async (id, archived) => {
-                        await setSessionArchived(id, archived);
-                        setSessions((rows) =>
-                            rows.map((row) => (row.id === id ? { ...row, archived } : row)),
-                        );
-                    }}
-                    onDelete={async (id) => {
-                        await deleteSession(id);
-                        setSessions((rows) => rows.filter((row) => row.id !== id));
-
-                        if (id === current) {
-                            go(null);
-                        }
-                    }}
-                    onRename={async (id, name) => {
-                        await setSessionTitle(id, name);
-                        setSessions(await listSessions());
-                    }}
-                    onSelect={(id) => {
-                        go(id);
-                        setSheet(false);
-                    }}
+                    onHome={home}
+                    onArchive={archive}
+                    onDelete={remove}
+                    onRename={rename}
+                    onSelect={select}
                     onFolder={go}
-                    onNew={() => {
-                        setPicker(true);
-                    }}
+                    onNew={askFolder}
                     open={sheet}
-                    onClose={() => {
-                        setSheet(false);
-                    }}
+                    onClose={closeSheet}
                 />
 
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]">
@@ -380,15 +402,12 @@ export function App() {
                 // The session list streams the whole time; a conversation's own stream starts over at each switch.
                 connected={connected}
                 session={activeSession}
-                status={state.live.status ?? []}
-                busy={state.live.busy}
+                status={state.live.status ?? NO_STATUS}
+                busy={busy}
                 issue={state.issue}
                 sessions={sessions}
                 current={current}
-                onOpen={(id) => {
-                    go(id);
-                    setSheet(false);
-                }}
+                onOpen={select}
             />
 
             {picker ? (

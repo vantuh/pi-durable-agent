@@ -16,6 +16,7 @@ import {
 import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
+    memo,
     useEffect,
     useLayoutEffect,
     useRef,
@@ -201,7 +202,7 @@ function ResizeHandle() {
     );
 }
 
-export function Sessions({
+export const Sessions = memo(function Sessions({
     sessions,
     current,
     session: activeSession,
@@ -966,4 +967,4 @@ export function Sessions({
             {collapsed ? null : <ResizeHandle />}
         </aside>
     );
-}
+});
