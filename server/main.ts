@@ -55,6 +55,13 @@ const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = resolve(process.env["PI_DURABLE_DATA_DIR"] ?? join(process.cwd(), "data"));
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
 const IDLE_HEARTBEAT_MS = 20_000;
+/**
+ * The bytes one `hello` carries, newest entries first: opening a session should show the last turns, not
+ * wait for its whole history. The server answers in milliseconds, so what a phone on a slow link waits for
+ * is the transfer: 128 KB is about a second at 1 Mbit/s and about 35 KB gzipped, and anything older is one
+ * `/api/history` page away, which the transcript asks for when it scrolls up.
+ */
+const HELLO_BYTES = 128 * 1024;
 /** A burst of changes (a run ending writes several) is sent as one list. */
 const LIST_DELAY_MS = 100;
 /** A child that commits all the time makes its parent's browsers ask again once per this long. */
@@ -171,6 +178,31 @@ async function watchList(request: IncomingMessage, response: ServerResponse): Pr
 
 function entriesOf(view: View): ClientEntry[] {
     return view.entries.map(projectEntry);
+}
+
+/** The newest entries one `hello` carries, and whether older ones were left out of the view. */
+type HelloPage = { entries: ClientEntry[]; cut: boolean };
+
+/**
+ * The newest entries that fit `HELLO_BYTES`. The newest entry is always carried, so one huge entry
+ * cannot open an empty session.
+ */
+function helloPage(entries: readonly ClientEntry[]): HelloPage {
+    let bytes = 0;
+    let start = entries.length;
+
+    for (const entry of entries.toReversed()) {
+        const size = JSON.stringify(entry).length;
+
+        if (bytes + size > HELLO_BYTES && start < entries.length) {
+            break;
+        }
+
+        bytes += size;
+        start -= 1;
+    }
+
+    return { entries: entries.slice(start), cut: start > 0 };
 }
 
 /** The state `publish` last stored for a session; `attach` stores one before it returns the open. */
@@ -381,9 +413,10 @@ function detach(id: number): void {
 }
 
 /**
- * Starts the event stream of a session: the whole state first, then every change. The state is the one `publish`
- * stored for the attached view, the same state the browsers were sent up to, so no commit can reach this client
- * ahead of the `hello` that already carries it; nothing may await from reading that state to sending it.
+ * Starts the event stream of a session: the newest page of the state first, then every change. The page is cut
+ * from the state `publish` stored for the attached view, the same state the browsers were sent up to, so no
+ * commit can reach this client ahead of the `hello` that already carries it; nothing may await from reading
+ * that state to sending it, and the entries it left out are older history the transcript pages back.
  */
 async function stream(
     request: IncomingMessage,
@@ -391,15 +424,15 @@ async function stream(
     opened: Opened,
 ): Promise<void> {
     const id = Number(opened.id);
-    let first = firstEntryId(id);
-    let more = false;
+    const opening = helloPage(entriesOf(viewOf(id)));
+    // A page cut from the view needs no read to know it has older entries: the ones it left out are older.
+    let more = opening.cut;
+    let first = opening.entries[0]?.id;
 
     // `hasOlder` reads through the conversation's line, where a commit can land ahead of it: its answer is
     // about the first entry it asked with, so ask again until that entry stays put.
-    for (;;) {
-        more =
-            first !== undefined &&
-            (await hasOlder({ conversation: opened.conversation, context, id: first }));
+    while (!more && first !== undefined) {
+        more = await hasOlder({ conversation: opened.conversation, context, id: first });
 
         const now = firstEntryId(id);
 
@@ -410,8 +443,9 @@ async function stream(
         first = now;
     }
 
+    // Read after the awaits: a commit that lands while `hasOlder` runs would reach no client at all.
     const view = viewOf(id);
-    const entries = entriesOf(view);
+    const page = helloPage(entriesOf(view));
 
     const client: Client = { response, gzip: openEventStream(request, response), session: id };
 
@@ -423,10 +457,10 @@ async function stream(
     send(client, {
         type: "hello",
         session: id,
-        entries,
+        entries: page.entries,
         live: liveOf(id, view),
         model: MODEL,
-        more,
+        more: page.cut || more,
     });
 }
 

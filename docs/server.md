@@ -24,17 +24,23 @@ POST /api/restart       { ok } then exit 75, for `scripts/serve.ts` to start the
 ## Why the view, not the callbacks
 
 `root.viewState()` is committed state. Every event on the wire is derived from it, never from a
-stream handler. A browser that connects mid-run gets a `hello` with the whole transcript and the
-live state, so nothing has to be replayed and nothing can arrive out of order.
+stream handler. A browser that connects mid-run gets a `hello` with the newest page of the transcript
+and the live state, so nothing has to be replayed and nothing can arrive out of order.
 
 ## Bytes over a slow link
 
 Both event streams (`/api/events`, `/api/sessions/events`) and the big JSON answers
 (`/api/sessions`, `/api/history`) are gzipped when the client's `accept-encoding` takes it, with
-`vary: accept-encoding` saying the bytes differ by client. A `hello` can be hundreds of kilobytes and
-the list is read again after every reconnect, while the server answers in milliseconds: those bytes are
-what a phone over a slow link waits for. A compressed stream flushes every frame as it is written, so
-the first paint costs nothing, and a body under a kilobyte stays plain.
+`vary: accept-encoding` saying the bytes differ by client. The list is read again on every connect,
+while the server answers in milliseconds: those bytes are what a phone over a slow link waits for.
+A compressed stream flushes every frame as it is written, so the first paint costs nothing, and a
+body under a kilobyte stays plain.
+
+`hello` is also cut by bytes: the newest entries up to `HELLO_BYTES` (128 KB, about a second at
+1 Mbit/s and about 35 KB gzipped). Opening a session shows its last turns; a session whose view was
+cut says `more`, and the transcript asks `/api/history` for the rest as it scrolls up, exactly as it
+already does for what a compaction set aside. The newest entry is always sent, so one huge entry
+cannot open an empty screen.
 
 ## The view is not the whole conversation
 
@@ -49,9 +55,10 @@ So the start of a long conversation is reached through `GET /api/history`, not t
 GET /api/history?session=7&before=7463   → { entries: [...], more: false }
 ```
 
-`hello` carries the same fact in one bit: `more`, true when the log keeps entries older than the
-oldest one it just sent. It comes from one read of the oldest entry (`hasOlder()`), so a screen that
-already holds the whole conversation never asks for a page it cannot get.
+`hello` carries the same fact in one bit: `more`, true when there is older history than the oldest
+entry it just sent. A page it cut from the view is older history by definition, so that answer costs
+no read; a page that is the whole view asks the log (`hasOlder()`), so a screen that already holds
+the whole conversation never asks for a page it cannot get.
 
 `before` is the oldest entry the browser already has; the answer is older than it, oldest entry
 first. `server/history.ts` reads the entry log (`conversation.entries()`, descending with its
