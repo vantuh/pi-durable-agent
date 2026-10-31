@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { createServer, type ServerResponse } from "node:http";
 import { connect } from "node:net";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Gzip } from "node:zlib";
 
-import { writeEvent } from "../server/http.ts";
+import { openEventStream, writeEvent } from "../server/http.ts";
+
+type Sent = { response: ServerResponse; gzip: Gzip | undefined };
 
 void describe("writeEvent", () => {
     void it("closes a stream whose reader stopped reading, instead of buffering for it", async () => {
@@ -42,6 +46,56 @@ void describe("writeEvent", () => {
 
             assert.equal(stream.destroyed, true);
             assert.ok(stream.writableLength <= 1_100_000, String(stream.writableLength));
+        } finally {
+            reader.destroy();
+            server.closeAllConnections();
+            await new Promise<void>((done) => {
+                server.close(() => {
+                    done();
+                });
+            });
+        }
+    });
+
+    void it("keeps the guard through the gzip stream, closing a reader that stopped", async () => {
+        // Random bytes do not compress: the wire, not the compressor, is what fills up.
+        const chunk = `data: ${randomBytes(75_000).toString("base64")}\n\n`;
+        let opened: (stream: Sent) => void = () => undefined;
+        const streamed = new Promise<Sent>((done) => {
+            opened = done;
+        });
+        const server = createServer((request, response) => {
+            opened({ response, gzip: openEventStream(request, response) });
+        });
+
+        await new Promise<void>((done) => {
+            server.listen(0, "127.0.0.1", done);
+        });
+
+        const address = server.address();
+
+        assert.ok(address !== null && typeof address !== "string");
+
+        const reader = connect(address.port, "127.0.0.1");
+
+        reader.write("GET / HTTP/1.1\r\nhost: 127.0.0.1\r\naccept-encoding: gzip\r\n\r\n");
+        reader.pause();
+
+        try {
+            const stream = await streamed;
+
+            assert.notEqual(stream.gzip, undefined, "the client took gzip");
+
+            for (let sent = 0; sent < 500 && !stream.response.destroyed; sent += 1) {
+                writeEvent(stream.response, chunk, stream.gzip);
+                await delay(1);
+            }
+
+            assert.equal(stream.response.destroyed, true);
+            assert.ok(
+                stream.response.writableLength + (stream.gzip?.writableLength ?? 0) <= 1_100_000,
+                String(stream.response.writableLength),
+            );
         } finally {
             reader.destroy();
             server.closeAllConnections();

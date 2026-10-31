@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Gzip } from "node:zlib";
 
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -31,7 +32,7 @@ import type {
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
-import { answer, type Route, writeEvent } from "./http.ts";
+import { answer, openEventStream, type Route, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
@@ -70,10 +71,12 @@ const SUPERVISED = typeof process.send === "function";
  */
 const STREAM = { cacheRetention: "long" } as const;
 
-type Client = { response: ServerResponse; session: number };
+/** One open stream: the response, and the gzip stream its events go through for a client that takes one. */
+type EventStream = { response: ServerResponse; gzip: Gzip | undefined };
+type Client = EventStream & { session: number };
 
 const clients = new Set<Client>();
-const listWatchers = new Set<ServerResponse>();
+const listWatchers = new Set<EventStream>();
 const busy = new Map<number, boolean>();
 const latest = new Map<number, { opened: Opened; view: View }>();
 const changes = sessionChanges({
@@ -99,7 +102,7 @@ let rootId: number;
 let routes: Route[] = [];
 
 function send(client: Client, event: ServerEvent): void {
-    writeEvent(client.response, `data: ${JSON.stringify(event)}\n\n`);
+    writeEvent(client.response, `data: ${JSON.stringify(event)}\n\n`, client.gzip);
 }
 
 function broadcast(event: ServerEvent): void {
@@ -125,12 +128,12 @@ async function sessionRows(): Promise<SessionSummary[]> {
     });
 }
 
-async function sendList(watchers: Iterable<ServerResponse>): Promise<void> {
+async function sendList(watchers: Iterable<EventStream>): Promise<void> {
     const list: SessionsEvent = { type: "sessions", sessions: await sessionRows() };
     const event = `data: ${JSON.stringify(list)}\n\n`;
 
     for (const watcher of watchers) {
-        writeEvent(watcher, event);
+        writeEvent(watcher.response, event, watcher.gzip);
     }
 }
 
@@ -156,17 +159,14 @@ async function flushList(): Promise<void> {
 }
 
 /** The session list stream: the whole list now, then after every change. */
-async function watchList(response: ServerResponse): Promise<void> {
-    response.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-store",
-        connection: "keep-alive",
-    });
-    listWatchers.add(response);
+async function watchList(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const watcher: EventStream = { response, gzip: openEventStream(request, response) };
+
+    listWatchers.add(watcher);
     response.on("close", () => {
-        listWatchers.delete(response);
+        listWatchers.delete(watcher);
     });
-    await sendList([response]);
+    await sendList([watcher]);
 }
 
 function entriesOf(view: View): ClientEntry[] {
@@ -385,7 +385,11 @@ function detach(id: number): void {
  * stored for the attached view, the same state the browsers were sent up to, so no commit can reach this client
  * ahead of the `hello` that already carries it; nothing may await from reading that state to sending it.
  */
-async function stream(response: ServerResponse, opened: Opened): Promise<void> {
+async function stream(
+    request: IncomingMessage,
+    response: ServerResponse,
+    opened: Opened,
+): Promise<void> {
     const id = Number(opened.id);
     let first = firstEntryId(id);
     let more = false;
@@ -409,12 +413,7 @@ async function stream(response: ServerResponse, opened: Opened): Promise<void> {
     const view = viewOf(id);
     const entries = entriesOf(view);
 
-    response.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-store",
-        connection: "keep-alive",
-    });
-    const client: Client = { response, session: id };
+    const client: Client = { response, gzip: openEventStream(request, response), session: id };
 
     clients.add(client);
     client.response.on("close", () => {
@@ -484,11 +483,11 @@ async function boot(): Promise<void> {
 
     const heartbeat = setInterval(() => {
         for (const client of clients) {
-            writeEvent(client.response, ": heartbeat\n\n");
+            writeEvent(client.response, ": heartbeat\n\n", client.gzip);
         }
 
         for (const watcher of listWatchers) {
-            writeEvent(watcher, ": heartbeat\n\n");
+            writeEvent(watcher.response, ": heartbeat\n\n", watcher.gzip);
         }
     }, IDLE_HEARTBEAT_MS);
 

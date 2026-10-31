@@ -1,12 +1,15 @@
 /** Reading requests and writing JSON answers: what every route of the server does the same way. */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { constants, createGzip, gzipSync, type Gzip } from "node:zlib";
 
 import { ActionError, ActionNotFound } from "./extensions.ts";
 
 const MAX_BODY = 100_000_000;
 /** Unsent bytes past which a stream's reader is gone, as a phone asleep on a dead tunnel is. */
 const STALLED_BYTES = 1_000_000;
+/** A body smaller than this gains nothing from a gzip header and a compressor: a 400 stays plain. */
+const ZIP_MIN_BYTES = 1024;
 
 /** One API route: `path` must match the whole pathname; `method` "*" takes every method. */
 export type Route = {
@@ -78,21 +81,90 @@ export function sessionIdOf(value: unknown): number | undefined {
         : undefined;
 }
 
+/** Whether a client's `accept-encoding` takes gzip: named as `gzip` or through `*`, unless refused with `q=0`. */
+function acceptsGzip(request: IncomingMessage): boolean {
+    const codings = (request.headers["accept-encoding"] ?? "").split(",").map((entry) => {
+        const [coding = "", ...params] = entry.split(";");
+
+        return {
+            name: coding.trim().toLowerCase(),
+            refused: params.some((param) => /^q=0(?:\.0*)?$/i.test(param.trim())),
+        };
+    });
+    const takes = (name: string): boolean | undefined => {
+        const coding = codings.find((entry) => entry.name === name);
+
+        return coding === undefined ? undefined : !coding.refused;
+    };
+
+    return takes("gzip") ?? takes("*") ?? false;
+}
+
+/** The body gzipped for a client that takes it when the body is big enough to gain; `undefined` to send it plain. */
+function gzipBody(request: IncomingMessage, body: string): Buffer | undefined {
+    return acceptsGzip(request) && Buffer.byteLength(body) >= ZIP_MIN_BYTES
+        ? gzipSync(body)
+        : undefined;
+}
+
 /**
  * Writes to an event stream, or closes it when its reader stopped reading; the EventSource reconnects
- * and starts from a fresh `hello`, instead of the server buffering every event for it.
+ * and starts from a fresh `hello`, instead of the server buffering every event for it. Bytes the gzip
+ * stream still holds have not reached the response, so they count as a backlog too.
  */
-export function writeEvent(response: ServerResponse, text: string): void {
-    if (response.writableLength > STALLED_BYTES) {
+export function writeEvent(response: ServerResponse, text: string, gzip?: Gzip): void {
+    if (response.writableLength + (gzip?.writableLength ?? 0) > STALLED_BYTES) {
+        gzip?.destroy();
         response.destroy();
 
         return;
     }
 
-    response.write(text);
+    if (gzip === undefined) {
+        response.write(text);
+    } else {
+        gzip.write(text);
+    }
 }
 
-export function answer(response: ServerResponse, status: number, payload: unknown): void {
+/**
+ * Opens an event stream: its headers, and the gzip stream its frames go through for a client that takes
+ * one. Every frame is flushed as it is written, so compression adds nothing to the first paint.
+ */
+export function openEventStream(
+    request: IncomingMessage,
+    response: ServerResponse,
+): Gzip | undefined {
+    const gzip = acceptsGzip(request) ? createGzip({ flush: constants.Z_SYNC_FLUSH }) : undefined;
+
+    response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-store",
+        connection: "keep-alive",
+        ...(gzip === undefined ? {} : { "content-encoding": "gzip", vary: "accept-encoding" }),
+    });
+
+    if (gzip !== undefined) {
+        gzip.pipe(response);
+        // The compressor is done when the response is, whichever side closed it.
+        response.on("close", () => {
+            gzip.destroy();
+        });
+    }
+
+    return gzip;
+}
+
+/**
+ * The JSON answer, gzipped for a client that takes it and a body worth it. Only a route whose answer can
+ * be big passes `request`; the others keep their answer exactly as it was.
+ */
+export function answer(
+    response: ServerResponse,
+    status: number,
+    payload: unknown,
+    request?: IncomingMessage,
+): void {
     let text: string;
     let code = status;
 
@@ -105,8 +177,14 @@ export function answer(response: ServerResponse, status: number, payload: unknow
         });
     }
 
-    response.writeHead(code, { "content-type": "application/json" });
-    response.end(text);
+    const gzipped = request === undefined ? undefined : gzipBody(request, text);
+
+    response.writeHead(code, {
+        "content-type": "application/json",
+        ...(request === undefined ? {} : { vary: "accept-encoding" }),
+        ...(gzipped === undefined ? {} : { "content-encoding": "gzip" }),
+    });
+    response.end(gzipped ?? text);
 }
 
 /** 404 for something unknown, 400 for bad input, 500 for any other failure. */

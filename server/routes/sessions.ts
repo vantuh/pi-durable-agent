@@ -1,6 +1,6 @@
 /** The session list: rows, a new session, archiving, deleting, renaming and marking seen. */
 
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
 import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
@@ -13,7 +13,7 @@ export function sessionRoutes(deps: {
     detach: (id: number) => void;
     /** The session rows as the browser reads them: their marks come from extensions. */
     list: () => Promise<SessionSummary[]>;
-    watch: (response: ServerResponse) => Promise<void>;
+    watch: (request: IncomingMessage, response: ServerResponse) => Promise<void>;
 }): Route[] {
     const { sessions, attach, detach } = deps;
 
@@ -21,15 +21,15 @@ export function sessionRoutes(deps: {
         {
             method: "GET",
             path: /^\/api\/sessions$/,
-            handle: async (_request, response) => {
-                answer(response, 200, { sessions: await deps.list() });
+            handle: async (request, response) => {
+                answer(response, 200, { sessions: await deps.list() }, request);
             },
         },
         {
             method: "GET",
             path: /^\/api\/sessions\/events$/,
-            handle: async (_request, response) => {
-                await deps.watch(response);
+            handle: async (request, response) => {
+                await deps.watch(request, response);
             },
         },
         {

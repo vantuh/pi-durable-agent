@@ -27,6 +27,15 @@ POST /api/restart       { ok } then exit 75, for `scripts/serve.ts` to start the
 stream handler. A browser that connects mid-run gets a `hello` with the whole transcript and the
 live state, so nothing has to be replayed and nothing can arrive out of order.
 
+## Bytes over a slow link
+
+Both event streams (`/api/events`, `/api/sessions/events`) and the big JSON answers
+(`/api/sessions`, `/api/history`) are gzipped when the client's `accept-encoding` takes it, with
+`vary: accept-encoding` saying the bytes differ by client. A `hello` can be hundreds of kilobytes and
+the list is read again after every reconnect, while the server answers in milliseconds: those bytes are
+what a phone over a slow link waits for. A compressed stream flushes every frame as it is written, so
+the first paint costs nothing, and a body under a kilobyte stays plain.
+
 ## The view is not the whole conversation
 
 The view is the **active** transcript: it starts at the newest head marker. A compaction — automatic

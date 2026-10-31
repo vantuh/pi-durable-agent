@@ -1,7 +1,7 @@
 /** One conversation: its event stream, what is said to it, stopping it, its model, its skills, and its commands. */
 
 import { readFile, stat } from "node:fs/promises";
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { basename, extname } from "node:path";
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
@@ -50,7 +50,7 @@ export function conversationRoutes(deps: {
     /** Withdraws one queued input, which deletes its `pi.inbox` item in the harness's own commit. */
     harness: Harness;
     /** Starts the event stream of an opened session on this response. */
-    stream: (response: ServerResponse, opened: Opened) => Promise<void>;
+    stream: (request: IncomingMessage, response: ServerResponse, opened: Opened) => Promise<void>;
 }): Route[] {
     const { sessions, attach } = deps;
 
@@ -72,7 +72,7 @@ export function conversationRoutes(deps: {
         {
             method: "GET",
             path: /^\/api\/events$/,
-            handle: async (_request, response, url) => {
+            handle: async (request, response, url) => {
                 const id = querySession(url);
 
                 const opened = await attach(id);
@@ -83,13 +83,13 @@ export function conversationRoutes(deps: {
                     return;
                 }
 
-                await deps.stream(response, opened);
+                await deps.stream(request, response, opened);
             },
         },
         {
             method: "GET",
             path: /^\/api\/history$/,
-            handle: async (_request, response, url) => {
+            handle: async (request, response, url) => {
                 const id = querySession(url);
                 const raw = url.searchParams.get("before");
                 const before = raw === null ? undefined : sessionIdOf(Number(raw));
@@ -116,6 +116,7 @@ export function conversationRoutes(deps: {
                         context,
                         ...(before === undefined ? {} : { before }),
                     }),
+                    request,
                 );
             },
         },
