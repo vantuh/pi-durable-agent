@@ -4,7 +4,7 @@
  * colour comes from shiki itself. Grammars load on first use, each in its own chunk.
  */
 
-import type { BundledLanguage, Highlighter, ThemedToken, ThemeRegistration } from "shiki";
+import type { BundledLanguage, ThemedToken } from "shiki";
 
 const CLASSES: Record<string, string> = {
     "var(--shiki-foreground)": "text-ink",
@@ -22,11 +22,7 @@ const CLASSES: Record<string, string> = {
     "var(--shiki-token-changed)": "text-warn",
 };
 
-interface Loaded {
-    shiki: Highlighter;
-    languages: Record<string, unknown>;
-    theme: ThemeRegistration;
-}
+type Loaded = Awaited<ReturnType<typeof makeHighlighter>>;
 
 function isBundled(languages: Loaded["languages"], id: string): id is BundledLanguage {
     return Object.hasOwn(languages, id);
@@ -34,20 +30,30 @@ function isBundled(languages: Loaded["languages"], id: string): id is BundledLan
 
 let loaded: Promise<Loaded> | undefined;
 
+/**
+ * The three modules below, not the `shiki` barrel: the barrel also imports the oniguruma engine it never runs
+ * (622 kB of wasm) and all bundled themes it never loads.
+ */
+async function makeHighlighter() {
+    const [{ bundledLanguages }, core, js] = await Promise.all([
+        import("shiki/langs"),
+        import("shiki/core"),
+        import("shiki/engine/javascript"),
+    ]);
+    const theme = core.createCssVariablesTheme({ name: "roles", fontStyle: true });
+    const createBundled = core.createBundledHighlighter({
+        langs: bundledLanguages,
+        themes: {},
+        engine: () => js.createJavaScriptRegexEngine(),
+    });
+    const shiki = await createBundled({ themes: [theme], langs: [] });
+
+    return { shiki, languages: bundledLanguages, theme };
+}
+
 /** shiki is imported here, not at the top: a static import would put its engine in the entry chunk. */
 export function load(): Promise<Loaded> {
-    loaded ??= (async () => {
-        const [{ bundledLanguages, createHighlighter, createJavaScriptRegexEngine }, core] =
-            await Promise.all([import("shiki"), import("shiki/core")]);
-        const theme = core.createCssVariablesTheme({ name: "roles", fontStyle: true });
-        const shiki = await createHighlighter({
-            themes: [theme],
-            langs: [],
-            engine: createJavaScriptRegexEngine(),
-        });
-
-        return { shiki, languages: bundledLanguages, theme };
-    })();
+    loaded ??= makeHighlighter();
 
     return loaded;
 }
