@@ -541,7 +541,13 @@ export function Transcript({
                         following.current = false;
                     },
                     onPointerDown: (event) => {
-                        if (event.target === event.currentTarget) {
+                        // A fold the reader opens while pinned to the bottom would grow upward, out of
+                        // what they are looking at: they have left the bottom to read it.
+                        if (
+                            event.target === event.currentTarget ||
+                            (event.target instanceof Element &&
+                                event.target.closest("[data-slot='collapsible-trigger']") !== null)
+                        ) {
                             following.current = false;
                         }
                     },
