@@ -213,6 +213,8 @@ Agents do not see this conversation. Each task must be self-contained: goal, sco
 
 Run parallel agent_spawn calls only for independent work: separate reads or disjoint write slices, at most 4, each with a distinct name.
 
+An agent's tools run in this conversation's folder unless you pass cwd, an absolute folder: when the work belongs in a worktree you made, pass that worktree's path, and the agent's relative paths, edits, and commands all go there instead.
+
 Every call returns once the task is submitted. The result arrives as a message that starts with "[agent", even in the middle of your turn. Never wait for it: no status checks to see if it finished, no sleep. Do not redo delegated work yourself; end the turn or continue unrelated work.
 
 A result is a report: verify claims you act on, and synthesize it for the user instead of pasting it. A blocked result or a question needs your decision: answer it with agent_send, or handle the work yourself.
