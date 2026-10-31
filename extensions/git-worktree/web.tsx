@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { callAction } from "@/sdk/actions.ts";
 import type { NewSessionCollected, NewSessionProps, WebExtension } from "@/sdk/types.ts";
 
-import { head, make } from "./refs.ts";
+import { make } from "./refs.ts";
 
 const NAME = "name";
 
@@ -14,45 +14,14 @@ function nameOf(collected: NewSessionCollected | null): string {
     return typeof name === "string" ? name.trim() : "";
 }
 
-/** The branch the worktree would start from; null while it is being read, or for a folder without git. */
-function useHead(cwd: string | null): string | null {
-    const [found, setFound] = useState<string | null>(null);
-
-    useEffect(() => {
-        let alive = true;
-
-        void (async () => {
-            let read: string | null = null;
-
-            try {
-                read = cwd === null ? null : await callAction(head, { cwd }, null);
-            } catch {
-                read = null;
-            }
-
-            if (alive) {
-                setFound(read);
-            }
-        })();
-
-        return () => {
-            alive = false;
-        };
-    }, [cwd]);
-
-    return found;
-}
-
-/** A name, and which branch it will start from: the folder's own tip, its local commits and all. */
-function Worktree({ cwd, use, refused }: NewSessionProps) {
+/** A name, and the field that says when it will not do. */
+function Worktree({ use, refused }: NewSessionProps) {
     const [on, setOn] = useState(false);
     const [name, setName] = useState("");
     const field = useRef<HTMLInputElement>(null);
-    const starting = useHead(cwd);
-    // An empty name is not a mistake yet, only unfinished: it says so in grey and leaves the field
-    // alone. A name that was given and refused is the mistake, and that one reddens the field.
-    const unfinished = refused !== null && name.trim() === "";
-    const failed = refused !== null && !unfinished;
+    // An empty name is not a mistake yet, only unfinished: the field says nothing until a name is
+    // given, and a name that was given and refused is what reddens it.
+    const failed = refused !== null && name.trim() !== "";
 
     // Ticking the box asks for the name next, so put the caret there: not on load, on that click.
     useEffect(() => {
@@ -80,38 +49,26 @@ function Worktree({ cwd, use, refused }: NewSessionProps) {
                 </label>
 
                 {on ? (
-                    <>
-                        <Input
-                            ref={field}
-                            type="text"
-                            value={name}
-                            onChange={(event) => {
-                                setName(event.target.value);
-                            }}
-                            placeholder="name, in a branch of its own"
-                            aria-label="Worktree name"
-                            aria-invalid={failed}
-                            aria-describedby={refused === null ? undefined : "worktree-refused"}
-                            className="text-meta w-56"
-                        />
-                        {starting === null ? null : (
-                            <span className="text-meta text-faint">
-                                from <span className="font-mono">{starting}</span>, uncommitted
-                                changes left out
-                            </span>
-                        )}
-                    </>
+                    <Input
+                        ref={field}
+                        type="text"
+                        value={name}
+                        onChange={(event) => {
+                            setName(event.target.value);
+                        }}
+                        aria-label="Worktree name"
+                        aria-invalid={failed}
+                        aria-describedby={failed ? "worktree-refused" : undefined}
+                        className="text-meta w-56"
+                    />
                 ) : null}
             </div>
 
-            {refused === null ? null : (
-                <p
-                    id="worktree-refused"
-                    className={unfinished ? "text-meta text-faint" : "text-meta text-danger"}
-                >
+            {failed ? (
+                <p id="worktree-refused" className="text-meta text-danger">
                     {refused}
                 </p>
-            )}
+            ) : null}
         </div>
     );
 }

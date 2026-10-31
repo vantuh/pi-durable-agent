@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
-import { headOf, makeWorktree, slugOf } from "./worktree.ts";
+import { makeWorktree, slugOf } from "./worktree.ts";
 
 const run = promisify(execFile);
 
@@ -156,30 +156,6 @@ void describe("git-worktree", () => {
         await git(repo, ["branch", "taken"]);
 
         await assert.rejects(makeWorktree(data, repo, "taken"), /already has a branch named taken/);
-    });
-
-    void it("says what a worktree of the folder would start from", async () => {
-        await init();
-
-        assert.equal(await headOf(repo), "main");
-
-        await git(repo, ["checkout", "-qb", "feature"]);
-
-        assert.equal(await headOf(repo), "feature");
-
-        await git(repo, ["checkout", "--detach"]);
-
-        assert.equal((await headOf(repo))?.length, 7);
-    });
-
-    void it("names the branch a repository with no commit yet is on", async () => {
-        await run("git", ["init", "-b", "unborn", repo]);
-
-        assert.equal(await headOf(repo), "unborn");
-    });
-
-    void it("says nothing about a folder that is in no repository", async () => {
-        assert.equal(await headOf(dir), null);
     });
 });
 

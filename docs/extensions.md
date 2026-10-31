@@ -213,16 +213,18 @@ by itself. `extensions/auto-session-name` is the example.
 
 `web.tsx` may export `newSession: [{ id, component, blocked, place }]`. Each option is drawn in
 the folder picker's footer, under the "Show hidden" row, and the component draws the whole option:
-`extensions/git-worktree` draws a checkbox, a name field, and the branch a worktree would start
-from. Its props are `{ cwd, use }`: `cwd` is the folder picked so far, and `use(values)` says what
-the option collected, from an effect rather than while rendering; `null` means "the folder as
-picked". Core keeps those values as plain JSON and does nothing else with them.
+`extensions/git-worktree` draws a checkbox and a name field. Its props are `{ cwd, use, refused }`:
+`cwd` is the folder picked so far, `use(values)` says what the option collected, from an effect
+rather than while rendering, and `null` means "the folder as picked". Core keeps those values as
+plain JSON and does nothing else with them.
 
-`blocked(values)` answers why Open cannot go ahead — its text stands under the footer and Open is
-disabled — and `place(cwd, values)` runs on Open, when the option collected something: it returns
-the folder the session starts in, and a throw keeps the picker open with the message. Changing an
-option's values clears the last message. `extensions/git-worktree` makes the worktree there, so the
-session starts in it without the core knowing what a worktree is (see [Git worktrees](#git-worktrees)).
+`blocked(values)` answers whether Open can go ahead — while it says no, Open is disabled — and
+`place(cwd, values)` runs on Open, when the option collected something: it returns the folder the
+session starts in, and a throw keeps the picker open. Either answer reaches the option as `refused`,
+which the option says next to its own field: no caption is drawn for it. A failure is said, not
+held, so a refusal worth another try can be retried; changing the option's values clears it.
+`extensions/git-worktree` makes the worktree there, so the session starts in it without the core
+knowing what a worktree is (see [Git worktrees](#git-worktrees)).
 
 ## The host
 
@@ -864,7 +866,7 @@ note saying which `offset` continues it.
 ## Git worktrees
 
 `extensions/git-worktree` puts a `New worktree` checkbox in the folder picker, with a name field
-and the branch it would start from. Open then makes a worktree of the picked folder's repository
+beside it. Open then makes a worktree of the picked folder's repository
 and starts the session **in** it, so two sessions can work on the same repository without stepping
 on each other's files.
 

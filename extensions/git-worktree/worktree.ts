@@ -54,18 +54,6 @@ async function repositoryName(cwd: string): Promise<string> {
     return basename(dirname(common));
 }
 
-/**
- * What a worktree of `cwd` would start from: the branch the folder is on, or the commit a detached
- * head stands on; null for a folder in no repository, or one with no commit yet.
- */
-export async function headOf(cwd: string): Promise<string | null> {
-    return (
-        (await out(cwd, ["symbolic-ref", "--short", "-q", "HEAD"])) ||
-        (await out(cwd, ["rev-parse", "--short", "HEAD"])) ||
-        null
-    );
-}
-
 /** A folder name and branch name for what someone typed: what git accepts, in lowercase. */
 export function slugOf(name: string): string {
     return name

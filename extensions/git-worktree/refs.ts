@@ -11,15 +11,6 @@ export type MadeWorktree = {
 
 export type MakeArgs = { cwd: string; name: string };
 
-/** What a worktree of `cwd` would start from: its branch, or the commit a detached head stands on. */
-export const head = actionRef<{ cwd: string }, string | null>("git-worktree", "head", (value) => {
-    if (value === null || typeof value === "string") {
-        return value;
-    }
-
-    throw new Error("the head must be a branch name or a commit, or null");
-});
-
 /** Makes a worktree of `cwd`'s repository, named after what the person typed in the folder picker. */
 export const make = actionRef<MakeArgs, MadeWorktree>("git-worktree", "make", (value) => {
     if (typeof value === "object" && value !== null) {
