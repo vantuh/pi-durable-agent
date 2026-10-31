@@ -11,6 +11,8 @@ import {
 import {
     type FormEvent,
     type KeyboardEvent as ReactKeyboardEvent,
+    lazy,
+    Suspense,
     useEffect,
     useRef,
     useState,
@@ -28,7 +30,6 @@ import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { PatchPreview, warmPreview } from "./preview.tsx";
 import {
     UNTRACKED_FILE_CAP,
     cancel,
@@ -42,6 +43,13 @@ import {
     type History,
     type ReviewState,
 } from "./refs.ts";
+
+/**
+ * Pierre's diff view and its shiki warm-up are 630 kB of client code that only the open panel draws, so the
+ * module is fetched when the panel opens: at boot it would be downloaded for a panel that may never open.
+ */
+const loadPreview = () => import("./preview.tsx");
+const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPreview }));
 
 const button =
     "rounded-control border-edge hover:bg-raised text-interface border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
@@ -212,6 +220,7 @@ const COLLAPSE_MS = 200;
 /** Reading is half the wait; parsing and highlighting otherwise start on the click. */
 async function prefetch(session: number, target: string): Promise<void> {
     const found = await loadChanges(session, target);
+    const { warmPreview } = await loadPreview();
     await warmPreview(found.patch);
 }
 
@@ -291,7 +300,9 @@ function Preview({ session, target }: { session: number; target: string }) {
             {data.files.length === 0 ? (
                 <p className="text-meta text-muted p-3">No changes.</p>
             ) : null}
-            <PatchPreview data={data} />
+            <Suspense fallback={<p className="text-muted p-3">Reading the diff…</p>}>
+                <PatchPreview data={data} />
+            </Suspense>
         </div>
     );
 }
