@@ -144,7 +144,13 @@ export function App() {
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelShown);
 
-    const openSettings = (): void => {
+    const toggleSettings = (): void => {
+        if (settings) {
+            setSettings(false);
+
+            return;
+        }
+
         setSettings(true);
         setSettingsEpoch(settingsEpoch + 1);
     };
@@ -245,7 +251,7 @@ export function App() {
                             onSessions={() => {
                                 setSheet(true);
                             }}
-                            onSettings={openSettings}
+                            onSettings={toggleSettings}
                         />
                     ) : (
                         <>
@@ -273,7 +279,7 @@ export function App() {
                                         />
                                     </>
                                 }
-                                onSettings={openSettings}
+                                onSettings={toggleSettings}
                                 onSessions={() => {
                                     setSheet(true);
                                 }}
