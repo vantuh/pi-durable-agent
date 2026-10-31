@@ -41,10 +41,10 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [error, setError] = useState(false);
     /** What each extension's option in the footer collected; null for the folder as picked. */
     const [collected, setCollected] = useState<Record<string, NewSessionCollected | null>>({});
-    /** Why the session would not start, from the option's `blocked` or from a `place` that threw. */
-    const [problem, setProblem] = useState<string | null>(null);
+    /** What an option's `place` threw last time: the option, and what it said. */
+    const [problem, setProblem] = useState<{ id: string; message: string } | null>(null);
     const [opening, setOpening] = useState(false);
-    /** What an option collected, held still while the dialog renders; a change takes the last failure away. */
+    /** What an option collected, held still while the dialog renders; a change takes its last failure away. */
     const remember = useCallback((id: string, value: NewSessionCollected | null): void => {
         setProblem(null);
         setCollected((all) => ({ ...all, [id]: value }));
@@ -129,13 +129,17 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const trail = crumbs(page?.path ?? path);
     const picked = page?.path ?? path;
 
-    // Each option is asked about the values it collected itself; the first refusal stops Open.
-    const blocked =
-        problem ??
-        options.reduce<string | null>(
-            (why, option) => why ?? option.blocked?.(collected[option.id] ?? null) ?? null,
-            null,
-        );
+    /** What this option says about going ahead: its own `blocked`, or what its `place` threw. */
+    const refused = (option: FolderNewSessionItem): string | null =>
+        problem?.id === option.id
+            ? problem.message
+            : (option.blocked?.(collected[option.id] ?? null) ?? null);
+
+    /** Whether the option's own check says no; a failure is said, not held, so Open stays a retry. */
+    const holds = (option: FolderNewSessionItem): boolean =>
+        (option.blocked?.(collected[option.id] ?? null) ?? null) !== null;
+
+    const held = options.some(holds) || opening;
 
     /** Where the session starts: the folder as picked, through each option that collected something. */
     const startIn = async (folder: string): Promise<void> => {
@@ -145,14 +149,24 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
             for (const option of options) {
                 const mine = collected[option.id] ?? null;
 
-                if (mine !== null) {
+                if (mine === null) {
+                    continue;
+                }
+
+                try {
                     where = await option.place(where, mine);
+                } catch (failure) {
+                    setProblem({
+                        id: option.id,
+                        message:
+                            failure instanceof Error
+                                ? failure.message
+                                : "The session could not start.",
+                    });
+
+                    return;
                 }
             }
-        } catch (failure) {
-            setProblem(failure instanceof Error ? failure.message : "The session could not start.");
-
-            return;
         } finally {
             setOpening(false);
         }
@@ -282,10 +296,9 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             option={option}
                             cwd={page?.path ?? null}
                             onUse={remember}
+                            refused={refused(option)}
                         />
                     ))}
-
-                    {blocked === null ? null : <p className="text-danger text-meta">{blocked}</p>}
 
                     <div className="flex items-center justify-between gap-3">
                         <label className="text-muted text-meta flex items-center gap-2">
@@ -310,7 +323,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             <button
                                 ref={openRef}
                                 type="button"
-                                disabled={blocked !== null || opening}
+                                disabled={held}
                                 onClick={() => {
                                     setOpening(true);
                                     setProblem(null);
@@ -365,10 +378,12 @@ function Row({
 function Option({
     option,
     cwd,
+    refused,
     onUse,
 }: {
     option: FolderNewSessionItem;
     cwd: string | null;
+    refused: string | null;
     onUse: (id: string, collected: NewSessionCollected | null) => void;
 }) {
     const { id, component: Component } = option;
@@ -379,5 +394,5 @@ function Option({
         [id, onUse],
     );
 
-    return <Component cwd={cwd} use={use} />;
+    return <Component cwd={cwd} use={use} refused={refused} />;
 }

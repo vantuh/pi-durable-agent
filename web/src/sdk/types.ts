@@ -44,6 +44,12 @@ export type NewSessionProps = {
      * effect or a handler, never while rendering.
      */
     use: (collected: NewSessionCollected | null) => void;
+    /**
+     * Why this option cannot go ahead: its own `blocked`, or what its `place` threw last time. The
+     * option says it next to its own field; the picker holds Open back on `blocked` alone, so a
+     * failure worth another try can be retried.
+     */
+    refused: string | null;
 };
 
 /** An option in the new-session folder picker: a checkbox and its own field, and where the session starts. */
