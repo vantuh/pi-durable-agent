@@ -6,6 +6,7 @@ import {
     Pencil,
     RefreshCw,
     LoaderCircle,
+    GitBranch,
 } from "lucide-react";
 import {
     type FormEvent,
@@ -15,6 +16,7 @@ import {
     useState,
 } from "react";
 
+import { Badge } from "@/components/ui/badge.tsx";
 import {
     Dialog,
     DialogContent,
@@ -502,7 +504,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             }}
             className="border-edge-soft border-b"
         >
-            <div className="flex items-center gap-2 px-3 py-3">
+            <div className="flex items-center gap-2 px-3 py-2">
                 <button
                     type="button"
                     aria-expanded={selected === target}
@@ -520,7 +522,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                     }}
                     className="min-w-0 flex-1 text-left"
                 >
-                    <span className="text-interface text-ink flex items-center gap-1.5 font-medium">
+                    <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
                         {marker === "local" ? (
                             <ArrowUp className="text-ok size-3 shrink-0" aria-label="Not pushed" />
                         ) : marker === "remote" ? (
@@ -531,19 +533,21 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                         ) : null}
                         <span className="truncate">{title}</span>
                     </span>
-                    <span className="text-meta text-faint block truncate">{detail}</span>
+                    <span className="text-meta text-faint block truncate leading-tight">
+                        {detail}
+                    </span>
                 </button>
                 {commit !== undefined && rewritable(commit) ? (
                     <button
                         type="button"
                         title="Edit the commit message"
                         aria-label="Edit the commit message"
-                        className={button}
+                        className={`${button} flex size-9 shrink-0 items-center justify-center p-0`}
                         onClick={() => {
                             setEditing((old) => (old?.hash === commit.hash ? null : commit));
                         }}
                     >
-                        <Pencil className="size-3.5" />
+                        <Pencil className="size-4" />
                     </button>
                 ) : null}
                 <button
@@ -604,8 +608,10 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                 }}
             >
                 <DialogContent className="sm:inset-3 sm:max-h-none sm:w-auto sm:max-w-none sm:translate-x-0 sm:translate-y-0">
-                    <DialogHeader>
-                        <div className="flex min-w-0 items-center gap-2">
+                    {/* One row: the title, then what the session's folder is and its way of refreshing.
+                        `pr-11` leaves the gap the close button needs without crowding the refresh. */}
+                    <DialogHeader className="pr-11">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <DialogTitle className="min-w-0 flex-1 truncate">
                                 {viewer ? "Plannotator review" : "Git history & review"}
                             </DialogTitle>
@@ -620,67 +626,73 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                 >
                                     <ArrowLeft className="size-3" /> History
                                 </button>
+                            ) : data?.branch ? (
+                                <Badge
+                                    title={`${data.branch} in ${session.cwd ?? "this folder"}`}
+                                    className="h-4 max-w-36 min-w-0 shrink px-1.5 [&>svg]:size-2.5"
+                                >
+                                    <GitBranch />
+                                    <span className="truncate">{data.branch}</span>
+                                </Badge>
                             ) : null}
+                            {viewer ? null : (
+                                <>
+                                    {data?.upstream ? (
+                                        <span
+                                            className="text-meta text-muted shrink-0"
+                                            title={`${data.upstream} as of the last fetch`}
+                                        >
+                                            ↑{data.ahead} ↓{data.behind}
+                                        </span>
+                                    ) : null}
+                                    <button
+                                        type="button"
+                                        title="Refresh history"
+                                        aria-label="Refresh history"
+                                        disabled={loading}
+                                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center disabled:opacity-40"
+                                        onClick={() => {
+                                            setLoading(true);
+                                            forgetPatches();
+                                            setRefresh((value) => value + 1);
+                                        }}
+                                    >
+                                        <RefreshCw
+                                            className={`size-4 ${loading ? "animate-spin" : ""}`}
+                                        />
+                                    </button>
+                                    {running(state) ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className={button}
+                                                onClick={() => {
+                                                    setViewer(true);
+                                                }}
+                                            >
+                                                Resume review
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={button}
+                                                disabled={closing}
+                                                onClick={() => {
+                                                    void stopReview();
+                                                }}
+                                            >
+                                                Cancel review
+                                            </button>
+                                        </>
+                                    ) : null}
+                                </>
+                            )}
                         </div>
-                        <DialogDescription>
+                        <DialogDescription className={viewer ? undefined : "sr-only"}>
                             {viewer
                                 ? "Review stays inside this app. Feedback returns to the composer; nothing is sent automatically."
                                 : "Commits and uncommitted changes in this session’s folder. Ahead/behind reflects the last fetch."}
                         </DialogDescription>
                     </DialogHeader>
-                    {!viewer ? (
-                        <div className="border-edge-soft text-meta text-muted flex flex-wrap items-center gap-2 border-b px-3 py-2">
-                            <span
-                                className="min-w-0 flex-1 truncate font-mono"
-                                title={session.cwd ?? ""}
-                            >
-                                {data?.branch ?? session.cwd}
-                            </span>
-                            {data?.upstream ? (
-                                <span title={data.upstream}>
-                                    ↑{data.ahead} ↓{data.behind}
-                                </span>
-                            ) : null}
-                            <button
-                                type="button"
-                                title="Refresh history"
-                                disabled={loading}
-                                className={button}
-                                onClick={() => {
-                                    setLoading(true);
-                                    forgetPatches();
-                                    setRefresh((value) => value + 1);
-                                }}
-                            >
-                                <RefreshCw
-                                    className={`size-3.5 ${loading ? "animate-spin" : ""}`}
-                                />
-                            </button>
-                            {running(state) ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        className={button}
-                                        onClick={() => {
-                                            setViewer(true);
-                                        }}
-                                    >
-                                        Resume review
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={button}
-                                        disabled={closing}
-                                        onClick={() => {
-                                            void stopReview();
-                                        }}
-                                    >
-                                        Cancel review
-                                    </button>
-                                </>
-                            ) : null}
-                        </div>
-                    ) : null}
                     {issue !== null ? (
                         <p
                             role="alert"
