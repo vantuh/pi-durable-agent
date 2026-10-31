@@ -28,13 +28,14 @@ const COMPRESSIBLE = new Set([".html", ".js", ".css", ".webmanifest"]);
 
 type Encoding = "br" | "gzip";
 
-// Highest levels: the cache pays for them once per file, the phone on every first visit.
+// Quality 9 rather than 11: 194 KB against 180 KB for the entry chunk, but 19 ms instead of 760 ms, and the first
+// request for a fresh build is the one the phone waits on.
 const ENCODERS: Record<Encoding, (data: Buffer) => Promise<Buffer>> = {
     br: (data) =>
         compressBrotli(data, {
             params: {
                 [constants.BROTLI_PARAM_MODE]: constants.BROTLI_MODE_TEXT,
-                [constants.BROTLI_PARAM_QUALITY]: 11,
+                [constants.BROTLI_PARAM_QUALITY]: 9,
                 [constants.BROTLI_PARAM_SIZE_HINT]: data.length,
             },
         }),
