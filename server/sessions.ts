@@ -336,7 +336,7 @@ export class Sessions {
             );
 
             for (const { id } of page.items) {
-                const row = await this.#row(id, busy(id));
+                const row = await this.row(id, busy(id));
 
                 if (row !== undefined) {
                     summaries.push(row);
@@ -351,9 +351,10 @@ export class Sessions {
 
     /**
      * One row, from one commit: the harness runs one commit or read at a time, so a row that asked for its
-     * documents, record, agent and question one at a time would hold that line six times.
+     * documents, record, agent and question one at a time would hold that line six times. Undefined for a
+     * deleted session and for one whose owner chain is deleted: neither has a row in any list.
      */
-    async #row(id: ConversationId, working: boolean): Promise<SessionSummary | undefined> {
+    async row(id: ConversationId, working: boolean): Promise<SessionSummary | undefined> {
         const remembered = this.#questions.get(id);
         const read = await this.#harness.commit(async (tx) => {
             if ((await tx.doc(DeletedDoc, id)).deleted) {

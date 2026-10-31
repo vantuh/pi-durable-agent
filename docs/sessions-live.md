@@ -27,11 +27,16 @@ must not start from a gap. Every frame after it carries only what changed — `r
 what the last frame left, `gone` are the ids that are no longer listed — because a phone on a slow link pays for
 these bytes on every rename, busy flip and archive, not once when it opens. Every client holds the same list, so
 one diff serves them all; a row is compared as the browser holds it, `JSON.stringify` of the row, so nothing here
-has to know which field moved. Changes in a burst are sent once. A change is: a session starts or stops working,
-gains the question that names it, a run starts, ends or is seen, or any non-`GET` API call (create, rename,
-archive, delete, model, seen, a message). The entries a run appends are not changes: a row's `activeAt` is when
-the run started, not what a commit appends, and a title only the first question moves. The browser drops its
-polling; an action still re-reads the list, so its own result shows at once.
+has to know which field moved.
+
+The server reads no more than it sends: a change that names its session rebuilds that one row — one turn on the
+harness's line instead of one per session — while a change that cannot name one (a new session, an extension's
+mark) reads the whole list. Because a row whose change nobody marked would otherwise stay stale for ever, the
+whole list is read again and diffed every 30 seconds while anyone is watching. Changes in a burst are sent once.
+A change is: a session starts or stops working, gains the question that names it, a run starts, ends or is seen,
+or any non-`GET` API call (create, rename, archive, delete, model, seen, a message). The entries a run appends are
+not changes: a row's `activeAt` is when the run started, not what a commit appends, and a title only the first
+question moves. The browser drops its polling; an action still re-reads the list, so its own result shows at once.
 
 ## Seen
 

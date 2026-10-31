@@ -32,7 +32,15 @@ import type {
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
-import { answer, openEventStream, type Route, writeEvent } from "./http.ts";
+import {
+    answer,
+    openEventStream,
+    readBody,
+    record,
+    type Route,
+    sessionIdOf,
+    writeEvent,
+} from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
@@ -65,6 +73,11 @@ const IDLE_HEARTBEAT_MS = 20_000;
 const HELLO_BYTES = 128 * 1024;
 /** A burst of changes (a run ending writes several) is sent as one frame. */
 const LIST_DELAY_MS = 100;
+/**
+ * A row whose change nobody marked would stay stale for ever. Every so often the whole list is read again and
+ * diffed, so a path that forgets to name its session costs a delay, not a wrong row.
+ */
+const RECONCILE_MS = 30_000;
 /** A child that commits all the time makes its parent's browsers ask again once per this long. */
 const CHANGE_WINDOW_MS = 250;
 /** How long stopping may wait for running work; what is still running resumes in the next process. */
@@ -99,6 +112,7 @@ const changes = sessionChanges({
 });
 let listQueued = false;
 let listChain: Promise<void> = Promise.resolve();
+let reconcile: ReturnType<typeof setInterval> | undefined;
 
 let models: ModelRuntime;
 let runtime: ModelRuntime;
@@ -126,15 +140,23 @@ function isBusy(id: number): boolean {
     return busy.get(id) === true;
 }
 
+/** The mark an extension put on a session's row: the whole list and one row of it carry it the same way. */
+function markRow(row: SessionSummary): SessionSummary {
+    const mark = extensions.markOf(row.id);
+
+    return mark === undefined ? row : { ...row, mark };
+}
+
 /** The rows the browser reads, with the mark an extension put on a session; one list, one place. */
 async function sessionRows(): Promise<SessionSummary[]> {
-    const rows = await sessions.list(isBusy);
+    return (await sessions.list(isBusy)).map(markRow);
+}
 
-    return rows.map((row) => {
-        const mark = extensions.markOf(row.id);
+/** One row, as the browser reads it: what a change that names its session costs, instead of the whole list. */
+async function markedRow(id: number): Promise<SessionSummary | undefined> {
+    const row = await sessions.row(idOf(id), isBusy(id));
 
-        return mark === undefined ? row : { ...row, mark };
-    });
+    return row === undefined ? undefined : markRow(row);
 }
 
 /** One frame, written once for every watcher: one `writeEvent` per frame, so the gzip stream flushes it as it is. */
@@ -160,9 +182,18 @@ function queueListSend(task: () => Promise<void>): Promise<void> {
     return listChain;
 }
 
-/** Sends the rows that changed to every list stream, once per burst. */
-function listChanged(): void {
-    if (listQueued || listWatchers.size === 0) {
+/**
+ * Sends what changed to every list stream, once per burst. An id names the session the change touched, so only
+ * its row is read again; a change that names none, and the periodic reconcile, read the whole list.
+ */
+function listChanged(id?: number): void {
+    if (listWatchers.size === 0) {
+        return;
+    }
+
+    list.changed(id);
+
+    if (listQueued) {
         return;
     }
 
@@ -181,16 +212,34 @@ async function flushList(): Promise<void> {
     }
 }
 
+/** Read again only while someone is watching: the list nobody reads needs no reconciling. */
+function watchReconcile(): void {
+    reconcile ??= setInterval(() => {
+        listChanged();
+    }, RECONCILE_MS);
+}
+
+function unwatchReconcile(): void {
+    if (listWatchers.size > 0 || reconcile === undefined) {
+        return;
+    }
+
+    clearInterval(reconcile);
+    reconcile = undefined;
+}
+
 /** The session list stream: the whole list now, then the rows that changed after every change. */
 async function watchList(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const watcher: EventStream = { response, gzip: openEventStream(request, response) };
 
     response.on("close", () => {
         listWatchers.delete(watcher);
+        unwatchReconcile();
     });
     // Queued like every flush, so no frame of changes this watcher lacks can be diffed before the list it starts from.
     await queueListSend(async () => {
         listWatchers.add(watcher);
+        watchReconcile();
         sendFrame([watcher], { type: "sessions", sessions: await list.whole() });
     });
 }
@@ -324,24 +373,30 @@ function publish(opened: Opened, view: View): void {
 
     // A run starting or ending moves the row's mark and its unseen state; a first question names it.
     if (named || isBusy(opened.id) !== live.busy) {
-        listChanged();
+        listChanged(opened.id);
     }
 
     latest.set(opened.id, { opened, view });
     // A run's start is the row's time, whoever started it: a person's message touches the clock in its own
     // request, and a subagent, a report or a queued follow-up submits without one.
     if (live.busy && !isBusy(opened.id)) {
-        void sessions.touch(opened.id).then(listChanged, (error: unknown) => {
-            console.error(error);
-        });
+        void sessions.touch(opened.id).then(
+            () => listChanged(opened.id),
+            (error: unknown) => {
+                console.error(error);
+            },
+        );
     }
 
     // Taken before the browsers hear of it, so a `seen` sent the moment it ends is later.
     if (busy.get(opened.id) === true && !live.busy) {
         // An unhandled rejection would end the process, and every conversation in it.
-        void sessions.ended(opened.id, Date.now()).then(listChanged, (error: unknown) => {
-            console.error(error);
-        });
+        void sessions.ended(opened.id, Date.now()).then(
+            () => listChanged(opened.id),
+            (error: unknown) => {
+                console.error(error);
+            },
+        );
     }
 
     busy.set(opened.id, live.busy);
@@ -483,6 +538,25 @@ async function stream(
     });
 }
 
+/**
+ * The session a change named, when its body named one: the id a route already read turns one rebuilt row into
+ * the whole list. A request with no session — a new session, a restart — leaves the list to be read again.
+ */
+async function changedSession(request: IncomingMessage): Promise<number | undefined> {
+    const body = readBody(request);
+
+    if (body === undefined) {
+        return undefined;
+    }
+
+    try {
+        return sessionIdOf(record(await body)?.["session"]);
+    } catch {
+        // A body that is not JSON was refused by its route, and a list read is never wrong about it.
+        return undefined;
+    }
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
@@ -516,7 +590,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
             // An extension changes a row only through the host, which sends the list itself; a panel
             // that polls an action every second must not resend every row to every device.
             if (request.method !== "GET" && !url.pathname.startsWith("/api/extensions/")) {
-                listChanged();
+                listChanged(await changedSession(request));
             }
 
             return;
@@ -547,6 +621,11 @@ async function boot(): Promise<void> {
     lifecycle.onStop(() => {
         clearInterval(heartbeat);
         changes.dispose();
+
+        if (reconcile !== undefined) {
+            clearInterval(reconcile);
+            reconcile = undefined;
+        }
 
         return Promise.resolve();
     });
@@ -586,7 +665,7 @@ async function boot(): Promise<void> {
         // The title lives in a document, so no commit carries it to the browsers: the list goes again.
         setSessionTitle: async (session, title) => {
             await sessions.setTitle(idOf(session), title);
-            listChanged();
+            listChanged(session);
         },
         readDoc: (doc, session) => sessions.readDoc(doc, idOf(session)),
         sessionListChanged: listChanged,
@@ -645,7 +724,7 @@ async function boot(): Promise<void> {
 
     rootId = Number(root.id);
     sessions = new Sessions({ harness, model: { provider, modelId }, models, context });
-    list = new SessionList(sessionRows);
+    list = new SessionList({ rows: sessionRows, row: markedRow });
     extensions.onChange(() => {
         for (const { opened, view } of latest.values()) {
             publish(opened, view);

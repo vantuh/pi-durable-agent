@@ -47,8 +47,30 @@ export function readBytes(request: IncomingMessage): Promise<Buffer> {
     });
 }
 
+/** A body is read once per request: a route parses its own, and the caller after the route asks again. */
+const bodies = new WeakMap<IncomingMessage, Promise<unknown>>();
+
 /** The parsed body, or `undefined` for an empty one. */
-export async function readJson(request: IncomingMessage): Promise<unknown> {
+export function readJson(request: IncomingMessage): Promise<unknown> {
+    const known = bodies.get(request);
+
+    if (known !== undefined) {
+        return known;
+    }
+
+    const body = parseJson(request);
+
+    bodies.set(request, body);
+
+    return body;
+}
+
+/** The body a route already read, or `undefined` while nothing has: this never waits on a body nobody consumed. */
+export function readBody(request: IncomingMessage): Promise<unknown> | undefined {
+    return bodies.get(request);
+}
+
+async function parseJson(request: IncomingMessage): Promise<unknown> {
     const text = (await readBytes(request)).toString("utf8");
 
     if (text === "") {

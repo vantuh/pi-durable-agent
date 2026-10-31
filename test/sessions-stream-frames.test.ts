@@ -280,6 +280,25 @@ void describe("the session list stream", () => {
         }
     });
 
+    void it("sends the row of a session its request could not name", async () => {
+        const { base, cwd } = await sandboxServer();
+        const watch = watchFrames(base);
+
+        try {
+            await delay(SETTLE_MS);
+
+            const at = watch.frames.length;
+            // A new session's request names no session: the whole list has to be read, and still only the new row goes.
+            const created = sessionOf(await post(base, "/api/sessions", { cwd }));
+            const frames = await framesAfter(watch, at);
+
+            assert.equal(frames.length, 1);
+            assert.deepEqual(idsOf(rowsOf(frames[0])), [created]);
+        } finally {
+            watch.stop();
+        }
+    });
+
     void it("sends a row for an archive and a gone id for a delete", async () => {
         const { base, cwd } = await sandboxServer();
         const kept = sessionOf(await post(base, "/api/sessions", { cwd }));
