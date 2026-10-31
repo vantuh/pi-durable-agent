@@ -542,12 +542,12 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                         type="button"
                         title="Edit the commit message"
                         aria-label="Edit the commit message"
-                        className={button}
+                        className={`${button} flex size-9 shrink-0 items-center justify-center p-0`}
                         onClick={() => {
                             setEditing((old) => (old?.hash === commit.hash ? null : commit));
                         }}
                     >
-                        <Pencil className="size-3.5" />
+                        <Pencil className="size-4" />
                     </button>
                 ) : null}
                 <button
