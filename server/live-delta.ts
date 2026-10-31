@@ -1,8 +1,9 @@
 /**
  * The blocks of a live frame, cut to what one client does not hold yet. A streamed answer only grows at its end, so
  * the text a client holds is usually a start of the text now; when it is not (a retry rewrote it, a new answer began)
- * the block goes whole and the client replaces it. Correctness rests on that check alone, so no case of the harness
- * has to be known here.
+ * the block goes whole and the client replaces it. A tool call never changes once dispatched, so one the client holds
+ * with the same id, name and arguments goes without them. Correctness rests on these checks alone, so no case of the
+ * harness has to be known here.
  */
 
 import type { ClientBlock } from "../shared/protocol.ts";
@@ -14,7 +15,16 @@ export function blocksSince(
     return blocks.map((block, at) => {
         const known = held[at];
 
-        if (block.type === "toolCall" || known === undefined || known.type !== block.type) {
+        if (block.type === "toolCall") {
+            return known?.type === "toolCall" &&
+                known.id === block.id &&
+                known.name === block.name &&
+                JSON.stringify(known.args) === JSON.stringify(block.args)
+                ? { type: "toolCall", id: block.id, name: block.name }
+                : block;
+        }
+
+        if (known === undefined || known.type !== block.type) {
             return block;
         }
 

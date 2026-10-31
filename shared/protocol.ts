@@ -6,11 +6,13 @@
 /**
  * In a `live` frame a `text` or `thinking` block may carry only its end: `text` is what comes from offset `from` of the
  * block the browser holds at that position, and absent means 0, the whole block. Everywhere else it is whole.
+ * A `toolCall` in a `live` frame may leave out `args`: absent means "unchanged since the block you already hold at this
+ * position". `hello` and committed entries always carry it whole.
  */
 export type ClientBlock =
     | { type: "text"; text: string; from?: number }
     | { type: "thinking"; text: string; from?: number }
-    | { type: "toolCall"; id: string; name: string; args: unknown };
+    | { type: "toolCall"; id: string; name: string; args?: unknown };
 
 /** What one model response cost and how long it took, as the provider reported it. */
 export type ClientAnswerStats = {

@@ -56,7 +56,8 @@ export function mergeEntries(
 
 /**
  * The blocks a `live` frame leaves on screen: each block is the one the frame carries, with the end of the text the
- * screen held at its position put in front when the frame carries only the end. The frame lists every block, so
+ * screen held at its position put in front when the frame carries only the end, and a tool call without `args` has
+ * those of the call the screen held there, if that is the same call. The frame lists every block, so
  * whatever the screen held beyond the last one is gone, and a frame with none clears them all.
  */
 function withBlocks(
@@ -64,11 +65,14 @@ function withBlocks(
     incoming: readonly ClientBlock[],
 ): ClientBlock[] {
     return incoming.map((block, at) => {
+        const known = held?.[at];
+
         if (block.type === "toolCall") {
-            return block;
+            return !("args" in block) && known?.type === "toolCall" && known.id === block.id
+                ? { ...block, args: known.args }
+                : block;
         }
 
-        const known = held?.[at];
         const before =
             block.from !== undefined && block.from > 0 && known?.type === block.type
                 ? known.text.slice(0, block.from)

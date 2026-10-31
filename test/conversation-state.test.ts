@@ -189,6 +189,59 @@ void describe("withEvent", () => {
             assert.deepEqual(texts(state), ["new thought"]);
         });
 
+        void it("keeps the arguments it holds for a call the frame sends without them", () => {
+            const args = { path: "a.txt", content: "kept" };
+            const state = withEvent(
+                held({ type: "toolCall", id: "c1", name: "write", args }),
+                frame([
+                    { type: "toolCall", id: "c1", name: "write" },
+                    { type: "text", text: "next" },
+                ]),
+            );
+
+            assert.deepEqual(state.live.blocks?.[0], {
+                type: "toolCall",
+                id: "c1",
+                name: "write",
+                args,
+            });
+        });
+
+        void it("takes the arguments of a frame that carries them, even when it holds others", () => {
+            const state = withEvent(
+                held({ type: "toolCall", id: "c1", name: "write", args: { content: "old" } }),
+                frame([{ type: "toolCall", id: "c1", name: "write", args: { content: "new" } }]),
+            );
+
+            assert.deepEqual(state.live.blocks?.[0], {
+                type: "toolCall",
+                id: "c1",
+                name: "write",
+                args: { content: "new" },
+            });
+        });
+
+        void it("never gives one call the arguments of another", () => {
+            const state = withEvent(
+                held({ type: "toolCall", id: "c1", name: "write", args: { content: "mine" } }),
+                frame([{ type: "toolCall", id: "c2", name: "write" }]),
+            );
+            const block = state.live.blocks?.[0];
+
+            assert.ok(block?.type === "toolCall");
+            assert.equal(block.id, "c2");
+            assert.equal("args" in block, false, "c2 did not inherit c1's arguments");
+        });
+
+        void it("does not graft arguments onto a call where the screen held text", () => {
+            const state = withEvent(
+                held({ type: "text", text: "was text" }),
+                frame([{ type: "toolCall", id: "c1", name: "write" }]),
+            );
+
+            assert.deepEqual(state.live.blocks, [{ type: "toolCall", id: "c1", name: "write" }]);
+        });
+
         void it("clears the blocks when a frame has none, as the frame ending a run does", () => {
             const state = withEvent(held({ type: "text", text: "the answer so far" }), frame());
 

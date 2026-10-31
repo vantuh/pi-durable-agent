@@ -81,7 +81,10 @@ The live answer is not an entry. It arrives as `live`, at most one frame per 250
 entry commit sends its frame without waiting), and becomes an `assistant` entry when it is final.
 A `text` or `thinking` block in a `live` frame carries only the end the client lacks, `from` being
 the offset it starts at; the server remembers what each client holds, and a block that is not a
-continuation of it goes whole, without `from`. A running tool's output is not sent.
+continuation of it goes whole, without `from`. A `toolCall` block carries its `args` only when they
+differ from the block the client holds at that position (same `id` and `name`, equal JSON); a call
+that was already sent goes without them, and the client keeps what it has. A running tool's output
+is not sent.
 
 ## Messages from application authors
 

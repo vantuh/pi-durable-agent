@@ -72,4 +72,62 @@ void describe("a live frame cut to what a client holds", () => {
 
         assert.deepEqual(screenAfter(frames), frames);
     });
+
+    void describe("tool calls", () => {
+        const write = (id: string, content: string): ClientBlock => ({
+            type: "toolCall",
+            id,
+            name: "write",
+            args: { path: "a.txt", content },
+        });
+
+        void it("leaves the arguments out of a call the client holds, and the client keeps them", () => {
+            const frames = [
+                [write("c1", "x".repeat(5000))],
+                [write("c1", "x".repeat(5000)), text("hi")],
+            ];
+            const sent = blocksSince(frames[0] ?? [], frames[1] ?? []);
+
+            assert.deepEqual(sent[0], { type: "toolCall", id: "c1", name: "write" });
+            assert.deepEqual(screenAfter(frames), frames, "the screen still holds the whole call");
+        });
+
+        void it("sends changed arguments whole", () => {
+            const frames = [
+                [write("c1", "one")],
+                [write("c1", "one two")],
+                [write("c1", "one two")],
+            ];
+            const sent = blocksSince(frames[0] ?? [], frames[1] ?? []);
+
+            assert.deepEqual(sent, [write("c1", "one two")]);
+            assert.deepEqual(screenAfter(frames), frames);
+        });
+
+        void it("never lends the arguments of one call to another at the same position", () => {
+            const first = [write("c1", "first file")];
+            const second = [write("c2", "second file")];
+            const sent = blocksSince(first, second);
+
+            assert.deepEqual(sent, second, "a different id goes whole");
+            assert.deepEqual(screenAfter([first, second]), [first, second]);
+        });
+
+        void it("sends a call whole when the client held another kind of block there", () => {
+            const call1 = write("c1", "file");
+
+            assert.deepEqual(blocksSince([text("a")], [call1]), [call1]);
+            assert.deepEqual(blocksSince([], [call1]), [call1]);
+        });
+
+        void it("ends a round trip with arguments deep-equal to the server's", () => {
+            const args = { path: "deep.txt", content: "l1\nl2", flags: [1, { a: null }] };
+            const blocks: ClientBlock[] = [{ type: "toolCall", id: "c1", name: "write", args }];
+            const [first, second, third] = screenAfter([blocks, blocks, [...blocks, text("go")]]);
+
+            assert.deepEqual(first, blocks);
+            assert.deepEqual(second, blocks);
+            assert.deepEqual(third?.[0], blocks[0]);
+        });
+    });
 });

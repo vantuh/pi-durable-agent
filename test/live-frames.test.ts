@@ -16,6 +16,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import type { ClientBlock, ServerEvent } from "../shared/protocol.ts";
 import { START, withEvent } from "../web/src/lib/conversation-state.ts";
+import { WRITE_ANSWER, WRITE_CONTENT, WRITE_PATH } from "./fixtures/faux-big-write-model.ts";
 import { ANSWER, THINKING } from "./fixtures/faux-streaming-model.ts";
 
 const REPO = join(import.meta.dirname, "..");
@@ -43,15 +44,17 @@ async function freePort(): Promise<number> {
     return address.port;
 }
 
-/** A real server in a temporary folder, with a faux model that streams a long answer, and nothing else. */
-async function sandboxServer(): Promise<{ base: string; cwd: string }> {
+/** A real server in a temporary folder, with one faux model from `test/fixtures`, and nothing else. */
+async function sandboxServer(
+    fixture = "faux-streaming-model.ts",
+): Promise<{ base: string; cwd: string }> {
     const root = await mkdtemp(join(tmpdir(), "live-frames-"));
     const cwd = join(root, "cwd");
 
     roots.push(root);
     await mkdir(join(cwd, "extensions", "fauxmodel"), { recursive: true });
     await symlink(
-        join(REPO, "test", "fixtures", "faux-streaming-model.ts"),
+        join(REPO, "test", "fixtures", fixture),
         join(cwd, "extensions", "fauxmodel", "server.ts"),
     );
 
@@ -331,6 +334,79 @@ void describe("the live frames of a working session", () => {
         assert.ok(
             sent < bound,
             `${String(sent)} bytes of live frames, under ${String(bound)} expected`,
+        );
+    });
+});
+
+void describe("the live frames of a long write call", () => {
+    let frames: Frame[];
+
+    before(async () => {
+        const { base, cwd } = await sandboxServer("faux-big-write-model.ts");
+        const created = await post(base, "/api/sessions", { cwd });
+
+        assert.ok(typeof created === "object" && created !== null, "a session was created");
+
+        const session = Number(Reflect.get(created, "session"));
+        const stream = watch(base, session);
+
+        await until("the hello", () => stream.frames.length > 0, 5000);
+        await post(base, "/api/messages", { session, text: "go" });
+        await until("the run to end", () => ended(stream.frames), 30_000);
+        stream.stop();
+        frames = stream.frames;
+    });
+
+    const callsOf = (blocks: readonly ClientBlock[] | undefined) =>
+        blocks?.flatMap((block) => (block.type === "toolCall" ? [block] : [])) ?? [];
+
+    void it("send the call's arguments once, not in every frame that carries the call", () => {
+        const withCall = liveOf(frames).filter(({ blocks }) => callsOf(blocks).length > 0);
+        const sent = frames.reduce(
+            (sum, { event, bytes }) => (event.type === "live" ? sum + bytes : sum),
+            0,
+        );
+        // The file once, the answer once, and framing; the call repeated in each of these frames was three times that.
+        const bound = 2 * (WRITE_CONTENT.length + WRITE_ANSWER.length);
+
+        assert.ok(
+            withCall.length >= 10,
+            `${String(withCall.length)} frames carried the call, enough for a repeat to show`,
+        );
+        assert.ok(
+            sent < bound,
+            `${String(sent)} bytes of live frames, under ${String(bound)} expected`,
+        );
+    });
+
+    void it("leave the screen holding the arguments the entry commits", () => {
+        let state = START;
+        const seen: unknown[] = [];
+
+        for (const { event } of frames) {
+            state = withEvent(state, event);
+
+            for (const call of callsOf(state.live.blocks)) {
+                assert.ok(call.args !== undefined, "no screen holds a call without its arguments");
+                seen.push(call.args);
+            }
+        }
+
+        const committed = state.entries
+            .flatMap((entry) => (entry.kind === "assistant" ? entry.blocks : []))
+            .flatMap((block) => (block.type === "toolCall" ? [block] : []));
+        const expected = { path: WRITE_PATH, content: WRITE_CONTENT };
+        const complete = seen.findIndex(
+            (args) => JSON.stringify(args) === JSON.stringify(expected),
+        );
+
+        assert.equal(committed.length, 1);
+        assert.deepEqual(committed[0]?.args, expected);
+        assert.notEqual(complete, -1, "a screen held the call as the entry has it");
+        assert.deepEqual(
+            seen.slice(complete),
+            seen.slice(complete).map(() => expected),
+            "every screen after that kept the same arguments",
         );
     });
 });
