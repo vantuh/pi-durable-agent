@@ -562,7 +562,17 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                 </button>
             </div>
             {selected === target ? (
-                <Preview key={`${target}:${String(refresh)}`} session={id} target={target} />
+                // The row grows from 0fr: the diff lays out at full size at once and is clipped, so
+                // the virtualised diff never re-measures itself while it opens.
+                <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none starting:grid-rows-[0fr]">
+                    <div className="min-h-0 overflow-hidden">
+                        <Preview
+                            key={`${target}:${String(refresh)}`}
+                            session={id}
+                            target={target}
+                        />
+                    </div>
+                </div>
             ) : null}
             {editing?.hash === target ? (
                 <RewordForm
