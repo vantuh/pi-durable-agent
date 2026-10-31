@@ -1,4 +1,4 @@
-import { FolderGit2, FolderX, X } from "lucide-react";
+import { CircleAlert, FolderGit2, FolderX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -138,7 +138,9 @@ function Mark({ session }: StatusProps) {
                 }}
             >
                 <DialogContent>
-                    <DialogHeader>
+                    {/* The notice stands in for the line under the header, and keeps the dialog's
+                        own side margins, which the header's do not reach past the close button. */}
+                    <DialogHeader className={failure === null ? undefined : "border-b-0"}>
                         <DialogTitle>Remove the worktree {worktree.name}?</DialogTitle>
                         <DialogDescription>
                             {worktree.folder} goes, with everything in it that is not committed.
@@ -147,7 +149,12 @@ function Mark({ session }: StatusProps) {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {failure === null ? null : <p className="text-meta text-danger">{failure}</p>}
+                    {failure === null ? null : (
+                        <div className="bg-danger/10 text-meta mx-3 mb-1 flex items-start gap-2 rounded-lg px-3 py-2">
+                            <CircleAlert className="text-danger mt-0.5 size-3.5 shrink-0" />
+                            <span className="text-danger min-w-0 break-words">{failure}</span>
+                        </div>
+                    )}
 
                     {/* No first on a phone too: the safe answer is where the thumb lands. */}
                     <DialogFooter className="flex-col sm:flex-row">
