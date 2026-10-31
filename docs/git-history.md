@@ -68,6 +68,27 @@ Remote Git checks and automatic CLI updates are disabled for these processes. Ot
 features follow the user's configuration; optional AI/provider actions inside its UI are separate
 from merely opening a review and can invoke their own tools when explicitly requested.
 
+## Why a commit opens without waiting
+
+A commit cannot change, so three layers answer for it and only the working tree is read again on
+every look:
+
+| Layer                    | Kept                                                         | Where         |
+| ------------------------ | ------------------------------------------------------------ | ------------- |
+| prefetch                 | the newest three commits, on idle; any row on hover or focus | `web.tsx`     |
+| patch                    | 20 commits per browser tab                                   | `web.tsx`     |
+| parsed diff and grammars | 10 patches per browser tab                                   | `preview.tsx` |
+| patch                    | 20 commits per server process                                | `server.ts`   |
+
+A click on a prefetched commit is the mount of the diff view and nothing else. Reading one commit
+costs three Git processes: the repository root is remembered per process, the commit and its first
+parent come from one `rev-list`, and the title is not read at all — the list the client already has
+says what each commit is called. New files in the working tree cost two processes each, so they are
+read eight at a time.
+
+`@pierre/diffs` 1.5.2 hard-codes 200 px of overscroll around the visible files; it is not an option,
+so the diff's scroll on a phone cannot be tuned from here.
+
 ## Embedding and security
 
 The CLI binds loopback. The iframe loads an opaque, random per-review URL under
