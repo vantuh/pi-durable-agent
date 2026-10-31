@@ -30,14 +30,9 @@ export type Pending = {
 type Props = {
     files: Pending[];
     onRemove?: (key: string) => void;
-    /** A picture the size the message can give it, not a chip: the transcript. */
-    large?: boolean;
 };
 
 type Shot = { src: string | undefined; name: string };
-
-/** A photo as wide as its message: a phone screenshot is unreadable in a chip. */
-const PHOTO = "block max-h-[min(60dvh,26rem)] w-auto max-w-full object-contain";
 
 function size(bytes: number): string {
     return bytes < 1024 ? `${String(bytes)} B` : `${(bytes / 1024).toFixed(1)} KB`;
@@ -200,51 +195,7 @@ function Lightbox({
     );
 }
 
-/** A photo in a message: the picture, then its name and weight. Tap it to open it full size. */
-function Photo({
-    src,
-    name,
-    bytes,
-    onOpen,
-    onRemove,
-}: {
-    src: string;
-    name: string;
-    bytes: number;
-    onOpen: () => void;
-    onRemove: (() => void) | undefined;
-}) {
-    return (
-        <figure className="rounded-control border-edge-soft bg-sunken max-w-full overflow-hidden border">
-            <button
-                type="button"
-                title="Preview"
-                aria-label={`Preview ${name}`}
-                onClick={onOpen}
-                className="block max-w-full cursor-zoom-in"
-            >
-                <img src={src} alt={name} className={PHOTO} />
-            </button>
-            <figcaption className="text-faint flex min-w-0 items-center gap-2 px-2 py-1 text-[11px]">
-                <span className="min-w-0 flex-1 truncate font-mono">{name}</span>
-                <span className="shrink-0 tabular-nums">{size(bytes)}</span>
-                {onRemove === undefined ? null : (
-                    <button
-                        type="button"
-                        title="Remove"
-                        aria-label={`Remove ${name}`}
-                        onClick={onRemove}
-                        className="hover:text-ink -mr-0.5 flex size-4 shrink-0 items-center justify-center"
-                    >
-                        <X className="size-3" />
-                    </button>
-                )}
-            </figcaption>
-        </figure>
-    );
-}
-
-/** A file as a card, its picture a chip: the composer's row, and the transcript's files that are not pictures. */
+/** A file as a card, its picture a chip: a message's attachments, and the composer's row. */
 function Chip({
     file,
     src,
@@ -348,7 +299,8 @@ export function ImageThumbs({ images }: { images: { src: string; name: string }[
     );
 }
 
-export function Attachments({ files, onRemove, large = false }: Props) {
+/** What a message or the composer's row holds: one card per file, a picture's opening in the viewer. */
+export function Attachments({ files, onRemove }: Props) {
     const [open, setOpen] = useState<string | undefined>(undefined);
     const photos = files.filter((file) => file.image && file.state === "done");
     const shown = photos.findIndex((file) => file.key === open);
@@ -368,22 +320,7 @@ export function Attachments({ files, onRemove, large = false }: Props) {
                           }
                         : undefined;
 
-                return large && src !== undefined && preview !== undefined ? (
-                    <Photo
-                        key={file.key}
-                        src={src}
-                        name={file.name}
-                        bytes={file.size}
-                        onOpen={preview}
-                        onRemove={
-                            onRemove === undefined
-                                ? undefined
-                                : () => {
-                                      onRemove(file.key);
-                                  }
-                        }
-                    />
-                ) : (
+                return (
                     <Chip
                         key={file.key}
                         file={file}
