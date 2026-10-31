@@ -1,112 +1,24 @@
-import { RotateCw, X } from "lucide-react";
+import { lazy, Suspense } from "react";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Props } from "./settings-content.tsx";
 
-import { useSettingsSections } from "../extensions.ts";
-import { restartServer } from "../lib/api.ts";
-import { toast } from "../lib/toast.ts";
-import type { SettingsProps } from "../sdk/types.ts";
-import { ItemBoundary } from "../ui/item-boundary.tsx";
-import { AppearanceButton } from "./appearance-dialog.tsx";
-import { ExtensionsButton } from "./extensions-dialog.tsx";
+// The contents (and the dialogs behind their buttons) are fetched at the first open, not at boot.
+const Content = lazy(async () => ({
+    default: (await import("./settings-content.tsx")).SettingsContent,
+}));
 
-type Props = {
-    model: string;
-    cwd: string;
-    session: SettingsProps["session"];
-    open: boolean;
-    epoch: number;
-    onClose: () => void;
-};
-
-export function Settings({ model, cwd, session, open, epoch, onClose }: Props) {
-    const sections = useSettingsSections();
-
+export function Settings({ open, ...props }: Props) {
     return (
         <aside
             data-open={open ? "" : undefined}
             className="rounded-card border-edge-soft bg-canvas invisible fixed inset-2 z-20 flex min-w-0 shrink-0 justify-end overflow-hidden border transition-[translate,visibility] duration-200 ease-out data-[open]:pointer-events-auto data-[open]:visible motion-reduce:transition-none max-lg:translate-x-[calc(100%+8px)] max-lg:data-[open]:translate-x-0 lg:relative lg:inset-auto lg:z-auto lg:w-0 lg:transition-[width,visibility] lg:data-[open]:w-[360px]"
         >
-            {/* Pinned to the right edge while the panel narrows: it leaves like a drawer, not a squashed card. */}
-            <div className="flex w-full min-w-0 flex-col lg:w-[360px] lg:shrink-0">
-                <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
-                    <h2 className="text-interface text-ink font-medium">Settings</h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        title="Close"
-                        className="rounded-control text-muted hover:bg-raised flex size-6 items-center justify-center"
-                    >
-                        <X className="size-4" />
-                    </button>
-                </header>
-
-                <ScrollArea className="min-h-0 flex-1">
-                    <div className="divide-edge-soft flex flex-col divide-y">
-                        <section className="flex flex-col gap-1.5 p-3">
-                            <h3 className="text-meta text-faint">Session</h3>
-                            <Row label="model" value={model} />
-                            <Row label="folder" value={cwd} />
-                        </section>
-
-                        {/* Nothing reads until the first open; it then stays, so the closing panel still has content. */}
-                        {epoch === 0
-                            ? null
-                            : sections.map(({ folder, id, title, component: Section }) => (
-                                  <section
-                                      key={`${folder}:${id}:${String(epoch)}`}
-                                      className="flex flex-col gap-1.5 p-3"
-                                  >
-                                      <h3 className="text-meta text-faint">{title}</h3>
-                                      <ItemBoundary name={`${folder}:${id}`}>
-                                          <Section session={session} />
-                                      </ItemBoundary>
-                                  </section>
-                              ))}
-                    </div>
-                </ScrollArea>
-
-                <footer className="border-edge-soft flex items-center gap-1 border-t px-3 py-2">
-                    <ExtensionsButton />
-                    <AppearanceButton />
-                    <RestartButton />
-                </footer>
-            </div>
+            {/* Nothing is fetched until the first open; it then stays, so the closing panel still has content. */}
+            {props.epoch === 0 ? null : (
+                <Suspense fallback={null}>
+                    <Content {...props} />
+                </Suspense>
+            )}
         </aside>
-    );
-}
-
-/** Starts a new server process; running work resumes, and the event stream reconnects on its own. */
-function RestartButton() {
-    return (
-        <button
-            type="button"
-            title="Restart the server: running work resumes"
-            aria-label="Restart the server"
-            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent ml-auto flex size-7 items-center justify-center outline-none focus-visible:ring-2"
-            onClick={() => {
-                void restart();
-            }}
-        >
-            <RotateCw className="size-4" />
-        </button>
-    );
-}
-
-async function restart(): Promise<void> {
-    try {
-        await restartServer();
-        toast.info("Restarting. Running work continues after the restart.");
-    } catch {
-        toast.error("Could not restart. Start the app with pnpm dev or pnpm start.");
-    }
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="flex items-baseline justify-between gap-3">
-            <span className="text-meta text-faint shrink-0">{label}</span>
-            <span className="text-meta text-muted min-w-0 truncate font-mono">{value}</span>
-        </div>
     );
 }
