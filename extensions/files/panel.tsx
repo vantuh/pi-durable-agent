@@ -250,22 +250,35 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
 export function FilesPanel({ session }: PanelProps) {
     const id = session?.id ?? null;
     const [path, setPath] = useState<string | null>(null);
+    /** The panel itself slides in; only a swap within it fades, so the first screen does not move twice. */
+    const [entered, setEntered] = useState(false);
 
     if (id === null || session?.cwd === null) {
         return <p className="text-faint text-interface p-3">Open a session to browse its files.</p>;
     }
 
+    const swap = entered
+        ? "animate-drop-in flex min-h-0 flex-1 flex-col"
+        : "flex min-h-0 flex-1 flex-col";
+
     return path === null ? (
-        <div key="tree" className="animate-drop-in flex min-h-0 flex-1 flex-col">
-            <Tree id={id} onOpen={setPath} />
+        <div key="tree" className={swap}>
+            <Tree
+                id={id}
+                onOpen={(next) => {
+                    setEntered(true);
+                    setPath(next);
+                }}
+            />
         </div>
     ) : (
-        <div key="viewer" className="animate-drop-in flex min-h-0 flex-1 flex-col">
+        <div key="viewer" className={swap}>
             <Viewer
                 key={path}
                 id={id}
                 path={path}
                 onBack={() => {
+                    setEntered(true);
                     setPath(null);
                 }}
             />
