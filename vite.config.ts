@@ -53,5 +53,23 @@ export default defineConfig({
     build: {
         outDir: "../dist",
         emptyOutDir: true,
+        rolldownOptions: {
+            output: {
+                // Vendor code is not app code: in the entry chunk, every edit to the app re-ships all of
+                // it. Split the eager vendor code instead, so the entry is the size of our own code.
+                // `$initial` keeps lazy chunks — shiki grammars, @pierre/diffs — as they are: each is named
+                // after what it holds and fetched only when a code block or a diff needs it.
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: "react",
+                            test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+                            tags: ["$initial"],
+                        },
+                        { name: "vendor", test: /node_modules[\\/]/, tags: ["$initial"] },
+                    ],
+                },
+            },
+        },
     },
 });
