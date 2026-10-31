@@ -67,7 +67,8 @@ const DIST = resolve(import.meta.dirname, "../dist");
 const PORT = Number(process.env["PORT"] ?? 8788);
 const DATA_DIR = resolve(process.env["PI_DURABLE_DATA_DIR"] ?? join(process.cwd(), "data"));
 const MODEL = process.env["MODEL"] ?? "openai/gpt-6.1-sol";
-const IDLE_HEARTBEAT_MS = 20_000;
+// A phone radio that wakes every 20 s never rests; 45 s still stays under the usual proxy idle timeouts.
+const IDLE_HEARTBEAT_MS = 45_000;
 /**
  * The bytes one `hello` carries, newest entries first: opening a session should show the last turns, not
  * wait for its whole history. The server answers in milliseconds, so what a phone on a slow link waits for
