@@ -109,7 +109,6 @@ export function useConversation(session: number | null): {
         }
 
         asking.current = true;
-        setState((current) => ({ ...current, loadingOlder: true }));
 
         try {
             const page = await fetchHistory(session, before);
@@ -117,12 +116,11 @@ export function useConversation(session: number | null): {
             setState((current) =>
                 current.session === session && page !== undefined
                     ? withOlder(current, page)
-                    : { ...current, loadingOlder: false },
+                    : current,
             );
         } catch {
             setState((current) => ({
                 ...current,
-                loadingOlder: false,
                 issue: "the older messages did not arrive",
             }));
         } finally {

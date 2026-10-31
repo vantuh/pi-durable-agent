@@ -261,7 +261,6 @@ export function App() {
                                 title={active?.title ?? null}
                                 entries={state.entries}
                                 live={state.live}
-                                loadingOlder={state.loadingOlder}
                                 exhausted={state.exhausted}
                                 loading={loading}
                                 onLoadOlder={loadOlder}

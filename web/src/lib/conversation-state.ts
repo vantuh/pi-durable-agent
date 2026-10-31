@@ -18,8 +18,6 @@ export type ConversationState = {
     entries: ClientEntry[];
     live: ClientLive;
     issue: string | null;
-    /** A page of older entries is being fetched for the top of the transcript. */
-    loadingOlder: boolean;
     /** The conversation's first entry is on screen: there is nothing older to ask for. */
     exhausted: boolean;
 };
@@ -31,7 +29,6 @@ export const START: ConversationState = {
     entries: [],
     live: IDLE,
     issue: null,
-    loadingOlder: false,
     exhausted: false,
 };
 
@@ -94,7 +91,6 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
                 session: event.session,
                 entries: mergeEntries(same ? state.entries : [], event.entries),
                 live: event.live,
-                loadingOlder: same ? state.loadingOlder : false,
                 exhausted: same ? state.exhausted || !event.more : !event.more,
                 issue: null,
             };
@@ -136,7 +132,6 @@ export function withOlder(state: ConversationState, page: ClientHistory): Conver
     return {
         ...state,
         entries: mergeEntries(state.entries, page.entries),
-        loadingOlder: false,
         exhausted: !page.more,
     };
 }

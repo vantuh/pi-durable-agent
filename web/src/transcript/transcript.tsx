@@ -108,15 +108,31 @@ type Props = {
     below: ReactNode;
     /** Asks the server for the page older than what is on screen. */
     onLoadOlder: () => Promise<void>;
-    loadingOlder: boolean;
     /** The conversation's first entry is on screen: scrolling up asks for nothing more. */
     exhausted: boolean;
     /** The stream has not answered for this conversation yet, so an empty screen may still fill. */
     loading: boolean;
 };
 
-/** How close to the top the reader is when the older page is asked for. */
-const OLDER_AT = 240;
+/** Two screens from the top the older page is asked for, so a flick upward does not reach the top before it lands. */
+const olderAt = (el: HTMLElement): number => el.clientHeight * 2;
+
+/**
+ * The room above the oldest loaded turn while more history exists: a flick upward runs into it instead of stopping
+ * dead at the top, and the page that lands goes in below it. Never the browser's scroll anchor: the turns are what
+ * must hold still.
+ */
+function OlderRoom() {
+    return (
+        <div
+            aria-hidden
+            className="flex min-h-[60svh] flex-col justify-end gap-5 [mask-image:linear-gradient(to_bottom,transparent,black_70%)] [overflow-anchor:none]"
+        >
+            <LoadingTurn />
+            <LoadingTurn />
+        </div>
+    );
+}
 
 /**
  * Where the first turn will land: the shape of a question and an answer, pulsing in a wave. An empty screen that shows
@@ -413,7 +429,6 @@ export function Transcript({
     onOpenSession,
     below,
     onLoadOlder,
-    loadingOlder,
     exhausted,
     loading,
 }: Props) {
@@ -454,18 +469,25 @@ export function Transcript({
         const prepended =
             previous !== null && previous.first !== undefined && previous.first !== first;
 
-        measured.current = { first, height, top };
-
         if (prepended) {
-            // An older page arrived above: keep the words the reader was looking at where they were.
-            target.scrollTop = height - previous.height + previous.top;
+            // An older page arrived above: keep the words the reader was looking at where they were. Chrome and
+            // Firefox already did it unless the reader was at the very top; Safari before 27 never does. Writing
+            // scrollTop again would undo the reader's last unreported step and stop a flick.
+            const grown = height - previous.height;
+            const anchored = Math.abs(top - previous.top - grown) < Math.abs(top - previous.top);
+
+            if (!anchored) {
+                target.scrollTop = top + grown;
+            }
         } else if (following.current) {
             target.scrollTop = target.scrollHeight;
         }
 
+        measured.current = { first, height, top: target.scrollTop };
+
         // A tail too short to scroll fires no scroll event, so a compaction's short view would never ask for what it
         // set aside. Once per first entry: a failed answer must not be asked for again by the commit it caused.
-        if (!exhausted && target.scrollTop < OLDER_AT && autoAsked.current !== first) {
+        if (!exhausted && target.scrollTop < olderAt(target) && autoAsked.current !== first) {
             autoAsked.current = first;
             void onLoadOlder();
         }
@@ -577,7 +599,7 @@ export function Transcript({
                             };
                         }
 
-                        if (el.scrollTop < OLDER_AT && !exhausted) {
+                        if (el.scrollTop < olderAt(el) && !exhausted) {
                             void onLoadOlder();
                         }
                     },
@@ -587,14 +609,7 @@ export function Transcript({
                     ref={content}
                     className="mx-auto flex max-w-[var(--chat-width)] flex-col gap-4"
                 >
-                    {loadingOlder ? (
-                        <div className="sticky top-0 z-10 flex justify-center">
-                            <span className="bg-raised text-meta text-muted flex items-center gap-1.5 rounded-full px-2.5 py-1">
-                                <Spinner className="size-3" />
-                                earlier messages
-                            </span>
-                        </div>
-                    ) : null}
+                    {exhausted || entries.length === 0 ? null : <OlderRoom />}
 
                     <SessionContext value={session}>
                         {turns.map((turn) => (

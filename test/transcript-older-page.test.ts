@@ -39,7 +39,10 @@ const QUIET_MS = 1000;
 const SCROLLER = `[...document.querySelectorAll("[data-radix-scroll-area-viewport]")]
     .find((box) => box.innerText.includes("newest question"))`;
 const TAIL_SHOWN = `${SCROLLER} !== undefined`;
-const CANNOT_SCROLL = `${SCROLLER}.scrollHeight <= ${SCROLLER}.clientHeight`;
+// The placeholder above the oldest turn is the first hidden-from-readers element in the box; seeing it means the
+// whole tail is already on screen and no wheel is needed to reach what is above it.
+const TAIL_FITS = `${SCROLLER}.querySelector("[aria-hidden]").getBoundingClientRect().bottom >
+    ${SCROLLER}.getBoundingClientRect().top`;
 const OLDER_SHOWN = `document.body.innerText.includes(${JSON.stringify(OLDEST)})`;
 
 /** A record read by key: what Chromium hands back from `Runtime.evaluate` is untyped JSON. */
@@ -378,7 +381,7 @@ async function withApp(
 }
 
 void describe("the transcript's older pages", () => {
-    void it("asks for them when the view cannot scroll", async (t) => {
+    void it("asks for them when the tail fits the view", async (t) => {
         const chromium = await loadBrowser();
 
         if (chromium === undefined) {
@@ -401,10 +404,10 @@ void describe("the transcript's older pages", () => {
                 true,
                 "the stream's tail is on screen",
             );
-            // The case the bug needs, measured while the older page is held: a box with nothing to scroll, so no
-            // scroll event can ever be the thing that asks for what is above it.
+            // The case the bug needs, measured while the older page is held: a tail that fits, so no wheel or
+            // scrollbar is ever the thing that asks for what is above it.
             assert.equal(
-                await screen.seen(CANNOT_SCROLL),
+                await screen.seen(TAIL_FITS),
                 true,
                 "the tail is shorter than the transcript's box",
             );
@@ -469,7 +472,7 @@ void describe("the transcript's older pages", () => {
                 "the stream's tail is on screen",
             );
             assert.equal(
-                await screen.seen(CANNOT_SCROLL),
+                await screen.seen(TAIL_FITS),
                 true,
                 "the tail is shorter than the transcript's box, so nothing on screen can ask again",
             );
