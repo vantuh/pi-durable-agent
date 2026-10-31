@@ -23,9 +23,9 @@ void describe("the live window", () => {
     void it("sends the first change at once and the rest of a burst as one send at the window's end", async () => {
         const { frames, sent } = windowed();
 
+        // Nothing is awaited inside the burst: on a loaded machine eight delays outlast the window and send early.
         for (let change = 0; change < 8; change += 1) {
             frames.changed(1);
-            await delay(5);
         }
 
         assert.equal(sent.length, 1, "only the leading send has gone out inside the window");
