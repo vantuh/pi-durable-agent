@@ -115,7 +115,7 @@ function ExtensionList() {
             <>
                 {header}
                 <p
-                    className={`text-meta p-3 ${loadError === undefined ? "text-faint" : "text-danger"}`}
+                    className={`text-meta animate-drop-in p-3 ${loadError === undefined ? "text-faint" : "text-danger"}`}
                 >
                     {loadError ?? "Loading…"}
                 </p>
@@ -129,7 +129,7 @@ function ExtensionList() {
         return (
             <>
                 {header}
-                <ScrollArea className="min-h-0 flex-1">
+                <ScrollArea key={current.name} className="animate-drop-in min-h-0 flex-1">
                     <div className="flex flex-col gap-3 px-3 py-3">
                         <div className="text-interface text-ink flex items-center justify-between gap-3">
                             Enabled
@@ -162,7 +162,7 @@ function ExtensionList() {
     return (
         <>
             {header}
-            <ScrollArea className="min-h-0 flex-1">
+            <ScrollArea key="list" className="animate-drop-in min-h-0 flex-1">
                 <ul className="divide-edge-soft flex flex-col divide-y">
                     {rows.map((row) => {
                         const problem = failure?.name === row.name ? failure.message : row.error;

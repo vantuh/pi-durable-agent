@@ -306,7 +306,7 @@ function ReviewFrame({ url }: { url: string }) {
             src={url}
             referrerPolicy="no-referrer"
             sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox"
-            className="min-h-0 w-full flex-1 border-0"
+            className="animate-drop-in min-h-0 w-full flex-1 border-0"
         />
     );
 }
@@ -787,7 +787,10 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                             Review is not running. Return to history to start another.
                         </div>
                     ) : (
-                        <div className="min-h-0 flex-1 overflow-auto" ref={scroller}>
+                        <div
+                            className="animate-drop-in min-h-0 flex-1 overflow-auto"
+                            ref={scroller}
+                        >
                             {data === null && loading ? (
                                 <p className="text-muted p-4">Reading Git history…</p>
                             ) : null}

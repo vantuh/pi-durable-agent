@@ -131,7 +131,9 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
                                 )}
                                 <span className="truncate">{entry.name}</span>
                             </button>
-                            {entry.dir && expanded ? rows(path, depth + 1) : null}
+                            {entry.dir && expanded ? (
+                                <div className="animate-drop-in">{rows(path, depth + 1)}</div>
+                            ) : null}
                         </div>
                     );
                 })}
@@ -254,15 +256,19 @@ export function FilesPanel({ session }: PanelProps) {
     }
 
     return path === null ? (
-        <Tree id={id} onOpen={setPath} />
+        <div key="tree" className="animate-drop-in flex min-h-0 flex-1 flex-col">
+            <Tree id={id} onOpen={setPath} />
+        </div>
     ) : (
-        <Viewer
-            key={path}
-            id={id}
-            path={path}
-            onBack={() => {
-                setPath(null);
-            }}
-        />
+        <div key="viewer" className="animate-drop-in flex min-h-0 flex-1 flex-col">
+            <Viewer
+                key={path}
+                id={id}
+                path={path}
+                onBack={() => {
+                    setPath(null);
+                }}
+            />
+        </div>
     );
 }

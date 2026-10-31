@@ -102,13 +102,15 @@ function Rows({
                         )}
                         {/* A path can be both a folder and a file: the file then keeps its children. */}
                         {open ? (
-                            <Rows
-                                branches={branch.folders}
-                                depth={depth + 1}
-                                folded={folded}
-                                onFold={onFold}
-                                onPick={onPick}
-                            />
+                            <div className="animate-drop-in">
+                                <Rows
+                                    branches={branch.folders}
+                                    depth={depth + 1}
+                                    folded={folded}
+                                    onFold={onFold}
+                                    onPick={onPick}
+                                />
+                            </div>
                         ) : null}
                     </li>
                 );
