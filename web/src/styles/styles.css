@@ -265,16 +265,15 @@ body {
     animation: drop-out 100ms ease-out forwards;
 }
 
+/* An extension's panel comes in from the edge, as the settings panel does. */
 @keyframes panel-in {
     from {
-        opacity: 0;
-        translate: 8px 0;
+        translate: calc(100% + 8px) 0;
     }
 }
 
-/* An extension's panel arrives beside the conversation, which takes the space back in one step. */
 [data-slot="panel-host"] {
-    animation: panel-in 150ms ease-out;
+    animation: panel-in 200ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
