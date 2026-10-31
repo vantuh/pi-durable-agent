@@ -9,13 +9,14 @@ It is independent of `git-stats`: disabling either does not disable the other.
 - Open History to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
   50 local commits. Load older commits up to 200. Refresh reads local Git only; it never fetches.
 - Uncommitted changes appear above the commits. Click a row for a bounded diff preview
-  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. The opened row
-  moves to the top of the list, so the diff starts at the top of the screen. Each file has its own
-  header with its line counts: clicking it folds the file, and it stays at the top of the diff until
-  the next file's header takes its place. Files start expanded. On a wide screen a file tree beside
-  the diff lists every file with its line counts and scrolls to the one clicked; it is left out when
-  the change touches a single file, and a phone shows the diff alone. Untracked non-ignored files
-  are included; binary files are listed without a text diff.
+  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. The box takes
+  the height its diff needs, up to 70% of the window, and scrolls beyond that. The opened row moves
+  to the top of the list, so the diff starts at the top of the screen. Each file has its own header
+  with its line counts: clicking it folds the file, and it stays at the top of the diff until the
+  next file's header takes its place. Files start expanded. On a wide screen a file tree beside the
+  diff lists every file with its line counts and scrolls to the one clicked; it is left out when the
+  change touches a single file, and a phone shows the diff alone. Untracked non-ignored files are
+  included; binary files are listed without a text diff.
 - The preview is virtualized: only the files near the viewport are in the page, so a commit of
   hundreds of files opens as fast as a small one. A commit's diff cannot change, so reopening it is
   a cache hit; the working tree is read again every time.

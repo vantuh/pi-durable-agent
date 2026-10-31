@@ -287,7 +287,9 @@ export function PatchPreview({ data }: { data: Changes }) {
         <>
             {/* CodeView renders only the files near the viewport: a 400 KiB commit costs one file. */}
             {items.length === 0 ? null : (
-                <div className="flex h-[70vh] min-h-0">
+                <div className="flex max-h-[70vh] min-h-0">
+                    {/* The box hugs its diff until 70vh, where a tall one scrolls with the header
+                        pinned; a fixed height would leave a short diff in an empty field. */}
                     {/* The tree is for a pointer and a wide screen; a phone reads the diff alone. */}
                     {items.length < 2 ? null : (
                         <div className="border-edge-soft hidden w-60 shrink-0 border-r md:block">
@@ -299,7 +301,7 @@ export function PatchPreview({ data }: { data: Changes }) {
                         items={items}
                         options={{ ...options, diffStyle: style }}
                         renderCustomHeader={header}
-                        className="h-full min-h-0 flex-1 overflow-auto"
+                        className="min-h-0 flex-1 overflow-auto"
                     />
                 </div>
             )}
