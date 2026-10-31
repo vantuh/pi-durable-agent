@@ -606,8 +606,9 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                 }}
             >
                 <DialogContent className="sm:inset-3 sm:max-h-none sm:w-auto sm:max-w-none sm:translate-x-0 sm:translate-y-0">
-                    {/* One row: the title, then what the session's folder is and its way of refreshing. */}
-                    <DialogHeader className="py-2">
+                    {/* One row: the title, then what the session's folder is and its way of refreshing.
+                        `pr-11` leaves the gap the close button needs without crowding the refresh. */}
+                    <DialogHeader className="pr-11">
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <DialogTitle className="min-w-0 flex-1 truncate">
                                 {viewer ? "Plannotator review" : "Git history & review"}
@@ -626,7 +627,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                             ) : data?.branch ? (
                                 <Badge
                                     title={`${data.branch} in ${session.cwd ?? "this folder"}`}
-                                    className="h-4 min-w-0 shrink px-1.5 [&>svg]:size-2.5"
+                                    className="h-4 max-w-36 min-w-0 shrink px-1.5 [&>svg]:size-2.5"
                                 >
                                     <GitBranch />
                                     <span className="truncate">{data.branch}</span>
@@ -655,7 +656,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                         }}
                                     >
                                         <RefreshCw
-                                            className={`size-3.5 ${loading ? "animate-spin" : ""}`}
+                                            className={`size-4 ${loading ? "animate-spin" : ""}`}
                                         />
                                     </button>
                                     {running(state) ? (
