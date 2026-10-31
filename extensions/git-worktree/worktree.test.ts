@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
-import { makeWorktree, slugOf, worktreeOf } from "./worktree.ts";
+import { linkedWorktreeOf, makeWorktree, removeWorktree, slugOf, worktreeOf } from "./worktree.ts";
 
 const run = promisify(execFile);
 
@@ -157,6 +158,45 @@ void describe("git-worktree", () => {
 
         await assert.rejects(makeWorktree(data, repo, "taken"), /already has a branch named taken/);
     });
+
+    void it("removes the folder of a worktree and keeps its branch, and its commits", async () => {
+        await init();
+        const made = await makeWorktree(data, repo, "try-it");
+
+        await writeFile(join(made.path, "file"), "second\n");
+        await git(made.path, ["commit", "-am", "second"]);
+
+        assert.deepEqual(await removeWorktree(data, made.path), { removed: made.worktree });
+        assert.equal(existsSync(made.worktree), false);
+        assert.ok(!(await git(repo, ["worktree", "list"])).stdout.includes("try-it"));
+        assert.ok((await git(repo, ["branch", "--list", "try-it"])).stdout.includes("try-it"));
+        assert.match((await git(repo, ["log", "--oneline", "try-it"])).stdout, /second/);
+    });
+
+    void it("refuses to remove a worktree git would lose changes from, and keeps it", async () => {
+        await init();
+        const made = await makeWorktree(data, repo, "busy");
+
+        await writeFile(join(made.path, "new.txt"), "not committed\n");
+
+        await assert.rejects(removeWorktree(data, made.path), /modified or untracked files/);
+        assert.ok(existsSync(join(made.path, "new.txt")));
+    });
+
+    void it("refuses a folder that is no worktree of this server", async () => {
+        await init();
+
+        await assert.rejects(removeWorktree(data, repo), /does not work in a worktree/);
+    });
+
+    void it("refuses a worktree that is not there any more", async () => {
+        await init();
+        const made = await makeWorktree(data, repo, "gone");
+
+        await rm(made.worktree, { recursive: true, force: true });
+
+        await assert.rejects(removeWorktree(data, made.path), /not there any more/);
+    });
 });
 
 void describe("git-worktree worktreeOf", () => {
@@ -175,13 +215,18 @@ void describe("git-worktree worktreeOf", () => {
 
         const at = join(dir, "worktrees", "repo", "try-it");
 
-        assert.deepEqual(worktreeOf(dir, at), { name: "try-it", gone: false });
-        assert.deepEqual(worktreeOf(dir, join(at, "packages")), { name: "try-it", gone: false });
+        assert.deepEqual(worktreeOf(dir, at), { name: "try-it", folder: at, gone: false });
+        assert.deepEqual(worktreeOf(dir, join(at, "packages")), {
+            name: "try-it",
+            folder: at,
+            gone: false,
+        });
     });
 
     void it("says a worktree that is not there any more is gone", () => {
         assert.deepEqual(worktreeOf(dir, join(dir, "worktrees", "repo", "gone-one")), {
             name: "gone-one",
+            folder: join(dir, "worktrees", "repo", "gone-one"),
             gone: true,
         });
     });
@@ -192,6 +237,46 @@ void describe("git-worktree worktreeOf", () => {
         assert.equal(worktreeOf(dir, join(dir, "worktrees-somewhere", "repo", "x")), null);
         assert.equal(worktreeOf(dir, join(dir, "repo")), null);
         assert.equal(worktreeOf(dir, join(dir, "worktrees", "..", "repo")), null);
+    });
+});
+
+void describe("git-worktree linkedWorktreeOf", () => {
+    void it("names a linked worktree someone else made, and not the main checkout", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-linked-"));
+
+        try {
+            const main = join(at, "main");
+            const linked = join(at, "side-work");
+
+            await run("git", ["init", "-q", "-b", "main", main]);
+            await mkdir(join(linked));
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "x",
+                ],
+                { cwd: main },
+            );
+            await run("git", ["worktree", "add", "-q", "-b", "other", linked], { cwd: main });
+
+            // git answers with the path it resolved, and /var is a link to /private/var.
+            assert.deepEqual(await linkedWorktreeOf(linked), {
+                name: "side-work",
+                folder: await realpath(linked),
+            });
+            assert.equal(await linkedWorktreeOf(main), null);
+            assert.equal(await linkedWorktreeOf(join(at, "nothing")), null);
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
     });
 });
 

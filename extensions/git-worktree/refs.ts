@@ -11,8 +11,11 @@ export type MadeWorktree = {
 
 export type MakeArgs = { cwd: string; name: string };
 
-/** One of this server's worktrees: its name, and whether its folder is still there. */
-export type WorktreeState = { name: string; gone: boolean };
+/**
+ * A worktree a session works in: its name, its folder, whether that folder is still there, and whether
+ * this server made it — only ours can be removed from here.
+ */
+export type WorktreeState = { name: string; folder: string; gone: boolean; ours: boolean };
 
 /** Whether `cwd` is a worktree this server made, and whether it is still there; null for any other folder. */
 export const state = actionRef<{ cwd: string }, WorktreeState | null>(
@@ -25,14 +28,39 @@ export const state = actionRef<{ cwd: string }, WorktreeState | null>(
 
         if (typeof value === "object") {
             const name: unknown = Reflect.get(value, "name");
+            const folder: unknown = Reflect.get(value, "folder");
             const gone: unknown = Reflect.get(value, "gone");
+            const ours: unknown = Reflect.get(value, "ours");
 
-            if (typeof name === "string" && typeof gone === "boolean") {
-                return { name, gone };
+            if (
+                typeof name === "string" &&
+                typeof folder === "string" &&
+                typeof gone === "boolean" &&
+                typeof ours === "boolean"
+            ) {
+                return { name, folder, gone, ours };
             }
         }
 
-        throw new Error("the worktree must be its name and whether it is gone, or null");
+        throw new Error(
+            "the worktree must be its name, its folder, its state and its owner, or null",
+        );
+    },
+);
+
+/** Removes the worktree a session works in: the folder, but not the branch. */
+export const remove = actionRef<{ cwd: string }, { removed: string }>(
+    "git-worktree",
+    "remove",
+    (value) => {
+        const removed: unknown =
+            typeof value === "object" && value !== null ? Reflect.get(value, "removed") : undefined;
+
+        if (typeof removed !== "string") {
+            throw new Error("the removal must answer with the folder it removed");
+        }
+
+        return { removed };
     },
 );
 

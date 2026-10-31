@@ -4,7 +4,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import type { MadeWorktree } from "./refs.ts";
-import { makeWorktree, worktreeOf } from "./worktree.ts";
+import { linkedWorktreeOf, makeWorktree, removeWorktree, worktreeOf } from "./worktree.ts";
 
 export const meta = {
     title: "Git worktree",
@@ -30,7 +30,26 @@ export const actions = (host: Host): Record<string, Action> => ({
     make({ args }): Promise<MadeWorktree> {
         return makeWorktree(host.dataDir, text(args, "cwd"), text(args, "name"));
     },
-    state({ args }) {
-        return worktreeOf(host.dataDir, text(args, "cwd"));
+    async state({ args }) {
+        const cwd = text(args, "cwd");
+        const mine = worktreeOf(host.dataDir, cwd);
+
+        if (mine !== null) {
+            return { ...mine, ours: true };
+        }
+
+        const linked = await linkedWorktreeOf(cwd);
+
+        return linked === null ? null : { ...linked, gone: false, ours: false };
+    },
+    async remove({ args, session }) {
+        const removed = await removeWorktree(host.dataDir, text(args, "cwd"));
+
+        // The badges beside the button are another extension's, and their answer changed too.
+        if (session !== null) {
+            host.notifySessionChanged(session.id);
+        }
+
+        return removed;
     },
 });

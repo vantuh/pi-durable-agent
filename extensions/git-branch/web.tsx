@@ -1,4 +1,4 @@
-import { FolderGit2, GitBranch } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -35,8 +35,8 @@ function useCheckout(session: StatusProps["session"]): Checkout | null {
         return () => {
             alive = false;
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new folder, or a run ending (busy going false), can change the branch
-    }, [id, cwd, busy]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new folder, a run ending (busy going false), and a change its own commits do not show, can change the branch
+    }, [id, cwd, busy, session?.revision]);
 
     return checkout;
 }
@@ -49,18 +49,10 @@ function Branch({ session }: StatusProps) {
     }
 
     return (
-        <>
-            <Badge title={`Branch ${checkout.branch}`} className={BADGE}>
-                <GitBranch />
-                <span className="truncate">{checkout.branch}</span>
-            </Badge>
-            {checkout.worktree === null ? null : (
-                <Badge title={`Worktree ${checkout.worktree}`} className={BADGE}>
-                    <FolderGit2 />
-                    <span className="truncate">{checkout.worktree}</span>
-                </Badge>
-            )}
-        </>
+        <Badge title={`Branch ${checkout.branch}`} className={BADGE}>
+            <GitBranch />
+            <span className="truncate">{checkout.branch}</span>
+        </Badge>
     );
 }
 

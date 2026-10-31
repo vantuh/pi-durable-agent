@@ -47,14 +47,14 @@ void describe("git-branch branch action", () => {
             { cwd },
         );
 
-    void it("gives the branch of a git folder, and no worktree for the main checkout", async () => {
+    void it("gives the branch of a git folder", async () => {
         await run("git", ["init", "-b", "topic"], { cwd: dir });
         await commit(dir);
 
-        assert.deepEqual(await branch(dir), { branch: "topic", worktree: null });
+        assert.deepEqual(await branch(dir), { branch: "topic" });
     });
 
-    void it("names the worktree of a linked checkout, from inside it too", async () => {
+    void it("gives the branch of a linked worktree, from inside it too", async () => {
         const main = join(dir, "main");
         const linked = join(dir, "side-work");
 
@@ -63,12 +63,9 @@ void describe("git-branch branch action", () => {
         await run("git", ["worktree", "add", "-b", "other", linked], { cwd: main });
         await mkdir(join(linked, "deep"));
 
-        assert.deepEqual(await branch(linked), { branch: "other", worktree: "side-work" });
-        assert.deepEqual(await branch(join(linked, "deep")), {
-            branch: "other",
-            worktree: "side-work",
-        });
-        assert.deepEqual(await branch(main), { branch: "topic", worktree: null });
+        assert.deepEqual(await branch(linked), { branch: "other" });
+        assert.deepEqual(await branch(join(linked, "deep")), { branch: "other" });
+        assert.deepEqual(await branch(main), { branch: "topic" });
     });
 
     void it("gives null for a folder without git", async () => {
@@ -82,7 +79,7 @@ void describe("git-branch branch action", () => {
     void it("names the branch of a repository that has no commit yet", async () => {
         await run("git", ["init", "-b", "unborn"], { cwd: dir });
 
-        assert.deepEqual(await branch(dir), { branch: "unborn", worktree: null });
+        assert.deepEqual(await branch(dir), { branch: "unborn" });
     });
 
     void it("names a detached head HEAD", async () => {
@@ -90,6 +87,6 @@ void describe("git-branch branch action", () => {
         await commit(dir);
         await run("git", ["checkout", "--detach"], { cwd: dir });
 
-        assert.deepEqual(await branch(dir), { branch: "HEAD", worktree: null });
+        assert.deepEqual(await branch(dir), { branch: "HEAD" });
     });
 });

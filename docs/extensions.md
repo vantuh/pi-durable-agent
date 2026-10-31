@@ -176,8 +176,8 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   (a small store in `web.tsx` can share it between an item and a section).
 - `extensions/push` is an example of a settings section with buttons, actions and a commit
   listener ([push.md](push.md)). `extensions/git-branch` is an example of a `branch` action on
-  the server and a `title` status item: the branch, and the worktree's name when the folder is a
-  linked worktree (its git dir is not the shared one).
+  the server and a `title` status item: the branch of the session's folder. `extensions/git-worktree`
+  shows the worktree beside it, and the button that removes one.
 
 ### The service worker facet
 
@@ -887,8 +887,13 @@ on each other's files.
   in `packages/app` of the worktree.
 - Refused: a folder in no repository, and a repository with no commit yet. The worktree's branch
   stays after the session is deleted, with whatever was committed on it; nothing removes it yet.
-- `extensions/git-branch` then shows two badges: the branch, and the worktree it is a linked
-  checkout of.
+- **Beside the branch badge**, `extensions/git-worktree` shows the worktree the session is in: its
+  name, and a small × inside the badge. The × asks one question in a centred dialog — the folder,
+  what goes with it, and that the branch stays — and then removes the worktree through the `remove`
+  action. git removes it from the repository it belongs to, never from inside it: a shell there
+  would be standing in the folder being deleted. The branch is kept, and so is its commits; a
+  worktree with changes git would lose is **refused**, with git's own words shown in the dialog, and
+  nothing is removed. A worktree someone made elsewhere is shown the same way, without the ×.
 - **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
   the folder it was created in, the transcript stays readable, and the stream keeps working. What
   ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting

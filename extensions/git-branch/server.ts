@@ -1,7 +1,6 @@
-/** The git branch of the session's folder, and its worktree when it is a linked one, under its title. */
+/** The git branch of the session's folder, under its title. */
 
 import { execFile } from "node:child_process";
-import { basename } from "node:path";
 import { promisify } from "node:util";
 
 import { defineExtension } from "@earendil-works/pi-durable";
@@ -13,7 +12,7 @@ const run = promisify(execFile);
 
 export const meta = {
     title: "Git branch",
-    description: "Shows the git branch of the session's folder, and its worktree, under its title.",
+    description: "Shows the git branch of the session's folder, under its title.",
 };
 
 export default function gitBranch(host: Host) {
@@ -29,30 +28,17 @@ export const actions: Record<string, Action> = {
         }
 
         try {
-            const [{ stdout: paths }, { stdout: named }] = await Promise.all([
-                run(
-                    "git",
-                    [
-                        "rev-parse",
-                        "--path-format=absolute",
-                        "--git-dir",
-                        "--git-common-dir",
-                        "--show-toplevel",
-                    ],
-                    { cwd, timeout: 5000 },
-                ),
-                // A repository with no commit yet has no HEAD revision for `rev-parse --abbrev-ref`
-                // to describe, but the reference it points at already has its name.
-                run("git", ["symbolic-ref", "--short", "-q", "HEAD"], { cwd, timeout: 5000 }).catch(
-                    () => ({ stdout: "" }),
-                ),
-            ]);
-            const [gitDir, commonDir, top = ""] = paths.trim().split("\n");
-            // Nothing printed means a detached HEAD.
-            const name = named.trim() === "" ? "HEAD" : named.trim();
+            // Throws where there is no repository at all; everything below is a checkout.
+            await run("git", ["rev-parse", "--git-dir"], { cwd, timeout: 5000 });
+            // No name means a detached HEAD. A repository with no commit yet still names the reference
+            // its HEAD points at, so only the failure is an empty answer here.
+            const { stdout: named } = await run("git", ["symbolic-ref", "--short", "-q", "HEAD"], {
+                cwd,
+                timeout: 5000,
+            }).catch(() => ({ stdout: "" }));
+            const name = named.trim();
 
-            // A linked worktree keeps its own git dir beside the shared one; the main checkout's are the same.
-            return { branch: name, worktree: gitDir === commonDir ? null : basename(top) };
+            return { branch: name === "" ? "HEAD" : name };
         } catch {
             return null;
         }

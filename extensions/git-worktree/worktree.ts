@@ -17,7 +17,18 @@ import type { MadeWorktree } from "./refs.ts";
 const run = promisify(execFile);
 
 function describe(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
+    if (error instanceof Error) {
+        const stderr: unknown = Reflect.get(error, "stderr");
+
+        // git says what went wrong on stderr; its own message wraps that with the whole command line.
+        if (typeof stderr === "string" && stderr.trim() !== "") {
+            return stderr.trim().replace(/^(fatal|error): /, "");
+        }
+
+        return error.message;
+    }
+
+    return String(error);
 }
 
 async function git(cwd: string, args: string[]): Promise<string> {
@@ -64,23 +75,81 @@ export function slugOf(name: string): string {
         .replace(/[-.]+$/, "");
 }
 
+/** One worktree of this server's: its name, the folder it is, and whether that folder is still there. */
+export type Worktree = { name: string; folder: string; gone: boolean };
+
 /**
  * Whether `cwd` is one of the worktrees this server made, and whether its folder is still there: the
  * answer a session shows when the worktree it works in was deleted under it.
  */
-export function worktreeOf(dataDir: string, cwd: string): { name: string; gone: boolean } | null {
+export function worktreeOf(dataDir: string, cwd: string): Worktree | null {
     const root = join(dataDir, "worktrees");
     const at = relative(root, cwd);
     const parts = at.split(sep).filter((part) => part !== "");
+    const [repository, name] = parts;
 
     // `<repository>/<name>` and anything below it; nothing beside the root, and nothing above it.
-    const name = parts[1];
-
-    if (name === undefined || at.startsWith("..")) {
+    if (repository === undefined || name === undefined || at.startsWith("..")) {
         return null;
     }
 
-    return { name, gone: !existsSync(cwd) };
+    const folder = join(root, repository, name);
+
+    return { name, folder, gone: !existsSync(folder) };
+}
+
+/** A linked worktree made by someone else: its name and folder, shown but not ours to remove. */
+export async function linkedWorktreeOf(
+    cwd: string,
+): Promise<{ name: string; folder: string } | null> {
+    const [gitDir, common] = await Promise.all([
+        out(cwd, ["rev-parse", "--path-format=absolute", "--git-dir"]),
+        out(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]),
+    ]);
+
+    if (gitDir === "" || common === "" || gitDir === common) {
+        return null;
+    }
+
+    const top = await out(cwd, ["rev-parse", "--show-toplevel"]);
+
+    return top === "" ? null : { name: basename(top), folder: top };
+}
+
+/**
+ * Remove the worktree `cwd` is in: its folder, and with it whatever is in the folder and not
+ * committed. The branch stays, so the commits do. A folder git would lose work in is refused.
+ */
+export async function removeWorktree(dataDir: string, cwd: string): Promise<{ removed: string }> {
+    const worktree = worktreeOf(dataDir, cwd);
+
+    if (worktree === null) {
+        throw new ActionError("This session does not work in a worktree this server made.");
+    }
+
+    if (worktree.gone) {
+        throw new ActionError("The worktree is not there any more.");
+    }
+
+    // A worktree is removed from the repository it belongs to, never from inside itself: the shell
+    // that would run it is standing in the folder being deleted.
+    const common = await out(worktree.folder, [
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir",
+    ]);
+
+    if (common === "") {
+        throw new ActionError(`${worktree.folder} is not a worktree of a git repository.`);
+    }
+
+    await git(dirname(common), ["worktree", "remove", worktree.folder]).catch(
+        (error: unknown): never => {
+            throw new ActionError(`The worktree was not removed: ${describe(error)}`);
+        },
+    );
+
+    return { removed: worktree.folder };
 }
 
 /**

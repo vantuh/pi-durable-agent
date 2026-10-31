@@ -1,7 +1,16 @@
-import { FolderX } from "lucide-react";
+import { FolderGit2, FolderX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { callAction } from "@/sdk/actions.ts";
 import type {
@@ -11,13 +20,14 @@ import type {
     WebExtension,
 } from "@/sdk/types.ts";
 
-import { make, state, type WorktreeState } from "./refs.ts";
+import { make, remove, state, type WorktreeState } from "./refs.ts";
 
 const NAME = "name";
 
-// Shown on a phone too, unlike the branch badges: a session whose folder is gone cannot work at all.
-const GONE =
-    "border-danger text-danger inline-flex h-4 max-w-full min-w-0 shrink px-1.5 [&>svg]:size-2.5";
+// Shown on a phone too, unlike the branch badge: it carries the button that removes a worktree, and
+// a session whose folder is gone cannot work at all.
+const WORKTREE = "inline-flex h-4 max-w-full min-w-0 shrink gap-1 px-1.5 [&>svg]:size-2.5";
+const GONE = `border-danger text-danger ${WORKTREE}`;
 
 function nameOf(collected: NewSessionCollected | null): string {
     const name: unknown = collected?.[NAME];
@@ -29,7 +39,10 @@ function nameOf(collected: NewSessionCollected | null): string {
  * The worktree of the open session, read again whenever the run state changes: the session keeps no
  * word of its own that it was a worktree, so the server answers instead.
  */
-function useWorktree(session: StatusProps["session"]): WorktreeState | null {
+function useWorktree(session: StatusProps["session"]): {
+    worktree: WorktreeState | null;
+    setWorktree: (worktree: WorktreeState | null) => void;
+} {
     const [found, setFound] = useState<WorktreeState | null>(null);
     const id = session?.id ?? null;
     const cwd = session?.cwd ?? null;
@@ -55,28 +68,133 @@ function useWorktree(session: StatusProps["session"]): WorktreeState | null {
         return () => {
             alive = false;
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) is when the folder may have gone
-    }, [id, cwd, busy]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false), and a change its own commits do not show, are when the folder may have gone
+    }, [id, cwd, busy, session?.revision]);
 
-    return found;
+    return { worktree: found, setWorktree: setFound };
 }
 
-/** The worktree a session works in, in red once its folder is gone: then nothing it runs can work. */
-function Gone({ session }: StatusProps) {
-    const worktree = useWorktree(session);
+/**
+ * The worktree a session works in: a button that offers to remove it, or the same name in red once
+ * its folder is gone — then nothing the session runs can work, and there is nothing left to remove.
+ */
+function Mark({ session }: StatusProps) {
+    const { worktree, setWorktree } = useWorktree(session);
+    const [asking, setAsking] = useState(false);
+    const [removing, setRemoving] = useState(false);
+    const [failure, setFailure] = useState<string | null>(null);
 
-    if (worktree === null || !worktree.gone) {
+    if (worktree === null) {
         return null;
     }
 
+    if (worktree.gone) {
+        return (
+            <Badge
+                title={`The worktree ${worktree.name} was deleted: this session's folder is gone`}
+                className={GONE}
+            >
+                <FolderX />
+                <span className="truncate">{worktree.name}</span>
+            </Badge>
+        );
+    }
+
     return (
-        <Badge
-            title={`The worktree ${worktree.name} was deleted: this session's folder is gone`}
-            className={GONE}
-        >
-            <FolderX />
-            <span className="truncate">{worktree.name}</span>
-        </Badge>
+        <>
+            <Badge
+                title={
+                    worktree.ours
+                        ? `Worktree ${worktree.folder}, made by this server`
+                        : `Worktree ${worktree.folder}, made elsewhere`
+                }
+                className={WORKTREE}
+            >
+                <FolderGit2 />
+                <span className="truncate">{worktree.name}</span>
+                {worktree.ours ? (
+                    <button
+                        type="button"
+                        title={`Remove the worktree ${worktree.name}`}
+                        aria-label={`Remove the worktree ${worktree.name}`}
+                        onClick={() => {
+                            setFailure(null);
+                            setAsking(true);
+                        }}
+                        className="hover:text-danger -mr-0.5 flex size-3.5 shrink-0 items-center justify-center"
+                    >
+                        <X className="size-3" />
+                    </button>
+                ) : null}
+            </Badge>
+
+            <Dialog
+                open={asking}
+                onOpenChange={(open) => {
+                    if (!removing) {
+                        setAsking(open);
+                        setFailure(null);
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Remove the worktree {worktree.name}?</DialogTitle>
+                        <DialogDescription>
+                            {worktree.folder} goes, with everything in it that is not committed.
+                            What is committed stays on the branch {worktree.name}. The session stays
+                            too, but nothing it runs will work until a folder is there again.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {failure === null ? null : <p className="text-meta text-danger">{failure}</p>}
+
+                    {/* No first on a phone too: the safe answer is where the thumb lands. */}
+                    <DialogFooter className="flex-col sm:flex-row">
+                        <Button
+                            variant="ghost"
+                            disabled={removing}
+                            onClick={() => {
+                                setAsking(false);
+                                setFailure(null);
+                            }}
+                        >
+                            No
+                        </Button>
+                        <Button
+                            disabled={removing}
+                            className="bg-danger text-canvas hover:bg-danger/90"
+                            onClick={() => {
+                                setRemoving(true);
+                                setFailure(null);
+
+                                void (async () => {
+                                    try {
+                                        await callAction(
+                                            remove,
+                                            { cwd: session?.cwd ?? "" },
+                                            session?.id ?? null,
+                                        );
+                                        setWorktree({ ...worktree, gone: true });
+                                        setAsking(false);
+                                    } catch (error) {
+                                        setFailure(
+                                            error instanceof Error
+                                                ? error.message
+                                                : "The worktree was not removed.",
+                                        );
+                                    } finally {
+                                        setRemoving(false);
+                                    }
+                                })();
+                            }}
+                        >
+                            {removing ? "Removing…" : "Remove worktree"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
@@ -139,7 +257,7 @@ function Worktree({ use, refused }: NewSessionProps) {
 }
 
 export default {
-    status: [{ id: "worktree", slot: "title", component: Gone }],
+    status: [{ id: "worktree", slot: "title", component: Mark }],
     newSession: [
         {
             id: "worktree",
