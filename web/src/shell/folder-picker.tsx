@@ -1,9 +1,11 @@
 import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { NewSessionCollected } from "@/sdk/types.ts";
 
+import { type FolderNewSessionItem, useNewSessionItems } from "../extensions.ts";
 import {
     type FolderPage,
     getFavourites,
@@ -37,6 +39,17 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [path, setPath] = useState(start);
     const [hidden, setHidden] = useState(false);
     const [error, setError] = useState(false);
+    /** What each extension's option in the footer collected; null for the folder as picked. */
+    const [collected, setCollected] = useState<Record<string, NewSessionCollected | null>>({});
+    /** Why the session would not start, from the option's `blocked` or from a `place` that threw. */
+    const [problem, setProblem] = useState<string | null>(null);
+    const [opening, setOpening] = useState(false);
+    /** What an option collected, held still while the dialog renders; a change takes the last failure away. */
+    const remember = useCallback((id: string, value: NewSessionCollected | null): void => {
+        setProblem(null);
+        setCollected((all) => ({ ...all, [id]: value }));
+    }, []);
+    const options = useNewSessionItems();
     const [favourites, setFavourites] = useState<string[]>([]);
     /** The stored list is here: a star pressed before it would save one folder over all of them. */
     const [favouritesLoaded, setFavouritesLoaded] = useState(false);
@@ -114,6 +127,38 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         );
 
     const trail = crumbs(page?.path ?? path);
+    const picked = page?.path ?? path;
+
+    // Each option is asked about the values it collected itself; the first refusal stops Open.
+    const blocked =
+        problem ??
+        options.reduce<string | null>(
+            (why, option) => why ?? option.blocked?.(collected[option.id] ?? null) ?? null,
+            null,
+        );
+
+    /** Where the session starts: the folder as picked, through each option that collected something. */
+    const startIn = async (folder: string): Promise<void> => {
+        let where = folder;
+
+        try {
+            for (const option of options) {
+                const mine = collected[option.id] ?? null;
+
+                if (mine !== null) {
+                    where = await option.place(where, mine);
+                }
+            }
+        } catch (failure) {
+            setProblem(failure instanceof Error ? failure.message : "The session could not start.");
+
+            return;
+        } finally {
+            setOpening(false);
+        }
+
+        onOpen(where);
+    };
 
     return (
         <Dialog
@@ -141,7 +186,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         return;
                     }
 
-                    onOpen(page?.path ?? path);
+                    void startIn(picked);
                 }}
             >
                 <DialogHeader className="px-4 py-3 pr-10">
@@ -230,36 +275,52 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     </ScrollArea>
                 </div>
 
-                <footer className="border-edge-soft mt-3 flex items-center justify-between gap-3 border-t px-4 py-3">
-                    <label className="text-muted text-meta flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            checked={hidden}
-                            onChange={(event) => {
-                                setHidden(event.target.checked);
-                            }}
+                <footer className="border-edge-soft mt-3 flex flex-col gap-2 border-t px-4 py-3">
+                    {options.map((option) => (
+                        <Option
+                            key={`${option.folder}/${option.id}`}
+                            option={option}
+                            cwd={page?.path ?? null}
+                            onUse={remember}
                         />
-                        Show hidden
-                    </label>
+                    ))}
 
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="rounded-control bg-raised text-ink text-interface px-3 py-1.5"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            ref={openRef}
-                            type="button"
-                            onClick={() => {
-                                onOpen(page?.path ?? path);
-                            }}
-                            className="rounded-control bg-accent text-on-accent text-interface px-3 py-1.5 font-medium"
-                        >
-                            Open
-                        </button>
+                    {blocked === null ? null : <p className="text-danger text-meta">{blocked}</p>}
+
+                    <div className="flex items-center justify-between gap-3">
+                        <label className="text-muted text-meta flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={hidden}
+                                onChange={(event) => {
+                                    setHidden(event.target.checked);
+                                }}
+                            />
+                            Show hidden
+                        </label>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="rounded-control bg-raised text-ink text-interface px-3 py-1.5"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                ref={openRef}
+                                type="button"
+                                disabled={blocked !== null || opening}
+                                onClick={() => {
+                                    setOpening(true);
+                                    setProblem(null);
+                                    void startIn(picked);
+                                }}
+                                className="rounded-control bg-accent text-on-accent text-interface px-3 py-1.5 font-medium disabled:opacity-50"
+                            >
+                                Open
+                            </button>
+                        </div>
                     </div>
                 </footer>
             </DialogContent>
@@ -298,4 +359,25 @@ function Row({
             </button>
         </div>
     );
+}
+
+/** One extension's option in the footer, given a `use` that holds still while the dialog renders. */
+function Option({
+    option,
+    cwd,
+    onUse,
+}: {
+    option: FolderNewSessionItem;
+    cwd: string | null;
+    onUse: (id: string, collected: NewSessionCollected | null) => void;
+}) {
+    const { id, component: Component } = option;
+    const use = useCallback(
+        (collected: NewSessionCollected | null) => {
+            onUse(id, collected);
+        },
+        [id, onUse],
+    );
+
+    return <Component cwd={cwd} use={use} />;
 }

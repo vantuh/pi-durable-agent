@@ -33,6 +33,33 @@ export type StatusItem = {
     component: ComponentType<StatusItemProps>;
 };
 
+/** Plain JSON: the picker carries it from an option to that option's `place`, and does nothing else with it. */
+export type NewSessionCollected = { readonly [key: string]: string | number | boolean | null };
+
+export type NewSessionProps = {
+    /** The folder picked so far, or null while the list is still being read. */
+    cwd: string | null;
+    /**
+     * What this option wants done with the new session; null for the folder as picked. Call it from an
+     * effect or a handler, never while rendering.
+     */
+    use: (collected: NewSessionCollected | null) => void;
+};
+
+/** An option in the new-session folder picker: a checkbox and its own field, and where the session starts. */
+export type NewSessionItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<NewSessionProps>;
+    /** Why Open cannot go ahead with this, said in place of nothing; null when it can. */
+    blocked?: ((collected: NewSessionCollected | null) => string | null) | undefined;
+    /**
+     * Runs on Open, for an option that collected something: the folder the session starts in, given the
+     * one picked so far. A throw keeps the picker open and says why.
+     */
+    place: (cwd: string, collected: NewSessionCollected) => Promise<string>;
+};
+
 export type SettingsProps = StatusProps;
 
 export type SettingsSection = {
@@ -160,6 +187,7 @@ export type ToolIcon = {
 /** What a folder's `web.tsx` default-exports. */
 export type WebExtension = {
     status?: StatusItem[];
+    newSession?: NewSessionItem[];
     header?: HeaderItem[];
     composer?: ComposerItem[];
     aboveComposer?: AboveComposerItem[];

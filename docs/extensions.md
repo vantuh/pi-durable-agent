@@ -209,6 +209,21 @@ whole behaviour: the item's label is the toast while it runs, a rejection become
 message, and the list is re-read afterwards, so an item that names the session shows the new name
 by itself. `extensions/auto-session-name` is the example.
 
+### Options in the new-session picker
+
+`web.tsx` may export `newSession: [{ id, component, blocked, place }]`. Each option is drawn in
+the folder picker's footer, under the "Show hidden" row, and the component draws the whole option:
+`extensions/git-worktree` draws a checkbox, a name field, and the branch a worktree would start
+from. Its props are `{ cwd, use }`: `cwd` is the folder picked so far, and `use(values)` says what
+the option collected, from an effect rather than while rendering; `null` means "the folder as
+picked". Core keeps those values as plain JSON and does nothing else with them.
+
+`blocked(values)` answers why Open cannot go ahead — its text stands under the footer and Open is
+disabled — and `place(cwd, values)` runs on Open, when the option collected something: it returns
+the folder the session starts in, and a throw keeps the picker open with the message. Changing an
+option's values clears the last message. `extensions/git-worktree` makes the worktree there, so the
+session starts in it without the core knowing what a worktree is (see [Git worktrees](#git-worktrees)).
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
@@ -845,6 +860,29 @@ note saying which `offset` continues it.
 - There is no guard against private addresses: the agent has `bash` and `curl` on the same machine,
   so refusing them here would protect nothing.
 - The name `fetch_content` is the one `pi-web-access` uses, for the same reason as `web_search`.
+
+## Git worktrees
+
+`extensions/git-worktree` puts a `New worktree` checkbox in the folder picker, with a name field
+and the branch it would start from. Open then makes a worktree of the picked folder's repository
+and starts the session **in** it, so two sessions can work on the same repository without stepping
+on each other's files.
+
+- **Where it starts from:** the tip of the branch the folder is on, so local commits that were
+  never pushed come with it. Uncommitted changes and new files do not: a worktree is a clean place
+  to start. Ignored files would not be copied either way.
+- **Where it goes:** `worktrees/<repository>/<name>` under the server's data folder, never inside
+  your repository, so the folder you picked is left as it was. The repository's own name is the
+  folder even when the picker is open inside a worktree.
+- **The name** is slugified (lowercase, letters, digits, `.`, `_`, `-`, at most 40 characters) and
+  is both the folder's name and the new branch's. A name that is a branch already, or a folder that
+  is there already, refuses with a message under the picker.
+- **The session folder keeps its place:** picking `packages/app` of a repository starts the session
+  in `packages/app` of the worktree.
+- Refused: a folder in no repository, and a repository with no commit yet. The worktree's branch
+  stays after the session is deleted, with whatever was committed on it; nothing removes it yet.
+- `extensions/git-branch` then shows two badges: the branch, and the worktree it is a linked
+  checkout of.
 
 ## Hotkeys
 
