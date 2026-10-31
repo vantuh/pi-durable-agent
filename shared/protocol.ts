@@ -149,6 +149,10 @@ export type ClientLive = {
      * holds and `[]` means the queue is now empty; `hello` carries it whole, absent when empty.
      */
     queued?: ClientQueued[];
+    /**
+     * The fields extensions add to the status places. In a `live` frame, absent means unchanged since the frame the
+     * client holds and `[]` means there are none now; `hello` carries them whole, absent when empty.
+     */
     status?: ClientStatus[];
     /** Moves when an extension says the session changed in a way its entries do not show; absent until then. */
     revision?: number;

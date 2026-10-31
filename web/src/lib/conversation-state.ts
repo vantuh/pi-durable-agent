@@ -107,12 +107,15 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
             const { blocks, ...rest } = event.live;
             // An absent `queued` is the queue the client holds; the server sends `[]` when it emptied.
             const queued = "queued" in rest ? rest.queued : state.live.queued;
+            // Likewise `status`: absent is what the client holds, `[]` is that there are none now.
+            const status = "status" in rest ? rest.status : state.live.status;
 
             return {
                 ...state,
                 live: {
                     ...rest,
                     ...(queued === undefined ? {} : { queued }),
+                    ...(status === undefined ? {} : { status }),
                     ...(blocks === undefined
                         ? {}
                         : { blocks: withBlocks(state.live.blocks, blocks) }),

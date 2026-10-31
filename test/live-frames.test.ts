@@ -17,6 +17,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { ClientBlock, ServerEvent } from "../shared/protocol.ts";
 import { START, withEvent } from "../web/src/lib/conversation-state.ts";
 import { WRITE_ANSWER, WRITE_CONTENT, WRITE_PATH } from "./fixtures/faux-big-write-model.ts";
+import { STATUS_TEXT, STATUS_TITLE } from "./fixtures/faux-status-extension.ts";
 import { ANSWER, THINKING } from "./fixtures/faux-streaming-model.ts";
 
 const REPO = join(import.meta.dirname, "..");
@@ -44,9 +45,13 @@ async function freePort(): Promise<number> {
     return address.port;
 }
 
-/** A real server in a temporary folder, with one faux model from `test/fixtures`, and nothing else. */
+/**
+ * A real server in a temporary folder, with one faux model from `test/fixtures`, and nothing else unless `others`
+ * names more fixtures to install as extensions, by the folder each is installed under.
+ */
 async function sandboxServer(
     fixture = "faux-streaming-model.ts",
+    others: Record<string, string> = {},
 ): Promise<{ base: string; cwd: string }> {
     const root = await mkdtemp(join(tmpdir(), "live-frames-"));
     const cwd = join(root, "cwd");
@@ -57,6 +62,14 @@ async function sandboxServer(
         join(REPO, "test", "fixtures", fixture),
         join(cwd, "extensions", "fauxmodel", "server.ts"),
     );
+
+    for (const [folder, other] of Object.entries(others)) {
+        await mkdir(join(cwd, "extensions", folder), { recursive: true });
+        await symlink(
+            join(REPO, "test", "fixtures", other),
+            join(cwd, "extensions", folder, "server.ts"),
+        );
+    }
 
     const port = await freePort();
     const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
@@ -473,5 +486,75 @@ void describe("the live frames of a session with a message waiting", () => {
             shown.slice(first, cleared).map(() => 1),
             "every frame in between still showed it",
         );
+    });
+});
+
+void describe("the live frames of a session with an extension status", () => {
+    let frames: Frame[];
+
+    before(async () => {
+        const { base, cwd } = await sandboxServer("faux-streaming-model.ts", {
+            "faux-status": "faux-status-extension.ts",
+        });
+        const created = await post(base, "/api/sessions", { cwd });
+
+        assert.ok(typeof created === "object" && created !== null, "a session was created");
+
+        const session = Number(Reflect.get(created, "session"));
+        const stream = watch(base, session);
+
+        await until("the hello", () => stream.frames.length > 0, 5000);
+        await post(base, "/api/messages", { session, text: "go" });
+        await until("the run to end", () => ended(stream.frames), 30_000);
+        stream.stop();
+        frames = stream.frames;
+    });
+
+    const statusFrames = () => liveOf(frames).filter(({ status }) => status !== undefined);
+
+    void it("send a status field once, not in every frame while the answer streams", () => {
+        const field = Buffer.byteLength(
+            JSON.stringify({
+                source: "faux-status",
+                slot: "composer",
+                label: "cache",
+                text: STATUS_TEXT,
+                title: STATUS_TITLE,
+            }),
+        );
+        const sent = statusFrames().reduce(
+            (sum, { status }) => sum + Buffer.byteLength(JSON.stringify(status)),
+            0,
+        );
+
+        assert.ok(
+            liveOf(frames).length >= 10,
+            `${String(liveOf(frames).length)} live frames, enough for a repeat to show`,
+        );
+        assert.equal(statusFrames().length, 1, "the field went out in one frame");
+        assert.ok(sent < 2 * field, `${String(sent)} bytes of status, under ${String(2 * field)}`);
+    });
+
+    void it("leave the screen showing it from the frame that carried it to the end", () => {
+        let state = START;
+        const shown: number[] = [];
+
+        for (const { event } of frames) {
+            state = withEvent(state, event);
+
+            if (event.type === "live") {
+                shown.push(state.live.status?.length ?? 0);
+            }
+        }
+
+        const first = shown.findIndex((count) => count === 1);
+
+        assert.notEqual(first, -1, "the field appeared");
+        assert.deepEqual(
+            shown.slice(first),
+            shown.slice(first).map(() => 1),
+            "every frame after that still showed it",
+        );
+        assert.equal(state.live.status?.[0]?.source, "faux-status");
     });
 });

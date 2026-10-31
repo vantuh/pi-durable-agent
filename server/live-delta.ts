@@ -6,7 +6,7 @@
  * harness has to be known here.
  */
 
-import type { ClientBlock, ClientQueued } from "../shared/protocol.ts";
+import type { ClientBlock, ClientQueued, ClientStatus } from "../shared/protocol.ts";
 
 export function blocksSince(
     held: readonly ClientBlock[],
@@ -47,6 +47,20 @@ export function queuedSince(
     queued: readonly ClientQueued[] | undefined,
 ): ClientQueued[] | undefined {
     const now = queued ?? [];
+
+    return JSON.stringify(held) === JSON.stringify(now) ? undefined : [...now];
+}
+
+/**
+ * The extension status fields a live frame must carry, or `undefined` when the client already holds them. Fields
+ * that emptied are `[]`, never absent, or the client would keep showing a withdrawn field. An absent status and `[]`
+ * are the same status.
+ */
+export function statusSince(
+    held: readonly ClientStatus[],
+    status: readonly ClientStatus[] | undefined,
+): ClientStatus[] | undefined {
+    const now = status ?? [];
 
     return JSON.stringify(held) === JSON.stringify(now) ? undefined : [...now];
 }

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { blocksSince, queuedSince } from "../server/live-delta.ts";
-import type { ClientBlock, ClientQueued } from "../shared/protocol.ts";
+import { blocksSince, queuedSince, statusSince } from "../server/live-delta.ts";
+import type { ClientBlock, ClientQueued, ClientStatus } from "../shared/protocol.ts";
 import { START, withEvent } from "../web/src/lib/conversation-state.ts";
 
 const text = (value: string): ClientBlock => ({ type: "text", text: value });
@@ -209,5 +209,91 @@ void describe("the queue of a live frame cut to what a client holds", () => {
 
         assert.deepEqual(sent, [undefined, undefined]);
         assert.deepEqual(screens, [[big], [big]]);
+    });
+});
+
+void describe("the status of a live frame cut to what a client holds", () => {
+    const field = (percent: string): ClientStatus => ({
+        source: "cache-hit",
+        slot: "composer",
+        label: "cache",
+        text: percent,
+        title: `${percent} of the input came from the cache, ${"x".repeat(80)}`,
+    });
+    const cache = field("62%");
+
+    /** What one client sees after each server status, as `sendLive` and `withEvent` do; `held` is what its hello gave it. */
+    function statusScreens(
+        statuses: (ClientStatus[] | undefined)[],
+        hello: ClientStatus[] = [],
+    ): { screens: (ClientStatus[] | undefined)[]; sent: (ClientStatus[] | undefined)[] } {
+        let held = hello;
+        let state = withEvent(START, {
+            type: "hello",
+            session: 1,
+            entries: [],
+            live: {
+                busy: true,
+                usage: { input: 0, output: 0, cost: 0 },
+                ...(hello.length > 0 && { status: hello }),
+            },
+            model: "m",
+            more: false,
+        });
+        const screens: (ClientStatus[] | undefined)[] = [];
+        const sent: (ClientStatus[] | undefined)[] = [];
+
+        for (const status of statuses) {
+            const changed = statusSince(held, status);
+
+            held = status ?? [];
+            sent.push(changed);
+            state = withEvent(state, {
+                type: "live",
+                session: 1,
+                live: {
+                    busy: true,
+                    usage: { input: 0, output: 0, cost: 0 },
+                    ...(changed && { status: changed }),
+                },
+            });
+            screens.push(state.live.status);
+        }
+
+        return { screens, sent };
+    }
+
+    void it("omits status the client holds, and the client keeps showing it", () => {
+        const { screens, sent } = statusScreens([[cache], [cache], [cache]]);
+
+        assert.deepEqual(sent, [[cache], undefined, undefined]);
+        assert.deepEqual(screens, [[cache], [cache], [cache]]);
+    });
+
+    void it("sends [] when the status emptied, and the client clears it", () => {
+        const { screens, sent } = statusScreens([[cache], undefined, undefined]);
+
+        assert.deepEqual(sent, [[cache], [], undefined], "never omitted: the client would keep it");
+        assert.deepEqual(screens, [[cache], [], []]);
+    });
+
+    void it("treats absent status and [] as the same status", () => {
+        assert.equal(statusSince([], undefined), undefined);
+        assert.equal(statusSince([], []), undefined);
+    });
+
+    void it("sends a changed field whole", () => {
+        const next = field("71%");
+        const { screens, sent } = statusScreens([[cache], [next], [next, field("9")]]);
+
+        assert.deepEqual(sent, [[cache], [next], [next, field("9")]]);
+        assert.deepEqual(screens, sent);
+    });
+
+    void it("starts a client that joined with status from the status its hello carried", () => {
+        const { screens, sent } = statusScreens([[cache], [cache]], [cache]);
+
+        assert.deepEqual(sent, [undefined, undefined]);
+        assert.deepEqual(screens, [[cache], [cache]]);
     });
 });

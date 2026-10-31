@@ -6,6 +6,7 @@ import type {
     ClientEntry,
     ClientLive,
     ClientQueued,
+    ClientStatus,
     ServerEvent,
 } from "../shared/protocol.ts";
 import { mergeEntries, START, withEvent, withOlder } from "../web/src/lib/conversation-state.ts";
@@ -292,6 +293,29 @@ void describe("withEvent", () => {
             );
 
             assert.deepEqual(state.live.queued, queued);
+        });
+    });
+
+    void describe("live status", () => {
+        const status: ClientStatus[] = [{ source: "cache-hit", slot: "composer", text: "62%" }];
+        const frame = (extra: Partial<ClientLive>): ServerEvent => ({
+            type: "live",
+            session: 1,
+            live: { busy: true, usage: { input: 0, output: 0, cost: 0 }, ...extra },
+        });
+
+        void it("keeps the status it holds when a frame has no status key", () => {
+            const state = withEvent(withEvent(START, frame({ status })), frame({}));
+
+            assert.deepEqual(state.live.status, status);
+        });
+
+        void it("replaces the status with the one a frame carries, and clears it on []", () => {
+            const next: ClientStatus[] = [{ source: "cache-hit", slot: "composer", text: "71%" }];
+            const held = withEvent(START, frame({ status }));
+
+            assert.deepEqual(withEvent(held, frame({ status: next })).live.status, next);
+            assert.deepEqual(withEvent(held, frame({ status: [] })).live.status, []);
         });
     });
 });
