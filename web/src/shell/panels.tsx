@@ -1,5 +1,11 @@
 import { X } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useLayoutEffect, useReducer, useRef } from "react";
+import {
+    type PointerEvent as ReactPointerEvent,
+    useLayoutEffect,
+    useReducer,
+    useRef,
+    useState,
+} from "react";
 
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
@@ -8,17 +14,24 @@ import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 
-/** Which panel is open, remembered per session. */
-export function useOpenPanel(
-    session: number | null,
-): [string | null, (key: string | null) => void] {
+/** Which panel is open, remembered per session. The closed one stays as `shown` until `forget`, so it can
+ * be seen leaving; nothing is remembered across a change of session, where the panel was never open. */
+export function useOpenPanel(session: number | null): {
+    shown: string | null;
+    open: boolean;
+    setOpen: (key: string | null) => void;
+    forget: () => void;
+} {
     const [, rerender] = useReducer((count: number) => count + 1, 0);
+    const [kept, setKept] = useState<{ session: number | null; key: string | null } | null>(null);
     const storageKey = `panel:${String(session)}`;
-    const open = session === null ? null : localStorage.getItem(storageKey);
+    const stored = session === null ? null : localStorage.getItem(storageKey);
+    const shown = stored ?? (kept?.session === session ? kept.key : null);
 
     const setOpen = (key: string | null): void => {
         if (key === null) {
             localStorage.removeItem(storageKey);
+            setKept({ session, key: stored });
         } else {
             localStorage.setItem(storageKey, key);
         }
@@ -26,7 +39,14 @@ export function useOpenPanel(
         rerender();
     };
 
-    return [open, setOpen];
+    return {
+        shown,
+        open: stored !== null,
+        setOpen,
+        forget: () => {
+            setKept(null);
+        },
+    };
 }
 
 /** One header button per panel; the open one stays raised. */
@@ -154,9 +174,13 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
 export function PanelHost({
     panel,
     session,
+    open,
     onClose,
+    onLeft,
 }: PanelProps & {
     panel: FolderPanel;
+    open: boolean;
+    onLeft: () => void;
 }) {
     const Body = panel.component;
 
@@ -198,6 +222,13 @@ export function PanelHost({
         <aside
             ref={frame}
             data-slot="panel-host"
+            data-leaving={open ? undefined : ""}
+            onAnimationEnd={(event) => {
+                // A child's own animation bubbles through here; only the panel's own end means it has left.
+                if (!open && event.target === event.currentTarget) {
+                    onLeft();
+                }
+            }}
             className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]"
         >
             <ResizeHandle storageKey={widthKey(id)} />

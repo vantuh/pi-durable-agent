@@ -65,7 +65,12 @@ export function App() {
     const panels = usePanels();
 
     const { state, send, stop, loadOlder } = useConversation(current);
-    const [panelOpen, setPanelOpen] = useOpenPanel(current);
+    const {
+        shown: panelShown,
+        open: panelOpen,
+        setOpen: setPanelOpen,
+        forget: forgetPanel,
+    } = useOpenPanel(current);
 
     useEffect(() => {
         let alive = true;
@@ -137,7 +142,7 @@ export function App() {
     // arrived, its folder, revision and busy flag are guesses that change a moment later, so they get no session.
     const activeSession = loading || active === undefined ? null : knownSession;
 
-    const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
+    const panel = panels.find((candidate) => panelKey(candidate) === panelShown);
 
     const openSettings = (): void => {
         setSettings(true);
@@ -259,9 +264,11 @@ export function App() {
                                         <HeaderItems session={activeSession} />
                                         <PanelButtons
                                             panels={panels}
-                                            open={panelOpen}
+                                            open={panelShown}
                                             onToggle={(key) => {
-                                                setPanelOpen(panelOpen === key ? null : key);
+                                                setPanelOpen(
+                                                    panelOpen && panelShown === key ? null : key,
+                                                );
                                             }}
                                         />
                                     </>
@@ -383,9 +390,11 @@ export function App() {
                     <PanelHost
                         panel={panel}
                         session={knownSession}
+                        open={panelOpen}
                         onClose={() => {
                             setPanelOpen(null);
                         }}
+                        onLeft={forgetPanel}
                     />
                 )}
 

@@ -279,25 +279,51 @@ body {
     }
 }
 
+@keyframes panel-out {
+    to {
+        translate: calc(100% + 8px) 0;
+    }
+}
+
+@keyframes panel-fold {
+    to {
+        width: 0;
+    }
+}
+
 [data-slot="panel-host"] {
     animation: panel-in 200ms ease-out;
+}
+
+/* Forwards: the panel keeps the end of its exit until the frame it is dropped from. */
+[data-slot="panel-host"][data-leaving] {
+    animation: panel-out 200ms ease-out forwards;
 }
 
 @media (width >= 64rem) {
     [data-slot="panel-host"] {
         animation-name: panel-unfold;
     }
+
+    [data-slot="panel-host"][data-leaving] {
+        animation-name: panel-fold;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
+    [data-slot="collapsible-content"],
+    [data-slot="dropdown-menu-content"] {
+        animation: none;
+    }
+
+    /* Not off but over: whatever is dropped when its last frame arrives still needs a last frame. */
     [data-slot="dialog-content"],
     [data-slot="dialog-overlay"],
     [data-slot="dialog-content"][data-state="closed"],
     [data-slot="dialog-overlay"][data-state="closed"],
-    [data-slot="collapsible-content"],
-    [data-slot="dropdown-menu-content"],
-    [data-slot="panel-host"] {
-        animation: none;
+    [data-slot="panel-host"],
+    [data-slot="panel-host"][data-leaving] {
+        animation-duration: 1ms;
     }
 
     .shimmer {
