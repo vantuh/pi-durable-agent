@@ -168,7 +168,10 @@ export function PanelHost({
     }, [id]);
 
     return (
-        <aside className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,min(46%,720px))]">
+        <aside
+            data-slot="panel-host"
+            className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,min(46%,720px))]"
+        >
             <ResizeHandle storageKey={widthKey(id)} />
             <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
                 <h2 className="text-interface text-ink font-medium">{panel.title}</h2>

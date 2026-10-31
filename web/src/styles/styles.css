@@ -212,11 +212,79 @@ body {
     animation: drop-out 150ms ease-out forwards;
 }
 
+/*
+ * A row of 0fr holds no height without measuring anything, so the fold needs no pixel value: the
+ * inner element keeps the call site's layout and is clipped, and a flex column inside never
+ * squashes while the box shrinks.
+ */
+@keyframes fold-open {
+    from {
+        grid-template-rows: 0fr;
+    }
+
+    to {
+        grid-template-rows: 1fr;
+    }
+}
+
+@keyframes fold-close {
+    from {
+        grid-template-rows: 1fr;
+    }
+
+    to {
+        grid-template-rows: 0fr;
+    }
+}
+
+[data-slot="collapsible-content"] {
+    display: grid;
+    grid-template-rows: 1fr;
+}
+
+[data-slot="collapsible-content"] > * {
+    min-height: 0;
+    overflow: hidden;
+}
+
+[data-slot="collapsible-content"][data-state="open"] {
+    animation: fold-open 150ms ease-out;
+}
+
+[data-slot="collapsible-content"][data-state="closed"] {
+    grid-template-rows: 0fr;
+    animation: fold-close 150ms ease-out forwards;
+}
+
+/* A menu is smaller and opened more often than a dialog: it fades faster and carries no motion. */
+[data-slot="dropdown-menu-content"] {
+    animation: drop-in 120ms ease-out;
+}
+
+[data-slot="dropdown-menu-content"][data-state="closed"] {
+    animation: drop-out 100ms ease-out forwards;
+}
+
+@keyframes panel-in {
+    from {
+        opacity: 0;
+        translate: 8px 0;
+    }
+}
+
+/* An extension's panel arrives beside the conversation, which takes the space back in one step. */
+[data-slot="panel-host"] {
+    animation: panel-in 150ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
     [data-slot="dialog-content"],
     [data-slot="dialog-overlay"],
     [data-slot="dialog-content"][data-state="closed"],
-    [data-slot="dialog-overlay"][data-state="closed"] {
+    [data-slot="dialog-overlay"][data-state="closed"],
+    [data-slot="collapsible-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="panel-host"] {
         animation: none;
     }
 

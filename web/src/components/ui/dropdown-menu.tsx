@@ -19,6 +19,7 @@ export function DropdownMenuContent({
     return (
         <DropdownMenuPrimitive.Portal>
             <DropdownMenuPrimitive.Content
+                data-slot="dropdown-menu-content"
                 sideOffset={sideOffset}
                 collisionPadding={8}
                 className={cn(
@@ -84,6 +85,7 @@ export function DropdownMenuSubContent({
     return (
         <DropdownMenuPrimitive.Portal>
             <DropdownMenuPrimitive.SubContent
+                data-slot="dropdown-menu-content"
                 sideOffset={4}
                 collisionPadding={8}
                 className={cn(

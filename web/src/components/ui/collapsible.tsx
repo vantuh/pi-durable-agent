@@ -9,6 +9,14 @@ export function CollapsibleTrigger(props: ComponentProps<typeof CollapsiblePrimi
     return <CollapsiblePrimitive.Trigger data-slot="collapsible-trigger" {...props} />;
 }
 
-export function CollapsibleContent(props: ComponentProps<typeof CollapsiblePrimitive.Content>) {
-    return <CollapsiblePrimitive.Content data-slot="collapsible-content" {...props} />;
+export function CollapsibleContent({
+    className,
+    children,
+    ...props
+}: ComponentProps<typeof CollapsiblePrimitive.Content>) {
+    return (
+        <CollapsiblePrimitive.Content data-slot="collapsible-content" {...props}>
+            <div className={className}>{children}</div>
+        </CollapsiblePrimitive.Content>
+    );
 }
