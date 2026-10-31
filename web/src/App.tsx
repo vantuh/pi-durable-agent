@@ -126,13 +126,16 @@ export function App() {
     const { busy } = state.live;
     const revision = state.live.revision ?? 0;
     // Stable between frames, so the memoized sidebar and status bar skip the ones that only grow the reply.
-    const activeSession = useMemo(
+    const knownSession = useMemo(
         () =>
             current === null
                 ? null
                 : { id: current, cwd: sessionCwd, busy, revision, model: activeModel },
         [current, sessionCwd, busy, revision, activeModel],
     );
+    // Extensions refetch when the session they get changes. Until the list and the conversation's hello have both
+    // arrived, its folder, revision and busy flag are guesses that change a moment later, so they get no session.
+    const activeSession = loading || active === undefined ? null : knownSession;
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
 
@@ -379,7 +382,7 @@ export function App() {
                 {panel === undefined ? null : (
                     <PanelHost
                         panel={panel}
-                        session={activeSession}
+                        session={knownSession}
                         onClose={() => {
                             setPanelOpen(null);
                         }}

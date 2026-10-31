@@ -229,6 +229,10 @@ function KeepWarm({ session, openSession }: StatusItemProps) {
     const id = session?.id ?? null;
 
     const read = useCallback(async () => {
+        if (id === null) {
+            return;
+        }
+
         try {
             setWarm(await callAction(stateAction, undefined, id));
             setNow(Date.now());

@@ -16,6 +16,10 @@ function useCheckout(session: StatusProps["session"]): Checkout | null {
     const busy = session?.busy ?? false;
 
     useEffect(() => {
+        if (id === null) {
+            return undefined;
+        }
+
         let alive = true;
 
         void (async () => {

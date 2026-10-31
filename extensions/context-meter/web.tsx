@@ -110,6 +110,10 @@ function Context({ session }: StatusProps) {
     const busy = session?.busy ?? false;
 
     useEffect(() => {
+        if (id === null) {
+            return undefined;
+        }
+
         let alive = true;
 
         void (async () => {
