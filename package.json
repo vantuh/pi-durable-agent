@@ -10,6 +10,7 @@
         "start": "pnpm build && node scripts/serve.ts",
         "build": "vite build",
         "preview": "vite preview",
+        "preview:phone": "pnpm build && vite preview --host --port 5192 --strictPort",
         "test": "node --test test/ extensions/",
         "check": "oxfmt --check && oxlint --type-aware && tsc --noEmit",
         "fix": "oxfmt && oxlint --type-aware --fix"
