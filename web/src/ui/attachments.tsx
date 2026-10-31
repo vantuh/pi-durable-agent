@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Paperclip, TriangleAlert, X } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
+import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 
 import {
     Attachment,
@@ -29,9 +30,17 @@ export type Pending = {
 type Props = {
     files: Pending[];
     onRemove?: (key: string) => void;
+    /** A picture the size the message can give it, not a chip: the transcript. */
+    large?: boolean;
 };
 
 type Shot = { src: string | undefined; name: string };
+
+/** A photo as wide as its message: a phone screenshot is unreadable in a chip. */
+const PHOTO = "block max-h-[min(60dvh,26rem)] w-auto max-w-full object-contain";
+
+/** A picture a tool returned: smaller than a photo sent by hand, still seen without opening it. */
+const THUMB = "block max-h-[min(50dvh,20rem)] max-w-full object-contain";
 
 function size(bytes: number): string {
     return bytes < 1024 ? `${String(bytes)} B` : `${(bytes / 1024).toFixed(1)} KB`;
@@ -77,7 +86,11 @@ function StepButton({
     );
 }
 
-/** One picture full size. With several: arrows and ArrowLeft/ArrowRight step between them, without wrapping. */
+/**
+ * One picture, as big as the screen allows: the wheel or a pinch zooms it, a drag moves it, and a
+ * double click or tap puts it back whole. With several, arrows and ArrowLeft/ArrowRight step between
+ * them, without wrapping.
+ */
 function Lightbox({
     shots,
     index,
@@ -132,15 +145,32 @@ function Lightbox({
                     content.current?.focus();
                 }}
                 onKeyDown={onKeyDown}
-                className="bg-panel border-edge rounded-card inset-auto top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 gap-1.5 border p-1.5 sm:max-h-[calc(100dvh-2rem)] sm:w-auto sm:max-w-[calc(100vw-2rem)]"
+                className="bg-panel border-edge gap-1.5 p-1.5 sm:h-[calc(100dvh-2rem)] sm:max-h-none sm:w-[calc(100vw-2rem)] sm:max-w-6xl"
             >
                 <DialogTitle className="sr-only">{shot.name}</DialogTitle>
-                <div className="relative flex justify-center">
-                    <img
-                        src={shot.src}
-                        alt={shot.name}
-                        className="rounded-control max-h-[calc(100dvh-8rem)] max-w-full object-contain"
-                    />
+                <div className="relative min-h-0 flex-1 overflow-hidden">
+                    {/* A new picture starts whole: the wrapper is keyed by it. */}
+                    <TransformWrapper
+                        key={shot.src}
+                        minScale={1}
+                        maxScale={8}
+                        wheel={{ step: 0.002 }}
+                        doubleClick={{ mode: "reset" }}
+                        panning={{ velocityDisabled: true }}
+                        keyboard={{ disabled: true }}
+                    >
+                        <TransformComponent
+                            wrapperStyle={{ width: "100%", height: "100%", touchAction: "none" }}
+                            contentStyle={{ width: "100%", height: "100%" }}
+                            contentClass="items-center justify-center"
+                        >
+                            <img
+                                src={shot.src}
+                                alt={shot.name}
+                                className="block max-h-full max-w-full object-contain"
+                            />
+                        </TransformComponent>
+                    </TransformWrapper>
                     {many ? (
                         <>
                             <StepButton
@@ -173,7 +203,107 @@ function Lightbox({
     );
 }
 
-/** Pictures a tool returned, as thumbnails that open full size. */
+/** A photo in a message: the picture, then its name and weight. Tap it to open it full size. */
+function Photo({
+    src,
+    name,
+    bytes,
+    onOpen,
+    onRemove,
+}: {
+    src: string;
+    name: string;
+    bytes: number;
+    onOpen: () => void;
+    onRemove: (() => void) | undefined;
+}) {
+    return (
+        <figure className="rounded-control border-edge-soft bg-sunken max-w-full overflow-hidden border">
+            <button
+                type="button"
+                title="Preview"
+                aria-label={`Preview ${name}`}
+                onClick={onOpen}
+                className="block max-w-full cursor-zoom-in"
+            >
+                <img src={src} alt={name} className={PHOTO} />
+            </button>
+            <figcaption className="text-faint flex min-w-0 items-center gap-2 px-2 py-1 text-[11px]">
+                <span className="min-w-0 flex-1 truncate font-mono">{name}</span>
+                <span className="shrink-0 tabular-nums">{size(bytes)}</span>
+                {onRemove === undefined ? null : (
+                    <button
+                        type="button"
+                        title="Remove"
+                        aria-label={`Remove ${name}`}
+                        onClick={onRemove}
+                        className="hover:text-ink -mr-0.5 flex size-4 shrink-0 items-center justify-center"
+                    >
+                        <X className="size-3" />
+                    </button>
+                )}
+            </figcaption>
+        </figure>
+    );
+}
+
+/** A file as a card, its picture a chip: the composer's row, and the transcript's files that are not pictures. */
+function Chip({
+    file,
+    src,
+    preview,
+    onRemove,
+}: {
+    file: Pending;
+    src: string | undefined;
+    preview: (() => void) | undefined;
+    onRemove: ((key: string) => void) | undefined;
+}) {
+    return (
+        <Attachment state={file.state}>
+            {preview === undefined ? null : <AttachmentTrigger title="Preview" onClick={preview} />}
+
+            <AttachmentMedia>
+                {file.image && src !== undefined ? (
+                    <img src={src} alt="" />
+                ) : file.state === "error" ? (
+                    <TriangleAlert className="size-3.5" />
+                ) : (
+                    <Paperclip className="size-3.5" />
+                )}
+                {file.state === "uploading" ? (
+                    <Spinner className="text-ink absolute size-4" />
+                ) : null}
+            </AttachmentMedia>
+
+            <AttachmentContent>
+                <AttachmentTitle title={file.name}>{file.name}</AttachmentTitle>
+                <AttachmentDescription>
+                    {file.state === "uploading"
+                        ? "Uploading…"
+                        : file.state === "error"
+                          ? "Upload failed"
+                          : size(file.size)}
+                </AttachmentDescription>
+            </AttachmentContent>
+
+            {onRemove === undefined ? null : (
+                <AttachmentActions>
+                    <AttachmentAction
+                        title="Remove"
+                        onClick={() => {
+                            onRemove(file.key);
+                        }}
+                    >
+                        <X className="size-3" />
+                    </AttachmentAction>
+                </AttachmentActions>
+            )}
+        </Attachment>
+    );
+}
+
+/** Pictures a tool returned, as previews that open full size. */
 export function ImageThumbs({ images }: { images: { src: string; name: string }[] }) {
     const [open, setOpen] = useState<number | undefined>(undefined);
 
@@ -187,14 +317,9 @@ export function ImageThumbs({ images }: { images: { src: string; name: string }[
                     onClick={() => {
                         setOpen(index);
                     }}
-                    className="rounded-control border-edge-soft bg-sunken hover:border-edge cursor-zoom-in overflow-hidden border"
+                    className="rounded-control border-edge-soft bg-sunken hover:border-edge max-w-full cursor-zoom-in overflow-hidden border"
                 >
-                    <img
-                        src={image.src}
-                        alt={image.name}
-                        loading="lazy"
-                        className="block max-h-40 max-w-full object-contain"
-                    />
+                    <img src={image.src} alt={image.name} loading="lazy" className={THUMB} />
                 </button>
             ))}
 
@@ -212,7 +337,7 @@ export function ImageThumbs({ images }: { images: { src: string; name: string }[
     );
 }
 
-export function Attachments({ files, onRemove }: Props) {
+export function Attachments({ files, onRemove, large = false }: Props) {
     const [open, setOpen] = useState<string | undefined>(undefined);
     const photos = files.filter((file) => file.image && file.state === "done");
     const shown = photos.findIndex((file) => file.key === open);
@@ -223,55 +348,40 @@ export function Attachments({ files, onRemove }: Props) {
 
     return (
         <div className="flex flex-wrap gap-1.5 pb-2">
-            {files.map((file) => (
-                <Attachment key={file.key} state={file.state}>
-                    {file.image && file.state === "done" ? (
-                        <AttachmentTrigger
-                            title="Preview"
-                            onClick={() => {
-                                setOpen(file.key);
-                            }}
-                        />
-                    ) : null}
+            {files.map((file) => {
+                const src = srcOf(file);
+                const preview =
+                    file.image && file.state === "done"
+                        ? () => {
+                              setOpen(file.key);
+                          }
+                        : undefined;
 
-                    <AttachmentMedia>
-                        {file.image && srcOf(file) !== undefined ? (
-                            <img src={srcOf(file)} alt="" />
-                        ) : file.state === "error" ? (
-                            <TriangleAlert className="size-3.5" />
-                        ) : (
-                            <Paperclip className="size-3.5" />
-                        )}
-                        {file.state === "uploading" ? (
-                            <Spinner className="text-ink absolute size-4" />
-                        ) : null}
-                    </AttachmentMedia>
-
-                    <AttachmentContent>
-                        <AttachmentTitle title={file.name}>{file.name}</AttachmentTitle>
-                        <AttachmentDescription>
-                            {file.state === "uploading"
-                                ? "Uploading…"
-                                : file.state === "error"
-                                  ? "Upload failed"
-                                  : size(file.size)}
-                        </AttachmentDescription>
-                    </AttachmentContent>
-
-                    {onRemove === undefined ? null : (
-                        <AttachmentActions>
-                            <AttachmentAction
-                                title="Remove"
-                                onClick={() => {
-                                    onRemove(file.key);
-                                }}
-                            >
-                                <X className="size-3" />
-                            </AttachmentAction>
-                        </AttachmentActions>
-                    )}
-                </Attachment>
-            ))}
+                return large && src !== undefined && preview !== undefined ? (
+                    <Photo
+                        key={file.key}
+                        src={src}
+                        name={file.name}
+                        bytes={file.size}
+                        onOpen={preview}
+                        onRemove={
+                            onRemove === undefined
+                                ? undefined
+                                : () => {
+                                      onRemove(file.key);
+                                  }
+                        }
+                    />
+                ) : (
+                    <Chip
+                        key={file.key}
+                        file={file}
+                        src={src}
+                        preview={preview}
+                        onRemove={onRemove}
+                    />
+                );
+            })}
 
             {shown < 0 ? null : (
                 <Lightbox

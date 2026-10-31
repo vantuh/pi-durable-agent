@@ -110,7 +110,17 @@ pushes already send. See [sessions-live.md](sessions-live.md).
       read as "live" or "broken", and a compaction is neither. The messages above it stay on screen:
       they are the conversation, they are just no longer what the model is sent. The mark is
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.
-    - A person's message: a `raised` card on the right, at most 80% wide.
+    - A person's message: a `raised` card on the right, at most 80% wide; all of it below `sm`
+      when it carries a picture, so the picture is as wide as the screen it is on. A file is a chip:
+      a 28px picture, its name and its weight. A picture is the picture with the same line under it,
+      and it opens in the viewer. A tool's pictures under an activity line open in the same viewer,
+      a size smaller: a message rarely brings one, and a run brings several.
+    - **The viewer**: a `Dialog` that fills the screen (a card, up to 72rem, from `sm`) with the
+      picture fitted inside it: 1× to 8× from there, the wheel or a trackpad pinch on a desktop and
+      two fingers on a phone, a drag to move it, and a double click or tap back to whole. Arrows and
+      `ArrowLeft`/`ArrowRight` step between the pictures of one message without wrapping, and a new
+      picture starts whole. The zoom is `react-zoom-pan-pinch`; `web/src/ui/attachments.tsx` owns the
+      viewer.
     - **Quoting an answer**: words selected inside an answer bring a `Quote` button past their
       right corner, off the end of the line; a tap takes them to the composer, where they wait as a
       `panel` card with a quote mark in its corner, above what is being written. A quote is the

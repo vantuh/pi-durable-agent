@@ -373,8 +373,16 @@ const TurnView = memo(
                 )}
                 {turn.user === undefined || turn.user.author !== undefined ? null : (
                     <div className="flex justify-end">
-                        <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
+                        {/* A picture gets the width of the screen it is on; words keep the room a reply needs. */}
+                        <div
+                            className={`rounded-card bg-raised text-prose text-ink flex min-w-0 flex-col gap-1.5 px-3 py-2 ${
+                                (turn.user.files ?? []).some((file) => file.image)
+                                    ? "max-w-full sm:max-w-[80%]"
+                                    : "max-w-[80%]"
+                            }`}
+                        >
                             <Attachments
+                                large
                                 files={(turn.user.files ?? []).map((file, index) => ({
                                     ...file,
                                     key: String(index),

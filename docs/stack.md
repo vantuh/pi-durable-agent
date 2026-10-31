@@ -20,6 +20,7 @@ The first choice, recorded so later decisions can be read against it. Versions a
 | Styles     | Tailwind 4 through `@tailwindcss/vite` | No `tailwind.config.js`; design tokens live in CSS `@theme`                | Class strings are long; needs `sortTailwindcss`                   |
 | Components | `shadcn/ui`, copied in on demand       | The code lands in the repo, so it can be edited freely                     | Each component brings Radix packages                              |
 | Icons      | `lucide-react`                         | What `shadcn` expects                                                      | One dependency for tree-shaken icons                              |
+| Zoom       | `react-zoom-pan-pinch` 4.2.0           | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
 | Agent      | `@earendil-works/pi-durable` 1.4.0     | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
 | Lint       | `oxlint`                               | Fast, no plugin zoo                                                        | Rule coverage is smaller than ESLint's                            |
 | Format     | `oxfmt`                                | 4 spaces, 100 columns, sorted imports and Tailwind classes                 | Young tool; formatting may shift between versions                 |
