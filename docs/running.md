@@ -7,9 +7,15 @@ serves it from the server alone.
 
 ## On the phone
 
-The dev build is the wrong thing to load on a phone: about 170 requests and 15 MB of JavaScript to
-parse, an HMR socket, and React's dev-mode double renders. The production build is about 50
-requests and 1.6 MB to parse (measured on a mobile viewport, cold load).
+Through Tailscale: `tailscale serve --bg 8443 http://127.0.0.1:8788` puts the server's own
+production build on `https://<machine>.<tailnet>.ts.net:8443/`, tailnet only. That address is HTTPS,
+so the service worker registers and the offline shell works; nothing listens on the local network.
+The shell it serves is `dist/`, so run `pnpm start` (or `pnpm build`) after a change; a new build
+reaches a phone that already has the worker only after the app is closed and opened again.
+
+Without such a proxy, the dev build is the wrong thing to load on a phone: about 170 requests and
+15 MB of JavaScript to parse, an HMR socket, and React's dev-mode double renders. The production
+build is about 50 requests and 1.6 MB to parse (measured on a mobile viewport, cold load).
 
 ```bash
 pnpm preview:phone
