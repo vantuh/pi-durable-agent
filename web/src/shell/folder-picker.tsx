@@ -221,7 +221,10 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
                     <div className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2 py-1.5 font-mono">
                         {trail.map((crumb, at) => (
-                            <span key={crumb.path} className="flex items-center gap-1">
+                            <span
+                                key={crumb.path}
+                                className="flex shrink-0 items-center gap-1 whitespace-nowrap"
+                            >
                                 {at === 0 ? null : <span className="text-faint">›</span>}
                                 <button
                                     type="button"
@@ -242,7 +245,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 </div>
 
                 <div className="flex min-h-0 flex-1 gap-2 px-4">
-                    <nav className="flex w-44 shrink-0 flex-col gap-0.5">
+                    <nav className="flex min-h-0 w-44 shrink-0 flex-col gap-0.5 overflow-y-auto">
                         <Row
                             icon={<House className="size-4" />}
                             label="Home"
@@ -261,7 +264,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         {section("Recent", recents)}
                     </nav>
 
-                    <ScrollArea className="rounded-control border-edge-soft min-h-[16rem] flex-1 border">
+                    <ScrollArea className="rounded-control border-edge-soft min-h-0 flex-1 border">
                         <div className="p-1">
                             {error ? (
                                 <p className="text-danger text-meta p-2">
@@ -289,7 +292,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     </ScrollArea>
                 </div>
 
-                <footer className="border-edge-soft mt-3 flex flex-col gap-2 border-t px-4 py-3">
+                <footer className="border-edge-soft mt-3 flex shrink-0 flex-col gap-2 border-t px-4 py-3">
                     {options.map((option) => (
                         <Option
                             key={`${option.folder}/${option.id}`}
