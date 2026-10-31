@@ -29,7 +29,6 @@
         "@radix-ui/react-scroll-area": "^1.4.0",
         "@radix-ui/react-switch": "1.4.1",
         "@radix-ui/react-tabs": "^1.2.1",
-        "@vantuh/pi-kiro-acp": "file:../pi-kiro-acp",
         "cmdk": "1.1.1",
         "linkedom": "0.18.14",
         "react": "^19.3.1",
@@ -68,6 +67,9 @@
         "@vantuh/pi-kiro-acp": {
             "injected": true
         }
+    },
+    "optionalDependencies": {
+        "@vantuh/pi-kiro-acp": "file:../pi-kiro-acp"
     },
     "engines": {
         "node": ">=26"
