@@ -57,6 +57,8 @@ export function App() {
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
     const [sheet, setSheet] = useState(false);
     const [settings, setSettings] = useState(false);
+    // The panel stays mounted to animate; each open remounts its sections, which read on mount.
+    const [settingsEpoch, setSettingsEpoch] = useState(0);
     const panels = usePanels();
 
     const { state, send, stop, loadOlder } = useConversation(current);
@@ -128,6 +130,11 @@ export function App() {
               };
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelOpen);
+
+    const openSettings = (): void => {
+        setSettings(true);
+        setSettingsEpoch(settingsEpoch + 1);
+    };
 
     // A new session in `path`, opened at once.
     const openSession = (path: string): void => {
@@ -208,9 +215,7 @@ export function App() {
                             onSessions={() => {
                                 setSheet(true);
                             }}
-                            onSettings={() => {
-                                setSettings(true);
-                            }}
+                            onSettings={openSettings}
                         />
                     ) : (
                         <>
@@ -236,9 +241,7 @@ export function App() {
                                         />
                                     </>
                                 }
-                                onSettings={() => {
-                                    setSettings(true);
-                                }}
+                                onSettings={openSettings}
                                 onSessions={() => {
                                     setSheet(true);
                                 }}
@@ -361,16 +364,16 @@ export function App() {
                     />
                 )}
 
-                {settings ? (
-                    <Settings
-                        model={active?.model ?? ""}
-                        cwd={active?.cwd ?? ""}
-                        session={activeSession}
-                        onClose={() => {
-                            setSettings(false);
-                        }}
-                    />
-                ) : null}
+                <Settings
+                    model={active?.model ?? ""}
+                    cwd={active?.cwd ?? ""}
+                    session={activeSession}
+                    open={settings}
+                    epoch={settingsEpoch}
+                    onClose={() => {
+                        setSettings(false);
+                    }}
+                />
             </div>
 
             <StatusBar
