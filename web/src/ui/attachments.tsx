@@ -39,9 +39,6 @@ type Shot = { src: string | undefined; name: string };
 /** A photo as wide as its message: a phone screenshot is unreadable in a chip. */
 const PHOTO = "block max-h-[min(60dvh,26rem)] w-auto max-w-full object-contain";
 
-/** A picture a tool returned: smaller than a photo sent by hand, still seen without opening it. */
-const THUMB = "block max-h-[min(50dvh,20rem)] max-w-full object-contain";
-
 function size(bytes: number): string {
     return bytes < 1024 ? `${String(bytes)} B` : `${(bytes / 1024).toFixed(1)} KB`;
 }
@@ -303,24 +300,38 @@ function Chip({
     );
 }
 
-/** Pictures a tool returned, as previews that open full size. */
+/** A picture a tool returned: the composer's card, since a run of screenshots fills a screen at full size. */
+function ShotChip({ src, name, onOpen }: { src: string; name: string; onOpen: () => void }) {
+    return (
+        <Attachment>
+            <AttachmentTrigger title="Preview" onClick={onOpen} />
+
+            <AttachmentMedia>
+                <img src={src} alt="" loading="lazy" />
+            </AttachmentMedia>
+
+            <AttachmentContent>
+                <AttachmentTitle title={name}>{name}</AttachmentTitle>
+            </AttachmentContent>
+        </Attachment>
+    );
+}
+
+/** Pictures a tool returned, as cards that open full size in the viewer. */
 export function ImageThumbs({ images }: { images: { src: string; name: string }[] }) {
     const [open, setOpen] = useState<number | undefined>(undefined);
 
     return (
         <div className="flex flex-wrap gap-1.5">
             {images.map((image, index) => (
-                <button
+                <ShotChip
                     key={image.src}
-                    type="button"
-                    title="Preview"
-                    onClick={() => {
+                    src={image.src}
+                    name={image.name}
+                    onOpen={() => {
                         setOpen(index);
                     }}
-                    className="rounded-control border-edge-soft bg-sunken hover:border-edge max-w-full cursor-zoom-in overflow-hidden border"
-                >
-                    <img src={image.src} alt={image.name} loading="lazy" className={THUMB} />
-                </button>
+                />
             ))}
 
             {open === undefined ? null : (
