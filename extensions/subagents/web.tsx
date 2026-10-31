@@ -71,13 +71,33 @@ function hover(agent: StripAgent): string {
             ? `${compact(agent.used)} / ${compact(agent.window)} (${String(agent.fill)}%)`
             : "none yet";
 
-    return `${[agent.name, agent.profile, agent.model].filter((part) => part !== "").join(" · ")}. Context estimate: ${context}.`;
+    const folder = agent.cwd === null ? "" : ` Folder: ${agent.cwd}.`;
+
+    return `${[agent.name, agent.profile, agent.model].filter((part) => part !== "").join(" · ")}. Context estimate: ${context}.${folder}`;
 }
 
 // Both views take the same height, so the composer stays where it is: 36px plus 2px of margin each side.
 const ROW = "h-9 max-[760px]:h-10";
 
-function Chip({ agent, href, onOpen }: { agent: StripAgent; href: string; onOpen: () => void }) {
+// "/repo/", "/repo/." and "/repo" are one folder; the root stays "/".
+function trimmed(folder: string | null): string | null {
+    return folder === null ? null : folder.replace(/(?<=.)(?:\/\.|\/)+$/, "");
+}
+
+function Chip({
+    agent,
+    href,
+    onOpen,
+    folder,
+}: {
+    agent: StripAgent;
+    href: string;
+    onOpen: () => void;
+    folder: string | null;
+}) {
+    // Shown only when the agent works somewhere other than the open session, so the usual chip is unchanged.
+    const elsewhere = agent.cwd !== null && trimmed(agent.cwd) !== trimmed(folder);
+
     return (
         <a
             href={href}
@@ -98,6 +118,17 @@ function Chip({ agent, href, onOpen }: { agent: StripAgent; href: string; onOpen
                     {shortModel(agent.model)}
                 </span>
             )}
+            {elsewhere ? (
+                <span
+                    className="text-faint bg-raised border-edge-soft rounded-control hidden max-w-[70px] truncate border px-1 text-[10px] sm:inline"
+                    aria-hidden
+                >
+                    {agent.cwd
+                        ?.split("/")
+                        .filter((part) => part !== "")
+                        .at(-1) ?? agent.cwd}
+                </span>
+            ) : null}
             <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
                 {agent.window > 0 ? (
                     <>
@@ -152,6 +183,7 @@ function Agents({ session, openSession }: AboveComposerProps) {
                         <Chip
                             agent={agent}
                             href={sessionHref(agent.session)}
+                            folder={session?.cwd ?? null}
                             onOpen={() => {
                                 openSession(agent.session);
                             }}

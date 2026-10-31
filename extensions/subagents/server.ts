@@ -5,6 +5,9 @@
  * the answer back to the parent as input. Request IDs keep a restart from sending either twice.
  */
 
+import { statSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
+
 import type { Context } from "@earendil-works/chord/context";
 import { type AssistantMessage, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import {
@@ -238,6 +241,14 @@ async function busy(api: ToolExecutionApi, id: ConversationId, context: Context)
     return (await api.snapshot(LiveDoc, id, context))?.run !== undefined;
 }
 
+function isDirectory(folder: string): boolean {
+    try {
+        return statSync(folder).isDirectory();
+    } catch {
+        return false;
+    }
+}
+
 /** The model, thinking, tools and instructions of a profile, over the parent's agent the child copies. */
 async function childAgent(
     api: ToolExecutionApi,
@@ -313,6 +324,7 @@ async function stripAgent(
     id: number,
     child: Seen,
     named: Named | undefined,
+    parentCwd: string,
 ): Promise<StripAgent> {
     const { answer, cwd } = child;
     const profile = named?.profile ?? "";
@@ -325,10 +337,11 @@ async function stripAgent(
               answer.usage.cacheWrite;
     const window =
         answer === undefined ? 0 : (host.contextWindow(answer.provider, answer.model) ?? 0);
-    // Before its first answer the profile is the only place that names the model.
+    // Before its first answer the profile is the only place that names the model; spawn read it
+    // from the parent's folder, whatever folder the agent works in.
     const model =
         answer === undefined
-            ? ((await readProfiles(cwd ?? host.cwd)).get(profile)?.model ?? "")
+            ? ((await readProfiles(parentCwd)).get(profile)?.model ?? "")
             : `${answer.provider}/${answer.model}`;
 
     return {
@@ -340,6 +353,7 @@ async function stripAgent(
         used,
         window,
         working: true,
+        cwd: cwd ?? null,
     };
 }
 
@@ -449,7 +463,9 @@ export const actions = (host: Host): Record<string, Action> => ({
         return {
             parent: null,
             agents: await Promise.all(
-                working.map(([id, child]) => stripAgent(host, id, child, named.get(id))),
+                working.map(([id, child]) =>
+                    stripAgent(host, id, child, named.get(id), session.cwd ?? host.cwd),
+                ),
             ),
         };
     },
@@ -483,7 +499,7 @@ export default function subagents(host: Host) {
     const spawn = defineTool({
         name: "agent_spawn",
         description:
-            "Start a new agent from an existing Markdown profile in ~/.pi/agent/agents (or the project's .pi/agents) on a self-contained task. Model and thinking come only from the profile; overrides are forbidden. An invalid or unavailable model/thinking returns an error without starting an agent. Its result arrives as a message.",
+            "Start a new agent from an existing Markdown profile in ~/.pi/agent/agents (or the project's .pi/agents) on a self-contained task. Model and thinking come only from the profile; overrides are forbidden. An invalid or unavailable model/thinking returns an error without starting an agent. Its tools run in `cwd` when given. Its result arrives as a message.",
         parameters: Type.Object(
             {
                 agent: Type.String({
@@ -494,6 +510,12 @@ export default function subagents(host: Host) {
                     Type.String({
                         description:
                             "Name to address it by later; defaults to the title-cased profile name.",
+                    }),
+                ),
+                cwd: Type.Optional(
+                    Type.String({
+                        description:
+                            "Absolute folder the new agent's tools work in, e.g. a git worktree path; omit to inherit this conversation's folder.",
                     }),
                 ),
             },
@@ -527,6 +549,17 @@ export default function subagents(host: Host) {
             }
 
             const { change } = configured;
+            const given = args.cwd?.trim() ?? "";
+            // Resolved so that "/repo/" and "/repo/." are the one folder the agent is stored with.
+            const folder = given === "" ? undefined : resolve(given);
+
+            if (folder !== undefined && !(isAbsolute(given) && isDirectory(folder))) {
+                return reply(
+                    `No agent was started. cwd must be an absolute path to an existing folder, got "${given}".`,
+                    true,
+                );
+            }
+
             const explicit = args.name?.trim() ?? "";
             const base = explicit === "" ? titleCase(profile.name) : explicit;
             const started = await api.commit(async (tx) => {
@@ -557,7 +590,12 @@ export default function subagents(host: Host) {
                     ownership: { kind: "task", taskId: anchor },
                 });
 
-                await configure(tx, child.id, { ...change, extensions: { remove: [self] } });
+                // Not in createConversation: a task-owned child is copied from its owner, which overwrites it.
+                await configure(tx, child.id, {
+                    ...change,
+                    ...(folder === undefined ? {} : { cwd: folder }),
+                    extensions: { remove: [self] },
+                });
                 state.agents[name] = {
                     conversationId: child.id,
                     agent: profile.name,

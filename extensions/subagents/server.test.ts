@@ -214,7 +214,7 @@ void describe("subagents", () => {
         registry.install(subagents(host));
         harness = await Harness.open(
             await openNodeSqliteStorage(join(dir, "state.sqlite")),
-            { models, registry, env: () => new NodeExecutionEnv({ cwd: dir }) },
+            { models, registry, env: ({ cwd }) => new NodeExecutionEnv({ cwd: cwd ?? dir }) },
             context,
         );
         wiring.harness = harness;
@@ -412,6 +412,147 @@ void describe("subagents", () => {
             );
         });
     }
+
+    async function spawnIn(
+        args: Record<string, string>,
+        child: (request: TranscriptContext) => Promise<AssistantMessage> = () =>
+            Promise.resolve(fauxAssistantMessage("Done.")),
+    ): Promise<{
+        text: string;
+        isError: boolean;
+        childIds: ConversationId[];
+    }> {
+        const step = scripted(child, (said) =>
+            said === "spawn"
+                ? call("agent_spawn", { agent: "counter", task: "Count.", ...args })
+                : fauxAssistantMessage("ok"),
+        );
+
+        faux.setResponses(Array.from({ length: 10 }, () => step));
+        await (await parent.submit({ type: "input", content: "spawn" }, context)).wait(context);
+        await reportersDone();
+        await parent.waitForIdle(context);
+
+        const entries = await harness.commit(
+            (tx) => tx.scanEntries({ conversationId: parent.id }, 100),
+            context,
+        );
+        const result = entries.items
+            .flatMap((entry) => entry.model ?? [])
+            .find((message) => message.role === "toolResult");
+
+        assert.ok(result?.role === "toolResult");
+
+        const conversations = await harness.commit((tx) => tx.scanConversations({}, 100), context);
+
+        return {
+            text: result.content
+                .flatMap((part) => (part.type === "text" ? [part.text] : []))
+                .join(""),
+            isError: result.isError,
+            childIds: conversations.items
+                .filter((record) => record.id !== parent.id)
+                .map((record) => record.id),
+        };
+    }
+
+    async function cwdOf(id: ConversationId | undefined): Promise<string | undefined> {
+        assert.ok(id !== undefined);
+
+        const conversation = await harness.conversation(id, context);
+
+        return (await conversation?.agent(context))?.cwd;
+    }
+
+    void it("runs an agent's tools in the folder agent_spawn is given", async () => {
+        const worktree = join(dir, "worktree");
+
+        await mkdir(worktree);
+        await writeFile(join(worktree, "marker.txt"), "only in the worktree");
+
+        const spawned = await spawnIn({ cwd: `  ${worktree}  ` }, (request) =>
+            Promise.resolve(
+                request.messages.at(-1)?.role === "toolResult"
+                    ? fauxAssistantMessage("Done.")
+                    : call("read", { path: "marker.txt" }),
+            ),
+        );
+
+        assert.equal(spawned.isError, false);
+        assert.equal(spawned.childIds.length, 1);
+        assert.equal(await cwdOf(spawned.childIds[0]), worktree);
+        assert.equal(await cwdOf(parent.id), dir, "the parent keeps its own folder");
+
+        const entries = await harness.commit(
+            (tx) => tx.scanEntries({ conversationId: spawned.childIds[0] ?? parent.id }, 100),
+            context,
+        );
+        const read = entries.items
+            .flatMap((entry) => entry.model ?? [])
+            .find((message) => message.role === "toolResult");
+
+        assert.ok(read?.role === "toolResult");
+        assert.equal(read.isError, false);
+        assert.match(
+            read.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+            /only in the worktree/,
+            "the agent's own tool read a file that exists only in that folder",
+        );
+    });
+
+    void it("stores the canonical folder when the path has a trailing slash or dot", async () => {
+        const worktree = join(dir, "worktree");
+
+        await mkdir(worktree);
+
+        const known = new Set<ConversationId>();
+
+        for (const [n, cwd] of [
+            `${worktree}/`,
+            `${worktree}/.`,
+            join(worktree, "..", "worktree"),
+        ].entries()) {
+            const spawned = await spawnIn({ cwd, name: `Agent ${String(n)}` });
+            const fresh = spawned.childIds.filter((id) => !known.has(id));
+
+            assert.equal(fresh.length, 1, cwd);
+            assert.equal(await cwdOf(fresh[0]), worktree, cwd);
+            fresh.forEach((id) => known.add(id));
+        }
+    });
+
+    for (const cwd of ["", "   "]) {
+        void it(`keeps the parent's folder for ${JSON.stringify(cwd)}`, async () => {
+            const spawned = await spawnIn(cwd === "" ? {} : { cwd });
+
+            assert.equal(spawned.isError, false);
+            assert.equal(spawned.childIds.length, 1);
+            assert.equal(await cwdOf(spawned.childIds[0]), dir);
+        });
+    }
+
+    void it("refuses a folder that is relative, missing or a file, and starts no agent", async () => {
+        await mkdir(join(dir, "relative"));
+        await writeFile(join(dir, "file.txt"), "not a folder");
+
+        // "extensions" and "." exist relative to the process, so only the absolute-path rule refuses them.
+        for (const cwd of [
+            "relative",
+            "extensions",
+            ".",
+            join(dir, "missing"),
+            join(dir, "file.txt"),
+        ]) {
+            const spawned = await spawnIn({ cwd });
+
+            assert.equal(spawned.isError, true, cwd);
+            assert.ok(spawned.text.includes(cwd), spawned.text);
+            assert.doesNotMatch(spawned.text, /additional/i, "refused by the tool, not the schema");
+            assert.deepEqual(spawned.childIds, [], cwd);
+        }
+
+        assert.equal(titles.size, 0);
+    });
 
     void it("defaults omitted profile thinking to off, not the parent's level", async () => {
         await writeProfile(`model: ${profileModel}`);
@@ -759,6 +900,7 @@ void describe("subagents", () => {
                     used,
                     window: used * 4,
                     working: true,
+                    cwd: dir,
                 },
             ]);
             assert.deepEqual(await strip(child.id), {
@@ -831,6 +973,77 @@ void describe("subagents", () => {
                 ],
             );
             assert.equal(wiring.reads, 1, "the parent's record is read once for all its children");
+            assert.deepEqual(
+                (await strip(parent.id)).agents.map((agent) => agent.cwd),
+                [dir, dir],
+            );
+        });
+
+        void it("reports the folder an agent works in, as spawned", async () => {
+            const worktree = join(dir, "worktree");
+
+            await mkdir(worktree);
+            await spawnIn({ cwd: `${worktree}/.` }, () =>
+                Promise.resolve(fauxAssistantMessage("never asked")),
+            );
+
+            const child = await childOfParent();
+            const folder = (await child.agent(context))?.cwd;
+
+            assert.equal(folder, worktree);
+            await wiring.listeners[0]?.({
+                session: { id: child.id, cwd: folder ?? null, owner: parent.id },
+                entries: [],
+                busy: true,
+            });
+
+            assert.deepEqual(
+                (await strip(parent.id)).agents.map((agent) => [agent.session, agent.cwd]),
+                [[child.id, worktree]],
+            );
+        });
+
+        void it("names the model of an agent that has not answered from the parent's profiles, not the agent's folder", async () => {
+            // Outside `dir`: profile discovery also walks up from a folder, and would find `dir/.pi`.
+            const elsewhere = await mkdtemp(join(tmpdir(), "subagents-elsewhere-"));
+
+            try {
+                await spawnIn({ cwd: elsewhere }, () =>
+                    Promise.resolve(fauxAssistantMessage("never asked")),
+                );
+
+                const child = await childOfParent();
+
+                await wiring.listeners[0]?.({
+                    session: { id: child.id, cwd: elsewhere, owner: parent.id },
+                    entries: [],
+                    busy: true,
+                });
+
+                assert.deepEqual(
+                    (await strip(parent.id)).agents.map((agent) => [agent.model, agent.cwd]),
+                    [[profileModel, elsewhere]],
+                );
+            } finally {
+                await rm(elsewhere, { recursive: true, force: true });
+            }
+        });
+
+        void it("reports no folder for an agent whose commit named none", async () => {
+            await spawnIn({}, () => Promise.resolve(fauxAssistantMessage("never asked")));
+
+            const child = await childOfParent();
+
+            await wiring.listeners[0]?.({
+                session: { id: child.id, cwd: null, owner: parent.id },
+                entries: [],
+                busy: true,
+            });
+
+            assert.deepEqual(
+                (await strip(parent.id)).agents.map((agent) => agent.cwd),
+                [null],
+            );
         });
 
         void it("names every agent the parent started from its record, with one read", async () => {

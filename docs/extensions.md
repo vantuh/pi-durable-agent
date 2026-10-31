@@ -345,13 +345,17 @@ Remaining proposals and historical verification notes are in its
   `tools` and `thinking`, and instructions in the body. Read from `<Pi agent directory>/agents/`
   (normally `~/.pi/agent/agents/`), then the nearest `.pi/agents/` above the session's cwd, overriding by name.
   Edits affect future spawns without a restart, not agents already started.
-- **Profile-only model/thinking:** spawn accepts only `agent`, `task`, and optional `name`;
-  model/thinking overrides are rejected. Missing, malformed, unavailable, or unauthenticated models
-  return an error without creating an agent. Thinking must be supported by the profile's model;
-  omission means `off`, invalid/unsupported values fail. No fallback, mapping, or silent clamping.
+- **Profile-only model/thinking:** spawn accepts only `agent`, `task`, optional `name`, and
+  optional `cwd`; model/thinking overrides are rejected. Missing, malformed, unavailable, or
+  unauthenticated models return an error without creating an agent. Thinking must be supported by
+  the profile's model; omission means `off`, invalid/unsupported values fail. No fallback, mapping,
+  or silent clamping.
 - **Inheritance:** a child starts with the parent's agent configuration, not its transcript; the
   profile supplies its model/thinking and applies instructions and optional tool restrictions.
-  The subagents extension is removed from children, preventing recursive delegation. Children share the working directory and permissions; this is not a sandbox.
+  The subagents extension is removed from children, preventing recursive delegation. Children share
+  the machine's permissions; this is not a sandbox. A child works in the parent's folder unless
+  `cwd` names another absolute folder, such as a worktree, in which case every tool call of that child
+  runs there.
 - **Reports:** background reporter tasks deliver answers automatically as steering input to the
   parent. `subagents.instruction` names `Orchestrator`; `subagents.report` names the child agent.
   Both use the generic [`data.author` convention](server.md#messages-from-application-authors) and

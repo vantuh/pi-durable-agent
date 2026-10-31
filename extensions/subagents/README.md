@@ -221,11 +221,14 @@ reading them, skills. The profile body does not replace those sections. The `sub
 itself is removed from the child by name, so the child has neither these four tools nor the
 orchestrator's `agents` prompt section. Recursive delegation is not supported.
 
-**This is not a sandbox or a separate worktree.** A child uses the same working directory and
-machine permissions. Multiple editing agents can overwrite one another's work. Delegate edits only
-to disjoint file sets; a tool allowlist is not a filesystem permission boundary (`bash`, for
-example, can write files). The prompt recommends at most four independent agents in parallel;
-that is guidance to the model, not an enforced concurrency limit.
+**This is not a sandbox.** A child uses the same machine permissions as the parent, and the same
+working directory unless `agent_spawn` is given `cwd`, an absolute folder such as a worktree, in
+which case that child's tools run there and not in the parent's folder.
+
+Multiple editing agents can overwrite one another's work. Delegate edits only to disjoint file
+sets; a tool allowlist is not a filesystem permission boundary (`bash`, for example, can write
+files). The prompt recommends at most four independent agents in parallel; that is guidance to the
+model, not an enforced concurrency limit.
 
 The appended protocol asks the child to keep progress short, return a complete text answer, and
 end with `AGENT_RESULT: done | blocked — <summary>`. If blocked on a question, it should end its
