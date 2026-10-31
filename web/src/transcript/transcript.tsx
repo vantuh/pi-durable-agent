@@ -484,6 +484,10 @@ export function Transcript({
             if (following.current) {
                 target.scrollTop = target.scrollHeight;
             }
+
+            if (measured.current !== null) {
+                measured.current = { ...measured.current, height: target.scrollHeight };
+            }
         });
 
         sizes.observe(inner);
@@ -563,6 +567,15 @@ export function Transcript({
                         }
 
                         lastTop.current = el.scrollTop;
+
+                        // The reader keeps scrolling while a page loads: the page must land against where they are now.
+                        if (measured.current !== null) {
+                            measured.current = {
+                                ...measured.current,
+                                height: el.scrollHeight,
+                                top: el.scrollTop,
+                            };
+                        }
 
                         if (el.scrollTop < OLDER_AT && !exhausted) {
                             void onLoadOlder();
