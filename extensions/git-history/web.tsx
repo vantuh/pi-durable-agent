@@ -504,7 +504,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             }}
             className="border-edge-soft border-b"
         >
-            <div className="flex items-center gap-2 px-3 py-3">
+            <div className="flex items-center gap-2 px-3 py-2">
                 <button
                     type="button"
                     aria-expanded={selected === target}
@@ -522,7 +522,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                     }}
                     className="min-w-0 flex-1 text-left"
                 >
-                    <span className="text-interface text-ink flex items-center gap-1.5 font-medium">
+                    <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
                         {marker === "local" ? (
                             <ArrowUp className="text-ok size-3 shrink-0" aria-label="Not pushed" />
                         ) : marker === "remote" ? (
@@ -533,7 +533,9 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                         ) : null}
                         <span className="truncate">{title}</span>
                     </span>
-                    <span className="text-meta text-faint block truncate">{detail}</span>
+                    <span className="text-meta text-faint block truncate leading-tight">
+                        {detail}
+                    </span>
                 </button>
                 {commit !== undefined && rewritable(commit) ? (
                     <button
