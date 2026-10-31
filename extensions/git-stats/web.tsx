@@ -6,6 +6,10 @@ import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
 import { push, stats, type GitStats } from "./refs.ts";
 
+// The numbers change when the agent works (the effect below re-reads on that), so a slow poll is enough, and a hidden
+// tab, which a phone keeps for hours, is not worth waking the radio for.
+const POLL_MS = 60_000;
+
 function GitBadge({ session }: StatusProps) {
     const id = session?.id ?? null;
     const busy = session?.busy ?? false;
@@ -33,15 +37,26 @@ function GitBadge({ session }: StatusProps) {
                 }
             }
             if (alive) {
+                clearTimeout(timer);
                 timer = setTimeout(() => {
-                    void update();
-                }, 10000);
+                    if (document.visibilityState === "visible") {
+                        void update();
+                    }
+                }, POLL_MS);
+            }
+        };
+        const onVisible = () => {
+            if (document.visibilityState === "visible") {
+                clearTimeout(timer);
+                void update();
             }
         };
         void update();
+        document.addEventListener("visibilitychange", onVisible);
         return () => {
             alive = false;
             clearTimeout(timer);
+            document.removeEventListener("visibilitychange", onVisible);
         };
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- refresh on agent activity and after a push, in addition to polling
     }, [id, busy, refresh]);
