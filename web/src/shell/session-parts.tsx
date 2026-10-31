@@ -6,6 +6,9 @@ export const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 
+// Building a formatter costs far more than formatting with one, and a list asks once per row.
+const SHORT_DATE = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
 /** Elapsed time as one short unit: "now", "5m", "2h", "3d"; a date past a week. */
 export function ago(at: number, now: number): string {
     const elapsed = Math.max(0, now - at);
@@ -26,7 +29,7 @@ export function ago(at: number, now: number): string {
         return `${String(Math.floor(elapsed / DAY))}d`;
     }
 
-    return new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return SHORT_DATE.format(at);
 }
 
 export function folderName(cwd: string | null): string {
