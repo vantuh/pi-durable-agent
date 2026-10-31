@@ -3,6 +3,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
 import { readChanges, readHistory, reword as rewordCommit } from "./git.ts";
 import { reviewProxy } from "./proxy.ts";
+import type { Changes } from "./refs.ts";
 import { Reviews } from "./reviews.ts";
 
 export const meta = {
@@ -44,6 +45,32 @@ function sessionOf(session: Parameters<Action>[0]["session"]): { id: number; cwd
     }
     return { id: session.id, cwd: session.cwd };
 }
+/** A commit's diff never changes, so a second look costs nothing; the working tree is read every time. */
+const CHANGES_KEPT = 20;
+const read = new Map<string, Changes>();
+
+function changesOf(cwd: string, target: string): Promise<Changes> {
+    if (target === "worktree") {
+        return readChanges(cwd, target);
+    }
+    const key = `${cwd}\u0000${target}`;
+    const found = read.get(key);
+    if (found !== undefined) {
+        // Re-inserted, so the entry kept longest is the one used longest ago.
+        read.delete(key);
+        read.set(key, found);
+        return Promise.resolve(found);
+    }
+    return readChanges(cwd, target).then((result) => {
+        read.set(key, result);
+        const oldest = read.keys().next().value;
+        if (read.size > CHANGES_KEPT && oldest !== undefined) {
+            read.delete(oldest);
+        }
+        return result;
+    });
+}
+
 export const actions = (host: Host): Record<string, Action> => ({
     history({ args, session }) {
         const limit = field(args, "limit");
@@ -53,7 +80,8 @@ export const actions = (host: Host): Record<string, Action> => ({
         return readHistory(sessionOf(session).cwd, limit);
     },
     changes({ args, session }) {
-        return readChanges(sessionOf(session).cwd, targetOf(args));
+        const current = sessionOf(session);
+        return changesOf(current.cwd, targetOf(args));
     },
     reword({ args, session }) {
         const hash = field(args, "hash");

@@ -182,3 +182,58 @@ void describe("git-history reword", () => {
         assert.equal((await git(repo, "rev-parse", "HEAD")).trim(), head);
     });
 });
+
+void describe("git-history changes", () => {
+    let dir: string;
+    let repo: string;
+    const git = async (...args: string[]) => (await run("git", args, { cwd: repo })).stdout.trim();
+    const changesOf = (args: unknown) => {
+        const action = actions(host)["changes"];
+        assert.ok(action);
+        return action({ args, session: { id: 1, cwd: repo } });
+    };
+    const patchOf = async (target: string) => {
+        const found = await changesOf({ target });
+        assert.ok(typeof found === "object" && found !== null);
+        const patch = Reflect.get(found, "patch");
+        assert.equal(typeof patch, "string");
+        return patch;
+    };
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "git-history-changes-"));
+        repo = join(dir, "repo");
+        await mkdir(repo);
+        await git("init", "-b", "main");
+        await git("config", "user.name", "Test");
+        await git("config", "user.email", "test@example.com");
+        await git("config", "commit.gpgsign", "false");
+        await writeFile(join(repo, "file"), "one\n");
+        await git("add", "-A");
+        await git("commit", "-m", "first");
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    void it("reads the working tree again after it changes", async () => {
+        await writeFile(join(repo, "file"), "one\ndirty\n");
+        assert.match(await patchOf("worktree"), /\n\+dirty/);
+        await writeFile(join(repo, "file"), "one\nfresh\n");
+        const later = await patchOf("worktree");
+        assert.match(later, /\n\+fresh/);
+        assert.doesNotMatch(later, /\+dirty/);
+    });
+
+    void it("keeps each commit's own patch", async () => {
+        const first = await git("rev-parse", "HEAD");
+        await writeFile(join(repo, "file"), "one\ntwo\n");
+        await git("add", "-A");
+        await git("commit", "-m", "second");
+        const second = await git("rev-parse", "HEAD");
+        assert.match(await patchOf(first), /\n\+one/);
+        assert.doesNotMatch(await patchOf(first), /\n\+two/);
+        assert.match(await patchOf(second), /\n\+two/);
+    });
+});
