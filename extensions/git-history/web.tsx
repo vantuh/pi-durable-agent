@@ -26,7 +26,7 @@ import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { PatchPreview } from "./preview.tsx";
+import { PatchPreview, warmPreview } from "./preview.tsx";
 import {
     UNTRACKED_FILE_CAP,
     cancel,
@@ -205,11 +205,10 @@ function forgetPatches(): void {
 const PREFETCHED = 3;
 const HOVER_DELAY = 120;
 
-function prefetch(session: number, target: string | undefined): void {
-    if (target === undefined) {
-        return;
-    }
-    void loadChanges(session, target).catch(() => undefined);
+/** Reading is half the wait; parsing and highlighting otherwise start on the click. */
+async function prefetch(session: number, target: string): Promise<void> {
+    const found = await loadChanges(session, target);
+    await warmPreview(found.patch);
 }
 
 /** Sweeping the mouse down the list must not read every commit it crosses. */
@@ -220,7 +219,7 @@ function prefetchSoon(session: number, target: string | undefined): void {
         return;
     }
     hoverTimer = setTimeout(() => {
-        prefetch(session, target);
+        void prefetch(session, target).catch(() => undefined);
     }, HOVER_DELAY);
 }
 
@@ -365,7 +364,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             if (!alive || commit === undefined || index >= PREFETCHED) {
                 return;
             }
-            await loadChanges(id, commit.hash).catch(() => undefined);
+            await prefetch(id, commit.hash).catch(() => undefined);
             if (alive) {
                 stop = whenIdle(() => {
                     void warm(index + 1);

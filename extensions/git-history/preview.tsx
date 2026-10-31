@@ -51,6 +51,56 @@ const options = {
     }`,
 } satisfies NonNullable<Parameters<typeof CodeView>[0]["options"]>;
 
+const PARSED_KEPT = 10;
+const warmed = new Map<
+    string,
+    { files?: FileDiffMetadata[]; started: Promise<FileDiffMetadata[]> }
+>();
+
+/** What is already parsed, so a shown diff renders in one pass instead of two. */
+export function knownPreview(patch: string): FileDiffMetadata[] | undefined {
+    return warmed.get(patch)?.files;
+}
+
+/**
+ * One parse and one highlight pass per patch, whether the diff is about to be shown or only
+ * hovered over: the grammars live on after the first, so a later call is nearly free.
+ */
+export function warmPreview(patch: string): Promise<FileDiffMetadata[]> {
+    const found = warmed.get(patch);
+    if (found !== undefined) {
+        return found.started;
+    }
+    const entry: { files?: FileDiffMetadata[]; started: Promise<FileDiffMetadata[]> } = {
+        started: (async () => {
+            const files = parsePatchFiles(patch, undefined, true).flatMap((diff) => diff.files);
+            // Pierre's first client render needs its theme and grammars already loaded.
+            await preloadHighlighter({
+                themes: [theme],
+                langs: files.map((file) => getFiletypeFromFileName(file.name)),
+            });
+            return files;
+        })(),
+    };
+    warmed.set(patch, entry);
+    void entry.started.then(
+        (files) => {
+            entry.files = files;
+            return files;
+        },
+        () => {
+            // A failed parse is not a cached answer: the next look reports it again.
+            warmed.delete(patch);
+            return [];
+        },
+    );
+    const oldest = warmed.keys().next().value;
+    if (warmed.size > PARSED_KEPT && oldest !== undefined) {
+        warmed.delete(oldest);
+    }
+    return entry.started;
+}
+
 /** Files the patch does not carry: binary, or cut off by the preview's size limit. */
 function WithoutDiff({ files }: { files: ChangedFile[] }) {
     return (
@@ -81,28 +131,26 @@ export function PatchPreview({ data }: { data: Changes }) {
     const [parsed, setParsed] = useState<{
         files: FileDiffMetadata[];
         error: string | null;
-    } | null>(null);
+    } | null>(() => {
+        const files = knownPreview(data.patch);
+        return files === undefined ? null : { files, error: null };
+    });
     useEffect(() => {
         let alive = true;
-        void (async () => {
-            try {
-                const files = parsePatchFiles(data.patch, undefined, true).flatMap(
-                    (patch) => patch.files,
-                );
-                // Pierre's first client render needs its theme and grammars already loaded.
-                await preloadHighlighter({
-                    themes: [theme],
-                    langs: files.map((file) => getFiletypeFromFileName(file.name)),
-                });
+        warmPreview(data.patch).then(
+            (files) => {
                 if (alive) {
                     setParsed({ files, error: null });
                 }
-            } catch (error) {
+                return undefined;
+            },
+            (error: unknown) => {
                 if (alive) {
                     setParsed({ files: [], error: String(error) });
                 }
-            }
-        })();
+                return undefined;
+            },
+        );
         return () => {
             alive = false;
         };
