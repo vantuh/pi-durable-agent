@@ -66,8 +66,8 @@ export function SettingsContent({ model, cwd, session, epoch, onClose }: Omit<Pr
             <footer className="border-edge-soft flex items-center gap-1 border-t px-3 py-2">
                 <ExtensionsButton />
                 <AppearanceButton />
-                <BuildButton />
                 <RestartButton />
+                <BuildButton />
             </footer>
         </div>
     );
