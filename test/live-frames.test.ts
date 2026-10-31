@@ -410,3 +410,68 @@ void describe("the live frames of a long write call", () => {
         );
     });
 });
+
+void describe("the live frames of a session with a message waiting", () => {
+    const WAITING = "please also check the tests. ".repeat(70);
+    let frames: Frame[];
+
+    before(async () => {
+        const { base, cwd } = await sandboxServer();
+        const created = await post(base, "/api/sessions", { cwd });
+
+        assert.ok(typeof created === "object" && created !== null, "a session was created");
+
+        const session = Number(Reflect.get(created, "session"));
+        const stream = watch(base, session);
+
+        await until("the hello", () => stream.frames.length > 0, 5000);
+        await post(base, "/api/messages", { session, text: "go" });
+        await until(
+            "a few live frames",
+            () => stream.frames.filter(({ event }) => event.type === "live").length >= 2,
+            20_000,
+        );
+        // A follow-up waits for the end of the run, so it is queued through the whole streamed answer.
+        await post(base, "/api/messages", { session, text: WAITING, mode: "followUp" });
+        await until(
+            "the message to be taken and the run to end",
+            () =>
+                liveOf(stream.frames).some(({ queued }) => queued !== undefined) &&
+                liveOf(stream.frames).at(-1)?.busy === false,
+            30_000,
+        );
+        stream.stop();
+        frames = stream.frames;
+    });
+
+    const queuedFrames = () =>
+        liveOf(frames).filter(({ queued }) => queued !== undefined && queued.length > 0);
+
+    void it("send a waiting message once, not in every frame while the answer streams", () => {
+        assert.equal(queuedFrames().length, 1, "the message went out in one frame");
+    });
+
+    void it("leave the screen showing it while it waits, and clear it when it is taken", () => {
+        let state = START;
+        const shown: number[] = [];
+
+        for (const { event } of frames) {
+            state = withEvent(state, event);
+
+            if (event.type === "live") {
+                shown.push(state.live.queued?.length ?? 0);
+            }
+        }
+
+        const first = shown.findIndex((count) => count === 1);
+        const cleared = shown.findIndex((count, at) => at > first && count === 0);
+
+        assert.notEqual(first, -1, "the message appeared");
+        assert.notEqual(cleared, -1, "the message was cleared when it left the queue");
+        assert.deepEqual(
+            shown.slice(first, cleared),
+            shown.slice(first, cleared).map(() => 1),
+            "every frame in between still showed it",
+        );
+    });
+});

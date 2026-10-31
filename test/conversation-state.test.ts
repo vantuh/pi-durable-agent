@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { ClientBlock, ClientEntry, ServerEvent } from "../shared/protocol.ts";
+import type {
+    ClientBlock,
+    ClientEntry,
+    ClientLive,
+    ClientQueued,
+    ServerEvent,
+} from "../shared/protocol.ts";
 import { mergeEntries, START, withEvent, withOlder } from "../web/src/lib/conversation-state.ts";
 
 const said = (id: number, text: string): ClientEntry => ({ id, kind: "user", text });
@@ -247,6 +253,45 @@ void describe("withEvent", () => {
 
             assert.equal(state.live.blocks, undefined);
             assert.equal(state.live.busy, true, "the rest of the frame is taken as it is");
+        });
+    });
+
+    void describe("live queued", () => {
+        const queued: ClientQueued[] = [{ id: 1, mode: "steer", text: "wait" }];
+        const frame = (extra: Partial<ClientLive>): ServerEvent => ({
+            type: "live",
+            session: 1,
+            live: { busy: true, usage: { input: 0, output: 0, cost: 0 }, ...extra },
+        });
+
+        void it("keeps the queue it holds when a frame has no queued key", () => {
+            const state = withEvent(withEvent(START, frame({ queued })), frame({}));
+
+            assert.deepEqual(state.live.queued, queued);
+        });
+
+        void it("replaces the queue with the one a frame carries, and clears it on []", () => {
+            const next: ClientQueued[] = [{ id: 2, mode: "followUp", text: "later" }];
+            const held = withEvent(START, frame({ queued }));
+
+            assert.deepEqual(withEvent(held, frame({ queued: next })).live.queued, next);
+            assert.deepEqual(withEvent(held, frame({ queued: [] })).live.queued, []);
+        });
+
+        void it("keeps the queue of a hello through frames that omit it", () => {
+            const state = withEvent(
+                withEvent(START, {
+                    type: "hello",
+                    session: 1,
+                    entries: [],
+                    live: { busy: true, usage: { input: 0, output: 0, cost: 0 }, queued },
+                    model: "m",
+                    more: false,
+                }),
+                frame({ blocks: [{ type: "text", text: "a" }] }),
+            );
+
+            assert.deepEqual(state.live.queued, queued);
         });
     });
 });

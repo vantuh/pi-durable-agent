@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { blocksSince } from "../server/live-delta.ts";
-import type { ClientBlock } from "../shared/protocol.ts";
+import { blocksSince, queuedSince } from "../server/live-delta.ts";
+import type { ClientBlock, ClientQueued } from "../shared/protocol.ts";
 import { START, withEvent } from "../web/src/lib/conversation-state.ts";
 
 const text = (value: string): ClientBlock => ({ type: "text", text: value });
@@ -129,5 +129,85 @@ void describe("a live frame cut to what a client holds", () => {
             assert.deepEqual(second, blocks);
             assert.deepEqual(third?.[0], blocks[0]);
         });
+    });
+});
+
+void describe("the queue of a live frame cut to what a client holds", () => {
+    const steer = (id: number, body: string): ClientQueued => ({ id, mode: "steer", text: body });
+    const big = steer(1, "x".repeat(2000));
+
+    /** What one client sees after each server queue, as `sendLive` and `withEvent` do; `held` is what its hello gave it. */
+    function queueScreens(
+        queues: (ClientQueued[] | undefined)[],
+        hello: ClientQueued[] = [],
+    ): { screens: (ClientQueued[] | undefined)[]; sent: (ClientQueued[] | undefined)[] } {
+        let held = hello;
+        let state = withEvent(START, {
+            type: "hello",
+            session: 1,
+            entries: [],
+            live: {
+                busy: true,
+                usage: { input: 0, output: 0, cost: 0 },
+                ...(hello.length > 0 && { queued: hello }),
+            },
+            model: "m",
+            more: false,
+        });
+        const screens: (ClientQueued[] | undefined)[] = [];
+        const sent: (ClientQueued[] | undefined)[] = [];
+
+        for (const queue of queues) {
+            const changed = queuedSince(held, queue);
+
+            held = queue ?? [];
+            sent.push(changed);
+            state = withEvent(state, {
+                type: "live",
+                session: 1,
+                live: {
+                    busy: true,
+                    usage: { input: 0, output: 0, cost: 0 },
+                    ...(changed && { queued: changed }),
+                },
+            });
+            screens.push(state.live.queued);
+        }
+
+        return { screens, sent };
+    }
+
+    void it("omits a queue the client holds, and the client keeps showing it", () => {
+        const { screens, sent } = queueScreens([[big], [big], [big]]);
+
+        assert.deepEqual(sent, [[big], undefined, undefined]);
+        assert.deepEqual(screens, [[big], [big], [big]]);
+    });
+
+    void it("sends [] when the queue emptied, and the client clears it", () => {
+        const { screens, sent } = queueScreens([[big], undefined, undefined]);
+
+        assert.deepEqual(sent, [[big], [], undefined], "never omitted: the client would keep it");
+        assert.deepEqual(screens, [[big], [], []]);
+    });
+
+    void it("treats an absent queue and [] as the same queue", () => {
+        assert.equal(queuedSince([], undefined), undefined);
+        assert.equal(queuedSince([], []), undefined);
+    });
+
+    void it("sends a replaced message whole", () => {
+        const second = steer(1, "y".repeat(2000));
+        const { screens, sent } = queueScreens([[big], [second], [second, steer(2, "z")]]);
+
+        assert.deepEqual(sent, [[big], [second], [second, steer(2, "z")]]);
+        assert.deepEqual(screens, sent);
+    });
+
+    void it("starts a client that joined with a queue from the queue its hello carried", () => {
+        const { screens, sent } = queueScreens([[big], [big]], [big]);
+
+        assert.deepEqual(sent, [undefined, undefined]);
+        assert.deepEqual(screens, [[big], [big]]);
     });
 });

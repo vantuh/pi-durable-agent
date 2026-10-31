@@ -25,6 +25,7 @@ import type {
     ClientBlock,
     ClientEntry,
     ClientLive,
+    ClientQueued,
     ServerEvent,
     SessionSummary,
     SessionsEvent,
@@ -43,7 +44,7 @@ import {
     writeEvent,
 } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
-import { blocksSince } from "./live-delta.ts";
+import { blocksSince, queuedSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
@@ -107,6 +108,8 @@ type Client = EventStream & {
     session: number;
     /** The blocks of the streamed answer this client holds, so a live frame carries only what it lacks. */
     held: ClientBlock[];
+    /** The waiting messages this client holds: a live frame repeats them only when they changed. */
+    heldQueued: ClientQueued[];
 };
 
 const clients = new Set<Client>();
@@ -373,17 +376,20 @@ function sendLive(id: number): void {
 
     for (const client of clients) {
         if (client.session === id) {
-            const { blocks, ...rest } = live;
+            const { blocks, queued, ...rest } = live;
+            const changed = queuedSince(client.heldQueued, queued);
 
             send(client, {
                 type: "live",
                 session: id,
-                live:
-                    blocks === undefined
-                        ? live
-                        : { ...rest, blocks: blocksSince(client.held, blocks) },
+                live: {
+                    ...rest,
+                    ...(blocks === undefined ? {} : { blocks: blocksSince(client.held, blocks) }),
+                    ...(changed === undefined ? {} : { queued: changed }),
+                },
             });
             client.held = blocks ?? [];
+            client.heldQueued = queued ?? [];
         }
     }
 }
@@ -574,6 +580,7 @@ async function stream(
         gzip: openEventStream(request, response),
         session: id,
         held: live.blocks ?? [],
+        heldQueued: live.queued ?? [],
     };
 
     clients.add(client);

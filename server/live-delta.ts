@@ -6,7 +6,7 @@
  * harness has to be known here.
  */
 
-import type { ClientBlock } from "../shared/protocol.ts";
+import type { ClientBlock, ClientQueued } from "../shared/protocol.ts";
 
 export function blocksSince(
     held: readonly ClientBlock[],
@@ -36,4 +36,17 @@ export function blocksSince(
               }
             : block;
     });
+}
+
+/**
+ * The queue a live frame must carry, or `undefined` when the client already holds it. A queue that emptied is `[]`,
+ * never absent, or the client would keep showing a withdrawn message. An absent queue and `[]` are the same queue.
+ */
+export function queuedSince(
+    held: readonly ClientQueued[],
+    queued: readonly ClientQueued[] | undefined,
+): ClientQueued[] | undefined {
+    const now = queued ?? [];
+
+    return JSON.stringify(held) === JSON.stringify(now) ? undefined : [...now];
 }

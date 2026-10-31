@@ -144,6 +144,10 @@ export type ClientLive = {
     /** The newest failure since a compaction last succeeded: what came before is still what is sent. */
     compactionFailed?: { error: string };
     usage: ClientUsage;
+    /**
+     * The messages waiting for the run. In a `live` frame, absent means unchanged since the frame the client
+     * holds and `[]` means the queue is now empty; `hello` carries it whole, absent when empty.
+     */
     queued?: ClientQueued[];
     status?: ClientStatus[];
     /** Moves when an extension says the session changed in a way its entries do not show; absent until then. */
