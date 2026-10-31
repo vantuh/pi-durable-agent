@@ -13,21 +13,63 @@ const ORIGIN = "https://agent.test";
 
 type Handler = (event: unknown) => void;
 
+// Enough of the two classes for the worker's install step: headers it can copy and edit, and a body it
+// passes through. `arrayBuffer` hands back the string it was given, which is all the assertions read.
+class FakeHeaders {
+    #values = new Map<string, string>();
+
+    constructor(init: Record<string, string> | FakeHeaders) {
+        const entries = init instanceof FakeHeaders ? init.#values.entries() : Object.entries(init);
+
+        for (const [name, value] of entries) {
+            this.#values.set(name.toLowerCase(), value);
+        }
+    }
+
+    get(name: string): string | null {
+        return this.#values.get(name.toLowerCase()) ?? null;
+    }
+
+    delete(name: string): void {
+        this.#values.delete(name.toLowerCase());
+    }
+}
+
+class FakeResponse {
+    readonly body: string;
+    readonly status: number;
+    readonly headers: FakeHeaders;
+    readonly ok: boolean;
+
+    constructor(body: string, init: { status: number; headers: FakeHeaders }) {
+        this.body = body;
+        this.status = init.status;
+        this.headers = init.headers;
+        this.ok = init.status >= 200 && init.status < 300;
+    }
+
+    arrayBuffer(): Promise<string> {
+        return Promise.resolve(this.body);
+    }
+
+    static error(): string {
+        return "error";
+    }
+}
+
 // Runs the real worker source against an in-memory Cache Storage.
-function loadWorker(version: string, stores: Map<string, Map<string, string>>) {
+function loadWorker(version: string, stores: Map<string, Map<string, FakeResponse>>) {
     const handlers = new Map<string, Handler>();
     const fetched: string[] = [];
     let online = true;
     const cacheOf = (name: string) => {
-        const store = stores.get(name) ?? new Map<string, string>();
+        const store = stores.get(name) ?? new Map<string, FakeResponse>();
 
         stores.set(name, store);
 
         return {
-            addAll: (requests: { url: string }[]) => {
-                for (const { url } of requests) {
-                    store.set(new URL(url, ORIGIN).pathname, `cached:${url}`);
-                }
+            put: (url: string, response: FakeResponse) => {
+                store.set(new URL(url, ORIGIN).pathname, response);
 
                 return Promise.resolve();
             },
@@ -44,20 +86,32 @@ function loadWorker(version: string, stores: Map<string, Map<string, string>>) {
             keys: () => Promise.resolve([...stores.keys()]),
             delete: (name: string) => Promise.resolve(stores.delete(name)),
         },
+        // A real precache response is compressed on the wire: these headers are what the Cache API must
+        // not carry into a replay of the decoded body.
         fetch: (request: { url: string }) => {
             fetched.push(request.url);
 
             return online
-                ? Promise.resolve(`network:${request.url}`)
+                ? Promise.resolve(
+                      new FakeResponse(`network:${request.url}`, {
+                          status: 200,
+                          headers: new FakeHeaders({
+                              "content-type": "text/javascript",
+                              "content-encoding": "br",
+                              "content-length": "9",
+                          }),
+                      }),
+                  )
                 : Promise.reject(new Error("offline"));
         },
         Request: class {
             url: string;
             constructor(url: string) {
-                this.url = url;
+                this.url = new URL(url, ORIGIN).href;
             }
         },
-        Response: { error: () => "error" },
+        Headers: FakeHeaders,
+        Response: FakeResponse,
         URL,
     };
 
@@ -89,6 +143,9 @@ function loadWorker(version: string, stores: Map<string, Map<string, string>>) {
 }
 
 void describe("service worker", () => {
+    const bodyOf = (value: unknown): string =>
+        value instanceof FakeResponse ? value.body : String(value);
+
     void it("never answers API, other-origin, non-GET or non-root navigation requests", async () => {
         const worker = loadWorker("v1", new Map());
 
@@ -104,17 +161,25 @@ void describe("service worker", () => {
     });
 
     void it("serves the root shell offline, and the live page when online", async () => {
-        const worker = loadWorker("v1", new Map());
+        const stores = new Map<string, Map<string, FakeResponse>>();
+        const worker = loadWorker("v1", stores);
 
         await worker.run("install", {});
-        assert.equal(
-            (await worker.run("fetch", worker.request("/", { mode: "navigate" }))).responded,
-            `network:${ORIGIN}/`,
-        );
+
+        const cached = stores.get("pi-durable-agent-shell-v1")?.get("/");
+
+        assert.ok(cached !== undefined, "the install stored the shell");
+
+        const online = await worker.run("fetch", worker.request("/", { mode: "navigate" }));
+
+        assert.notEqual(online.responded, cached, "online, the page comes from the network");
+        assert.equal(bodyOf(online.responded), `network:${ORIGIN}/`);
+
         worker.setOnline(false);
         assert.equal(
             (await worker.run("fetch", worker.request("/", { mode: "navigate" }))).responded,
-            "cached:/",
+            cached,
+            "offline, it comes from the cache",
         );
     });
 
@@ -122,21 +187,54 @@ void describe("service worker", () => {
         const worker = loadWorker("v1", new Map());
 
         await worker.run("install", {});
+
+        const before = worker.fetched.length;
+
         assert.equal(
-            (await worker.run("fetch", worker.request("/assets/app-1.js"))).responded,
-            "cached:/assets/app-1.js",
+            bodyOf((await worker.run("fetch", worker.request("/assets/app-1.js"))).responded),
+            `network:${ORIGIN}/assets/app-1.js`,
+        );
+        assert.equal(worker.fetched.length, before, "a precached asset is not fetched again");
+        assert.equal(
+            bodyOf((await worker.run("fetch", worker.request("/assets/lazy-9.js"))).responded),
+            `network:${ORIGIN}/assets/lazy-9.js`,
         );
         assert.equal(
-            (await worker.run("fetch", worker.request("/assets/lazy-9.js"))).responded,
-            `network:${ORIGIN}/assets/lazy-9.js`,
+            worker.fetched.length,
+            before + 1,
+            "a lazy chunk still comes from the network",
         );
     });
 
+    void it("drops the headers of the compressed wire response, so a replay is decodable", async () => {
+        const stores = new Map<string, Map<string, FakeResponse>>();
+
+        await loadWorker("v1", stores).run("install", {});
+
+        const cached = [...(stores.get("pi-durable-agent-shell-v1")?.values() ?? [])];
+
+        assert.equal(cached.length, 2, "the whole precache is stored");
+
+        for (const response of cached) {
+            assert.equal(
+                response.headers.get("content-encoding"),
+                null,
+                "a decoded body cannot claim brotli",
+            );
+            assert.equal(response.headers.get("content-length"), null);
+            assert.equal(
+                response.headers.get("content-type"),
+                "text/javascript",
+                "every other header stays",
+            );
+        }
+    });
+
     void it("does not skip waiting, and removes only older caches of this app on activate", async () => {
-        const stores = new Map([
-            ["pi-durable-agent-shell-v0", new Map<string, string>()],
-            ["shell-v0", new Map<string, string>()],
-            ["other-app", new Map<string, string>()],
+        const stores = new Map<string, Map<string, FakeResponse>>([
+            ["pi-durable-agent-shell-v0", new Map<string, FakeResponse>()],
+            ["shell-v0", new Map<string, FakeResponse>()],
+            ["other-app", new Map<string, FakeResponse>()],
         ]);
         const worker = loadWorker("v1", stores);
 
