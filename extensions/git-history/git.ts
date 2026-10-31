@@ -16,6 +16,7 @@ import {
 
 const run = promisify(execFile);
 export const PATCH_CAP = 400 * 1024;
+const PARALLEL_GIT = 8;
 // A folder stays in the repository it was opened in: the root is read once per process.
 const roots = new Map<string, string>();
 const FLAGS = [
@@ -235,6 +236,30 @@ export function filesOf(output: string): ChangedFile[] {
     return files;
 }
 
+/** Runs every item, keeping the order, with at most `limit` of them in flight at once. */
+async function eachLimited<T, R>(
+    items: T[],
+    limit: number,
+    work: (item: T) => Promise<R>,
+): Promise<R[]> {
+    const results: R[] = [];
+    let next = 0;
+    await Promise.all(
+        Array.from({ length: Math.min(limit, items.length) }, async () => {
+            for (;;) {
+                const index = next;
+                next += 1;
+                const item = items[index];
+                if (item === undefined) {
+                    return;
+                }
+                results[index] = await work(item);
+            }
+        }),
+    );
+    return results;
+}
+
 /** The longest run of whole files that fits: only a file header starts a line, never a content line. */
 function patchWithin(patch: string, cap: number): string {
     let kept = "";
@@ -317,52 +342,66 @@ export async function readChanges(
         if (untracked.length > UNTRACKED_FILE_CAP) {
             truncated = true;
         }
-        for (const path of untracked.slice(0, UNTRACKED_FILE_CAP)) {
-            const info = await stat(join(root, path)).catch((error: unknown) => {
-                // Something removed a file Git had listed, before it was read: it is not there.
-                if (
-                    typeof error === "object" &&
-                    error !== null &&
-                    "code" in error &&
-                    error.code === "ENOENT"
-                ) {
-                    return null;
-                }
-                throw error;
-            });
-            if (info === null || info.isDirectory()) {
-                continue;
-            }
-            // --no-index may follow symlinks; never read their external targets.
-            if (info.isSymbolicLink()) {
-                files.push({ path, added: 1, deleted: 0, binary: false });
-                truncated = true;
-                continue;
-            }
-            const extra = ["diff", "--no-index", ...FLAGS];
-            files.push(
-                ...filesOf(await git(root, [...extra, "--numstat", "-z", "--", "/dev/null", path])),
-            );
-            if (info.size > cap || Buffer.byteLength(patch) + info.size > cap) {
-                truncated = true;
-                continue;
-            }
-            const next = await git(root, [...extra, "--", "/dev/null", path], cap).catch(
-                (error: unknown) => {
+        const extra = ["diff", "--no-index", ...FLAGS];
+        // A new file costs two Git processes of its own, so a folder of them is read a few at a time
+        // instead of one after another.
+        const listed = await eachLimited(
+            untracked.slice(0, UNTRACKED_FILE_CAP),
+            PARALLEL_GIT,
+            async (path) => {
+                const info = await stat(join(root, path)).catch((error: unknown) => {
+                    // Something removed a file Git had listed, before it was read: it is not there.
                     if (
                         typeof error === "object" &&
                         error !== null &&
                         "code" in error &&
-                        error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+                        error.code === "ENOENT"
                     ) {
-                        truncated = true;
-                        return "";
+                        return null;
                     }
                     throw error;
-                },
-            );
-            if (Buffer.byteLength(patch + next) <= cap) {
-                patch += next;
+                });
+                if (info === null || info.isDirectory()) {
+                    return null;
+                }
+                // --no-index may follow symlinks; never read their external targets.
+                if (info.isSymbolicLink()) {
+                    return {
+                        counted: [{ path, added: 1, deleted: 0, binary: false }],
+                        diff: null,
+                    };
+                }
+                const counted = filesOf(
+                    await git(root, [...extra, "--numstat", "-z", "--", "/dev/null", path]),
+                );
+                if (info.size > cap) {
+                    return { counted, diff: null };
+                }
+                const diff = await git(root, [...extra, "--", "/dev/null", path], cap).catch(
+                    (error: unknown) => {
+                        if (
+                            typeof error === "object" &&
+                            error !== null &&
+                            "code" in error &&
+                            error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+                        ) {
+                            return null;
+                        }
+                        throw error;
+                    },
+                );
+                return { counted, diff };
+            },
+        );
+        for (const entry of listed) {
+            if (entry === null) {
+                continue;
+            }
+            files.push(...entry.counted);
+            if (entry.diff === null) {
+                truncated = true;
+            } else if (Buffer.byteLength(patch + entry.diff) <= cap) {
+                patch += entry.diff;
             } else {
                 truncated = true;
             }
