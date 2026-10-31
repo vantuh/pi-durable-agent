@@ -9,8 +9,12 @@ It is independent of `git-stats`: disabling either does not disable the other.
 - Open History to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
   50 local commits. Load older commits up to 200. Refresh reads local Git only; it never fetches.
 - Uncommitted changes appear above the commits. Click a row for a bounded diff preview
-  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. Each file has
-  its own foldable header and line counts; files start expanded. Untracked non-ignored files
+  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. The opened row
+  moves to the top of the list, so the diff starts at the top of the screen. Each file has its own
+  header with its line counts: clicking it folds the file, and it stays at the top of the diff until
+  the next file's header takes its place. Files start expanded. On a wide screen a file tree beside
+  the diff lists every file with its line counts and scrolls to the one clicked; it is left out when
+  the change touches a single file, and a phone shows the diff alone. Untracked non-ignored files
   are included; binary files are listed without a text diff.
 - The preview is virtualized: only the files near the viewport are in the page, so a commit of
   hundreds of files opens as fast as a small one. A commit's diff cannot change, so reopening it is
@@ -88,6 +92,10 @@ read eight at a time.
 
 `@pierre/diffs` 1.5.2 hard-codes 200 px of overscroll around the visible files; it is not an option,
 so the diff's scroll on a phone cannot be tuned from here.
+
+The preview's file header is our own row, 36 px tall, and `itemMetrics.diffHeaderHeight` says the
+same. A header of another height leaves every file below it a little too low, and a click in the
+tree then lands beside the header it meant.
 
 ## Embedding and security
 
