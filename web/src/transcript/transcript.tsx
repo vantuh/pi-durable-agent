@@ -12,6 +12,7 @@ import { memo, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } fro
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
@@ -110,10 +111,38 @@ type Props = {
     loadingOlder: boolean;
     /** The conversation's first entry is on screen: scrolling up asks for nothing more. */
     exhausted: boolean;
+    /** The stream has not answered for this conversation yet, so an empty screen may still fill. */
+    loading: boolean;
 };
 
 /** How close to the top the reader is when the older page is asked for. */
 const OLDER_AT = 240;
+
+/**
+ * Where the first turn will land: the shape of a question and an answer, pulsing in a wave. An empty screen that shows
+ * this is a conversation on its way, not a conversation with nothing in it.
+ */
+function LoadingTurn() {
+    return (
+        <div aria-hidden className="flex flex-col gap-5">
+            <Skeleton className="rounded-card ml-auto h-9 w-1/3" />
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <Skeleton className="size-3 rounded-full [animation-delay:120ms]" />
+                    <Skeleton className="h-2.5 w-28 [animation-delay:120ms]" />
+                </div>
+                <Skeleton className="h-3 w-full [animation-delay:120ms]" />
+                <Skeleton className="h-3 w-11/12 [animation-delay:240ms]" />
+                <Skeleton className="h-3 w-3/4 [animation-delay:240ms]" />
+            </div>
+            <Skeleton className="h-7 w-1/2 [animation-delay:360ms]" />
+            <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-full [animation-delay:480ms]" />
+                <Skeleton className="h-3 w-5/6 [animation-delay:480ms]" />
+            </div>
+        </div>
+    );
+}
 
 const tokens = (count: number): string =>
     count < 1000 ? String(count) : `${(count / 1000).toFixed(count < 10_000 ? 1 : 0)}k`;
@@ -386,6 +415,7 @@ export function Transcript({
     onLoadOlder,
     loadingOlder,
     exhausted,
+    loading,
 }: Props) {
     const scroller = useRef<HTMLDivElement>(null);
     const content = useRef<HTMLDivElement>(null);
@@ -560,7 +590,16 @@ export function Transcript({
                     )}
 
                     {entries.length === 0 && live.blocks === undefined ? (
-                        <p className="text-prose text-faint">Nothing here yet. Ask something.</p>
+                        loading ? (
+                            <>
+                                <LoadingTurn />
+                                <output className="sr-only">Opening the session…</output>
+                            </>
+                        ) : (
+                            <p className="text-prose text-faint">
+                                Nothing here yet. Ask something.
+                            </p>
+                        )
                     ) : null}
                 </div>
             </ScrollArea>

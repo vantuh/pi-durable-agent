@@ -91,6 +91,10 @@ export function App() {
 
     const active = sessions.find((session) => session.id === current);
 
+    // The conversation on screen answers with its own state: until its hello arrives, what is shown is not an empty
+    // session, it is one that has not been read yet.
+    const loading = current !== null && state.session !== current;
+
     // The tab, and an installed window, carry the session's name; the list streams a rename at once.
     useEffect(() => {
         document.title = active?.title ? `Pi · ${active.title}` : "Pi";
@@ -218,6 +222,7 @@ export function App() {
                                 live={state.live}
                                 loadingOlder={state.loadingOlder}
                                 exhausted={state.exhausted}
+                                loading={loading}
                                 onLoadOlder={loadOlder}
                                 tools={
                                     <>
