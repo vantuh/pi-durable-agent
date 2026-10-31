@@ -272,8 +272,21 @@ body {
     }
 }
 
+/* Beside the conversation the panel takes its width from it, so the width is what comes in. */
+@keyframes panel-unfold {
+    from {
+        width: 0;
+    }
+}
+
 [data-slot="panel-host"] {
     animation: panel-in 200ms ease-out;
+}
+
+@media (width >= 64rem) {
+    [data-slot="panel-host"] {
+        animation-name: panel-unfold;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

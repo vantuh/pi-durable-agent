@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useLayoutEffect, useReducer } from "react";
+import { type PointerEvent as ReactPointerEvent, useLayoutEffect, useReducer, useRef } from "react";
 
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
@@ -161,34 +161,68 @@ export function PanelHost({
     const Body = panel.component;
 
     const id = session?.id;
+    const frame = useRef<HTMLElement>(null);
 
     // Before paint, so switching sessions does not flash the previous session's width.
     useLayoutEffect(() => {
         setWidth(savedWidth(id), null);
     }, [id]);
 
+    // The default width as a number: the column inside the panel keeps the width the panel ends at while
+    // the panel itself widens, instead of rewrapping on every frame.
+    useLayoutEffect(() => {
+        const aside = frame.current;
+        const row = aside?.parentElement ?? null;
+
+        if (aside === null || row === null) {
+            return undefined;
+        }
+
+        const fit = (): void => {
+            const width = Math.min(Math.round(row.clientWidth * 0.46), 720);
+
+            aside.style.setProperty("--panel-w-fit", `${String(width)}px`);
+        };
+
+        const sizes = new ResizeObserver(fit);
+
+        fit();
+        sizes.observe(row);
+
+        return () => {
+            sizes.disconnect();
+        };
+    }, []);
+
     return (
         <aside
+            ref={frame}
             data-slot="panel-host"
-            className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,min(46%,720px))]"
+            className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]"
         >
             <ResizeHandle storageKey={widthKey(id)} />
-            <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
-                <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    title="Close"
-                    className="rounded-control text-muted hover:bg-raised flex size-6 items-center justify-center"
-                >
-                    <X className="size-4" />
-                </button>
-            </header>
 
-            <div className="flex min-h-0 flex-1 flex-col">
-                <ItemBoundary name={panelKey(panel)}>
-                    <Body key={session?.id ?? "none"} session={session} onClose={onClose} />
-                </ItemBoundary>
+            {/* Pinned to the right edge while the panel widens: it comes in like a drawer, not a squashed card. */}
+            <div className="flex min-h-0 flex-1 justify-end overflow-hidden">
+                <div className="flex w-full min-w-0 flex-col lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0">
+                    <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
+                        <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            title="Close"
+                            className="rounded-control text-muted hover:bg-raised flex size-6 items-center justify-center"
+                        >
+                            <X className="size-4" />
+                        </button>
+                    </header>
+
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <ItemBoundary name={panelKey(panel)}>
+                            <Body key={session?.id ?? "none"} session={session} onClose={onClose} />
+                        </ItemBoundary>
+                    </div>
+                </div>
             </div>
         </aside>
     );
