@@ -3,9 +3,13 @@
  * no document shapes, no entries as the harness stores them.
  */
 
+/**
+ * In a `live` frame a `text` or `thinking` block may carry only its end: `text` is what comes from offset `from` of the
+ * block the browser holds at that position, and absent means 0, the whole block. Everywhere else it is whole.
+ */
 export type ClientBlock =
-    | { type: "text"; text: string }
-    | { type: "thinking"; text: string }
+    | { type: "text"; text: string; from?: number }
+    | { type: "thinking"; text: string; from?: number }
     | { type: "toolCall"; id: string; name: string; args: unknown };
 
 /** What one model response cost and how long it took, as the provider reported it. */

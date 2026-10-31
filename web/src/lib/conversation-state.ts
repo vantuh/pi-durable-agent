@@ -6,6 +6,7 @@
  */
 
 import type {
+    ClientBlock,
     ClientEntry,
     ClientHistory,
     ClientLive,
@@ -53,6 +54,30 @@ export function mergeEntries(
     return [...byId.values()].sort((left, right) => left.id - right.id);
 }
 
+/**
+ * The blocks a `live` frame leaves on screen: each block is the one the frame carries, with the end of the text the
+ * screen held at its position put in front when the frame carries only the end. The frame lists every block, so
+ * whatever the screen held beyond the last one is gone, and a frame with none clears them all.
+ */
+function withBlocks(
+    held: readonly ClientBlock[] | undefined,
+    incoming: readonly ClientBlock[],
+): ClientBlock[] {
+    return incoming.map((block, at) => {
+        if (block.type === "toolCall") {
+            return block;
+        }
+
+        const known = held?.[at];
+        const before =
+            block.from !== undefined && block.from > 0 && known?.type === block.type
+                ? known.text.slice(0, block.from)
+                : "";
+
+        return { type: block.type, text: before + block.text };
+    });
+}
+
 export function withEvent(state: ConversationState, event: ServerEvent): ConversationState {
     switch (event.type) {
         case "hello": {
@@ -74,8 +99,17 @@ export function withEvent(state: ConversationState, event: ServerEvent): Convers
         case "entries":
             return { ...state, entries: mergeEntries(state.entries, event.entries) };
 
-        case "live":
-            return { ...state, live: event.live };
+        case "live": {
+            const { blocks, ...rest } = event.live;
+
+            return {
+                ...state,
+                live:
+                    blocks === undefined
+                        ? rest
+                        : { ...rest, blocks: withBlocks(state.live.blocks, blocks) },
+            };
+        }
 
         case "extension-notice":
             return state;

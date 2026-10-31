@@ -76,8 +76,12 @@ connected browser already has:
 - anything else changed (a reset or a compaction rewrote the active transcript) → send all of it,
   `replace: true`.
 
-The live answer is not an entry. It arrives as `live` on every commit, with at most 100 ms between
-commits, and becomes an `assistant` entry when it is final.
+The live answer is not an entry. It arrives as `live`, at most one frame per 250 ms per session
+(`LIVE_FRAME_MS`; the first goes at once, the commits inside a window become one at its end, and an
+entry commit sends its frame without waiting), and becomes an `assistant` entry when it is final.
+A `text` or `thinking` block in a `live` frame carries only the end the client lacks, `from` being
+the offset it starts at; the server remembers what each client holds, and a block that is not a
+continuation of it goes whole, without `from`. A running tool's output is not sent.
 
 ## Messages from application authors
 

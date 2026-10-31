@@ -23,6 +23,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type {
+    ClientBlock,
     ClientEntry,
     ClientLive,
     ServerEvent,
@@ -42,6 +43,7 @@ import {
     writeEvent,
 } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
+import { blocksSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
@@ -101,7 +103,11 @@ const STREAM = { cacheRetention: "long" } as const;
 
 /** One open stream: the response, and the gzip stream its events go through for a client that takes one. */
 type EventStream = { response: ServerResponse; gzip: Gzip | undefined };
-type Client = EventStream & { session: number };
+type Client = EventStream & {
+    session: number;
+    /** The blocks of the streamed answer this client holds, so a live frame carries only what it lacks. */
+    held: ClientBlock[];
+};
 
 const clients = new Set<Client>();
 const listWatchers = new Set<EventStream>();
@@ -109,13 +115,7 @@ const busy = new Map<number, boolean>();
 const latest = new Map<number, { opened: Opened; view: View }>();
 const liveFrames = liveWindow({
     windowMs: LIVE_FRAME_MS,
-    send: (id) => {
-        const current = latest.get(id);
-
-        if (current !== undefined) {
-            broadcast({ type: "live", session: id, live: liveOf(id, current.view) });
-        }
-    },
+    send: sendLive,
 });
 const changes = sessionChanges({
     windowMs: CHANGE_WINDOW_MS,
@@ -361,6 +361,33 @@ function liveOf(id: number, view: View): ClientLive {
     };
 }
 
+/** The newest live state to every client of a session, each frame cut to what that client does not hold yet. */
+function sendLive(id: number): void {
+    const current = latest.get(id);
+
+    if (current === undefined) {
+        return;
+    }
+
+    const live = liveOf(id, current.view);
+
+    for (const client of clients) {
+        if (client.session === id) {
+            const { blocks, ...rest } = live;
+
+            send(client, {
+                type: "live",
+                session: id,
+                live:
+                    blocks === undefined
+                        ? live
+                        : { ...rest, blocks: blocksSince(client.held, blocks) },
+            });
+            client.held = blocks ?? [];
+        }
+    }
+}
+
 /** Sends what changed since the last commit: only new entries when nothing was rewritten. */
 function publish(opened: Opened, view: View): void {
     const live = liveOf(opened.id, view);
@@ -541,7 +568,13 @@ async function stream(
     const view = viewOf(id);
     const page = helloPage(entriesOf(view));
 
-    const client: Client = { response, gzip: openEventStream(request, response), session: id };
+    const live = liveOf(id, view);
+    const client: Client = {
+        response,
+        gzip: openEventStream(request, response),
+        session: id,
+        held: live.blocks ?? [],
+    };
 
     clients.add(client);
     client.response.on("close", () => {
@@ -552,7 +585,7 @@ async function stream(
         type: "hello",
         session: id,
         entries: page.entries,
-        live: liveOf(id, view),
+        live,
         model: MODEL,
         more: page.cut || more,
     });

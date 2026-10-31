@@ -204,11 +204,8 @@ before(async () => {
 
     // The second client comes when the answer has grown a while: what it is sent must carry on from its hello.
     await until(
-        "half the answer",
-        () =>
-            liveOf(early.frames).some(
-                (live) => textOf(live.blocks, "text").length > ANSWER.length / 2,
-            ),
+        "a dozen live frames",
+        () => early.frames.filter(({ event }) => event.type === "live").length >= 12,
         20_000,
     );
 
@@ -298,6 +295,18 @@ void describe("the live frames of a working session", () => {
             assert.ok(ANSWER.startsWith(textOf(live.blocks, "text")), "a start of the real answer");
         }
 
+        const held = textOf(hello?.live.blocks, "text").length;
+        const afterHello = run.joined.frames
+            .slice(1)
+            .reduce((sum, { event, bytes }) => (event.type === "live" ? sum + bytes : sum), 0);
+        // What came after the hello is the rest of the answer and the framing of each frame, not the answer again.
+        const bound = ANSWER.length - held + 8000;
+
+        assert.ok(
+            afterHello < bound,
+            `${String(afterHello)} bytes after the hello, under ${String(bound)} expected`,
+        );
+
         const lastWith = (texts: string[]): string =>
             texts.filter((text) => text !== "").at(-1) ?? "";
         const joined = screens.map(({ live }) => textOf(live.blocks, "text"));
@@ -306,6 +315,22 @@ void describe("the live frames of a working session", () => {
             lastWith(joined),
             lastWith(early),
             "both clients end with the same streamed answer",
+        );
+    });
+
+    void it("grow with what is new, not with what was already sent", () => {
+        const sent = run.early.frames.reduce(
+            (sum, { event, bytes }) => (event.type === "live" ? sum + bytes : sum),
+            0,
+        );
+
+        // Measured: the answer and its thinking once plus JSON framing is about 1.06 times their length; a whole
+        // block in every frame was 8.5 times (one frame per commit, 20 times).
+        const bound = 2 * (ANSWER.length + THINKING.length);
+
+        assert.ok(
+            sent < bound,
+            `${String(sent)} bytes of live frames, under ${String(bound)} expected`,
         );
     });
 });

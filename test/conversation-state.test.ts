@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { ClientEntry, ServerEvent } from "../shared/protocol.ts";
+import type { ClientBlock, ClientEntry, ServerEvent } from "../shared/protocol.ts";
 import { mergeEntries, START, withEvent, withOlder } from "../web/src/lib/conversation-state.ts";
 
 const said = (id: number, text: string): ClientEntry => ({ id, kind: "user", text });
@@ -132,5 +132,68 @@ void describe("withEvent", () => {
             true,
             "the screen holds the whole conversation, so nothing is asked for",
         );
+    });
+
+    void describe("live blocks", () => {
+        const frame = (blocks?: ClientBlock[]): ServerEvent => ({
+            type: "live",
+            session: 1,
+            live: {
+                busy: true,
+                usage: { input: 0, output: 0, cost: 0 },
+                ...(blocks && { blocks }),
+            },
+        });
+        const held = (...blocks: ClientBlock[]) => withEvent(START, frame(blocks));
+        const texts = (state: typeof START) =>
+            (state.live.blocks ?? []).map((block) =>
+                block.type === "toolCall" ? block.id : block.text,
+            );
+
+        void it("appends a tail to the text it holds at that position", () => {
+            const state = withEvent(
+                held({ type: "thinking", text: "plan" }, { type: "text", text: "Hel" }),
+                frame([
+                    { type: "thinking", text: "", from: 4 },
+                    { type: "text", text: "lo, wor", from: 3 },
+                ]),
+            );
+
+            assert.deepEqual(texts(state), ["plan", "Hello, wor"]);
+            assert.equal(
+                state.live.blocks?.some((block) => "from" in block),
+                false,
+                "what the screen holds is whole blocks",
+            );
+        });
+
+        void it("replaces a block that starts over at from 0", () => {
+            const state = withEvent(
+                held({ type: "text", text: "first try" }),
+                frame([{ type: "text", text: "second", from: 0 }]),
+            );
+
+            assert.deepEqual(texts(state), ["second"]);
+        });
+
+        void it("drops the blocks of the generation before when index 0 starts over", () => {
+            const state = withEvent(
+                held(
+                    { type: "thinking", text: "old thought" },
+                    { type: "toolCall", id: "c1", name: "bash", args: {} },
+                    { type: "text", text: "old" },
+                ),
+                frame([{ type: "thinking", text: "new thought", from: 0 }]),
+            );
+
+            assert.deepEqual(texts(state), ["new thought"]);
+        });
+
+        void it("clears the blocks when a frame has none, as the frame ending a run does", () => {
+            const state = withEvent(held({ type: "text", text: "the answer so far" }), frame());
+
+            assert.equal(state.live.blocks, undefined);
+            assert.equal(state.live.busy, true, "the rest of the frame is taken as it is");
+        });
     });
 });
