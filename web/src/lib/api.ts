@@ -392,6 +392,13 @@ export async function restartServer(): Promise<void> {
     await json("/api/restart", { method: "POST" });
 }
 
+/** Rebuilds `dist/` in place; the next reload loads the new shell. `log` is Vite's failure output. */
+export async function rebuildShell(): Promise<{ ok: boolean; log: string }> {
+    const body = record(await json("/api/build", { method: "POST" }));
+
+    return { ok: body?.["ok"] === true, log: str(body?.["log"], "") };
+}
+
 export async function uploadFile(file: File): Promise<UploadedFile | undefined> {
     try {
         const response = await fetch("/api/files", {

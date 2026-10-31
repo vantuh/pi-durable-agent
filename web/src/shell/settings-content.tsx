@@ -1,9 +1,10 @@
-import { RotateCw, X } from "lucide-react";
+import { Hammer, LoaderCircle, RotateCw, X } from "lucide-react";
+import { useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { useSettingsSections } from "../extensions.ts";
-import { restartServer } from "../lib/api.ts";
+import { rebuildShell, restartServer } from "../lib/api.ts";
 import { toast } from "../lib/toast.ts";
 import type { SettingsProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
@@ -65,10 +66,61 @@ export function SettingsContent({ model, cwd, session, epoch, onClose }: Omit<Pr
             <footer className="border-edge-soft flex items-center gap-1 border-t px-3 py-2">
                 <ExtensionsButton />
                 <AppearanceButton />
+                <BuildButton />
                 <RestartButton />
             </footer>
         </div>
     );
+}
+
+/** Rebuilds `dist/` from this checkout; the shell is read from disk per request, so no restart follows. */
+function BuildButton() {
+    const [building, setBuilding] = useState(false);
+
+    return (
+        <button
+            type="button"
+            disabled={building}
+            aria-busy={building}
+            title={building ? "Building the web shell" : "Rebuild the web shell"}
+            aria-label="Rebuild the web shell"
+            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2 disabled:opacity-50"
+            onClick={() => {
+                setBuilding(true);
+                void rebuild().finally(() => {
+                    setBuilding(false);
+                });
+            }}
+        >
+            {building ? (
+                <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+                <Hammer className="size-4" />
+            )}
+        </button>
+    );
+}
+
+async function rebuild(): Promise<void> {
+    try {
+        const { ok, log } = await rebuildShell();
+
+        if (ok) {
+            toast.success("New build ready", {
+                description: "Reload the app to load it.",
+                action: {
+                    label: "Reload",
+                    onClick: () => {
+                        window.location.reload();
+                    },
+                },
+            });
+        } else {
+            toast.error("The build failed", { description: log.slice(0, 600) });
+        }
+    } catch {
+        toast.error("Could not build. The server needs this checkout, with node_modules.");
+    }
 }
 
 /** Starts a new server process; running work resumes, and the event stream reconnects on its own. */

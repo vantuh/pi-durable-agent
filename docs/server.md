@@ -13,6 +13,7 @@ GET /api/extensions     { installed, failed, extensions: [{ name, title, descrip
 PUT /api/extensions/:name   { enabled: boolean } → the new list entry (400 bad body, 404 unknown folder)
 POST /api/abort         stops the current run
 POST /api/restart       { ok } then exit 75, for `scripts/serve.ts` to start the server again; 409 without it
+POST /api/build         { ok, log } rebuilds `dist/` with the checkout's Vite; no restart needed
 ```
 
 - `server/main.ts` — the HTTP surface, the harness, the subscription.
@@ -143,6 +144,15 @@ own. Nothing watches files: a change under `server/` or `shared/` goes live thro
 
 A server started any other way (`node server/main.ts`) has no parent to start it again, so it
 answers **409** instead of stopping.
+
+### Rebuilding the web shell from the app
+
+Settings → the hammer asks `POST /api/build`, which runs the same Vite build as `pnpm build` in this
+checkout and answers `{ ok, log }` when it is over (about a second). `log` is Vite's output, cut to
+its first 4000 characters, which on a failure is the error and its file:line.
+
+No restart follows: `server/static.ts` reads `dist/` per request, so a reload loads the new shell.
+One build runs at a time — a second click waits for the build already writing `dist/`.
 
 To expose it privately through Tailscale Serve, configure a free HTTPS port once:
 

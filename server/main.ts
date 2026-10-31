@@ -31,6 +31,7 @@ import type {
     SessionSummary,
     SessionsEvent,
 } from "../shared/protocol.ts";
+import { buildShell } from "./build.ts";
 import { commitAnnouncer } from "./commit-announcer.ts";
 import { executionEnv } from "./execution-env.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
@@ -831,6 +832,15 @@ async function boot(): Promise<void> {
             attach,
             ownerOf: (session) => sessions.owner(idOf(session)),
         }),
+        {
+            // The app's rebuild button. The files are read from `dist/` per request, so the new
+            // shell is in force without a restart; the answer comes when the build is over.
+            method: "POST",
+            path: /^\/api\/build$/,
+            handle: async (_request, response) => {
+                answer(response, 200, await buildShell());
+            },
+        },
         {
             // The app's restart button; 409 without the supervisor, which would leave nothing to start it.
             method: "POST",
