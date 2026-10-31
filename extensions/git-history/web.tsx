@@ -206,6 +206,8 @@ function forgetPatches(): void {
 
 const PREFETCHED = 3;
 const HOVER_DELAY = 120;
+// Matches the `duration-200` on the row that holds a diff.
+const COLLAPSE_MS = 200;
 
 /** Reading is half the wait; parsing and highlighting otherwise start on the click. */
 async function prefetch(session: number, target: string): Promise<void> {
@@ -316,6 +318,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
     const [limit, setLimit] = useState(50);
     const [refresh, setRefresh] = useState(0);
     const [selected, setSelected] = useState<string | null>(null);
+    const [collapsing, setCollapsing] = useState<string | null>(null);
     const [state, setState] = useState<ReviewState | null>(null);
     const [issue, setIssue] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -340,6 +343,19 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             behavior: "smooth",
         });
     }, [selected]);
+
+    // A closed diff stays mounted until its row has folded, so the fold is seen rather than a jump.
+    useEffect(() => {
+        if (collapsing === null) {
+            return undefined;
+        }
+        const timer = setTimeout(() => {
+            setCollapsing(null);
+        }, COLLAPSE_MS);
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [collapsing]);
 
     useEffect(() => {
         if (!open) {
@@ -509,7 +525,15 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                     type="button"
                     aria-expanded={selected === target}
                     onClick={() => {
-                        setSelected((old) => (old === target ? null : target));
+                        // Another row's diff snaps shut: it has to be gone before the scroll to the
+                        // newly opened row is measured, or that scroll lands a diff too low.
+                        if (selected === target) {
+                            setCollapsing(target);
+                            setSelected(null);
+                        } else {
+                            setCollapsing(null);
+                            setSelected(target);
+                        }
                     }}
                     onPointerEnter={() => {
                         prefetchSoon(id, commit?.hash);
@@ -561,10 +585,14 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                     Review
                 </button>
             </div>
-            {selected === target ? (
+            {selected === target || collapsing === target ? (
                 // The row grows from 0fr: the diff lays out at full size at once and is clipped, so
-                // the virtualised diff never re-measures itself while it opens.
-                <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none starting:grid-rows-[0fr]">
+                // the virtualised diff never re-measures itself while it opens or folds.
+                <div
+                    className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none starting:grid-rows-[0fr] ${
+                        collapsing === target ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+                    }`}
+                >
                     <div className="min-h-0 overflow-hidden">
                         <Preview
                             key={`${target}:${String(refresh)}`}
