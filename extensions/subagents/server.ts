@@ -49,6 +49,8 @@ type AgentRecord = {
     reported: EntryId[];
     /** Set by agent_stop: the aborted run reports nothing, as the parent asked for it. */
     stopped: boolean;
+    /** How many times agent_stop ran; a Reporter made before the latest stop must not deliver. */
+    stops?: number;
 };
 
 /** The agents a conversation started, by name. */
@@ -82,6 +84,8 @@ type ReporterInput = {
     name: string;
     conversationId: ConversationId;
     message: string;
+    /** The agent's `stops` when this was made. */
+    stops?: number;
 };
 /** `report` is what the parent's model reads; `text`, what its screen shows under the agent's name. */
 type ReporterState = { phase: "deliver" } | { phase: "report"; report?: string; text?: string };
@@ -106,30 +110,43 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
     initial: () => ({ phase: "deliver" }),
     phases: {
         deliver: async (task, runtime, context) => {
-            const { name, conversationId, message } = task.input;
+            const { name, conversationId, message, stops = 0 } = task.input;
             const child = await runtime.conversation(conversationId, context);
-            const settled =
-                child === undefined
+            const stoppedSince = async () =>
+                ((await runtime.snapshot(AgentsDoc, runtime.conversationId, context))?.agents[name]
+                    ?.stops ?? 0) !== stops;
+            const submission =
+                child === undefined || (await stoppedSince())
                     ? undefined
-                    : await (
-                          await child.submit(
-                              {
-                                  type: "input",
-                                  content: message,
-                                  entry: {
-                                      kind: "subagents.instruction",
-                                      data: {
-                                          text: message,
-                                          author: "Orchestrator",
-                                          session: runtime.conversationId,
-                                      },
+                    : await child.submit(
+                          {
+                              type: "input",
+                              content: message,
+                              entry: {
+                                  kind: "subagents.instruction",
+                                  data: {
+                                      text: message,
+                                      author: "Orchestrator",
+                                      session: runtime.conversationId,
                                   },
-                                  whenBusy: "steer",
-                                  requestId: `subagents:${task.id}`,
                               },
-                              context,
-                          )
-                      ).wait(context);
+                              whenBusy: "steer",
+                              requestId: `subagents:${task.id}`,
+                          },
+                          context,
+                      );
+
+            // A stop between the check above and the submit has already aborted the child, so this one is withdrawn here.
+            if (
+                child !== undefined &&
+                submission !== undefined &&
+                (await stoppedSince()) &&
+                (await submission.abort(context)) === "already_placed"
+            ) {
+                await child.abort(context);
+            }
+
+            const settled = await submission?.wait(context);
 
             await runtime.commit(async (tx) => {
                 const next = (
@@ -145,6 +162,10 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                 const failed = (why: string) =>
                     next(`[agent ${name} failed: ${why}]`, `Failed: ${why}`);
                 const record = (await tx.doc(AgentsDoc, runtime.conversationId)).agents[name];
+
+                if ((record?.stops ?? 0) !== stops) {
+                    return next();
+                }
 
                 if (settled === undefined) {
                     return failed("its conversation is gone");
@@ -661,7 +682,12 @@ export default function subagents(host: Host) {
                     found.stopped = false;
                     await tx.createTask(
                         Reporter,
-                        { name, conversationId: found.conversationId, message },
+                        {
+                            name,
+                            conversationId: found.conversationId,
+                            message,
+                            stops: found.stops ?? 0,
+                        },
                         { ownership: { kind: "conversation" }, background: true },
                     );
                 }
@@ -697,6 +723,7 @@ export default function subagents(host: Host) {
 
                 if (found !== undefined) {
                     found.stopped = true;
+                    found.stops = (found.stops ?? 0) + 1;
                 }
 
                 return found === undefined ? undefined : { ...found };

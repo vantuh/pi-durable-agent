@@ -75,12 +75,12 @@ All four tools operate on agents started by the **current parent conversation**.
 can have an agent with the same name; names are not process-wide identifiers. Names and profile
 names are case-sensitive; leading and trailing whitespace in tool arguments is trimmed.
 
-| Tool           | Arguments                                                | Effect                                                                                                           |
-| -------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `agent_spawn`  | `agent: string`, `task: string`, optional `name: string` | Creates a child conversation and schedules the task. Returns after scheduling, not after the answer.             |
-| `agent_send`   | `name: string`, `message: string`                        | Submits a steering message to a working child, or starts another run in an idle child with its previous context. |
-| `agent_stop`   | `name: string`                                           | Aborts that child's current run. Keeps the conversation and its name for a later send.                           |
-| `agent_status` | Optional `name: string`                                  | Lists agents and their working/idle state, or returns one agent's state and latest text preview. Read-only.      |
+| Tool           | Arguments                                                | Effect                                                                                                                        |
+| -------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `agent_spawn`  | `agent: string`, `task: string`, optional `name: string` | Creates a child conversation and schedules the task. Returns after scheduling, not after the answer.                          |
+| `agent_send`   | `name: string`, `message: string`                        | Submits a steering message to a working child, or starts another run in an idle child with its previous context.              |
+| `agent_stop`   | `name: string`                                           | Aborts that child's current run and cancels messages not yet delivered. Keeps the conversation and its name for a later send. |
+| `agent_status` | Optional `name: string`                                  | Lists agents and their working/idle state, or returns one agent's state and latest text preview. Read-only.                   |
 
 ### Spawn and naming
 

@@ -132,6 +132,7 @@ void describe("subagents", () => {
     let titles: Map<number, string>;
     let wiring: Wiring;
     let host: Host;
+    let registry: ReturnType<typeof createRegistry>;
     let previousAgentDir: string | undefined;
     const faux = fauxProvider({
         models: [
@@ -209,7 +210,7 @@ void describe("subagents", () => {
         };
         host = hostOf(dir, titles, wiring);
 
-        const registry = createRegistry();
+        registry = createRegistry();
 
         registry.install(CodingTools);
         registry.install(subagents(host));
@@ -673,6 +674,106 @@ void describe("subagents", () => {
 
         assert.deepEqual(await userTexts(parent.id), ["count them", "stop it"]);
     });
+    void it("starts nothing a stop came before, and the agent still continues with agent_send", async () => {
+        let requests = 0;
+        let stopAfterSend = false;
+        let held: Promise<void> | undefined;
+        const step = scripted(
+            () => {
+                requests += 1;
+
+                return Promise.resolve(fauxAssistantMessage(`Done ${requests}.`));
+            },
+            (said) => {
+                if (said === "count them") {
+                    return call("agent_spawn", { agent: "counter", task: "Count." });
+                }
+
+                if (said === "hold it") {
+                    stopAfterSend = true;
+
+                    return call("agent_send", { name: "Counter", message: "Count again." });
+                }
+
+                if (said === "tool:agent_send" && stopAfterSend) {
+                    return call("agent_stop", { name: "Counter" });
+                }
+
+                return said === "later"
+                    ? call("agent_send", { name: "Counter", message: "Count once more." })
+                    : fauxAssistantMessage("ok");
+            },
+        );
+        const extension = subagents(host);
+
+        // The Reporter is paused before it submits anything, as a slow scheduler would leave it.
+        registry.install({
+            ...extension,
+            tasks: (extension.tasks ?? []).map((task) => {
+                const deliver = task.definition.phases["deliver"];
+
+                return typeof deliver === "function"
+                    ? {
+                          definition: {
+                              ...task.definition,
+                              phases: {
+                                  ...task.definition.phases,
+                                  deliver: async (...args: unknown[]) => {
+                                      await held;
+
+                                      return Reflect.apply(deliver, undefined, args);
+                                  },
+                              },
+                          },
+                      }
+                    : task;
+            }),
+        });
+        faux.setResponses(Array.from({ length: 20 }, () => step));
+        await (
+            await parent.submit({ type: "input", content: "count them" }, context)
+        ).wait(context);
+        await reportersDone();
+        await parent.waitForIdle(context);
+        assert.equal(requests, 1);
+
+        let release: () => void = () => undefined;
+
+        held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        await (await parent.submit({ type: "input", content: "hold it" }, context)).wait(context);
+        await parent.waitForIdle(context);
+        release();
+        await reportersDone();
+
+        const [childId] = [...titles].map(([id]) => id);
+
+        assert.ok(childId !== undefined);
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the id came from the conversation the tool created
+        const child = childId as ConversationId;
+
+        assert.equal(
+            requests,
+            1,
+            "the stopped agent did not run the message queued before the stop",
+        );
+        assert.deepEqual(await userTexts(child), ["Count."]);
+        assert.equal((await userTexts(parent.id)).length, 3, "and nothing was reported for it");
+
+        held = undefined;
+        stopAfterSend = false;
+        await (await parent.submit({ type: "input", content: "later" }, context)).wait(context);
+        await reportersDone();
+        await parent.waitForIdle(context);
+
+        assert.deepEqual(await userTexts(child), ["Count.", "Count once more."]);
+        assert.equal(
+            (await userTexts(parent.id)).at(-1),
+            "[agent Counter (counter) finished]\n\nDone 2.",
+        );
+    });
+
     void describe("profiles", () => {
         const session = () => ({ id: parent.id, cwd: dir });
 
