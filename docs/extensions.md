@@ -38,6 +38,7 @@ Rules the loader enforces, and why:
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | The extension's name is the folder's       | Reloading replaces by name; a name that drifts installs twice                                                         |
 | `coding-tools` is reserved                 | The core's tools are installed there; a folder would replace them                                                     |
+| A tool or section name has one owner       | The harness keeps the last one silently; an extension that changes another's uses `wraps`                             |
 | A folder without `server.ts` is skipped    | The server installs nothing for it, and `GET /api/extensions` does not list it. The browser still loads its `web.tsx` |
 | Names starting with `_` or `.` are skipped | A place to park a folder under construction                                                                           |
 | A failed folder keeps its last version     | A typo must not take a working feature away                                                                           |

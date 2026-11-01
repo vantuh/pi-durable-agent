@@ -734,19 +734,21 @@ export class Extensions {
             const attempt = newVersion();
             const commits: CommitListener[] = [];
             const groups: FolderGroup[] = [];
-            const providers: (() => void)[] = [];
+            const activations: (() => void)[] = [];
 
             try {
-                const built = await this.#build(folder, attempt, commits, groups, providers);
+                const built = await this.#build(folder, attempt, commits, groups, activations);
 
                 if (built === "disabled") {
                     this.#drop(folder, "disabled");
                 } else if (built === undefined) {
                     // The module ran, so what it registered is live: it replaces the old version's.
                     this.#drop(folder, "installs nothing");
+                    for (const activate of activations) {
+                        activate();
+                    }
                 } else {
-                    this.#registry.install(built.extension);
-                    this.#installed.set(folder, built.extension);
+                    this.#install(folder, built.extension, activations);
                     this.#setOrDelete(this.#actions, folder, built.actions);
                     this.#setOrDelete(this.#http, folder, built.http);
                     this.#setOrDelete(this.#status, folder, built.status);
@@ -768,7 +770,7 @@ export class Extensions {
                     this.#deliver(folder, commits, view);
                 }
 
-                await this.#swap(folder, attempt, providers);
+                await this.#swap(folder, attempt);
                 if (changed !== undefined && built !== "disabled") {
                     notices.push({
                         level: "success",
@@ -893,7 +895,7 @@ export class Extensions {
         attempt: Version,
         commits: CommitListener[],
         groups: FolderGroup[],
-        providers: (() => void)[],
+        activations: (() => void)[],
     ): Promise<
         | {
               extension: Extension;
@@ -960,7 +962,9 @@ export class Extensions {
                 this.#sessionChanged(session);
             },
             wrapModelFetch: (wrap) => {
-                this.#fetchWrappers.add(wrap);
+                activations.push(() => {
+                    this.#fetchWrappers.add(wrap);
+                });
                 attempt.disposers.push(() => {
                     this.#fetchWrappers.delete(wrap);
                 });
@@ -969,8 +973,8 @@ export class Extensions {
                 let unregister: (() => void) | undefined;
                 let stopped = false;
 
-                // Registered on the swap, not here: a build that throws must leave the live one in place.
-                providers.push(() => {
+                // Registered on install, not here: a build that throws must leave the live one in place.
+                activations.push(() => {
                     if (!stopped) {
                         unregister = this.#registerModelProvider(provider);
                     }
@@ -987,7 +991,9 @@ export class Extensions {
                 return stop;
             },
             shapeModelRequests: (shape) => {
-                this.#shapers.add(shape);
+                activations.push(() => {
+                    this.#shapers.add(shape);
+                });
                 attempt.disposers.push(() => {
                     this.#shapers.delete(shape);
                 });
@@ -1072,18 +1078,66 @@ export class Extensions {
         this.#log(`extensions: ${folder} ${why}`);
     }
 
-    /** Makes `next` the live disposers of the folder, registers its providers, then retires the one it replaced. */
-    async #swap(
-        folder: string,
-        next: Version,
-        providers: readonly (() => void)[] = [],
-    ): Promise<void> {
+    /**
+     * Installs `extension` and, in the same tick, what its build registered (providers, request
+     * wrappers and shapers), so no request sees one without the other. A failure puts back what was
+     * installed before.
+     */
+    #install(folder: string, extension: Extension, activations: readonly (() => void)[]): void {
+        const taken = this.#collision(extension);
+
+        if (taken !== undefined) {
+            throw new Error(taken);
+        }
+
+        const previous = this.#installed.get(folder);
+
+        this.#registry.install(extension);
+        try {
+            for (const activate of activations) {
+                activate();
+            }
+        } catch (error) {
+            if (previous === undefined) {
+                this.#registry.uninstall(extension);
+            } else {
+                this.#registry.install(previous);
+            }
+            throw error;
+        }
+        this.#installed.set(folder, extension);
+    }
+
+    /** A tool or section of `extension` that another installed extension provides; `wraps` is the way to take one over. */
+    #collision(extension: Extension): string | undefined {
+        for (const other of this.#registry.snapshot().installed()) {
+            if (other.name === extension.name) {
+                continue;
+            }
+            const tool = extension.tools?.find(({ name }) =>
+                other.tools?.some((theirs) => theirs.name === name),
+            );
+
+            if (tool !== undefined) {
+                return `tool "${tool.name}" is already provided by "${other.name}"`;
+            }
+            const section = extension.sections?.find(({ key }) =>
+                other.sections?.some((theirs) => theirs.key === key),
+            );
+
+            if (section !== undefined) {
+                return `section "${section.key}" is already provided by "${other.name}"`;
+            }
+        }
+
+        return undefined;
+    }
+
+    /** Makes `next` the live disposers of the folder, then retires the one it replaced. */
+    async #swap(folder: string, next: Version): Promise<void> {
         const old = this.#disposers.get(folder);
 
         this.#disposers.set(folder, next);
-        for (const register of providers) {
-            register();
-        }
         this.#dropMarks(folder);
         await this.#retire(folder, old, true);
     }

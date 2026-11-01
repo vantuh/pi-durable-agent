@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { setTimeout } from "node:timers/promises";
 
 import { createRegistry, type Registry } from "@earendil-works/pi-durable";
+import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "../server/extensions.ts";
 import type { ExtensionNotice } from "../shared/protocol.ts";
@@ -1116,5 +1117,192 @@ export const status = () => ({ text: "v${value}" });`;
         await extensions.setEnabled("alpha", false);
 
         assert.equal(await extensions.groupOf("/x"), undefined);
+    });
+
+    /** Awaits `work` for at most `ms`, so a regression fails an assertion instead of hanging the run. */
+    async function bounded(work: Promise<unknown>, ms = 5000): Promise<void> {
+        const outcome = await Promise.race([work.then(() => "done"), setTimeout(ms, "timeout")]);
+
+        assert.equal(outcome, "done");
+    }
+
+    void it("publishes request wrappers and shapers only once the version is installed", async () => {
+        const release = openGate();
+        const model = { provider: "test" };
+
+        await write(
+            "alpha",
+            `export default async function (host) {
+    host.wrapModelFetch((next) => next);
+    host.shapeModelRequests(() => "shaped");
+    await globalThis.${GATE};
+    return { name: "other" };
+}`,
+        );
+
+        let loading: Promise<void> | undefined;
+
+        try {
+            loading = extensions.load();
+            await setTimeout(50);
+
+            assert.equal(extensions.fetchWrappers.length, 0);
+            assert.equal(extensions.requestShapers.length, 0);
+        } finally {
+            release();
+            await bounded(loading ?? Promise.resolve());
+        }
+
+        assert.equal(extensions.failed[0]?.folder, "alpha");
+        assert.equal(extensions.fetchWrappers.length, 0);
+        assert.equal(extensions.requestShapers.length, 0);
+        assert.equal(extensions.requestShapers[0]?.({}, model), undefined);
+    });
+
+    void it("keeps the previous version's tools and actions when a provider registration throws", async () => {
+        const own = createRegistry();
+        const versioned = new Extensions({
+            notify: (notice) => {
+                notices.push(notice);
+            },
+            registry: own,
+            dir,
+            cwd: root,
+            dataDir: root,
+            log: () => undefined,
+            registerModelProvider: (provider) => {
+                if (provider.id === "") {
+                    throw new Error("Provider id must not be empty.");
+                }
+
+                return () => undefined;
+            },
+        });
+        const version = (tag: string, provider: string): string => `export default function (host) {
+    host.wrapModelFetch((next) => next);
+    host.registerModelProvider({ id: ${JSON.stringify(provider)} });
+    return {
+        name: host.name,
+        tools: [{ name: "tag", description: "d", parameters: { type: "object", properties: {} }, execute: async () => ({ output: "${tag}" }) }],
+    };
+}
+export const actions = { tag: () => "${tag}" };`;
+
+        try {
+            await write("alpha", version("v1", "p"));
+            await versioned.load(new Set(["alpha"]));
+            const wrappers = versioned.fetchWrappers;
+
+            await write("alpha", version("v2", ""));
+            await versioned.load(new Set(["alpha"]));
+
+            assert.deepEqual(versioned.failed, [
+                { folder: "alpha", reason: "Provider id must not be empty." },
+            ]);
+            assert.deepEqual(
+                notices.filter(({ level }) => level === "error"),
+                [
+                    {
+                        level: "error",
+                        message:
+                            "Could not load extension “alpha”: Provider id must not be empty.. Previous version is still active.",
+                    },
+                ],
+            );
+            assert.deepEqual(versioned.fetchWrappers, wrappers);
+            assert.equal(
+                await versioned.call("alpha", "tag", { args: undefined, session: null }),
+                "v1",
+            );
+
+            const tool = own
+                .snapshot()
+                .tools()
+                .find((entry) => entry.tool.name === "tag")?.tool;
+            const execute: unknown = tool === undefined ? undefined : Reflect.get(tool, "execute");
+
+            assert.ok(typeof execute === "function");
+            assert.deepEqual(await Reflect.apply(execute, tool, [{}, {}, {}]), { output: "v1" });
+        } finally {
+            await versioned.dispose();
+        }
+    });
+
+    /** A server.ts whose extension provides the given tools and prompt sections, and wraps the given tool names. */
+    const providing = (options: { tools?: string[]; sections?: string[]; wraps?: string[] }) =>
+        `export default function (host) {
+    return {
+        name: host.name,
+        tools: [${(options.tools ?? [])
+            .map(
+                (name) =>
+                    `{ name: ${JSON.stringify(name)}, description: "d", parameters: { type: "object", properties: {} }, execute: async () => ({ output: host.name }) }`,
+            )
+            .join(", ")}],
+        sections: [${(options.sections ?? [])
+            .map((key) => `{ key: ${JSON.stringify(key)}, render: () => host.name }`)
+            .join(", ")}],
+        wraps: [${(options.wraps ?? [])
+            .map((name) => `{ tool: ${JSON.stringify(name)}, wrap: (tool) => tool }`)
+            .join(", ")}],
+    };
+}`;
+
+    void it("rejects a tool or section another installed extension already provides", async () => {
+        registry.install(CodingTools);
+        await write("alpha", providing({ tools: ["alpha-tool"], sections: ["rules"] }));
+        await write("beta", providing({ tools: ["bash"] }));
+        await write("gamma", providing({ sections: ["rules"] }));
+        await extensions.load();
+
+        assert.deepEqual(extensions.names, ["alpha"]);
+        assert.deepEqual(extensions.failed, [
+            { folder: "beta", reason: 'tool "bash" is already provided by "coding-tools"' },
+            { folder: "gamma", reason: 'section "rules" is already provided by "alpha"' },
+        ]);
+        assert.deepEqual(
+            registry
+                .snapshot()
+                .tools()
+                .filter((entry) => entry.tool.name === "bash")
+                .map((entry) => entry.extension.name),
+            ["coding-tools"],
+        );
+    });
+
+    void it("keeps the previous version when a reload takes another extension's tool", async () => {
+        await write("alpha", providing({ tools: ["alpha-tool"] }));
+        await write("beta", providing({ tools: ["beta-tool"] }));
+        await extensions.load();
+
+        await write("beta", providing({ tools: ["beta-tool", "alpha-tool"] }));
+        await extensions.load(new Set(["beta"]));
+
+        assert.deepEqual(extensions.names, ["alpha", "beta"]);
+        assert.deepEqual(
+            registry
+                .snapshot()
+                .extension("beta")
+                ?.tools?.map((tool) => tool.name),
+            ["beta-tool"],
+        );
+        assert.deepEqual(notices, [
+            {
+                level: "error",
+                message:
+                    'Could not load extension “beta”: tool "alpha-tool" is already provided by "alpha". Previous version is still active.',
+            },
+        ]);
+    });
+
+    void it("lets an extension reload its own tools and wrap another's", async () => {
+        await write("alpha", providing({ tools: ["alpha-tool"], sections: ["rules"] }));
+        await extensions.load();
+        await write("alpha", providing({ tools: ["alpha-tool"], sections: ["rules"] }));
+        await write("beta", providing({ wraps: ["alpha-tool"] }));
+        await extensions.load();
+
+        assert.deepEqual(extensions.failed, []);
+        assert.deepEqual(extensions.names, ["alpha", "beta"]);
     });
 });
