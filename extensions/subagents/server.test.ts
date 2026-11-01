@@ -82,6 +82,7 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
             return (await wiring.harness?.snapshot(doc, id, context)) ?? doc.definition.initial();
         },
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: (session) => {
             wiring.notified.push(session);
         },

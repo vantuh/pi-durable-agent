@@ -395,6 +395,7 @@ void describe("push", () => {
                 setSessionTitle: () => Promise.resolve(),
                 readDoc: (doc) => Promise.resolve(doc.definition.initial()),
                 setSessionMark: () => undefined,
+                folderGroup: () => undefined,
                 notifySessionChanged: () => undefined,
             };
             const sends: string[] = [];

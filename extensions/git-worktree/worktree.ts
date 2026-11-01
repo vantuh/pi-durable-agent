@@ -117,6 +117,19 @@ export async function linkedWorktreeOf(
 }
 
 /**
+ * The main checkout of the repository a linked worktree belongs to: undefined for the main
+ * checkout itself, for a folder of no repository, and for a folder that is not a worktree.
+ */
+export async function mainCheckoutOf(cwd: string): Promise<string | undefined> {
+    const [gitDir, common] = await Promise.all([
+        out(cwd, ["rev-parse", "--path-format=absolute", "--git-dir"]),
+        out(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]),
+    ]);
+
+    return gitDir === "" || common === "" || gitDir === common ? undefined : dirname(common);
+}
+
+/**
  * Remove the worktree `cwd` is in: its folder, and with it whatever is in the folder and not
  * committed. The branch stays, so the commits do. A folder git would lose work in is refused.
  */

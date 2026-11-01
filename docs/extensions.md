@@ -245,6 +245,7 @@ knowing what a worktree is (see [Git worktrees](#git-worktrees)).
 | `readDoc`               | `(doc, session) => Promise<value>`: the current value of a conversation document, or its initial value while that conversation has none. It is for the places a tool call's `api.snapshot` does not reach, a commit listener and an action. The extension passes its own `defineDoc` token. It only reads: it creates no document and moves no revision                                                                                                                                                                   |
 | `notifySessionChanged`  | `(session) => void`: says that something about the session changed which its own commits do not show, such as a conversation this extension started for it. Within 250 ms the server sends that session's `live` event again with a new `revision`, and a web component reads it as `session.revision` in `StatusProps`. Many calls in the window make one event                                                                                                                                                          |
 | `registerModelProvider` | `(provider: Provider) => () => void`: puts a pi-ai provider in the catalog and in front of the model picker, and returns how to take it out. The registration goes with this extension version                                                                                                                                                                                                                                                                                                                            |
+| `folderGroup`           | `(resolve: (cwd) => Promise<string \| undefined>) => void`: says which folder a session's folder is shown under in the sidebar's folder menu, such as the repository a worktree belongs to; undefined leaves it a folder of its own, and a throw counts the same. The first answer in folder order wins. It goes with this extension version, and the list is sent again when it changes                                                                                                                                  |
 
 For `sessionRequest.send`, omitted `reasoning` inherits the session's thinking level; `"off"`
 explicitly disables thinking for that request.
@@ -895,6 +896,9 @@ on each other's files.
   would be standing in the folder being deleted. The branch is kept, and so is its commits; a
   worktree with changes git would lose is **refused**, with git's own words shown in the dialog, and
   nothing is removed. A worktree someone made elsewhere is shown the same way, without the ×.
+- **In the sidebar,** a worktree's sessions appear under their repository's folder in the folder
+  menu, read through `folderGroup` and `mainCheckoutOf`; the answer is kept per folder until the
+  extension reloads. Turning `git-worktree` off makes them folders of their own again.
 - **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
   the folder it was created in, the transcript stays readable, and the stream keeps working. What
   ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting

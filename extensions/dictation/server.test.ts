@@ -61,6 +61,7 @@ function hostOf(dataDir: string, disposed: Disposal[]): Host {
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
 }

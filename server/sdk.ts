@@ -5,6 +5,7 @@ export {
     ActionError,
     type CommitListener,
     type CommitView,
+    type FolderGroup,
     type Host,
     type HttpHandler,
     type SessionRequest,

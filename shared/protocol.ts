@@ -201,6 +201,11 @@ export type SessionSummary = {
      * absent when nothing does. The browser draws it as a mark, with `title` and `aria-label`.
      */
     mark?: string;
+    /**
+     * The folder this row's folder is shown under in the sidebar's folder menu, when an extension
+     * says it is one of that folder's worktrees; absent for a folder of its own.
+     */
+    under?: string;
     /** When the session's newest run started, or when it was created; null while unknown. */
     activeAt: number | null;
     /** A run ended after the session was last seen, on any device; never while it works or is archived. */

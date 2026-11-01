@@ -333,6 +333,7 @@ void test("names the warmed conversations with the titles the core keeps", async
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
     const at = Date.now();
@@ -404,6 +405,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
     const at = Date.now();
@@ -475,6 +477,7 @@ void test("builds no request for a conversation the user left too long ago for a
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
     const at = Date.now();
@@ -542,6 +545,7 @@ void test("builds no request for a conversation no ping can be due for yet", asy
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
     const at = Date.now();
@@ -651,6 +655,7 @@ void test("sends no second ping and writes nothing after dispose", async () => {
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
     const at = Date.now();

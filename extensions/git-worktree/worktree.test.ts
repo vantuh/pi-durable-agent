@@ -7,7 +7,14 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
-import { linkedWorktreeOf, makeWorktree, removeWorktree, slugOf, worktreeOf } from "./worktree.ts";
+import {
+    linkedWorktreeOf,
+    mainCheckoutOf,
+    makeWorktree,
+    removeWorktree,
+    slugOf,
+    worktreeOf,
+} from "./worktree.ts";
 
 const run = promisify(execFile);
 
@@ -274,6 +281,45 @@ void describe("git-worktree linkedWorktreeOf", () => {
             });
             assert.equal(await linkedWorktreeOf(main), null);
             assert.equal(await linkedWorktreeOf(join(at, "nothing")), null);
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+});
+
+void describe("git-worktree mainCheckoutOf", () => {
+    void it("answers the repository's folder for a worktree, and nothing for any other folder", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-main-"));
+
+        try {
+            const repo = join(at, "repo");
+            const data = join(at, "data");
+            const git = (cwd: string, args: string[]) =>
+                run(
+                    "git",
+                    [
+                        "-c",
+                        "user.name=t",
+                        "-c",
+                        "user.email=t@t",
+                        "-c",
+                        "commit.gpgsign=false",
+                        ...args,
+                    ],
+                    { cwd },
+                );
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
+            await mkdir(join(repo, "src"));
+
+            const made = await makeWorktree(data, repo, "side");
+
+            // git answers with the path it resolved, and /var is a link to /private/var.
+            assert.equal(await mainCheckoutOf(made.path), await realpath(repo));
+            assert.equal(await mainCheckoutOf(repo), undefined);
+            assert.equal(await mainCheckoutOf(join(repo, "src")), undefined);
+            assert.equal(await mainCheckoutOf(at), undefined);
         } finally {
             await rm(at, { recursive: true, force: true });
         }

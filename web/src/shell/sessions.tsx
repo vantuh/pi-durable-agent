@@ -38,6 +38,7 @@ import {
 import { type FolderSessionMenuItem, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
+import { cwdsOf, type FolderRow, folderRows, rowOf } from "../lib/session-folders.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
@@ -572,32 +573,24 @@ export const Sessions = memo(function Sessions({
     // Checked against the full list, before the folder, archive and search filters below.
     const topLevel = sidebarSessions(sessions);
     const holding = holdingRow(current, sessions);
-    const folders = new Map<string, number>();
-    const lastUse = new Map<string, number>();
-
-    for (const session of topLevel) {
-        if (session.cwd !== null) {
-            folders.set(session.cwd, (folders.get(session.cwd) ?? 0) + 1);
-            lastUse.set(
-                session.cwd,
-                Math.max(lastUse.get(session.cwd) ?? 0, session.activeAt ?? 0),
-            );
-        }
-    }
-
-    // The folder worked in last first; the path breaks ties, so equal times do not swap rows.
-    const ordered = [...folders].toSorted(
-        ([left], [right]) =>
-            (lastUse.get(right) ?? 0) - (lastUse.get(left) ?? 0) || left.localeCompare(right),
-    );
+    const folders = folderRows(topLevel);
+    const lines = (level: readonly FolderRow[], depth = 0): { row: FolderRow; depth: number }[] =>
+        level.flatMap((row) => [{ row, depth }, ...lines(row.worktrees, depth + 1)]);
 
     const newest = (rows: SessionSummary[]): SessionSummary[] =>
         rows.toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
-    const latest = (cwd: string | null): SessionSummary[] =>
-        newest(topLevel.filter((session) => session.cwd === cwd));
-    const scope = all ? "All" : folderName(folder);
+    const latest = (cwds: readonly string[]): SessionSummary[] =>
+        newest(topLevel.filter((session) => session.cwd !== null && cwds.includes(session.cwd)));
+    // A folder with worktrees shows theirs too; a worktree shows only its own.
+    const picked = rowOf(folders, folder);
+    const scopeCwds = picked === undefined ? (folder === null ? [] : [folder]) : cwdsOf(picked);
+    const scope = all
+        ? "All"
+        : picked !== undefined && picked.under !== null
+          ? `${folderName(picked.under)} / ${folderName(folder)}`
+          : folderName(folder);
 
-    const matches = (all ? newest(topLevel) : latest(folder))
+    const matches = (all ? newest(topLevel) : latest(scopeCwds))
         .filter((session) => session.archived === archived)
         .flatMap((session) => {
             const match = fuzzyMatch(session.title ?? "New session", query);
@@ -738,30 +731,32 @@ export const Sessions = memo(function Sessions({
                                     </span>
                                     <span className="text-faint text-meta">{topLevel.length}</span>
                                 </DropdownMenuItem>
-                                {ordered.map(([cwd, count]) => (
+                                {lines(folders).map(({ row, depth }) => (
                                     <DropdownMenuItem
-                                        key={cwd}
-                                        title={cwd}
+                                        key={row.cwd}
+                                        title={row.cwd}
                                         onSelect={() => {
                                             setAll(false);
 
-                                            const [first] = latest(cwd);
+                                            const [first] = latest([row.cwd]);
 
                                             if (first !== undefined) {
                                                 onFolder(first.id);
                                             }
                                         }}
-                                        ref={!all && cwd === folder ? chosen : undefined}
-                                        className={
-                                            !all && cwd === folder
+                                        ref={!all && row.cwd === folder ? chosen : undefined}
+                                        className={`${depth === 0 ? "" : "pl-7 "}${
+                                            !all && row.cwd === folder
                                                 ? "bg-raised"
                                                 : "data-[highlighted]:bg-raised/50"
-                                        }
+                                        }`}
                                     >
-                                        <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
-                                            {folderName(cwd)}
+                                        <span
+                                            className={`text-meta min-w-0 flex-1 truncate font-mono ${depth === 0 ? "text-ink" : "text-muted"}`}
+                                        >
+                                            {folderName(row.cwd)}
                                         </span>
-                                        <span className="text-faint text-meta">{count}</span>
+                                        <span className="text-faint text-meta">{row.count}</span>
                                     </DropdownMenuItem>
                                 ))}
                             </ScrollArea>

@@ -225,6 +225,7 @@ void test("settings: missing or broken file shows everything; actions validate a
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
         wrapModelFetch: () => undefined,
     };
@@ -287,6 +288,7 @@ void test("a toggle while a reading runs keeps its answer out of the cache", asy
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
+        folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
     };
 

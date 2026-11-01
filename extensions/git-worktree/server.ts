@@ -4,7 +4,13 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import type { MadeWorktree } from "./refs.ts";
-import { linkedWorktreeOf, makeWorktree, removeWorktree, worktreeOf } from "./worktree.ts";
+import {
+    linkedWorktreeOf,
+    mainCheckoutOf,
+    makeWorktree,
+    removeWorktree,
+    worktreeOf,
+} from "./worktree.ts";
 
 export const meta = {
     title: "Git worktree",
@@ -12,6 +18,18 @@ export const meta = {
 };
 
 export default function gitWorktree(host: Host) {
+    // A folder's repository does not change while the sessions in it are listed, and the list asks
+    // for every row on every change: git runs once per folder. A reload or restart asks again.
+    const mains = new Map<string, Promise<string | undefined>>();
+
+    host.folderGroup((cwd) => {
+        const known = mains.get(cwd) ?? mainCheckoutOf(cwd);
+
+        mains.set(cwd, known);
+
+        return known;
+    });
+
     return defineExtension({ name: host.name });
 }
 

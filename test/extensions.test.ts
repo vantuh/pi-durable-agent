@@ -897,4 +897,37 @@ export const status = () => ({ text: "v${value}" });`;
 
         assert.deepEqual(calls(), ["a1:1", "a1:2", "a2:1", "a2:2"]);
     });
+
+    void it("answers the folder a resolver puts a folder under, skipping one that throws", async () => {
+        const resolving = (body: string): string =>
+            `export default function (host) { host.folderGroup(async (cwd) => { ${body} }); return { name: host.name }; }`;
+
+        await write("alpha", resolving('throw new Error("secret");'));
+        await write("beta", resolving('return cwd === "/work/side" ? "/work" : undefined;'));
+        await extensions.load();
+
+        assert.equal(await extensions.groupOf("/work/side"), "/work");
+        assert.equal(await extensions.groupOf("/work"), undefined);
+
+        await rm(join(dir, "beta"), { recursive: true });
+        await extensions.load();
+
+        assert.equal(await extensions.groupOf("/work/side"), undefined);
+    });
+
+    void it("follows a reload: the new version's answer replaces the old one", async () => {
+        const resolving = (under: string): string =>
+            `export default function (host) { host.folderGroup(async () => ${JSON.stringify(under)}); return { name: host.name }; }`;
+
+        await write("alpha", resolving("/one"));
+        await extensions.load();
+        await write("alpha", resolving("/two"));
+        await extensions.load();
+
+        assert.equal(await extensions.groupOf("/x"), "/two");
+
+        await extensions.setEnabled("alpha", false);
+
+        assert.equal(await extensions.groupOf("/x"), undefined);
+    });
 });

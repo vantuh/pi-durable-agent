@@ -161,16 +161,21 @@ function isBusy(id: number): boolean {
     return busy.get(id) === true;
 }
 
-/** The mark an extension put on a session's row: the whole list and one row of it carry it the same way. */
-function markRow(row: SessionSummary): SessionSummary {
+/** What extensions say about a session's row: the mark they put on it and the folder it is shown under. */
+async function markRow(row: SessionSummary): Promise<SessionSummary> {
     const mark = extensions.markOf(row.id);
+    const under = row.cwd === null ? undefined : await extensions.groupOf(row.cwd);
 
-    return mark === undefined ? row : { ...row, mark };
+    return {
+        ...row,
+        ...(mark === undefined ? {} : { mark }),
+        ...(under === undefined ? {} : { under }),
+    };
 }
 
-/** The rows the browser reads, with the mark an extension put on a session; one list, one place. */
+/** The rows the browser reads, marked by the extensions; one list, one place. */
 async function sessionRows(): Promise<SessionSummary[]> {
-    return (await sessions.list(isBusy)).map(markRow);
+    return Promise.all((await sessions.list(isBusy)).map(markRow));
 }
 
 /** One row, as the browser reads it: what a change that names its session costs, instead of the whole list. */

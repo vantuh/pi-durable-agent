@@ -32,6 +32,12 @@ import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
 import { writeJsonFile } from "./atomic-write.ts";
 import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
 
+/**
+ * Given a session's folder, the folder it belongs under in the sidebar's folder menu, or undefined
+ * for a folder of its own.
+ */
+export type FolderGroup = (cwd: string) => Promise<string | undefined>;
+
 /** What an extension's `server.ts` receives. It grows only when a feature needs more. */
 export type Host = {
     readonly name: string;
@@ -50,6 +56,12 @@ export type Host = {
      * version that loads later is first called with the newest view of each session, as a baseline.
      */
     readonly onCommit: (listener: CommitListener) => void;
+    /**
+     * Says which folder a session's folder is shown under in the sidebar's folder menu, such as the
+     * repository a worktree belongs to; undefined leaves it a folder of its own. A throw or
+     * rejection counts as "a folder of its own". It goes with this extension version.
+     */
+    readonly folderGroup: (resolve: FolderGroup) => void;
     /** Shapes provider payloads; removed with this extension version. */
     readonly shapeModelRequests: (shape: RequestShaper) => void;
     /** Wraps the resolved HTTP transport; never retain or log authorization headers. */
@@ -378,6 +390,8 @@ export class Extensions {
     readonly #lastViews = new Map<number, CommitView>();
     /** Per folder, the commit listeners of the version that is live now. */
     readonly #commits = new Map<string, CommitListener[]>();
+    /** Per folder, the folder resolvers of the version that is live now. */
+    readonly #groups = new Map<string, readonly FolderGroup[]>();
 
     readonly #shapers = new Set<RequestShaper>();
     readonly #fetchWrappers = new Set<FetchWrapper>();
@@ -538,6 +552,25 @@ export class Extensions {
         return undefined;
     }
 
+    /** The folder `cwd` is shown under, from the first installed folder that answers one; undefined for a folder of its own. */
+    async groupOf(cwd: string): Promise<string | undefined> {
+        for (const folder of [...this.#groups.keys()].sort()) {
+            for (const resolve of this.#groups.get(folder) ?? []) {
+                try {
+                    const under = await resolve(cwd);
+
+                    if (under !== undefined) {
+                        return under;
+                    }
+                } catch {
+                    // A resolver that throws leaves the folder to the others, or to itself.
+                }
+            }
+        }
+
+        return undefined;
+    }
+
     /** Runs one action of an installed folder. Throws `ActionNotFound` when either is missing. */
     async call(extension: string, action: string, call: ActionCall): Promise<unknown> {
         const actions = this.#actions.get(extension);
@@ -655,6 +688,7 @@ export class Extensions {
 
         this.#http.clear();
         this.#commits.clear();
+        this.#groups.clear();
         this.#lastViews.clear();
 
         for (const folder of [...this.#disposers.keys()]) {
@@ -681,10 +715,11 @@ export class Extensions {
 
             const attempt: Disposer[] = [];
             const commits: CommitListener[] = [];
+            const groups: FolderGroup[] = [];
             const providers: (() => void)[] = [];
 
             try {
-                const built = await this.#build(folder, attempt, commits, providers);
+                const built = await this.#build(folder, attempt, commits, groups, providers);
 
                 if (built === "disabled") {
                     this.#drop(folder, "disabled");
@@ -704,6 +739,12 @@ export class Extensions {
                     folder,
                     commits.length === 0 ? undefined : commits,
                 );
+
+                // Rows carry the answer, so they are read again when this folder had or has one.
+                if (this.#groups.has(folder) || groups.length > 0) {
+                    this.#sessionListChanged();
+                }
+                this.#setOrDelete(this.#groups, folder, groups.length === 0 ? undefined : groups);
 
                 for (const view of this.#lastViews.values()) {
                     this.#deliver(folder, commits, view);
@@ -833,6 +874,7 @@ export class Extensions {
         folder: string,
         attempt: Disposer[],
         commits: CommitListener[],
+        groups: FolderGroup[],
         providers: (() => void)[],
     ): Promise<
         | {
@@ -935,6 +977,9 @@ export class Extensions {
             onCommit: (listener) => {
                 commits.push(listener);
             },
+            folderGroup: (resolve) => {
+                groups.push(resolve);
+            },
         };
         const result: unknown = await module.default(host);
 
@@ -1015,6 +1060,9 @@ export class Extensions {
 
         this.#disposers.delete(folder);
         this.#dropMarks(folder);
+        if (this.#groups.delete(folder)) {
+            this.#sessionListChanged();
+        }
         await this.#run(folder, old);
     }
 
