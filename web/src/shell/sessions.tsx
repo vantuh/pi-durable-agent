@@ -84,7 +84,7 @@ type Props = {
     current: number | null;
     /** The open session as extensions see it, for the area under the list. */
     session: StatusProps["session"];
-    /** The folder the list shows: the open session's, or the last one's on the home page. */
+    /** The folder the list follows until one is picked: the open session's, or the last one's on the home page. */
     folder: string | null;
     onHome: () => void;
     onArchive: (id: number, archived: boolean) => Promise<void>;
@@ -365,7 +365,7 @@ export const Sessions = memo(function Sessions({
     sessions,
     current,
     session: activeSession,
-    folder,
+    folder: openFolder,
     onHome,
     onSelect,
     onArchive,
@@ -379,6 +379,8 @@ export const Sessions = memo(function Sessions({
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
+    // A folder picked by hand holds until "All": opening a session in a worktree does not move the list.
+    const [chosenCwd, setChosenCwd] = useState<string | null>(null);
     const [scopeOpen, setScopeOpen] = useState(false);
     const [expanded, setExpanded] = useState<string | null>(null);
     const narrow = useSyncExternalStore(watchNarrow, isNarrow);
@@ -583,6 +585,7 @@ export const Sessions = memo(function Sessions({
 
     // Checked against the full list, before the folder, archive and search filters below.
     const topLevel = sidebarSessions(sessions);
+    const folder = chosenCwd ?? openFolder;
     const holding = holdingRow(current, sessions);
     const folders = folderRows(topLevel);
 
@@ -605,6 +608,7 @@ export const Sessions = memo(function Sessions({
         cwd !== null && (row.cwd === cwd || row.worktrees.some((child) => holds(child, cwd)));
     const pickFolder = (cwd: string): void => {
         setAll(false);
+        setChosenCwd(cwd);
 
         const [first] = latest([cwd]);
 
@@ -874,6 +878,7 @@ export const Sessions = memo(function Sessions({
                                 <DropdownMenuItem
                                     onSelect={() => {
                                         setAll(true);
+                                        setChosenCwd(null);
                                     }}
                                     ref={all ? chosen : undefined}
                                     className={
