@@ -203,6 +203,13 @@ the pill and hides it when the component returns nothing. `extensions/notes` is 
 `icon` a lucide icon. The transcript marks that tool's finished steps with it; a tool without one
 gets a wrench. The core's own tools (`bash`, `read`, `edit`, …) keep the core's icons.
 
+### Tool argument views
+
+`web.tsx` may export `toolViews: [{ id, args }]`: `id` is the name of a tool the folder
+registers, `args` gets the arguments the model sent (unchecked, so read them with a type check) and
+returns what the transcript shows in place of their JSON; `null` keeps the JSON. The tool's output
+below is unchanged. `extensions/codemode` shows its `code` argument as highlighted JavaScript.
+
 ### Session menu items
 
 `web.tsx` may export `sessionMenu: [{ id, label, icon, run }]`. Each item sits at the top of a
@@ -883,6 +890,8 @@ model keeps all its tools as well; `modelTools` is not set.
 - The sandbox is closed when a version is replaced, the folder goes or the server stops. A script
   running at that moment is not failed: it resumes with the next version's sandbox.
 - `pi-codemode` is a direct dependency, pinned to the version `pi-durable` uses.
+- Its `web.tsx` contributes a `toolViews` entry, so a call's `code` shows as highlighted JavaScript
+  instead of JSON with escaped newlines.
 
 ## Git worktrees
 

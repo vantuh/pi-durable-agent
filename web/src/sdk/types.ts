@@ -192,6 +192,14 @@ export type ToolIcon = {
     icon: LucideIcon;
 };
 
+/** How the transcript shows the arguments of a tool the extension registers, in place of their JSON. */
+export type ToolView = {
+    /** The tool's name, as the model calls it. */
+    id: string;
+    /** The arguments as the model sent them, unchecked; `null` leaves the JSON in place. */
+    args: (args: unknown) => ReactNode;
+};
+
 /** What a folder's `web.tsx` default-exports. */
 export type WebExtension = {
     status?: StatusItem[];
@@ -204,6 +212,7 @@ export type WebExtension = {
     settings?: SettingsSection[];
     panels?: PanelItem[];
     tools?: ToolIcon[];
+    toolViews?: ToolView[];
     sessionMenu?: SessionMenuItem[];
 };
 

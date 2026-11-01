@@ -21,7 +21,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-import { type FolderToolIcon, useToolIcons } from "../extensions.ts";
+import {
+    type FolderToolIcon,
+    type FolderToolView,
+    useToolIcons,
+    useToolViews,
+} from "../extensions.ts";
 import { langOfPath } from "../lib/highlight.ts";
 import {
     argOf,
@@ -115,6 +120,7 @@ function SkillBadge({ name }: { name: string }) {
 }
 
 type ExtensionIcons = readonly FolderToolIcon[];
+type ExtensionViews = readonly FolderToolView[];
 
 /** How a step went, in a circle on the timeline's rule; the canvas ring cuts the rule around it. */
 function Mark({
@@ -196,7 +202,13 @@ function ThoughtBody({ text }: { text: string }) {
 }
 
 /** What an open step shows: an edit's diff, a write's file, or else its arguments and output. */
-function StepBody({ step }: { step: Extract<Step, { kind: "tool" }> }) {
+function StepBody({
+    step,
+    views,
+}: {
+    step: Extract<Step, { kind: "tool" }>;
+    views: ExtensionViews;
+}) {
     const output = step.result?.text.trim() ?? "";
     const path = argOf(step.args, "path");
     const content = step.name === "write" ? argOf(step.args, "content") : undefined;
@@ -224,7 +236,9 @@ function StepBody({ step }: { step: Extract<Step, { kind: "tool" }> }) {
 
     return (
         <>
-            <Pre>{argsText(step.name, step.args)}</Pre>
+            {views.find((view) => view.id === step.name)?.args(step.args) ?? (
+                <Pre>{argsText(step.name, step.args)}</Pre>
+            )}
             {output === "" ? null : (
                 <Pre {...(failed ? { tone: "danger" as const } : {})}>{output}</Pre>
             )}
@@ -264,7 +278,15 @@ function GroupImages({ steps }: { steps: Step[] }) {
     );
 }
 
-function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
+function StepRow({
+    step,
+    icons,
+    views,
+}: {
+    step: Step;
+    icons: ExtensionIcons;
+    views: ExtensionViews;
+}) {
     if (step.kind === "thinking") {
         return (
             <Collapsible>
@@ -331,7 +353,7 @@ function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
                 )}
             </CollapsibleTrigger>
             <CollapsibleContent className={STEP_BODY}>
-                <StepBody step={step} />
+                <StepBody step={step} views={views} />
             </CollapsibleContent>
         </Collapsible>
     );
@@ -344,6 +366,7 @@ function StepRow({ step, icons }: { step: Step; icons: ExtensionIcons }) {
 export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity" }> }) {
     const now = useNow(item.live);
     const icons = useToolIcons();
+    const views = useToolViews();
     const last = item.steps.at(-1);
     const thinking = item.live && last?.kind === "thinking" && last.streaming;
     const failed = item.steps.filter(
@@ -388,7 +411,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                                 className="bg-edge absolute top-5 bottom-5 left-[22px] w-px"
                             />
                             {item.steps.map((step) => (
-                                <StepRow key={step.key} step={step} icons={icons} />
+                                <StepRow key={step.key} step={step} icons={icons} views={views} />
                             ))}
                         </div>
                     ) : (

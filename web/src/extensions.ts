@@ -1,7 +1,8 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
  * composer controls, blocks above the composer and under the session list, status popover markers,
- * settings sections, side panels, tool icons, session menu items and new-session options.
+ * settings sections, side panels, tool icons and argument views, session menu items and new-session
+ * options.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -22,6 +23,7 @@ import type {
     StatusItem,
     StatusRowItem,
     ToolIcon,
+    ToolView,
 } from "./sdk/types.ts";
 
 export type FolderStatusItem = StatusItem & { folder: string };
@@ -34,6 +36,7 @@ export type FolderAboveComposerItem = AboveComposerItem & { folder: string };
 export type FolderSidebarBottomItem = SidebarBottomItem & { folder: string };
 export type FolderStatusRowItem = StatusRowItem & { folder: string };
 export type FolderToolIcon = ToolIcon & { folder: string };
+export type FolderToolView = ToolView & { folder: string };
 export type FolderSessionMenuItem = SessionMenuItem & { folder: string };
 export type FolderNewSessionItem = NewSessionItem & { folder: string };
 
@@ -118,6 +121,15 @@ function isToolIcon(value: unknown): value is ToolIcon {
     return (
         typeof Reflect.get(value, "id") === "string" &&
         (typeof icon === "function" || (typeof icon === "object" && icon !== null))
+    );
+}
+
+function isToolView(value: unknown): value is ToolView {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "string" &&
+        typeof Reflect.get(value, "args") === "function"
     );
 }
 
@@ -207,6 +219,7 @@ type Loaded = {
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
     tools: FolderToolIcon[];
+    toolViews: FolderToolView[];
     sessionMenu: FolderSessionMenuItem[];
     newSession: FolderNewSessionItem[];
 };
@@ -238,6 +251,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         settings: [],
         panels: [],
         tools: [],
+        toolViews: [],
         sessionMenu: [],
         newSession: [],
     };
@@ -254,6 +268,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
         collect(folder, "tools", module, isToolIcon, loaded.tools);
+        collect(folder, "toolViews", module, isToolView, loaded.toolViews);
         collect(folder, "sessionMenu", module, isSessionMenuItem, loaded.sessionMenu);
         collect(folder, "newSession", module, isNewSessionItem, loaded.newSession);
     } catch (error) {
@@ -393,6 +408,13 @@ const pickTools = (loaded: Loaded): FolderToolIcon[] => loaded.tools;
 /** The icons extensions give their tools; empty until the modules are in. */
 export function useToolIcons(): readonly FolderToolIcon[] {
     return useLoaded(pickTools);
+}
+
+const pickToolViews = (loaded: Loaded): FolderToolView[] => loaded.toolViews;
+
+/** How extensions show their tools' arguments; empty until the modules are in. */
+export function useToolViews(): readonly FolderToolView[] {
+    return useLoaded(pickToolViews);
 }
 
 const pickNewSession = (loaded: Loaded): FolderNewSessionItem[] => loaded.newSession;
