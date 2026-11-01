@@ -3,6 +3,7 @@ import {
     ArchiveRestore,
     ArrowLeft,
     ChevronDown,
+    ChevronRight,
     Folder,
     GitFork,
     MoreHorizontal,
@@ -15,6 +16,7 @@ import {
     X,
 } from "lucide-react";
 import {
+    Fragment,
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
     memo,
@@ -23,6 +25,7 @@ import {
     useLayoutEffect,
     useRef,
     useState,
+    useSyncExternalStore,
 } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,10 +38,14 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
 import { type FolderSessionMenuItem, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
+import { isNarrow, watchNarrow } from "../lib/narrow.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { cwdsOf, type FolderRow, folderRows, rowOf } from "../lib/session-folders.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
@@ -373,6 +380,8 @@ export const Sessions = memo(function Sessions({
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
     const [scopeOpen, setScopeOpen] = useState(false);
+    const [expanded, setExpanded] = useState<string | null>(null);
+    const narrow = useSyncExternalStore(watchNarrow, isNarrow);
     const chosen = useRef<HTMLDivElement | null>(null);
 
     useShellCommand("folder.pick", () => {
@@ -576,8 +585,6 @@ export const Sessions = memo(function Sessions({
     const topLevel = sidebarSessions(sessions);
     const holding = holdingRow(current, sessions);
     const folders = folderRows(topLevel);
-    const lines = (level: readonly FolderRow[], depth = 0): { row: FolderRow; depth: number }[] =>
-        level.flatMap((row) => [{ row, depth }, ...lines(row.worktrees, depth + 1)]);
 
     const newest = (rows: SessionSummary[]): SessionSummary[] =>
         rows.toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
@@ -591,6 +598,141 @@ export const Sessions = memo(function Sessions({
         : picked !== undefined && picked.under !== null
           ? `${folderName(picked.under)} / ${folderName(folder)}`
           : folderName(folder);
+
+    // Which kind of pointer chose, so a phone's first tap can open the worktrees instead of choosing.
+    const pointer = useRef("mouse");
+    const holds = (row: FolderRow, cwd: string | null): boolean =>
+        cwd !== null && (row.cwd === cwd || row.worktrees.some((child) => holds(child, cwd)));
+    const pickFolder = (cwd: string): void => {
+        setAll(false);
+
+        const [first] = latest([cwd]);
+
+        if (first !== undefined) {
+            onFolder(first.id);
+        }
+
+        setScopeOpen(false);
+    };
+    // A folder with worktrees opens them; the row itself chooses the folder, hover and → open the list.
+    // A phone has no room beside a row, so there the worktrees come out under it instead.
+    const folderRow = (row: FolderRow, nested: boolean): ReactNode => {
+        const inside = !all && holds(row, folder);
+        const name = (
+            <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
+                {folderName(row.cwd)}
+            </span>
+        );
+        const icon = nested ? (
+            <GitFork className="text-faint shrink-0" />
+        ) : (
+            <Folder className="text-faint shrink-0" />
+        );
+        const look = inside ? "bg-raised" : "data-[highlighted]:bg-raised/50";
+        const ref = !all && !nested && inside ? chosen : undefined;
+
+        if (row.worktrees.length === 0) {
+            return (
+                <DropdownMenuItem
+                    key={row.cwd}
+                    title={row.cwd}
+                    onSelect={() => {
+                        pickFolder(row.cwd);
+                    }}
+                    ref={ref}
+                    className={look}
+                >
+                    {icon}
+                    {name}
+                    <span className="text-faint text-meta">{row.count}</span>
+                </DropdownMenuItem>
+            );
+        }
+
+        if (narrow) {
+            const open = expanded === row.cwd;
+
+            return (
+                <Fragment key={row.cwd}>
+                    <DropdownMenuItem
+                        title={row.cwd}
+                        aria-expanded={open}
+                        onSelect={(event) => {
+                            // The first click brings the worktrees out; the second one chooses the folder.
+                            if (open) {
+                                pickFolder(row.cwd);
+
+                                return;
+                            }
+
+                            event.preventDefault();
+                            setExpanded(row.cwd);
+                        }}
+                        ref={ref}
+                        className={look}
+                    >
+                        {icon}
+                        {name}
+                        <span className="text-faint text-meta">{row.count}</span>
+                        <ChevronDown
+                            className={`text-faint shrink-0 transition-transform ${
+                                open ? "rotate-180" : ""
+                            }`}
+                        />
+                    </DropdownMenuItem>
+                    {open ? (
+                        <div className="border-edge-soft ml-3 border-l pl-1">
+                            {row.worktrees.map((worktree) => folderRow(worktree, true))}
+                        </div>
+                    ) : null}
+                </Fragment>
+            );
+        }
+
+        return (
+            <DropdownMenuSub key={row.cwd}>
+                <DropdownMenuSubTrigger
+                    title={row.cwd}
+                    ref={ref}
+                    className={look}
+                    onPointerDown={(event) => {
+                        pointer.current = event.pointerType;
+                    }}
+                    onClick={(event) => {
+                        if (!isPlainClick(event)) {
+                            return;
+                        }
+
+                        // No hover on a phone: the first tap opens the worktrees, the next one chooses.
+                        if (
+                            pointer.current !== "mouse" &&
+                            event.currentTarget.dataset["state"] !== "open"
+                        ) {
+                            return;
+                        }
+
+                        // Without preventDefault Radix opens the submenu instead of choosing the folder.
+                        event.preventDefault();
+                        pickFolder(row.cwd);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter" && event.target === event.currentTarget) {
+                            event.preventDefault();
+                            pickFolder(row.cwd);
+                        }
+                    }}
+                >
+                    {icon}
+                    {name}
+                    <span className="text-faint text-meta">{row.count}</span>
+                    <ChevronRight className="text-faint shrink-0" />
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="min-w-48">
+                    {row.worktrees.map((worktree) => folderRow(worktree, true))}
+                </DropdownMenuSubContent>
+            </DropdownMenuSub>
+        );
+    };
 
     const matches = (all ? newest(topLevel) : latest(scopeCwds))
         .filter((session) => session.archived === archived)
@@ -701,7 +843,17 @@ export const Sessions = memo(function Sessions({
                 </header>
 
                 <div className={`border-edge-soft border-b ${FADE} ${FOLD}`}>
-                    <DropdownMenu modal={false} open={scopeOpen} onOpenChange={setScopeOpen}>
+                    <DropdownMenu
+                        modal={false}
+                        open={scopeOpen}
+                        onOpenChange={(next) => {
+                            setScopeOpen(next);
+
+                            if (!next) {
+                                setExpanded(null);
+                            }
+                        }}
+                    >
                         <DropdownMenuTrigger asChild>
                             <button
                                 type="button"
@@ -733,37 +885,7 @@ export const Sessions = memo(function Sessions({
                                     </span>
                                     <span className="text-faint text-meta">{topLevel.length}</span>
                                 </DropdownMenuItem>
-                                {lines(folders).map(({ row, depth }) => (
-                                    <DropdownMenuItem
-                                        key={row.cwd}
-                                        title={row.cwd}
-                                        onSelect={() => {
-                                            setAll(false);
-
-                                            const [first] = latest([row.cwd]);
-
-                                            if (first !== undefined) {
-                                                onFolder(first.id);
-                                            }
-                                        }}
-                                        ref={!all && row.cwd === folder ? chosen : undefined}
-                                        className={`${depth === 0 ? "" : "pl-7 "}${
-                                            !all && row.cwd === folder
-                                                ? "bg-raised"
-                                                : "data-[highlighted]:bg-raised/50"
-                                        }`}
-                                    >
-                                        {depth === 0 ? (
-                                            <Folder className="text-faint size-3.5 shrink-0" />
-                                        ) : (
-                                            <GitFork className="text-faint size-3.5 shrink-0" />
-                                        )}
-                                        <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
-                                            {folderName(row.cwd)}
-                                        </span>
-                                        <span className="text-faint text-meta">{row.count}</span>
-                                    </DropdownMenuItem>
-                                ))}
+                                {folders.map((row) => folderRow(row, false))}
                             </ScrollArea>
                         </DropdownMenuContent>
                     </DropdownMenu>

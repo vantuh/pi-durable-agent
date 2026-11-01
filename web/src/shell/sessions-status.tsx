@@ -13,6 +13,7 @@ import {
 } from "../components/ui/dropdown-menu.tsx";
 import { ScrollArea } from "../components/ui/scroll-area.tsx";
 import { useStatusRowItems } from "../extensions.ts";
+import { isNarrow, watchNarrow } from "../lib/narrow.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { holdingRow } from "../lib/session-nesting.ts";
 import { statusRows } from "../lib/status-rows.ts";
@@ -29,19 +30,6 @@ type Props = {
 };
 
 const ROW = "gap-3 px-2 py-1.5";
-const NARROW = "(max-width: 639px)";
-
-function watchNarrow(notify: () => void): () => void {
-    const query = matchMedia(NARROW);
-
-    query.addEventListener("change", notify);
-
-    return () => {
-        query.removeEventListener("change", notify);
-    };
-}
-
-const isNarrow = (): boolean => matchMedia(NARROW).matches;
 
 type RowProps = {
     session: SessionSummary;
