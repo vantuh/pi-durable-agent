@@ -871,6 +871,19 @@ note saying which `offset` continues it.
   so refusing them here would protect nothing.
 - The name `fetch_content` is the one `pi-web-access` uses, for the same reason as `web_search`.
 
+## Code mode
+
+`extensions/codemode` installs Pi Durable's own `codemode` extension next to every other tool: the
+model writes a JavaScript script that calls its tools as `await tools.<name>(args)` in a QuickJS
+sandbox (`@earendil-works/pi-codemode`, 256 MiB), and only the script's output reaches it. The
+model keeps all its tools as well; `modelTools` is not set.
+
+- A script survives a restart: it resumes where it was, without repeating finished calls.
+- The extension's name is `codemode`, as the folder's, so no renaming was needed.
+- The sandbox is closed when a version is replaced, the folder goes or the server stops. A script
+  running at that moment is not failed: it resumes with the next version's sandbox.
+- `pi-codemode` is a direct dependency, pinned to the version `pi-durable` uses.
+
 ## Git worktrees
 
 `extensions/git-worktree` puts a `New worktree` checkbox in the folder picker, with a name field
