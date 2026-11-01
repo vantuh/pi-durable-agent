@@ -31,10 +31,10 @@ function skipReason(): string | undefined {
     const first = candidates()[0];
 
     if (first === undefined) {
-        return "no Handy whisper GGUF under ~/.cache/huggingface/hub";
+        return "no Handy GGUF under ~/.cache/huggingface/hub";
     }
 
-    return existsSync(first) ? undefined : `the whisper model ${first} is not here`;
+    return existsSync(first) ? undefined : `the Handy model ${first} is not here`;
 }
 
 type Disposal = Parameters<Host["onDispose"]>[0];
@@ -281,7 +281,7 @@ void describe("the settings", () => {
 void describe("candidates", () => {
     /** A GGUF in the shape Handy's cache keeps it: a repo, a snapshot, the file. */
     async function handy(hub: string, repo: string, file: string): Promise<void> {
-        const dir = join(hub, `models--handy-computer--whisper-${repo}`, "snapshots", "5eaf945c");
+        const dir = join(hub, `models--handy-computer--${repo}`, "snapshots", "5eaf945c");
 
         await mkdir(dir, { recursive: true });
         await writeFile(join(dir, file), "");
@@ -295,11 +295,11 @@ void describe("candidates", () => {
         const hub = await tempDir("dictation-hub");
 
         try {
-            await handy(hub, "small-gguf", "whisper-small-q5_1.gguf");
-            await handy(hub, "large-v3-turbo-gguf", "whisper-large-v3-turbo-Q5_K_M.gguf");
-            await handy(hub, "large-v3-turbo-gguf", "whisper-large-v3-turbo-Q8_0.gguf");
+            await handy(hub, "whisper-small-gguf", "whisper-small-q5_1.gguf");
+            await handy(hub, "whisper-large-v3-turbo-gguf", "whisper-large-v3-turbo-Q5_K_M.gguf");
+            await handy(hub, "whisper-large-v3-turbo-gguf", "whisper-large-v3-turbo-Q8_0.gguf");
             // Not a whisper GGUF, or not a GGUF at all: neither is offered.
-            await handy(hub, "small-gguf", "whisper-small.ggml");
+            await handy(hub, "whisper-small-gguf", "whisper-small.ggml");
             await mkdir(join(hub, "models--mlx-community--whisper-large-v3-turbo"), {
                 recursive: true,
             });
@@ -323,6 +323,22 @@ void describe("candidates", () => {
                     "whisper-large-v3-turbo-Q5_K_M.gguf",
                     "whisper-small-q5_1.gguf",
                 ],
+            );
+        } finally {
+            await rm(hub, { recursive: true, force: true });
+        }
+    });
+
+    void it("offers a parakeet GGUF after the whisper turbos", async () => {
+        const hub = await tempDir("dictation-hub-parakeet");
+
+        try {
+            await handy(hub, "parakeet-ultra-gguf", "parakeet-ultra-Q8_0.gguf");
+            await handy(hub, "whisper-large-v3-turbo-gguf", "whisper-large-v3-turbo-Q8_0.gguf");
+
+            assert.deepEqual(
+                candidates(hub).map((path) => basename(path)),
+                ["whisper-large-v3-turbo-Q8_0.gguf", "parakeet-ultra-Q8_0.gguf"],
             );
         } finally {
             await rm(hub, { recursive: true, force: true });

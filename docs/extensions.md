@@ -518,19 +518,20 @@ sent; returns the way to stop listening). The shell knows no feature by name.
 
 `extensions/dictation` uses this slot for a mic, ported from Pi Pocket's `local-dictation`. The
 browser records with `MediaRecorder`, resamples what it heard to 16 kHz mono 16-bit PCM and posts it
-to this server's own routes, which transcribe it here with `transcribe-cpp` — a Handy whisper GGUF
-on Metal. The Web Speech API is gone: no audio reaches a speech service, and dictating needs no
+to this server's own routes, which transcribe it here with `transcribe-cpp` — a Handy whisper or
+parakeet GGUF on Metal. The Web Speech API is gone: no audio reaches a speech service, and dictating needs no
 network. A browser without `MediaRecorder`, or a page off https or localhost, shows no mic.
 
 - Three settings live in `dictation.json` in the data directory, and `details.tsx` — the Dictation
   row in the Extensions dialog, expanded — is the only way to change them: `language` (Auto, English
   or Ukrainian — `uk` stands in while the file does not exist yet, and `auto` passes no hint at all
-  so the model detects it), `model` (null for the first Handy whisper GGUF found, else an absolute
+  so the model detects it), `model` (null for the first Handy GGUF found, else an absolute
   `.gguf` path) and `idleMinutes` (0 to 1440, default 10). No environment variables, and no settings
   section in the shell's panel. A file written before the model and the idle time were settings
   still reads, taking the defaults for the two it lacks.
-- The model dropdown lists the whisper GGUFs under `~/.cache/huggingface/hub` with their names and
-  sizes, the `large-v3-turbo` `Q8_0` first, and says so when there is none. The model holds ~900 MB
+- The model dropdown lists the whisper and parakeet GGUFs under `~/.cache/huggingface/hub` with
+  their names and sizes, the `large-v3-turbo` `Q8_0` first, and says so when there is none. A
+  parakeet ignores the language hint and detects it instead. The model holds ~900 MB
   with Metal, so it loads when a recording starts and goes after `idleMinutes` without a dictation;
   `0` lets it go as soon as the dictation that needed it ends. A failed load is tried again at the
   next one, and a chosen model whose file is gone says which path it wanted.

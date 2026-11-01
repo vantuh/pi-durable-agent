@@ -33,7 +33,7 @@ export function checkLanguage(value: unknown): Language {
     return value;
 }
 
-/** Null means the first Handy whisper GGUF found; anything else must be a `.gguf` path. */
+/** Null means the first Handy GGUF found; anything else must be a `.gguf` path. */
 export function checkModel(value: unknown): string | null {
     if (value === null) {
         return null;

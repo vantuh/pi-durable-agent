@@ -217,7 +217,7 @@ function Settings() {
                 label="Model"
                 value={current.model ?? ""}
                 options={[
-                    { value: "", label: "Auto (first Handy whisper found)" },
+                    { value: "", label: "Auto (first Handy model found)" },
                     ...current.models.map((one) => ({
                         value: one.path,
                         label: `${one.name} (${String(one.megabytes)} MB)`,
@@ -230,7 +230,7 @@ function Settings() {
             />
             {noModels ? (
                 <p className="text-meta text-muted">
-                    No Handy whisper GGUF under ~/.cache/huggingface/hub.
+                    No Handy whisper or parakeet GGUF under ~/.cache/huggingface/hub.
                 </p>
             ) : null}
             <label className="flex w-[30%] flex-col gap-1">

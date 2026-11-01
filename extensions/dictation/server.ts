@@ -41,8 +41,14 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 /** A take nobody sends back holds the model no longer than this, even with an idle time of 0. */
 const TAKEN_MS = 5 * 60_000;
 
-/** Where Handy keeps the whisper GGUFs it downloaded; a test points this somewhere of its own. */
+/** Where Handy keeps the GGUFs it downloaded; a test points this somewhere of its own. */
 const HUB = join(homedir(), ".cache", "huggingface", "hub");
+
+/**
+ * The Handy families the dropdown offers, by the prefix Handy's cache gives their repos. Whisper
+ * takes the language the setting names; parakeet detects it and ignores the hint.
+ */
+const REPOS = ["whisper-", "parakeet-"].map((family) => `models--handy-computer--${family}`);
 
 /** The names in a folder, or none when it is not there: a machine without Handy has no models. */
 function names(dir: string): string[] {
@@ -54,14 +60,15 @@ function names(dir: string): string[] {
 }
 
 /**
- * Every whisper GGUF that Handy downloaded, most wanted first: the Q8_0 large-v3-turbo, the rest of
- * the turbo family, then everything else. The first one is the model `null` in the settings means.
+ * Every whisper or parakeet GGUF that Handy downloaded, most wanted first: the Q8_0
+ * large-v3-turbo, the rest of the turbo family, then everything else. The first one is the model
+ * `null` in the settings means.
  */
 export function candidates(hub: string = HUB): string[] {
     const found: string[] = [];
 
     for (const repo of names(hub).filter((name) =>
-        name.startsWith("models--handy-computer--whisper-"),
+        REPOS.some((prefix) => name.startsWith(prefix)),
     )) {
         const snapshots = join(hub, repo, "snapshots");
 
@@ -198,7 +205,7 @@ export class Dictation {
 
             if (path === undefined) {
                 throw new Error(
-                    "No Handy whisper GGUF under ~/.cache/huggingface/hub. Choose a model in the Dictation settings.",
+                    "No Handy whisper or parakeet GGUF under ~/.cache/huggingface/hub. Choose a model in the Dictation settings.",
                 );
             }
 
