@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { ClientStatus } from "../../shared/protocol.ts";
+import type { ClientQueued, ClientStatus } from "../../shared/protocol.ts";
 import { AboveComposerItems } from "./composer/above-items.tsx";
 import { Composer } from "./composer/composer.tsx";
 import { SessionMeta } from "./composer/meta.tsx";
@@ -40,6 +40,8 @@ import { StatusItems } from "./ui/status-fields.tsx";
 const SESSION_KEY = "session";
 // A new array per render would defeat the status bar's memo on every frame.
 const NO_STATUS: ClientStatus[] = [];
+// The same goes for the composer's queue: a frame of a reply passes it straight through.
+const NO_QUEUED: ClientQueued[] = [];
 
 function shortName(model: string | null): string {
     if (model === null) {
@@ -95,9 +97,9 @@ export function App() {
     }, [current]);
 
     // The stream catches up a moment later; an action's own result is shown at once.
-    const reload = async (): Promise<void> => {
+    const reload = useCallback(async (): Promise<void> => {
         setSessions(await listSessions());
-    };
+    }, [setSessions]);
 
     const active = sessions.find((session) => session.id === current);
 
@@ -130,6 +132,13 @@ export function App() {
     const activeModel = active?.model ?? null;
     const { busy } = state.live;
     const revision = state.live.revision ?? 0;
+    const { input: usageInput, output: usageOutput, cost: usageCost } = state.live.usage;
+    // A frame carries a new usage object every time; the line under the composer shows the numbers in it, not the
+    // object, and only changes when one of them does.
+    const usage = useMemo(
+        () => ({ input: usageInput, output: usageOutput, cost: usageCost }),
+        [usageInput, usageOutput, usageCost],
+    );
     // Stable between frames, so the memoized sidebar and status bar skip the ones that only grow the reply.
     const knownSession = useMemo(
         () =>
@@ -198,18 +207,43 @@ export function App() {
     }, []);
 
     // A new session in `path`, opened at once.
-    const openSession = (path: string): void => {
-        void (async () => {
-            const id = await createSession(path);
+    const openSession = useCallback(
+        (path: string): void => {
+            void (async () => {
+                const id = await createSession(path);
 
-            if (id !== 0) {
-                go(id);
-                setSheet(false);
+                if (id !== 0) {
+                    go(id);
+                    setSheet(false);
+                }
+
+                await reload();
+            })();
+        },
+        [go, reload],
+    );
+
+    // The screen around the reply keeps its props across a frame, so none of it renders again for one. Every fresh
+    // function or element below would defeat that memo.
+    const aboveComposer = useMemo(
+        () => <AboveComposerItems session={activeSession} openSession={go} />,
+        [activeSession, go],
+    );
+    const toggleMenu = useCallback((): void => {
+        void (async () => {
+            if (!menu) {
+                setModels(await listModels());
             }
 
-            await reload();
+            setMenu((open) => !open);
         })();
-    };
+    }, [menu]);
+    const stopRun = useCallback((): void => {
+        void stop();
+    }, [stop]);
+    const newSession = useCallback((): void => {
+        openSession(active?.cwd ?? health?.cwd ?? health?.home ?? "/");
+    }, [openSession, active?.cwd, health?.cwd, health?.home]);
 
     useShellCommand("session.new", () => {
         const start = folder ?? health?.home ?? null;
@@ -350,42 +384,23 @@ export function App() {
                                     sessionId={String(current)}
                                     session={activeSession}
                                     busy={state.live.busy}
-                                    queued={state.live.queued ?? []}
-                                    above={
-                                        <AboveComposerItems
-                                            session={activeSession}
-                                            openSession={go}
-                                        />
-                                    }
+                                    queued={state.live.queued ?? NO_QUEUED}
+                                    above={aboveComposer}
                                     model={model}
                                     level={active?.thinkingLevel ?? null}
                                     menuOpen={menu}
-                                    onToggleMenu={() => {
-                                        void (async () => {
-                                            if (!menu) {
-                                                setModels(await listModels());
-                                            }
-
-                                            setMenu((open) => !open);
-                                        })();
-                                    }}
+                                    onToggleMenu={toggleMenu}
                                     onSend={send}
-                                    onStop={() => {
-                                        void stop();
-                                    }}
-                                    onNewSession={() => {
-                                        openSession(
-                                            active?.cwd ?? health?.cwd ?? health?.home ?? "/",
-                                        );
-                                    }}
+                                    onStop={stopRun}
+                                    onNewSession={newSession}
                                 />
                             </div>
 
                             <SessionMeta
                                 session={activeSession}
                                 sessions={sessions}
-                                status={state.live.status ?? []}
-                                usage={state.live.usage}
+                                status={state.live.status ?? NO_STATUS}
+                                usage={usage}
                                 openSession={go}
                             />
                         </>

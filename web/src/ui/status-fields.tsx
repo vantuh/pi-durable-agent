@@ -1,10 +1,15 @@
+import { memo } from "react";
+
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import { useStatusItems } from "../extensions.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "./item-boundary.tsx";
 
-/** The `web.tsx` items of one place, each in its own boundary. */
-export function StatusItems({
+/**
+ * The `web.tsx` items of one place, each in its own boundary. A streamed frame rebuilds every ancestor of this, and
+ * what it draws changes only when the session it is handed does.
+ */
+export const StatusItems = memo(function StatusItems({
     slot,
     session,
     sessions,
@@ -24,7 +29,7 @@ export function StatusItems({
                 <Item session={session} sessions={sessions} openSession={openSession} />
             </ItemBoundary>
         ));
-}
+});
 
 const FILL_TONE = { warn: "bg-warn", danger: "bg-danger" };
 

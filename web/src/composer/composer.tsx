@@ -1,5 +1,5 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -159,7 +159,7 @@ function pendingOf(file: ClientAttachment): Pending {
     };
 }
 
-export function Composer({
+export const Composer = memo(function Composer({
     sessionId,
     session,
     busy,
@@ -828,4 +828,4 @@ export function Composer({
             </div>
         </div>
     );
-}
+});

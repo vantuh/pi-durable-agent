@@ -26,7 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
 import { splitQuote } from "../lib/quote.ts";
-import { type Item, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
+import { type Item, sameItem, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
 import { cn } from "../lib/utils.ts";
 import { addComposerQuote } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
@@ -366,7 +366,7 @@ function CompactionMark({ summary }: { summary?: string }) {
     );
 }
 
-function TurnItem({ item }: { item: Item }) {
+function TurnItemView({ item }: { item: Item }) {
     if (item.type === "activity") {
         return <ActivityGroup item={item} />;
     }
@@ -382,6 +382,33 @@ function TurnItem({ item }: { item: Item }) {
         </div>
     );
 }
+
+/**
+ * One thing a turn shows. A frame of a streamed reply rebuilds every item of the turn it lands in, and only the one
+ * holding that reply differs: the rest compares equal and does not render at all.
+ */
+const TurnItem = memo(TurnItemView, (before, after) => sameItem(before.item, after.item));
+
+/**
+ * The person's own message. A frame of a reply rebuilds the whole turn it lands in; this holds an entry that does not
+ * change with it, so it sits behind its own memo and skips the frame.
+ */
+const UserMessage = memo(function UserMessage({ user }: { user: NonNullable<Turn["user"]> }) {
+    return (
+        <div className="flex justify-end">
+            <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
+                <Attachments
+                    files={(user.files ?? []).map((file, index) => ({
+                        ...file,
+                        key: String(index),
+                        state: "done",
+                    }))}
+                />
+                <UserText text={user.text} />
+            </div>
+        </div>
+    );
+});
 
 /**
  * One turn. It renders again only when it shows something new: a chunk of a streamed answer rebuilds every turn of the
@@ -406,18 +433,7 @@ const TurnView = memo(
                     />
                 )}
                 {turn.user === undefined || turn.user.author !== undefined ? null : (
-                    <div className="flex justify-end">
-                        <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
-                            <Attachments
-                                files={(turn.user.files ?? []).map((file, index) => ({
-                                    ...file,
-                                    key: String(index),
-                                    state: "done",
-                                }))}
-                            />
-                            <UserText text={turn.user.text} />
-                        </div>
-                    </div>
+                    <UserMessage user={turn.user} />
                 )}
                 {turn.items.length === 0 && !turn.live ? null : (
                     <div className="flex flex-col gap-2.5">
