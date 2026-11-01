@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { ClientStatus, ClientUsage, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
@@ -25,7 +27,7 @@ function money(cost: number): string {
  * What this conversation used, under the composer. One line that wraps out of sight: what does not
  * fit is hidden whole, never cut, and the first in line (the context) is the last to go.
  */
-export function SessionMeta({
+export const SessionMeta = memo(function SessionMeta({
     session,
     sessions,
     status,
@@ -59,4 +61,4 @@ export function SessionMeta({
             </span>
         </div>
     );
-}
+});
