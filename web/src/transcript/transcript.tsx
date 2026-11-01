@@ -390,6 +390,27 @@ function TurnItemView({ item }: { item: Item }) {
 const TurnItem = memo(TurnItemView, (before, after) => sameItem(before.item, after.item));
 
 /**
+ * The person's own message. A frame of a reply rebuilds the whole turn it lands in; this holds an entry that does not
+ * change with it, so it sits behind its own memo and skips the frame.
+ */
+const UserMessage = memo(function UserMessage({ user }: { user: NonNullable<Turn["user"]> }) {
+    return (
+        <div className="flex justify-end">
+            <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
+                <Attachments
+                    files={(user.files ?? []).map((file, index) => ({
+                        ...file,
+                        key: String(index),
+                        state: "done",
+                    }))}
+                />
+                <UserText text={user.text} />
+            </div>
+        </div>
+    );
+});
+
+/**
  * One turn. It renders again only when it shows something new: a chunk of a streamed answer rebuilds every turn of the
  * transcript, and only the turn at the end differs. `onOpenSession` comes from `useRoute`'s own `useCallback`.
  */
@@ -412,18 +433,7 @@ const TurnView = memo(
                     />
                 )}
                 {turn.user === undefined || turn.user.author !== undefined ? null : (
-                    <div className="flex justify-end">
-                        <div className="rounded-card bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
-                            <Attachments
-                                files={(turn.user.files ?? []).map((file, index) => ({
-                                    ...file,
-                                    key: String(index),
-                                    state: "done",
-                                }))}
-                            />
-                            <UserText text={turn.user.text} />
-                        </div>
-                    </div>
+                    <UserMessage user={turn.user} />
                 )}
                 {turn.items.length === 0 && !turn.live ? null : (
                     <div className="flex flex-col gap-2.5">
