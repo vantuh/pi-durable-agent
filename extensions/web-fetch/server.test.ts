@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createServer, type ServerResponse } from "node:http";
 import { describe, it } from "node:test";
 
+import { boundOutput } from "@earendil-works/chord/output";
+
 import { MAX_CHARS, fetchPage, format, type Page } from "./page.ts";
 
 type Route = (response: ServerResponse) => void;
@@ -65,6 +67,9 @@ function markdownOf(text: string): string {
     const note = text.indexOf("\n\n[Truncated:");
     return text.slice(text.indexOf("\n\n") + 2, note === -1 ? undefined : note);
 }
+
+// pi-durable's default limits on a tool result: 50 KiB and 2000 lines, from the head.
+const HARNESS_LIMITS = { maxBytes: 50 * 1024, maxLines: 2000, retain: "head" } as const;
 
 const ARTICLE = `<!doctype html><html><head><title>Node release notes</title></head><body>
     <nav><a href="/">Home</a> NAVTEXT</nav>
@@ -258,6 +263,43 @@ void describe("web-fetch paging", () => {
 
         // Offset 11 is the low half of the pair: the call starts one character earlier instead.
         assert.equal(markdownOf(format(pair, 11).text), "😀" + "y".repeat(20));
+    });
+});
+
+/** Every page of `markdown`, read by the offsets the notes give, each checked against the harness limits. */
+function readAll(markdown: string): string {
+    const fetched: Page = { kind: "page", url: "http://example.test/", title: "Long", markdown };
+    let rebuilt = "";
+    let offset = 0;
+
+    for (let calls = 0; offset < markdown.length; calls += 1) {
+        assert.ok(calls < 1_000, "paging does not end");
+
+        const { text } = format(fetched, offset);
+        const bounded = boundOutput(text, HARNESS_LIMITS);
+
+        assert.equal(bounded.droppedBytes, 0, `the harness would cut the call at offset ${offset}`);
+
+        rebuilt += markdownOf(text);
+
+        const next = /offset: (\d+) for more\.\]$/.exec(text)?.[1];
+
+        offset = next === undefined ? markdown.length : Number(next);
+    }
+    return rebuilt;
+}
+
+void describe("web-fetch output limits", () => {
+    void it("pages multibyte text so the harness cuts nothing", () => {
+        const markdown = "Привіт, світе 😀! ".repeat(8_000);
+
+        assert.equal(readAll(markdown), markdown);
+    });
+
+    void it("pages many short lines so the harness cuts nothing", () => {
+        const markdown = Array.from({ length: 6_000 }, (_, index) => `- item ${index}`).join("\n");
+
+        assert.equal(readAll(markdown), markdown);
     });
 });
 

@@ -869,7 +869,9 @@ in, and returns that model's answer followed by `## Sources` and a `Searched wit
 
 `extensions/web-fetch` gives Pi `fetch_content`: one `url`, and `offset` to read on. It returns
 `# <title>`, `URL: <final URL>` and the page as Markdown, at most 40 000 characters a call, with a
-note saying which `offset` continues it.
+note saying which `offset` continues it. A call is also kept under the harness's 50 KiB and 2000
+lines (the tool declares them), so multibyte or many-line pages return fewer characters, and the
+note's `offset` is always where the next call starts.
 
 - HTML goes through linkedom, Readability and Turndown (the path of `pi-web-access`'s `extract.ts`);
   links are made absolute first, and inline `data:` images are replaced by their alt text. A page

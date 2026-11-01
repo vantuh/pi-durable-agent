@@ -13,8 +13,15 @@ import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import TurndownService from "turndown";
 
-/** How much Markdown one call returns; the tool pages with `offset` beyond it. */
+/** The most Markdown one call returns; the tool pages with `offset` beyond it. */
 export const MAX_CHARS = 40_000;
+
+/** What the harness keeps of a tool result; the tool declares it, and `format` pages to fit it. */
+export const OUTPUT_LIMITS = { maxBytes: 50 * 1024, maxLines: 2000 };
+
+// Room left under the limits for what `format` does not count exactly.
+const BYTES_MARGIN = 512;
+const LINES_MARGIN = 10;
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const TIMEOUT_MS = 30_000;
@@ -106,21 +113,55 @@ export function format(page: Page, offset: number): { text: string; isError?: bo
     }
 
     const start = isLowSurrogate(page.markdown.charCodeAt(offset)) ? offset - 1 : offset;
-    let end = Math.min(offset + MAX_CHARS, total);
-    // A slice that ends inside a surrogate pair cannot be printed; the pair waits for the next call.
-    if (end < total && isHighSurrogate(page.markdown.charCodeAt(end - 1))) {
-        end -= 1;
-    }
+    const end = pageEnd(page.markdown, start, header);
 
     const note =
         end < total
-            ? `\n\n[Truncated: showing characters ${offset}–${end} of ${total}. Call fetch_content again with offset: ${end} for more.]`
+            ? `\n\n[Truncated: showing characters ${start}–${end} of ${total}. Call fetch_content again with offset: ${end} for more.]`
             : "";
 
     return { text: `${header}${page.markdown.slice(start, end)}${note}` };
 }
 
-const isHighSurrogate = (unit: number): boolean => unit >= 0xd800 && unit <= 0xdbff;
+/**
+ * Where the page from `start` ends: `MAX_CHARS` on, or earlier where the header, the page and the
+ * continuation note would pass the harness limits, which cut a result without saying where. Always
+ * at least one character, and never inside a surrogate pair.
+ */
+function pageEnd(markdown: string, start: number, header: string): number {
+    const worstNote = `\n\n[Truncated: showing characters ${markdown.length}–${markdown.length} of ${markdown.length}. Call fetch_content again with offset: ${markdown.length} for more.]`;
+    const fixed = header + worstNote;
+    const maxBytes = OUTPUT_LIMITS.maxBytes - BYTES_MARGIN - Buffer.byteLength(fixed);
+    // N newlines make N + 1 lines.
+    const maxNewlines = OUTPUT_LIMITS.maxLines - 1 - LINES_MARGIN - countNewlines(fixed);
+    const limit = Math.min(start + MAX_CHARS, markdown.length);
+
+    let bytes = 0;
+    let newlines = 0;
+    let end = start;
+
+    while (end < limit) {
+        const point = markdown.codePointAt(end) ?? 0;
+        const size = point > 0xffff ? 2 : 1;
+        const width = point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+        const isNewline = point === 10 ? 1 : 0;
+
+        if (end > start && (bytes + width > maxBytes || newlines + isNewline > maxNewlines)) {
+            break;
+        }
+        if (end + size > limit) {
+            break;
+        }
+        bytes += width;
+        newlines += isNewline;
+        end += size;
+    }
+
+    return end;
+}
+
+const countNewlines = (text: string): number => text.split("\n").length - 1;
+
 const isLowSurrogate = (unit: number): boolean => unit >= 0xdc00 && unit <= 0xdfff;
 
 /**

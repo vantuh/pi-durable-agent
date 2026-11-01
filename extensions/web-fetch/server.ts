@@ -10,7 +10,7 @@ import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 
 import type { Host } from "../../server/sdk.ts";
-import { fetchPage, format } from "./page.ts";
+import { OUTPUT_LIMITS, fetchPage, format } from "./page.ts";
 
 export const meta = {
     title: "Web fetch",
@@ -27,6 +27,7 @@ export default function webFetch(host: Host) {
         name: "fetch_content",
         description:
             "Fetch one public page and return its main content as Markdown. A long page is cut short: call again with offset to read the rest. For current facts, use web_search first.",
+        outputLimits: OUTPUT_LIMITS,
         parameters: Type.Object({
             url: Type.String({
                 minLength: 1,
