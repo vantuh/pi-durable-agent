@@ -94,14 +94,20 @@ export function SelectionQuote({ onQuote }: Props) {
         <button
             type="button"
             title="Quote this in the composer"
-            // Without this the tap clears the selection before the click can read it.
-            onMouseDown={(event) => {
+            // The press itself, not the click after it: iOS only opens the keyboard for a focus asked for during the
+            // touch, and a focus asked for later shows a frame but no caret. Preventing the default keeps the
+            // selection from clearing before the words are read.
+            onPointerDown={(event) => {
+                if (event.button !== 0) {
+                    return;
+                }
+
                 event.preventDefault();
-            }}
-            onClick={() => {
-                onQuote(picked.text);
+                const text = picked.text;
+
                 document.getSelection()?.removeAllRanges();
                 setPicked(null);
+                onQuote(text);
             }}
             style={{
                 left: picked.left,
