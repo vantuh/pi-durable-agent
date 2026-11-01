@@ -201,7 +201,7 @@ function ThoughtBody({ text }: { text: string }) {
     );
 }
 
-/** What an open step shows: an edit's diff, a write's file, or else its arguments and output. */
+/** What an open step shows: an edit's diff, a written or read file, or else its arguments and output. */
 function StepBody({
     step,
     views,
@@ -211,7 +211,12 @@ function StepBody({
 }) {
     const output = step.result?.text.trim() ?? "";
     const path = argOf(step.args, "path");
-    const content = step.name === "write" ? argOf(step.args, "content") : undefined;
+    const content =
+        step.name === "write"
+            ? argOf(step.args, "content")
+            : step.name === "read" && output !== ""
+              ? output
+              : undefined;
     const failed = step.status === "error";
 
     if (!failed && step.result?.diff !== undefined) {
