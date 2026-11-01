@@ -1,0 +1,288 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { callAction } from "@/sdk/actions.ts";
+import type { PanelProps } from "@/sdk/types.ts";
+import { Markdown } from "@/ui/markdown.tsx";
+
+import { type Note, openTasks, read, write } from "./refs.ts";
+import { claim, flushed, setCount, trackFlush } from "./store.ts";
+
+const DEBOUNCE_MS = 600;
+
+type State = "loading" | "saved" | "dirty" | "saving" | "conflict" | "error";
+
+const LABEL: Record<State, string> = {
+    loading: "Loading…",
+    saved: "Saved",
+    dirty: "Unsaved",
+    saving: "Saving…",
+    conflict: "Changed elsewhere",
+    error: "Not saved",
+};
+
+const messageOf = (failure: unknown, fallback: string): string =>
+    failure instanceof Error ? failure.message : fallback;
+
+type Memory = { latest: string; disk: Note; conflicted: boolean };
+
+/** Writes `memory.latest` until the disk holds it, or the disk turns out to have changed meanwhile. */
+async function persist(
+    id: number,
+    memory: Memory,
+    report: {
+        saving: () => void;
+        saved: () => void;
+        conflict: (note: Note) => void;
+        failed: (failure: unknown) => void;
+    },
+): Promise<void> {
+    try {
+        while (!memory.conflicted && memory.latest !== memory.disk.text) {
+            const sent = memory.latest;
+
+            report.saving();
+            const result = await callAction(write, { text: sent, base: memory.disk.version }, id);
+
+            if (result.conflict) {
+                memory.conflicted = true;
+                report.conflict({ text: result.text, version: result.version });
+
+                return;
+            }
+
+            memory.disk = { text: sent, version: result.version };
+        }
+
+        if (!memory.conflicted) {
+            report.saved();
+        }
+    } catch (failure) {
+        report.failed(failure);
+    }
+}
+
+/**
+ * The note of one session's repository, with its autosave. `disk` is what the server last said the
+ * file holds; the text is dirty while it differs, and a write names the version it was based on.
+ */
+function useNote(id: number) {
+    const [text, setText] = useState("");
+    const [state, setState] = useState<State>("loading");
+    const [other, setOther] = useState<Note | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const memory = useRef<Memory>({
+        latest: "",
+        disk: { text: "", version: "" },
+        conflicted: false,
+    });
+    const flight = useRef<Promise<void> | null>(null);
+    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+    const show = useCallback(
+        (note: Note) => {
+            memory.current.disk = note;
+            memory.current.latest = note.text;
+            memory.current.conflicted = false;
+            setText(note.text);
+            setOther(null);
+            setError(null);
+            setState("saved");
+            setCount(id, openTasks(note.text));
+        },
+        [id],
+    );
+
+    const save = useCallback((): Promise<void> => {
+        clearTimeout(timer.current);
+
+        if (flight.current !== null) {
+            return flight.current;
+        }
+
+        const started = persist(id, memory.current, {
+            saving: () => {
+                setState("saving");
+            },
+            saved: () => {
+                setError(null);
+                setState("saved");
+            },
+            conflict: (note) => {
+                setOther(note);
+                setState("conflict");
+            },
+            failed: (failure) => {
+                setError(messageOf(failure, "The note was not saved."));
+                setState("error");
+            },
+        });
+
+        flight.current = started.finally(() => {
+            flight.current = null;
+        });
+
+        return flight.current;
+    }, [id]);
+
+    useEffect(() => {
+        const release = claim(id);
+        let alive = true;
+        // Only a note with no local edits is replaced; an edited one meets the disk through a write.
+        const clean = (): boolean =>
+            flight.current === null && memory.current.latest === memory.current.disk.text;
+        const refresh = async (): Promise<void> => {
+            if (!clean()) {
+                return;
+            }
+
+            try {
+                await flushed();
+
+                // A read that lands after a save of ours describes an older disk: drop it.
+                const seen = memory.current.disk;
+                const note = await callAction(read, undefined, id);
+
+                if (
+                    alive &&
+                    note !== null &&
+                    memory.current.disk === seen &&
+                    clean() &&
+                    note.version !== seen.version
+                ) {
+                    show(note);
+                }
+            } catch (failure) {
+                if (alive) {
+                    setError(messageOf(failure, "The note could not be read."));
+                    setState("error");
+                }
+            }
+        };
+        const onFocus = (): void => {
+            void refresh();
+        };
+
+        void refresh();
+        window.addEventListener("focus", onFocus);
+
+        return () => {
+            alive = false;
+            window.removeEventListener("focus", onFocus);
+
+            const last = save().finally(release);
+
+            trackFlush(last);
+        };
+    }, [id, save, show]);
+
+    return {
+        text,
+        state,
+        other,
+        error,
+        edit: (value: string) => {
+            memory.current.latest = value;
+            setText(value);
+            setCount(id, openTasks(value));
+
+            if (!memory.current.conflicted) {
+                setState("dirty");
+                clearTimeout(timer.current);
+                timer.current = setTimeout(() => {
+                    void save();
+                }, DEBOUNCE_MS);
+            }
+        },
+        loadNewer: () => {
+            if (other !== null) {
+                show(other);
+            }
+        },
+        overwrite: () => {
+            if (other !== null) {
+                memory.current.disk = other;
+                memory.current.conflicted = false;
+                setOther(null);
+                void save();
+            }
+        },
+    };
+}
+
+export function NotesPanel({ session }: PanelProps) {
+    if (session === null || session.cwd === null) {
+        return <p className="text-faint text-interface p-3">This session has no folder.</p>;
+    }
+
+    return <Notes id={session.id} />;
+}
+
+function Notes({ id }: { id: number }) {
+    const note = useNote(id);
+    const [preview, setPreview] = useState(false);
+
+    return (
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="border-edge-soft text-meta flex items-center justify-between gap-2 border-b px-3 py-1.5">
+                <div className="flex gap-1">
+                    {[false, true].map((on) => (
+                        <button
+                            key={String(on)}
+                            type="button"
+                            onClick={() => {
+                                setPreview(on);
+                            }}
+                            className={`rounded-control px-2 py-0.5 ${preview === on ? "bg-raised text-ink" : "text-muted hover:text-ink"}`}
+                        >
+                            {on ? "Preview" : "Edit"}
+                        </button>
+                    ))}
+                </div>
+                <span
+                    title={note.error ?? undefined}
+                    className={
+                        note.state === "conflict" || note.state === "error"
+                            ? "text-danger"
+                            : "text-faint"
+                    }
+                >
+                    {LABEL[note.state]}
+                </span>
+            </div>
+
+            {note.other === null ? null : (
+                <div className="border-edge-soft text-interface flex flex-col gap-2 border-b px-3 py-2">
+                    <p className="text-ink">This note changed on another device or tab.</p>
+                    <div className="flex gap-2">
+                        <Button variant="ghost" onClick={note.loadNewer}>
+                            Load newer
+                        </Button>
+                        <Button onClick={note.overwrite}>Overwrite with mine</Button>
+                    </div>
+                </div>
+            )}
+
+            {note.state === "error" && note.error !== null ? (
+                <p className="text-danger text-interface px-3 py-2">{note.error}</p>
+            ) : null}
+
+            {preview ? (
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+                    <Markdown text={note.text} />
+                </div>
+            ) : (
+                <textarea
+                    value={note.text}
+                    disabled={note.state === "loading"}
+                    spellCheck={false}
+                    placeholder="Notes for this repository, in Markdown. - [ ] adds a task."
+                    onChange={(event) => {
+                        note.edit(event.target.value);
+                    }}
+                    className="text-prose text-ink placeholder:text-faint min-h-0 flex-1 resize-none bg-transparent px-3 py-2 outline-none"
+                />
+            )}
+        </div>
+    );
+}

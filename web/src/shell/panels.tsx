@@ -9,7 +9,7 @@ import {
 
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
-import type { PanelProps } from "../sdk/types.ts";
+import type { PanelProps, StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
@@ -52,15 +52,18 @@ export function useOpenPanel(session: number | null): {
 /** One header button per panel; the open one stays raised. */
 export function PanelButtons({
     panels,
+    session,
     open,
     onToggle,
 }: {
     panels: readonly FolderPanel[];
+    session: StatusProps["session"];
     open: string | null;
     onToggle: (key: string) => void;
 }) {
     return panels.map((panel) => {
         const key = panelKey(panel);
+        const Badge = panel.badge;
 
         return (
             <button
@@ -70,9 +73,16 @@ export function PanelButtons({
                 onClick={() => {
                     onToggle(key);
                 }}
-                className={`rounded-control hover:bg-raised hover:text-ink flex size-6 items-center justify-center ${open === key ? "bg-raised text-ink" : "text-muted"}`}
+                className={`rounded-control hover:bg-raised hover:text-ink relative flex size-6 items-center justify-center ${open === key ? "bg-raised text-ink" : "text-muted"}`}
             >
                 {panel.icon}
+                {Badge === undefined ? null : (
+                    <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
+                        <ItemBoundary name={`${key}:badge`}>
+                            <Badge session={session} />
+                        </ItemBoundary>
+                    </span>
+                )}
             </button>
         );
     });

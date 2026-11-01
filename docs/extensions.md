@@ -193,7 +193,9 @@ data it receives, because it runs outside the page.
 conversation header; the open panel sits to the right of the transcript (a full-screen overlay
 below `lg`). The component gets `{ session, onClose }`. `extensions/browser` is the example: its
 frames travel as base64 through an action that waits for the next one, as extensions have no
-routes of their own.
+routes of their own. A panel may add `badge`, a component that gets `StatusProps` and returns a
+number (or text) for a small count on the corner of its button, or `null` for none; the core draws
+the pill and hides it when the component returns nothing. `extensions/notes` is the example.
 
 ### Tool icons
 
@@ -906,6 +908,22 @@ on each other's files.
   name in red instead of the branch badges, with the session's own folder in its tooltip. It is
   read through the `state` action of `git-worktree`, again whenever the session's run state
   changes, so a worktree deleted while the app is open shows red at the next message, not at once.
+
+## Notes
+
+`extensions/notes` is a personal Markdown scratchpad per repository, in the Notes panel (Edit and
+Preview, saved as you type). The agent never sees it: the extension has no tools, prompt sections or
+hooks.
+
+- **One note per repository.** The key is the main worktree found through `git rev-parse
+  --git-common-dir`, so every worktree and subfolder of a repository shares one note; a folder outside
+  git uses itself. A session without a folder has no note.
+- **Where it lives.** `notes/<repository-name>-<hash of its path>.md` in the data directory — never
+  in the project, so it is never committed. A missing file is an empty note.
+- **Conflicts.** `write` carries the content hash it was based on and is refused when the file has
+  changed since (another tab or device). The panel then offers to load the newer text or overwrite
+  it with yours. A panel with no unsaved edits re-reads the note when the window gets focus.
+- **The badge** on the panel button counts the open checkboxes (`- [ ]`, `* [ ]`) of the note.
 
 ## Hotkeys
 

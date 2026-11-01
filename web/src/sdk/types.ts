@@ -82,6 +82,8 @@ export type PanelItem = {
     id: string;
     title: string;
     icon: ReactNode;
+    /** A count on the button's corner: return the number (or text), or null for none. Needs only a session. */
+    badge?: ComponentType<StatusProps>;
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
     component: ComponentType<PanelProps>;
 };

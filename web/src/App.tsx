@@ -269,6 +269,7 @@ export function App() {
                                         <HeaderItems session={activeSession} />
                                         <PanelButtons
                                             panels={panels}
+                                            session={activeSession}
                                             open={panelShown}
                                             onToggle={(key) => {
                                                 setPanelOpen(
