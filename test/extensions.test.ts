@@ -5,12 +5,15 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { setTimeout } from "node:timers/promises";
 
-import { createRegistry } from "@earendil-works/pi-durable";
+import { createRegistry, type Registry } from "@earendil-works/pi-durable";
 
 import { ActionError, ActionNotFound, Extensions, parseActionBody } from "../server/extensions.ts";
 import type { ExtensionNotice } from "../shared/protocol.ts";
 
 const CALLS = "__extensionTestCalls";
+const GATE = "__extensionTestGate";
+const ACTION_GATE = "__extensionTestActionGate";
+const DISPOSE_GATE = "__extensionTestDisposeGate";
 
 function calls(): string[] {
     const value: unknown = Reflect.get(globalThis, CALLS);
@@ -48,6 +51,7 @@ void describe("Extensions disposers", () => {
     let logs: string[];
     let notices: ExtensionNotice[];
     let extensions: Extensions;
+    let registry: Registry;
 
     async function write(folder: string, text: string): Promise<void> {
         await mkdir(join(dir, folder), { recursive: true });
@@ -145,11 +149,12 @@ void describe("Extensions disposers", () => {
         notices = [];
         await mkdir(dir);
         Reflect.set(globalThis, CALLS, []);
+        registry = createRegistry();
         extensions = new Extensions({
             notify: (notice) => {
                 notices.push(notice);
             },
-            registry: createRegistry(),
+            registry,
             dir,
             cwd: root,
             dataDir: root,
@@ -332,6 +337,188 @@ void describe("Extensions disposers", () => {
 
         assert.deepEqual(calls(), ["v1"]);
         assert.deepEqual(extensions.names, []);
+    });
+
+    /** A version whose tool waits on the gate and its action on the action gate, then answer with `tag`; it records its disposal. */
+    const gated = (tag: string): string => `
+export default function (host) {
+    host.onDispose(() => { globalThis.${CALLS}.push("dispose-${tag}"); });
+    return {
+        name: host.name,
+        tools: [{
+            name: "slow",
+            description: "waits",
+            parameters: { type: "object", properties: {} },
+            execute: async () => { await globalThis.${GATE}; return { output: "${tag}" }; },
+        }],
+    };
+}
+export const actions = { slow: async () => { await globalThis.${ACTION_GATE}; return "${tag}"; } };`;
+
+    /** Starts the installed `slow` tool the way the harness does: the object is resolved once, then awaited. */
+    function startSlowTool(): Promise<unknown> {
+        const tool = registry
+            .snapshot()
+            .tools()
+            .find((entry) => entry.tool.name === "slow")?.tool;
+
+        if (tool === undefined) {
+            throw new Error("the slow tool is not installed");
+        }
+        const execute: unknown = Reflect.get(tool, "execute");
+
+        if (typeof execute !== "function") {
+            throw new Error("the slow tool has no execute");
+        }
+
+        return Promise.resolve(Reflect.apply(execute, tool, [{}, {}, {}]));
+    }
+
+    function openGate(key = GATE): () => void {
+        let release = (): void => undefined;
+
+        Reflect.set(
+            globalThis,
+            key,
+            new Promise<void>((resolve) => {
+                release = resolve;
+            }),
+        );
+
+        return release;
+    }
+
+    void it("lets a running tool call finish on the old version before its disposer runs", async () => {
+        const release = openGate();
+
+        await write("alpha", gated("v1"));
+        await extensions.load();
+        const running = startSlowTool();
+
+        await write("alpha", gated("v2"));
+        await extensions.load();
+
+        assert.deepEqual(calls(), []);
+        release();
+        assert.deepEqual(await running, { output: "v1" });
+        await setTimeout(0);
+        assert.deepEqual(calls(), ["dispose-v1"]);
+
+        await extensions.dispose();
+        assert.deepEqual(calls(), ["dispose-v1", "dispose-v2"]);
+    });
+
+    void it("lets a running tool call finish before the disposer of a removed folder runs", async () => {
+        const release = openGate();
+
+        await write("alpha", gated("v1"));
+        await extensions.load();
+        const running = startSlowTool();
+
+        await rm(join(dir, "alpha"), { recursive: true });
+        await extensions.load();
+
+        assert.deepEqual(calls(), []);
+        release();
+        assert.deepEqual(await running, { output: "v1" });
+        await setTimeout(0);
+        assert.deepEqual(calls(), ["dispose-v1"]);
+    });
+
+    void it("waits for the last of several running calls, and for a running action", async () => {
+        await write("alpha", gated("v1"));
+        await extensions.load();
+        const releaseFirst = openGate();
+        const first = startSlowTool();
+        const releaseSecond = openGate();
+        const second = startSlowTool();
+        const releaseAction = openGate(ACTION_GATE);
+        const action = extensions.call("alpha", "slow", { args: undefined, session: null });
+
+        await write("alpha", gated("v2"));
+        await extensions.load();
+        assert.deepEqual(calls(), []);
+
+        releaseFirst();
+        await first;
+        await setTimeout(0);
+        assert.deepEqual(calls(), []);
+
+        releaseSecond();
+        await second;
+        await setTimeout(0);
+        assert.deepEqual(calls(), []);
+
+        releaseAction();
+        assert.equal(await action, "v1");
+        await setTimeout(0);
+        assert.deepEqual(calls(), ["dispose-v1"]);
+    });
+
+    void it("a stop waits for the disposers of a version that finished its last call a moment ago", async () => {
+        const release = openGate();
+        const releaseDisposer = openGate(DISPOSE_GATE);
+
+        await write(
+            "alpha",
+            `
+export default function (host) {
+    host.onDispose(async () => {
+        globalThis.${CALLS}.push("first-start");
+        await globalThis.${DISPOSE_GATE};
+        globalThis.${CALLS}.push("first");
+    });
+    host.onDispose(() => { globalThis.${CALLS}.push("second"); });
+    return {
+        name: host.name,
+        tools: [{
+            name: "slow",
+            description: "waits",
+            parameters: { type: "object", properties: {} },
+            execute: async () => { await globalThis.${GATE}; return { output: "v1" }; },
+        }],
+    };
+}`,
+        );
+        await extensions.load();
+        const running = startSlowTool();
+
+        await write("alpha", gated("v2"));
+        await extensions.load();
+        release();
+        await running;
+        await setTimeout(0);
+        assert.deepEqual(calls(), ["first-start"]);
+
+        let stopped = false;
+        const stopping = (async () => {
+            await extensions.dispose();
+            stopped = true;
+        })();
+
+        await setTimeout(50);
+        assert.equal(stopped, false);
+        releaseDisposer();
+        await stopping;
+        assert.deepEqual(
+            calls().filter((entry) => entry !== "dispose-v2"),
+            ["first-start", "first", "second"],
+        );
+    });
+
+    void it("a server stop does not wait for running calls", async () => {
+        const release = openGate();
+
+        await write("alpha", gated("v1"));
+        await extensions.load();
+        const running = startSlowTool();
+
+        await extensions.dispose();
+
+        assert.deepEqual(calls(), ["dispose-v1"]);
+        release();
+        await running;
+        assert.deepEqual(calls(), ["dispose-v1"]);
     });
 
     void it("drops the old version when the new one installs nothing, and keeps the new disposers", async () => {

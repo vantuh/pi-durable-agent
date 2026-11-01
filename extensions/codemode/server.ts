@@ -17,7 +17,7 @@ export const meta = {
 export default function codemode(host: Host) {
     const sandbox = new CodemodeSandbox({ memoryLimitBytes: 256 * 1024 * 1024 });
 
-    // A script running at close is not failed: it resumes with the next version's sandbox.
+    // On a reload the running script finishes on this sandbox first; after a restart it replays on the next one.
     host.onDispose(() => sandbox.close());
 
     // Every tool is already declared to the model directly; scripts find the rest with searchTools().

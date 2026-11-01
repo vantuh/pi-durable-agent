@@ -245,7 +245,7 @@ knowing what a worktree is (see [Git worktrees](#git-worktrees)).
 | `cwd`                   | The folder the app was started in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `dataDir`               | Where the app keeps its state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `log`                   | One line to the server's output                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `onDispose`             | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed, when the folder is removed, or when the server stops. A disposer that throws is logged; the others still run                                                                                                                                                                                                                                                                                     |
+| `onDispose`             | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed or the folder is removed and the tool calls, actions and HTTP requests this version had running have ended, or at once when the server stops. A disposer that throws is logged; the others still run                                                                                                                                                                                              |
 | `onCommit`              | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd, owner? }, entries, busy }`; `owner` is the id of the session that started this one (a task-owned conversation), absent for a session a person created. It is removed when this version is replaced, turned off or deleted; a throw is logged without data                                                                                                                 |
 | `sessionRequest`        | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. `send(messages, signal, options?)` takes `{ systemPrompt, maxTokens, cacheRetention, sessionId, reasoning }` for a request of its own — the messages you pass are what is sent, not the conversation's. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm) |
 | `sessionTitle`          | `(session) => Promise<string \| null>`: the name the sidebar shows — the one set by hand from `app.title`, else the conversation's first question — or null while it has neither. Titles belong to the core, so an extension that names a conversation in its own UI asks instead of guessing                                                                                                                                                                                                                             |
@@ -285,8 +285,13 @@ Disposers follow the version that registered them:
 - **Installs nothing** (the default export returns `undefined`): the old version is uninstalled and
   its disposers run. The disposers of the new run are kept, not run: the module did run and holds
   what it registered, so they run on the next reload, removal, or stop.
-- **Stop:** `Extensions.dispose()` stops the watcher and runs every disposer. `server/main.ts` calls
-  it on SIGINT and SIGTERM.
+- **Running calls:** a replaced or removed version's disposers wait for the tool calls, actions and
+  HTTP requests of that version that are still running, then run once. There is no timeout, so a
+  call that never ends keeps the old version's resources. Hooks are not counted (a pause parks one
+  until its disposer lets it go), and neither are provider fetch wrappers and request shapers that
+  an in-flight model request already holds.
+- **Stop:** `Extensions.dispose()` stops the watcher and runs every disposer at once, without
+  waiting for running calls. `server/main.ts` calls it on SIGINT and SIGTERM.
 
 ```bash
 curl -s http://127.0.0.1:8788/api/extensions
@@ -887,8 +892,9 @@ model keeps all its tools as well; `modelTools` is not set.
 
 - A script survives a restart: it resumes where it was, without repeating finished calls.
 - The extension's name is `codemode`, as the folder's, so no renaming was needed.
-- The sandbox is closed when a version is replaced, the folder goes or the server stops. A script
-  running at that moment is not failed: it resumes with the next version's sandbox.
+- The sandbox is closed when a version is replaced or the folder goes, once its running script
+  finishes on it, and at once when the server stops. A script a restart interrupts is not failed: it
+  replays on the next process's sandbox.
 - `pi-codemode` is a direct dependency, pinned to the version `pi-durable` uses.
 - Its `web.tsx` contributes a `toolViews` entry, so a call's `code` shows as highlighted JavaScript
   instead of JSON with escaped newlines.

@@ -46,7 +46,8 @@ export type Host = {
     readonly log: (message: string) => void;
     /**
      * Registers cleanup for what this version holds (timers, subscriptions). It runs once, after a
-     * newer version replaced this one, when the folder goes, or when the server stops.
+     * newer version replaced this one or the folder went and the tool calls, actions and HTTP
+     * requests this version had running have finished; or at once when the server stops.
      */
     readonly onDispose: (dispose: Disposer) => void;
     /**
@@ -361,6 +362,10 @@ function metaOf(folder: string, value: unknown): ExtensionMeta {
     return { title, description };
 }
 
+function newVersion(): Version {
+    return { disposers: [], active: 0, finish: undefined };
+}
+
 function isExtension(value: unknown): value is Extension {
     if (typeof value !== "object" || value === null) {
         return false;
@@ -370,6 +375,14 @@ function isExtension(value: unknown): value is Extension {
 
     return typeof name === "string" && name !== "";
 }
+
+/** One build of a folder: what it must clean up, and how many of its calls are still running. */
+type Version = {
+    readonly disposers: Disposer[];
+    active: number;
+    /** Set while the version is replaced or removed but still has calls running; runs its disposers once and always returns that run. */
+    finish: (() => Promise<void>) | undefined;
+};
 
 export class Extensions {
     readonly #registry: Registry;
@@ -384,8 +397,10 @@ export class Extensions {
     readonly #actions = new Map<string, ReadonlyMap<string, Action>>();
     readonly #http = new Map<string, HttpHandler>();
     readonly #listeners = new Set<() => void>();
-    /** Per folder, the disposers of the version that is live now. */
-    readonly #disposers = new Map<string, Disposer[]>();
+    /** Per folder, the version that is live now. */
+    readonly #disposers = new Map<string, Version>();
+    /** Versions that were replaced or removed and wait for their running calls to end. */
+    readonly #draining = new Set<Version>();
     /** The newest view of each session: a listener that arrives later starts from it. */
     readonly #lastViews = new Map<number, CommitView>();
     /** Per folder, the commit listeners of the version that is live now. */
@@ -692,7 +707,10 @@ export class Extensions {
         this.#lastViews.clear();
 
         for (const folder of [...this.#disposers.keys()]) {
-            await this.#release(folder);
+            await this.#release(folder, false);
+        }
+        for (const version of [...this.#draining]) {
+            await version.finish?.();
         }
     }
 
@@ -713,7 +731,7 @@ export class Extensions {
             }
             const loaded = this.#disposers.has(folder);
 
-            const attempt: Disposer[] = [];
+            const attempt = newVersion();
             const commits: CommitListener[] = [];
             const groups: FolderGroup[] = [];
             const providers: (() => void)[] = [];
@@ -765,12 +783,12 @@ export class Extensions {
                         message: `Could not load extension “${folder}”: ${reasonOf(error)}${loaded ? ". Previous version is still active." : ""}`,
                     });
                 }
-                await this.#run(folder, attempt);
+                await this.#run(folder, attempt.disposers);
 
                 if (this.#disabled.has(folder)) {
                     this.#drop(folder, "disabled");
                     this.#commits.delete(folder);
-                    await this.#release(folder);
+                    await this.#release(folder, true);
                 }
             }
         }
@@ -779,7 +797,7 @@ export class Extensions {
             if (!present.has(folder)) {
                 this.#drop(folder, "removed");
                 this.#commits.delete(folder);
-                await this.#release(folder);
+                await this.#release(folder, true);
                 if (changed !== undefined) {
                     notices.push({ level: "success", message: `Extension “${folder}” removed` });
                 }
@@ -872,7 +890,7 @@ export class Extensions {
      */
     async #build(
         folder: string,
-        attempt: Disposer[],
+        attempt: Version,
         commits: CommitListener[],
         groups: FolderGroup[],
         providers: (() => void)[],
@@ -918,7 +936,7 @@ export class Extensions {
             dataDir: this.#dataDir,
             log: this.#log,
             onDispose: (dispose) => {
-                attempt.push(dispose);
+                attempt.disposers.push(dispose);
             },
             resolveModelAuth: this.#resolveModelAuth,
             contextWindow: this.#contextWindow,
@@ -943,7 +961,7 @@ export class Extensions {
             },
             wrapModelFetch: (wrap) => {
                 this.#fetchWrappers.add(wrap);
-                attempt.push(() => {
+                attempt.disposers.push(() => {
                     this.#fetchWrappers.delete(wrap);
                 });
             },
@@ -964,13 +982,13 @@ export class Extensions {
                     unregister = undefined;
                 };
 
-                attempt.push(stop);
+                attempt.disposers.push(stop);
 
                 return stop;
             },
             shapeModelRequests: (shape) => {
                 this.#shapers.add(shape);
-                attempt.push(() => {
+                attempt.disposers.push(() => {
                     this.#shapers.delete(shape);
                 });
             },
@@ -1004,12 +1022,28 @@ export class Extensions {
         if (module.http !== undefined && typeof http !== "function") {
             throw new Error("the http factory must return a function");
         }
+        const actions = actionsOf(
+            typeof module.actions === "function" ? module.actions(host) : module.actions,
+        );
+        // Hooks are not counted: a pause parks one on purpose and its disposer is what lets it go.
+        const tools = result.tools?.map((tool) => ({
+            ...tool,
+            execute: (...args: Parameters<typeof tool.execute>) =>
+                this.#track(attempt, () => tool.execute(...args)),
+        }));
+
         return {
-            extension: result,
-            http,
-            actions: actionsOf(
-                typeof module.actions === "function" ? module.actions(host) : module.actions,
-            ),
+            extension: tools === undefined ? result : { ...result, tools },
+            http: http === undefined ? undefined : (call) => this.#track(attempt, () => http(call)),
+            actions:
+                actions === undefined
+                    ? undefined
+                    : new Map(
+                          [...actions].map(([name, run]) => [
+                              name,
+                              (call) => this.#track(attempt, async () => await run(call)),
+                          ]),
+                      ),
             status: typeof module.status === "function" ? module.status : undefined,
         };
     }
@@ -1038,32 +1072,68 @@ export class Extensions {
         this.#log(`extensions: ${folder} ${why}`);
     }
 
-    /** Makes `next` the live disposers of the folder, registers its providers, then runs the ones it replaced. */
+    /** Makes `next` the live disposers of the folder, registers its providers, then retires the one it replaced. */
     async #swap(
         folder: string,
-        next: Disposer[],
+        next: Version,
         providers: readonly (() => void)[] = [],
     ): Promise<void> {
-        const old = this.#disposers.get(folder) ?? [];
+        const old = this.#disposers.get(folder);
 
         this.#disposers.set(folder, next);
         for (const register of providers) {
             register();
         }
         this.#dropMarks(folder);
-        await this.#run(folder, old);
+        await this.#retire(folder, old, true);
     }
 
-    /** Runs and forgets the live disposers of the folder. */
-    async #release(folder: string): Promise<void> {
-        const old = this.#disposers.get(folder) ?? [];
+    /** Forgets the live version of the folder and runs its disposers, after its running calls when `drain`. */
+    async #release(folder: string, drain: boolean): Promise<void> {
+        const old = this.#disposers.get(folder);
 
         this.#disposers.delete(folder);
         this.#dropMarks(folder);
         if (this.#groups.delete(folder)) {
             this.#sessionListChanged();
         }
-        await this.#run(folder, old);
+        await this.#retire(folder, old, drain);
+    }
+
+    /** Runs the disposers of a version now, or when its last running call ends if it has one and `drain`. */
+    async #retire(folder: string, version: Version | undefined, drain: boolean): Promise<void> {
+        if (version === undefined) {
+            return;
+        }
+
+        if (!drain || version.active === 0) {
+            await this.#run(folder, version.disposers);
+
+            return;
+        }
+
+        let cleanup: Promise<void> | undefined;
+
+        version.finish = () => {
+            cleanup ??= this.#run(folder, version.disposers).finally(() => {
+                this.#draining.delete(version);
+            });
+
+            return cleanup;
+        };
+        this.#draining.add(version);
+    }
+
+    async #track<T>(version: Version, call: () => T | Promise<T>): Promise<T> {
+        version.active += 1;
+        try {
+            return await call();
+        } finally {
+            version.active -= 1;
+            if (version.active === 0) {
+                void version.finish?.();
+            }
+        }
     }
 
     /** A version that goes away takes its marks with it; a session row must not keep saying "Paused". */
