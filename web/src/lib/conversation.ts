@@ -14,7 +14,7 @@ export function useConversation(session: number | null): {
     send: (text: string, files: string[], mode?: SendMode) => Promise<boolean>;
     stop: () => Promise<void>;
     /** Fetches the page older than the oldest entry on screen; nothing happens while one is on its way. */
-    loadOlder: () => Promise<void>;
+    loadOlder: (settled: () => Promise<void>) => Promise<void>;
 } {
     const [state, setState] = useState<ConversationState>(START);
     const asking = useRef(false);
@@ -101,32 +101,37 @@ export function useConversation(session: number | null): {
         [session],
     );
 
-    const loadOlder = useCallback(async () => {
-        const before = state.entries[0]?.id;
+    const loadOlder = useCallback(
+        async (settled: () => Promise<void>) => {
+            const before = state.entries[0]?.id;
 
-        if (session === null || before === undefined || state.exhausted || asking.current) {
-            return;
-        }
+            if (session === null || before === undefined || state.exhausted || asking.current) {
+                return;
+            }
 
-        asking.current = true;
+            asking.current = true;
 
-        try {
-            const page = await fetchHistory(session, before);
+            try {
+                const page = await fetchHistory(session, before);
 
-            setState((current) =>
-                current.session === session && page !== undefined
-                    ? withOlder(current, page)
-                    : current,
-            );
-        } catch {
-            setState((current) => ({
-                ...current,
-                issue: "the older messages did not arrive",
-            }));
-        } finally {
-            asking.current = false;
-        }
-    }, [session, state.entries, state.exhausted]);
+                await settled();
+
+                setState((current) =>
+                    current.session === session && page !== undefined
+                        ? withOlder(current, page)
+                        : current,
+                );
+            } catch {
+                setState((current) => ({
+                    ...current,
+                    issue: "the older messages did not arrive",
+                }));
+            } finally {
+                asking.current = false;
+            }
+        },
+        [session, state.entries, state.exhausted],
+    );
 
     const stop = useCallback(async () => {
         if (session === null) {

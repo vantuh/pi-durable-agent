@@ -7,7 +7,15 @@ import {
     PanelLeft,
     Settings as SettingsIcon,
 } from "lucide-react";
-import { memo, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import {
+    memo,
+    type ReactNode,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -107,7 +115,8 @@ type Props = {
     /** A small line under the title: the branch, as extensions add it. */
     below: ReactNode;
     /** Asks the server for the page older than what is on screen. */
-    onLoadOlder: () => Promise<void>;
+    /** `settled` resolves when the page may land: a reader mid-fling on a browser that cannot anchor makes it wait. */
+    onLoadOlder: (settled: () => Promise<void>) => Promise<void>;
     /** The conversation's first entry is on screen: scrolling up asks for nothing more. */
     exhausted: boolean;
     /** The stream has not answered for this conversation yet, so an empty screen may still fill. */
@@ -116,6 +125,12 @@ type Props = {
 
 /** Two screens from the top the older page is asked for, so a flick upward does not reach the top before it lands. */
 const olderAt = (el: HTMLElement): number => el.clientHeight * 2;
+
+/** Safari before 27 does not hold the reader's place itself, and drops a scrollTop written while a fling runs. */
+const ANCHORS = CSS.supports("overflow-anchor", "auto");
+
+/** No scroll event for this long, and no finger down: the fling is over. */
+const SETTLED_MS = 150;
 
 /**
  * The room above the oldest loaded turn while more history exists: a flick upward runs into it instead of stopping
@@ -448,6 +463,36 @@ export function Transcript({
     const first = entries[0]?.id;
     /** The first entry an automatic ask was made for: a page that arrives moves it, an answer that never came does not. */
     const autoAsked = useRef<number | undefined>(undefined);
+    const touching = useRef(false);
+    const moving = useRef(false);
+    const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const waiting = useRef<(() => void)[]>([]);
+
+    const settled = useCallback(
+        () =>
+            ANCHORS || !moving.current
+                ? Promise.resolve()
+                : new Promise<void>((done) => {
+                      waiting.current.push(done);
+                  }),
+        [],
+    );
+
+    const stir = useCallback(() => {
+        moving.current = true;
+        clearTimeout(settleTimer.current);
+        settleTimer.current = setTimeout(() => {
+            if (touching.current) {
+                return;
+            }
+
+            moving.current = false;
+
+            for (const done of waiting.current.splice(0)) {
+                done();
+            }
+        }, SETTLED_MS);
+    }, []);
 
     useLayoutEffect(() => {
         const target = scroller.current;
@@ -489,7 +534,7 @@ export function Transcript({
         // set aside. Once per first entry: a failed answer must not be asked for again by the commit it caused.
         if (!exhausted && target.scrollTop < olderAt(target) && autoAsked.current !== first) {
             autoAsked.current = first;
-            void onLoadOlder();
+            void onLoadOlder(settled);
         }
     });
 
@@ -563,8 +608,20 @@ export function Transcript({
                             following.current = false;
                         }
                     },
+                    onTouchStart: () => {
+                        touching.current = true;
+                        stir();
+                    },
                     onTouchMove: () => {
                         following.current = false;
+                    },
+                    onTouchEnd: () => {
+                        touching.current = false;
+                        stir();
+                    },
+                    onTouchCancel: () => {
+                        touching.current = false;
+                        stir();
                     },
                     onPointerDown: (event) => {
                         // A fold the reader opens while pinned to the bottom would grow upward, out of
@@ -599,8 +656,10 @@ export function Transcript({
                             };
                         }
 
+                        stir();
+
                         if (el.scrollTop < olderAt(el) && !exhausted) {
-                            void onLoadOlder();
+                            void onLoadOlder(settled);
                         }
                     },
                 }}
