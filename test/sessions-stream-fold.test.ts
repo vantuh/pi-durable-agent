@@ -89,7 +89,10 @@ void describe("sessionsEventOf", () => {
     void it("reads the rows and the gone ids a `rows` frame carries", () => {
         const event = sessionsEventOf({
             type: "rows",
-            rows: [{ id: 7, title: "seven" }],
+            rows: [
+                { id: 7, title: "seven" },
+                { id: 8, cwd: "/work/side", under: "/work" },
+            ],
             gone: [3, "not an id"],
         });
 
@@ -98,8 +101,11 @@ void describe("sessionsEventOf", () => {
         }
 
         assert.deepEqual(
-            event.rows.map((entry) => [entry.id, entry.title]),
-            [[7, "seven"]],
+            event.rows.map((entry) => [entry.id, entry.title, entry.under]),
+            [
+                [7, "seven", undefined],
+                [8, null, "/work"],
+            ],
         );
         assert.deepEqual(event.gone, [3], "an id that is not a number drops nothing");
     });

@@ -122,6 +122,7 @@ function rowsOf(value: unknown): SessionSummary[] {
             thinkingLevel: typeof row?.["thinkingLevel"] === "string" ? row["thinkingLevel"] : null,
             busy: row?.["busy"] === true,
             ...(typeof row?.["mark"] === "string" ? { mark: row["mark"] } : {}),
+            ...(typeof row?.["under"] === "string" ? { under: row["under"] } : {}),
             archived: row?.["archived"] === true,
             activeAt: typeof row?.["activeAt"] === "number" ? row["activeAt"] : null,
             unseen: row?.["unseen"] === true,
