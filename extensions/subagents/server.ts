@@ -263,6 +263,12 @@ async function childAgent(
         };
     }
 
+    if (profile.invalidTools !== undefined) {
+        return {
+            error: `Profile "${profile.name}": tools must be a list of names, got ${JSON.stringify(profile.invalidTools)}.`,
+        };
+    }
+
     const [provider = "", modelId = ""] = profile.model.split(/\/(.*)/s);
 
     if (provider === "" || modelId === "") {

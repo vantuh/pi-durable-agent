@@ -158,10 +158,12 @@ tools:
 
 Important details:
 
-- Absent, empty, or unusable `tools` keeps the parent's tool set, except this extension's own
-  tools. An empty list does **not** mean "no tools".
+- An absent `tools` key keeps the parent's tool set, except this extension's own tools. An empty
+  list (`tools: []`, a bare `tools:`, or `tools: ""`) gives the child no tools.
+- A `tools` value that is not a list of names or a comma-separated string makes the profile
+  invalid: `agent_spawn` returns an error and starts no agent.
 - With a non-empty list, only tools the parent actually has survive. Unknown names are silently
-  dropped; a list containing only unknown names can leave the child with no tools.
+  dropped; a list containing only unknown names leaves the child with no tools.
 - `model` is required at spawn. The provider and model ID must match exactly; there is no fuzzy
   matching, provider mapping, or fallback to the parent's model.
 - A missing, malformed, unknown, or unauthenticated model returns a tool error before creating
@@ -497,7 +499,7 @@ setup. A successful test run is not evidence that the owner's production bundle 
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Profile missing from the prompt / unknown profile error | Required `name` and `description`, readable `.md` file, the session's cwd, nearest project-directory precedence, and `PI_CODING_AGENT_DIR`. Invalid profiles are skipped silently.      |
 | Spawn rejects a profile's model or thinking             | Read the tool error and fix the Markdown profile or provider/auth setup. `model` is required; thinking must be supported (`off` when omitted). There is no fallback or inline override. |
-| Child has too many or too few tools                     | Empty lists inherit; non-empty lists intersect exact parent tool names. Editing the profile does not reconfigure an existing child.                                                     |
+| Child has too many or too few tools                     | An absent `tools` key inherits; any list, even empty, intersects exact parent tool names. Editing the profile does not reconfigure an existing child.                                   |
 | Spawn says the name exists                              | Continue it with `agent_send`, or choose a fresh name; session titles and tool names are separate.                                                                                      |
 | A model set in the dialog is not used                   | The profile edits apply to the next spawn, not to a running agent. Check the row's model and that `agent_spawn` names the profile you changed.                                          |
 | No report after typing in the child                     | Direct input creates no reporter. Send through the parent when a report is required.                                                                                                    |

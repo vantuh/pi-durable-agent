@@ -143,10 +143,10 @@ void describe("subagents", () => {
     const profileModel = `${faux.provider.id}/profile`;
     const locked = fauxProvider({ provider: "locked", models: [{ id: "profile" }] });
 
-    async function writeProfile(fields: string): Promise<void> {
+    async function writeProfile(fields: string, tools = "tools: read, grep"): Promise<void> {
         await writeFile(
             join(dir, ".pi", "agents", "counter.md"),
-            `---\nname: counter\ndescription: Counts things\ntools: read, grep\n${fields}\n---\n\nYou count.\n`,
+            `---\nname: counter\ndescription: Counts things\n${tools}\n${fields}\n---\n\nYou count.\n`,
         );
     }
 
@@ -359,13 +359,28 @@ void describe("subagents", () => {
             fields: `model: ${faux.provider.id}/no-thinking\nthinking: high`,
             error: /thinking.*high.*not supported/,
         },
+        {
+            label: "scalar tools",
+            tools: "tools: 7",
+            error: /tools.*list of names/,
+        },
+        {
+            label: "tools with a non-string item",
+            tools: "tools: [read, 7]",
+            error: /tools.*list of names/,
+        },
+        {
+            label: "tools that is a mapping",
+            tools: "tools: {read: true}",
+            error: /tools.*list of names/,
+        },
         { label: "model override", extra: { model: profileModel }, error: /additional/i },
         { label: "thinking override", extra: { thinking: "low" }, error: /additional/i },
         { label: "thinkingLevel override", extra: { thinkingLevel: "low" }, error: /additional/i },
     ]) {
         void it(`rejects ${test.label} without creating an agent`, async () => {
-            if (test.fields !== undefined) {
-                await writeProfile(test.fields);
+            if (test.fields !== undefined || test.tools !== undefined) {
+                await writeProfile(test.fields ?? `model: ${profileModel}`, test.tools);
             }
 
             const step = scripted(
@@ -464,6 +479,52 @@ void describe("subagents", () => {
 
         return (await conversation?.agent(context))?.cwd;
     }
+
+    for (const test of [
+        { label: "an empty list", tools: "tools: []" },
+        { label: "an empty value", tools: "tools:" },
+        { label: "an empty string", tools: 'tools: ""' },
+        { label: "only unknown names", tools: "tools: nothing, nowhere" },
+    ]) {
+        void it(`gives an agent no tools for ${test.label}, not the parent's`, async () => {
+            await writeProfile(`model: ${profileModel}`, test.tools);
+
+            const spawned = await spawnIn({});
+
+            assert.equal(spawned.isError, false);
+            assert.equal(spawned.childIds.length, 1);
+
+            const id = spawned.childIds[0];
+
+            assert.ok(id !== undefined);
+            const child = await harness.conversation(id, context);
+
+            assert.deepEqual(
+                (await child?.agent(context))?.tools.map((tool) => tool.name),
+                [],
+            );
+        });
+    }
+
+    void it("lets an agent inherit the parent's tools when the profile has no tools key", async () => {
+        await writeFile(
+            join(dir, ".pi", "agents", "counter.md"),
+            `---\nname: counter\ndescription: Counts things\nmodel: ${profileModel}\n---\n\nYou count.\n`,
+        );
+
+        const spawned = await spawnIn({});
+        const id = spawned.childIds[0];
+
+        assert.ok(id !== undefined);
+
+        const names = (await (await harness.conversation(id, context))?.agent(context))?.tools.map(
+            (tool) => tool.name,
+        );
+
+        assert.ok(names !== undefined);
+        assert.ok(names.includes("read") && names.includes("bash"));
+        assert.ok(names.every((name) => !name.startsWith("agent_")));
+    });
 
     void it("runs an agent's tools in the folder agent_spawn is given", async () => {
         const worktree = join(dir, "worktree");

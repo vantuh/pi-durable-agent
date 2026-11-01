@@ -15,8 +15,10 @@ export type Profile = {
     description: string;
     /** The Markdown file it was read from; a project profile replaces a user profile of the same name. */
     filePath: string;
-    /** Tool names; absent keeps every tool of the parent. */
+    /** Tool names; absent keeps every tool of the parent, an empty list gives none. */
     tools?: string[];
+    /** A `tools` value that is not a list of names, preserved so spawn reports it instead of guessing. */
+    invalidTools?: unknown;
     /** `provider/model`, as written. */
     model?: string;
     /** Preserve invalid values so spawn reports them instead of treating them as absent. */
@@ -28,15 +30,22 @@ function text(value: unknown): string | undefined {
     return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
+/** A bare `tools:` (null) is an empty list, not an absent key: a profile that names no tools gets none. */
 function names(value: unknown): string[] | undefined {
-    const list = Array.isArray(value)
-        ? value.filter((item) => typeof item === "string")
-        : typeof value === "string"
-          ? value.split(",")
-          : [];
-    const trimmed = list.map((item) => item.trim()).filter((item) => item !== "");
+    const list =
+        value === null
+            ? []
+            : Array.isArray(value)
+              ? value
+              : typeof value === "string"
+                ? value.split(",")
+                : undefined;
 
-    return trimmed.length === 0 ? undefined : trimmed;
+    if (list === undefined || !list.every((item): item is string => typeof item === "string")) {
+        return undefined;
+    }
+
+    return list.map((item) => item.trim()).filter((item) => item !== "");
 }
 
 async function readFolder(folder: string, into: Map<string, Profile>): Promise<void> {
@@ -59,7 +68,8 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
                 continue;
             }
 
-            const tools = names(frontmatter["tools"]);
+            const rawTools = frontmatter["tools"];
+            const tools = rawTools === undefined ? undefined : names(rawTools);
             const model = text(frontmatter["model"]);
             const rawThinking = frontmatter["thinking"];
             const thinking = typeof rawThinking === "string" ? rawThinking.trim() : rawThinking;
@@ -69,7 +79,11 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
                 description,
                 filePath,
                 instructions: body.trim(),
-                ...(tools === undefined ? {} : { tools }),
+                ...(tools !== undefined
+                    ? { tools }
+                    : rawTools === undefined
+                      ? {}
+                      : { invalidTools: rawTools }),
                 ...(model === undefined ? {} : { model }),
                 ...(thinking === undefined ? {} : { thinking }),
             });
