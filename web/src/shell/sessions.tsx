@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     ChevronDown,
     Folder,
+    GitFork,
     MoreHorizontal,
     PanelLeftClose,
     PanelLeftOpen,
@@ -751,9 +752,12 @@ export const Sessions = memo(function Sessions({
                                                 : "data-[highlighted]:bg-raised/50"
                                         }`}
                                     >
-                                        <span
-                                            className={`text-meta min-w-0 flex-1 truncate font-mono ${depth === 0 ? "text-ink" : "text-muted"}`}
-                                        >
+                                        {depth === 0 ? (
+                                            <Folder className="text-faint size-3.5 shrink-0" />
+                                        ) : (
+                                            <GitFork className="text-faint size-3.5 shrink-0" />
+                                        )}
+                                        <span className="text-meta text-ink min-w-0 flex-1 truncate font-mono">
                                             {folderName(row.cwd)}
                                         </span>
                                         <span className="text-faint text-meta">{row.count}</span>
