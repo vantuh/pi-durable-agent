@@ -6,7 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions } from "../lib/session-nesting.ts";
-import { MINUTE, SessionRowContent } from "./session-parts.tsx";
+import { MINUTE } from "../lib/time.ts";
+import { SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
     sessions: SessionSummary[];

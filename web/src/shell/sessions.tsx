@@ -27,6 +27,7 @@ import {
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
+import { DAY, MINUTE, ago } from "@/lib/time.ts";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import {
@@ -44,7 +45,7 @@ import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nes
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
 import type { StatusProps } from "../sdk/types.ts";
-import { ago, DAY, folderName, MINUTE, StateMark } from "./session-parts.tsx";
+import { folderName, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
 /** An item's label and icon, which a folder may read off the row: pause turns into resume. */
