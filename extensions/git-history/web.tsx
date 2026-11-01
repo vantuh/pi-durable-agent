@@ -26,6 +26,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog.tsx";
+import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
@@ -54,6 +55,15 @@ const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPre
 const button =
     "rounded-control border-edge hover:bg-raised text-interface border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+// A commit row counts from now; this is the same instant spelled out in the reader's own zone.
+const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+});
 const running = (value: ReviewState | null) =>
     value?.state === "starting" || value?.state === "running";
 
@@ -336,11 +346,25 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
     const [starting, setStarting] = useState(false);
     const [closing, setClosing] = useState(false);
     const [editing, setEditing] = useState<Commit | null>(null);
+    const [now, setNow] = useState(() => Date.now());
     const pendingStart = useRef<Promise<ReviewState | null> | null>(null);
     const [viewer, setViewer] = useState(false);
     const scroller = useRef<HTMLDivElement | null>(null);
     const rows = useRef(new Map<string, HTMLLIElement>());
     const id = session.id;
+
+    // The list says how long ago each commit landed, so the clock it counts from ticks while open.
+    useEffect(() => {
+        if (!open) {
+            return undefined;
+        }
+        const tick = setInterval(() => {
+            setNow(Date.now());
+        }, MINUTE);
+        return () => {
+            clearInterval(tick);
+        };
+    }, [open]);
 
     // The opened row moves to the top of the list so its diff starts at the top of the screen.
     useEffect(() => {
@@ -568,7 +592,10 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                         ) : null}
                         <span className="truncate">{title}</span>
                     </span>
-                    <span className="text-meta text-faint block truncate leading-tight">
+                    <span
+                        className="text-meta text-faint block truncate leading-tight"
+                        title={commit === undefined ? undefined : EXACT_TIME.format(commit.at)}
+                    >
                         {detail}
                     </span>
                 </button>
@@ -819,7 +846,7 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                                             row(
                                                 commit.hash,
                                                 commit.subject || "(no message)",
-                                                `${commit.short} · ${commit.author} · ${new Date(commit.at).toLocaleString()}`,
+                                                `${commit.short} · ${commit.author} · ${ago(commit.at, now)}`,
                                                 commit.remote
                                                     ? "remote"
                                                     : commit.unpushed
