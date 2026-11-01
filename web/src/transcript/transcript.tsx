@@ -126,7 +126,10 @@ type Props = {
 /** Two screens from the top the older page is asked for, so a flick upward does not reach the top before it lands. */
 const olderAt = (el: HTMLElement): number => el.clientHeight * 2;
 
-/** Safari before 27 does not hold the reader's place itself, and drops a scrollTop written while a fling runs. */
+/**
+ * Safari before 27 does not hold the reader's place itself. A touch fling waits on every browser: iOS keeps the place
+ * of neither its own anchoring nor a scrollTop written while the fling runs, whatever `CSS.supports` says.
+ */
 const ANCHORS = CSS.supports("overflow-anchor", "auto");
 
 /** No scroll event for this long, and no finger down: the fling is over. */
@@ -470,7 +473,7 @@ export function Transcript({
 
     const settled = useCallback(
         () =>
-            ANCHORS || !moving.current
+            !moving.current
                 ? Promise.resolve()
                 : new Promise<void>((done) => {
                       waiting.current.push(done);
@@ -656,7 +659,10 @@ export function Transcript({
                             };
                         }
 
-                        stir();
+                        // A wheel or trackpad only waits where the browser cannot anchor; a touch already set `moving`.
+                        if (!ANCHORS || moving.current) {
+                            stir();
+                        }
 
                         if (el.scrollTop < olderAt(el) && !exhausted) {
                             void onLoadOlder(settled);
