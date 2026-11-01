@@ -4,13 +4,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import type { MadeWorktree } from "./refs.ts";
-import {
-    linkedWorktreeOf,
-    mainCheckoutOf,
-    makeWorktree,
-    removeWorktree,
-    worktreeOf,
-} from "./worktree.ts";
+import { groupOf, linkedWorktreeOf, makeWorktree, removeWorktree, worktreeOf } from "./worktree.ts";
 
 export const meta = {
     title: "Git worktree",
@@ -23,7 +17,7 @@ export default function gitWorktree(host: Host) {
     const mains = new Map<string, Promise<string | undefined>>();
 
     host.folderGroup((cwd) => {
-        const known = mains.get(cwd) ?? mainCheckoutOf(cwd);
+        const known = mains.get(cwd) ?? groupOf(host.dataDir, cwd);
 
         mains.set(cwd, known);
 

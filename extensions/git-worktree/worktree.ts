@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 
 import { ActionError } from "../../server/sdk.ts";
 import type { MadeWorktree } from "./refs.ts";
+import { mainOfRemembered, readRemembered, rememberWorktree } from "./remembered.ts";
 
 const run = promisify(execFile);
 
@@ -130,6 +131,14 @@ export async function mainCheckoutOf(cwd: string): Promise<string | undefined> {
 }
 
 /**
+ * The folder `cwd` is shown under: git's answer while the worktree is there, and the repository
+ * remembered when it was made once the worktree is gone.
+ */
+export async function groupOf(dataDir: string, cwd: string): Promise<string | undefined> {
+    return (await mainCheckoutOf(cwd)) ?? mainOfRemembered(await readRemembered(dataDir), cwd);
+}
+
+/**
  * Remove the worktree `cwd` is in: its folder, and with it whatever is in the folder and not
  * committed. The branch stays, so the commits do. A folder git would lose work in is refused.
  */
@@ -208,6 +217,7 @@ export async function makeWorktree(
             throw new ActionError(`The worktree could not be set up: ${describe(error)}`);
         },
     );
+    await rememberWorktree(dataDir, worktree, root);
 
     return {
         path: within === "" ? worktree : resolve(worktree, within),

@@ -7,7 +7,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
+import { mainOfRemembered } from "./remembered.ts";
 import {
+    groupOf,
     linkedWorktreeOf,
     mainCheckoutOf,
     makeWorktree,
@@ -323,6 +325,61 @@ void describe("git-worktree mainCheckoutOf", () => {
         } finally {
             await rm(at, { recursive: true, force: true });
         }
+    });
+});
+
+void describe("git-worktree groupOf", () => {
+    void it("keeps a worktree under its repository once git has forgotten it", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-group-"));
+
+        try {
+            const repo = join(at, "repo");
+            const data = join(at, "data");
+            const git = (cwd: string, args: string[]) =>
+                run(
+                    "git",
+                    [
+                        "-c",
+                        "user.name=t",
+                        "-c",
+                        "user.email=t@t",
+                        "-c",
+                        "commit.gpgsign=false",
+                        ...args,
+                    ],
+                    { cwd },
+                );
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
+
+            const made = await makeWorktree(data, repo, "gone");
+
+            // While it is there, git says which repository it belongs to.
+            assert.equal(await groupOf(data, made.worktree), await realpath(repo));
+
+            await git(repo, ["worktree", "remove", "--force", made.worktree]);
+
+            // git has forgotten it; the repository remembered when it was made answers instead.
+            assert.equal(await mainCheckoutOf(made.worktree), undefined);
+            assert.equal(await groupOf(data, made.worktree), await realpath(repo));
+            assert.equal(await groupOf(data, join(made.worktree, "src")), await realpath(repo));
+            assert.equal(await groupOf(data, at), undefined);
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+
+    void it("takes the closest remembered worktree for a folder inside one", () => {
+        const rows = new Map([
+            ["/data/worktrees/repo/one", "/repo"],
+            ["/data/worktrees/repo/one/branch", "/other"],
+        ]);
+
+        assert.equal(mainOfRemembered(rows, "/data/worktrees/repo/one/branch/src"), "/other");
+        assert.equal(mainOfRemembered(rows, "/data/worktrees/repo/one/src"), "/repo");
+        assert.equal(mainOfRemembered(rows, "/data/worktrees/repo"), undefined);
+        assert.equal(mainOfRemembered(new Map(), "/repo"), undefined);
     });
 });
 

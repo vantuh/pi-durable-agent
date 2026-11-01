@@ -900,7 +900,9 @@ on each other's files.
   nothing is removed. A worktree someone made elsewhere is shown the same way, without the ×.
 - **In the sidebar,** a worktree's sessions appear under their repository's folder in the folder
   menu, read through `folderGroup` and `mainCheckoutOf`; the answer is kept per folder until the
-  extension reloads. Turning `git-worktree` off makes them folders of their own again.
+  extension reloads. A worktree this server made is remembered in `git-worktree.json` under the
+  data folder as it is made, so its sessions stay under the repository after the worktree is gone
+  and git has forgotten it. Turning `git-worktree` off makes them folders of their own again.
 - **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
   the folder it was created in, the transcript stays readable, and the stream keeps working. What
   ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting
