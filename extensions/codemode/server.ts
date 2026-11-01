@@ -20,5 +20,6 @@ export default function codemode(host: Host) {
     // A script running at close is not failed: it resumes with the next version's sandbox.
     host.onDispose(() => sandbox.close());
 
-    return createCodemodeExtension({ sandbox });
+    // Every tool is already declared to the model directly; scripts find the rest with searchTools().
+    return createCodemodeExtension({ sandbox, inlineBudget: 0, models: false });
 }
