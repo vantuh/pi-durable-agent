@@ -136,4 +136,37 @@ void describe("mcp connections", () => {
         await writeFile(config, "{ not json");
         assert.match(connections.list().problem ?? "", /mcp\.json/);
     });
+
+    void it("reports a failed `!` command by field and exit code, never its command line or output", async () => {
+        const lines: string[] = [];
+
+        await writeFile(
+            config,
+            JSON.stringify({
+                mcpServers: {
+                    bad: {
+                        url: "http://127.0.0.1:1/mcp",
+                        headers: {
+                            Authorization:
+                                "!echo stderr-secret-9f3 >&2; echo stdout-secret-7b1; exit 3 # argv-secret-4c8",
+                        },
+                    },
+                },
+            }),
+        );
+
+        const connections = new Connections(config, state, (line) => lines.push(line));
+
+        await connections.start();
+
+        const listed = connections.list();
+        const shown = JSON.stringify([listed, lines]);
+
+        await connections.close();
+
+        assert.equal(listed.servers[0]?.status, "error");
+        assert.match(shown, /headers\.Authorization/);
+        assert.match(shown, /exit code 3/);
+        assert.doesNotMatch(shown, /secret/);
+    });
 });

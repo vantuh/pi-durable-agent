@@ -35,7 +35,7 @@ function readJson(file: string): unknown {
 }
 
 /** A value starting with `!` is a shell command whose output is the value, as in Pi's other config files. */
-async function strings(table: unknown): Promise<Record<string, string>> {
+async function strings(field: string, table: unknown): Promise<Record<string, string>> {
     const values: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(isRecord(table) ? table : {})) {
@@ -55,10 +55,40 @@ async function strings(table: unknown): Promise<Record<string, string>> {
         });
 
         command.child.stdin?.end();
-        values[key] = (await command).stdout.trim();
+
+        // execFile's own error carries the command line and stderr, which can hold the secret, so
+        // it is not passed on: not as a message and not as a cause.
+        const outcome = await command.then(
+            ({ stdout }) => ({ stdout }),
+            (error: unknown) => ({ failed: failure(error) }),
+        );
+
+        if ("failed" in outcome) {
+            throw new Error(`${field}.${key}: the "!" command failed (${outcome.failed})`);
+        }
+
+        values[key] = outcome.stdout.trim();
     }
 
     return values;
+}
+
+function failure(error: unknown): string {
+    if (!isRecord(error)) {
+        return "unknown failure";
+    }
+
+    const { code, signal } = error;
+
+    if (typeof code === "number") {
+        return `exit code ${code}`;
+    }
+
+    if (typeof signal === "string") {
+        return `signal ${signal}`;
+    }
+
+    return typeof code === "string" ? `error ${code}` : "unknown failure";
 }
 
 async function transportOf(raw: Raw) {
@@ -68,14 +98,14 @@ async function transportOf(raw: Raw) {
             args: Array.isArray(raw["args"])
                 ? raw["args"].filter((arg) => typeof arg === "string")
                 : [],
-            env: await strings(raw["env"]),
+            env: await strings("env", raw["env"]),
         });
     }
 
     if (typeof raw["url"] === "string") {
         return new StreamableHttpTransport({
             url: raw["url"],
-            headers: await strings(raw["headers"]),
+            headers: await strings("headers", raw["headers"]),
         });
     }
 
