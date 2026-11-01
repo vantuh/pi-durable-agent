@@ -26,7 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
 import { splitQuote } from "../lib/quote.ts";
-import { type Item, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
+import { type Item, sameItem, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
 import { cn } from "../lib/utils.ts";
 import { addComposerQuote } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
@@ -366,7 +366,7 @@ function CompactionMark({ summary }: { summary?: string }) {
     );
 }
 
-function TurnItem({ item }: { item: Item }) {
+function TurnItemView({ item }: { item: Item }) {
     if (item.type === "activity") {
         return <ActivityGroup item={item} />;
     }
@@ -382,6 +382,12 @@ function TurnItem({ item }: { item: Item }) {
         </div>
     );
 }
+
+/**
+ * One thing a turn shows. A frame of a streamed reply rebuilds every item of the turn it lands in, and only the one
+ * holding that reply differs: the rest compares equal and does not render at all.
+ */
+const TurnItem = memo(TurnItemView, (before, after) => sameItem(before.item, after.item));
 
 /**
  * One turn. It renders again only when it shows something new: a chunk of a streamed answer rebuilds every turn of the

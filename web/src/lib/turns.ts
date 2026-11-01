@@ -653,7 +653,8 @@ const sameError = comparing<ErrorItem>({
     text: (one, other) => one.text === other.text,
 });
 
-const sameItem = (one: Item, other: Item): boolean => {
+/** Whether two of `turnsOf`'s items show the same thing, for the memo on one item of a turn. */
+export const sameItem = (one: Item, other: Item): boolean => {
     if (one.type === "activity") {
         return other.type === "activity" && sameActivity(one, other);
     }
