@@ -857,7 +857,7 @@ export const Sessions = memo(function Sessions({
                         <DropdownMenuTrigger asChild>
                             <button
                                 type="button"
-                                className="hover:bg-raised flex w-full items-center gap-1.5 px-3 py-2"
+                                className="hover:bg-raised focus-visible:outline-accent flex w-full items-center gap-1.5 px-3 py-2 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid"
                             >
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
