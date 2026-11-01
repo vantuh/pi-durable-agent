@@ -28,7 +28,7 @@ import { readProviderError } from "../lib/provider-error.ts";
 import { splitQuote } from "../lib/quote.ts";
 import { type Item, sameItem, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
 import { cn } from "../lib/utils.ts";
-import { addComposerQuote } from "../sdk/composer.ts";
+import { addComposerQuote, focusComposer } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
 import { QuoteCard } from "../ui/quote.tsx";
@@ -722,6 +722,7 @@ export function Transcript({
             <SelectionQuote
                 onQuote={(text) => {
                     addComposerQuote(String(session), text);
+                    focusComposer();
                 }}
             />
         </section>

@@ -24,6 +24,7 @@ import {
     removeComposerQuote,
     setComposerDraft,
     subscribeComposerDraft,
+    subscribeComposerFocus,
     subscribeComposerQuotes,
 } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
@@ -206,6 +207,10 @@ export const Composer = memo(function Composer({
     useEffect(() => {
         field.current?.focus({ preventScroll: true });
     }, []);
+    useEffect(
+        () => subscribeComposerFocus(() => field.current?.focus({ preventScroll: true })),
+        [],
+    );
     const sentListeners = useRef(new Set<() => void>());
     const onSent = useCallback((listener: () => void) => {
         sentListeners.current.add(listener);

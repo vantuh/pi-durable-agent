@@ -87,3 +87,19 @@ export function subscribeComposerQuotes(listener: () => void): () => void {
         quoteListeners.delete(listener);
     };
 }
+
+const focusListeners = new Set<() => void>();
+
+/** Asks the composer on screen for the caret, so words quoted from an answer can be followed by a question. */
+export function focusComposer(): void {
+    for (const listener of focusListeners) {
+        listener();
+    }
+}
+
+export function subscribeComposerFocus(listener: () => void): () => void {
+    focusListeners.add(listener);
+    return () => {
+        focusListeners.delete(listener);
+    };
+}
