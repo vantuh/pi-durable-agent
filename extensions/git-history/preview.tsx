@@ -7,18 +7,16 @@ import {
     type CodeViewItem,
     type FileDiffMetadata,
 } from "@pierre/diffs";
-import { CodeView, type CodeViewDiffItem, type CodeViewHandle } from "@pierre/diffs/react";
+import { CodeView, type CodeViewDiffItem } from "@pierre/diffs/react";
 import { ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
-import { FileTree } from "./file-tree.tsx";
 import { FileMark } from "./icons.tsx";
 import { diffStyle, subscribeDiffStyle } from "./preferences.ts";
 import type { ChangedFile, Changes } from "./refs.ts";
-import type { TreeFile } from "./tree.ts";
 
 const theme = "git-history-roles";
 // Reuse the loaded theme across Vite hot reloads.
@@ -244,7 +242,6 @@ export function PatchPreview({ data }: { data: Changes }) {
     });
     const [folded, setFolded] = useState<Record<string, boolean>>({});
     const [versions, setVersions] = useState<Record<string, number>>({});
-    const view = useRef<CodeViewHandle<undefined, undefined> | null>(null);
     useEffect(() => {
         let alive = true;
         warmPreview(data.patch).then(
@@ -346,31 +343,6 @@ export function PatchPreview({ data }: { data: Changes }) {
             ) : null,
         [folded, toggle],
     );
-    const files: TreeFile[] = useMemo(
-        () =>
-            parsed === null
-                ? []
-                : parsed.files.map((file, index) => ({
-                      id: itemId(file, index),
-                      path: file.name,
-                      ...countsOf(file),
-                  })),
-        [parsed],
-    );
-    const pick = useCallback(
-        (file: TreeFile) => {
-            if (folded[file.id] === true) {
-                toggle(file.id);
-            }
-            view.current?.scrollTo({
-                type: "item",
-                id: file.id,
-                align: "start",
-                behavior: "smooth",
-            });
-        },
-        [folded, toggle],
-    );
     if (parsed === null) {
         return <p className="text-muted text-meta px-3 py-2">Rendering diff…</p>;
     }
@@ -394,25 +366,15 @@ export function PatchPreview({ data }: { data: Changes }) {
     });
     return (
         <>
-            {/* CodeView renders only the files near the viewport: a 400 KiB commit costs one file. */}
+            {/* The page is the one scroller: the diff lays its files out in full and the page scrolls
+                past them. CodeView renders every file then, which the read-only 400 KiB cap keeps small. */}
             {items.length === 0 ? null : (
-                <div className="flex max-h-[70vh] min-h-0">
-                    {/* The box hugs its diff until 70vh, where a tall one scrolls with the header
-                        pinned; a fixed height would leave a short diff in an empty field. */}
-                    {/* The tree is for a pointer and a wide screen; a phone reads the diff alone. */}
-                    {items.length < 2 ? null : (
-                        <div className="border-edge-soft hidden w-60 shrink-0 border-r md:block">
-                            <FileTree files={files} onPick={pick} />
-                        </div>
-                    )}
-                    <CodeView
-                        ref={view}
-                        items={items}
-                        options={{ ...options, diffStyle: style }}
-                        renderCustomHeader={header}
-                        className="min-h-0 flex-1 overflow-auto"
-                    />
-                </div>
+                <CodeView
+                    items={items}
+                    options={{ ...options, diffStyle: style }}
+                    renderCustomHeader={header}
+                    className="min-h-0"
+                />
             )}
             <WithoutDiff files={data.files.filter((file) => !inPatch.has(file.path))} />
         </>

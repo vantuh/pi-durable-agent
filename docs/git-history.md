@@ -1,33 +1,34 @@
 # Git history and embedded review
 
-`extensions/git-history` adds **Git history & review** (the history icon in the conversation
-header). It runs in the selected session's working folder, not a browser-supplied filesystem path.
-It is independent of `git-stats`: disabling either does not disable the other.
+`extensions/git-history` adds **Git history** (the history icon in the conversation header). It
+opens a page in place of the conversation; the list is its root and a commit is a sub-page. It runs
+in the selected session's working folder, not a browser-supplied filesystem path. It is independent
+of `git-stats`: disabling either does not disable the other.
 
 ## Workflow
 
-- Open History to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
-  50 local commits. Load older commits up to 200. Refresh reads local Git only; it never fetches.
-- Uncommitted changes appear above the commits. Click a row for a bounded diff preview
-  rendered by `@pierre/diffs`, with line numbers, syntax and word-level highlighting. The box takes
-  the height its diff needs, up to 70% of the window, and scrolls beyond that. The opened row moves
-  to the top of the list, so the diff starts at the top of the screen. Each file has its own header
-  with its line counts: clicking it folds the file under that header, and it stays at the top of the
-  diff until the next file's header takes its place. The fold takes 200 ms, as the commit row does,
-  and the files below move with it rather than after it; a reduced-motion setting folds at once.
-  Files start expanded. On a wide screen a file tree beside the
-  diff lists every file with its line counts and scrolls to the one clicked; it is left out when the
-  change touches a single file, and a phone shows the diff alone. Every file carries a mark for its
-  kind, in the tree and in its diff header. Untracked non-ignored files are
-  included; binary files are listed without a text diff.
-- The preview is virtualized: only the files near the viewport are in the page, so a commit of
-  hundreds of files opens as fast as a small one. A commit's diff cannot change, so reopening it is
-  a cache hit; the working tree is read again every time.
+- Open Git history to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
+  50 local commits in a toolbar and a list. Load older commits up to 200. Refresh reads local Git
+  only; it never fetches.
+- Uncommitted changes appear above the commits. A row shows the subject and `sha · author · time`;
+  the whole row is a button, and it opens the commit as a sub-page (`?page=git-history:history&sub=<sha>`,
+  or `sub=working` for the working tree). The list slides out to the left as the detail slides in from
+  the right; browser Back or **← History** plays it in reverse and the list keeps its scroll position.
+- The detail page shows the subject, the full message, the sha, author and local date, the actions,
+  a file summary and the diffs. It has one scroll for the whole page: no part of a diff scrolls by
+  itself. A commit's diff cannot change, so reopening it is a cache hit; the working tree is read
+  again every time. The diff lays every file out in full, bounded by the read-only 400 KiB cap below.
+- A commit's diff is rendered by `@pierre/diffs`, with line numbers, syntax and word-level
+  highlighting. Each file has its own header with its line counts: clicking it folds the file under
+  that header. The fold takes 200 ms and the files below move with it rather than after it; a
+  reduced-motion setting folds at once. Files start expanded. Every file carries a mark for its kind.
+  Untracked non-ignored files are included; binary files are listed without a text diff.
 - In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
   **Side by side** for history previews. The choice is saved in this browser, applies to all
   sessions and updates open previews. Plannotator's layout is controlled inside its own UI.
 - Click **Review**. The server launches the installed `plannotator` CLI with browser opening
-  disabled. Its real UI appears in a full-size dialog, full screen on phones, not a new tab.
+  disabled. Its real UI fills the page body at `<sha>/review` (or `working/review`), not a new tab;
+  **Back** returns to the commit without stopping the process.
 - Uncommitted changes use Plannotator's native Git mode, with full-file context and its normal
   Git-aware features. This is a **live** review: an agent or terminal can change the working tree
   while it is open. Plannotator controls its refresh/staleness UI. Git actions inside that UI can
@@ -38,17 +39,18 @@ It is independent of `git-stats`: disabling either does not disable the other.
   fit: patches exceeding 8 MiB are refused.
 - Send feedback / approve inside Plannotator. The CLI's `decision` and rendered `message` return
   to this session. Nonempty feedback is **appended to the composer**, preserving existing text,
-  once per review per page lifetime. It is **not sent to the model**. Closing without feedback
-  adds nothing. Return to the conversation to edit and send the draft yourself.
-- **Pencil** on a commit row opens a small form with the current title and description. It is shown
+  once per review per page lifetime, and the history page closes so the person lands in the chat
+  with the draft. It is **not sent to the model**. Closing without feedback adds nothing.
+- **Reword** on a commit's page opens a form with the current title and description. It is shown
   only for a commit the upstream cannot reach: not an incoming commit, and either unpushed or on a
   branch with no upstream. Saving rewrites the message of that commit and writes every commit
   after it on the checked-out branch again with the same trees, authors and messages, so those
-  commits get new ids while the files stay exactly as they are. The index and the working tree are
-  never touched; no dirty-tree guard is needed. The branch moves with a compare-and-swap on its old
-  id, so a branch that changed meanwhile fails the save instead of losing a commit; the reflog keeps
-  the old history. Git's own refusal (a pushed commit, a commit of another branch) is shown in the
-  form. This is the only Git write in this extension; it still never fetches, checks out or pushes.
+  commits get new ids while the files stay exactly as they are, and the page returns to the list.
+  The index and the working tree are never touched; no dirty-tree guard is needed. The branch moves
+  with a compare-and-swap on its old id, so a branch that changed meanwhile fails the save instead
+  of losing a commit; the reflog keeps the old history. Git's own refusal (a pushed commit, a commit
+  of another branch) is shown in the form. This is the only Git write in this extension; it still
+  never fetches, checks out or pushes.
 
 The read-only history preview stops at 400 KiB of diff: the files that fit keep theirs, the rest are
 listed without one, and no file is dropped from the list. New symlinks are listed but never followed
@@ -60,14 +62,13 @@ Requires `plannotator` on the **server process's PATH**. Tested with 0.28.27. No
 is involved in opening Review. The read-only preview uses `@pierre/diffs`; the interactive
 review UI still comes from the installed CLI, not a bundled Plannotator package.
 
-One process per session. Closing the outer dialog (×, Escape or an outside click) cancels an
-active review and waits for its process to stop, including a review still starting. If cancellation
-fails, the dialog stays open with the error so it can be retried. **History** only hides the iframe;
-**Resume review** returns to it without stopping the process. **Cancel review** in History also
-stops it explicitly. The embedded viewer keeps only **History** in its title row; cancellation
-is available inside Plannotator or by closing the outer dialog. Disabling/removing/reloading the
-extension, or stopping the server, stops its processes. Startup times out after 45 seconds; a running
-review expires after two hours.
+One process per session. Leaving the history page — its back arrow, browser Back, or opening another
+session — asks the server to cancel an active review, including one still starting; the page is
+already gone when the answer comes, so a failed cancellation is not shown. **Cancel review** in the
+list toolbar or the review's own header stops it explicitly and shows the error. **Back** only hides
+the iframe; **Resume review** returns to it without stopping the process. Disabling, removing or
+reloading the extension, or stopping the server, stops its processes. Startup times out after 45
+seconds; a running review expires after two hours.
 Session/decision tracking is ephemeral and resets on server restart. Plannotator's own drafts,
 preferences and feedback history follow its installed configuration. The app's composer drafts
 currently survive session switching, not a page reload.
@@ -94,16 +95,12 @@ parent come from one `rev-list`, and the title is not read at all — the list t
 says what each commit is called. New files in the working tree cost two processes each, so they are
 read eight at a time.
 
-`@pierre/diffs` 1.5.2 hard-codes 200 px of overscroll around the visible files; it is not an option,
-so the diff's scroll on a phone cannot be tuned from here.
-
 The preview's file header is our own row, 36 px tall, and `itemMetrics.diffHeaderHeight` says the
-same. A header of another height leaves every file below it a little too low, and a click in the
-tree then lands beside the header it meant.
+same. A header of another height leaves every file below it a little too low.
 
 The marks beside a file name are Nerd Font glyphs — 27 of them, 6.6 KB — subsetted from the
-JetBrains Mono Nerd Font an editor uses, so the tree shows the same pictures a terminal does without
-an icon package. The colour is a theme role picked by family: `text-info` for TypeScript,
+JetBrains Mono Nerd Font an editor uses, so a file's header shows the same picture a terminal does
+without an icon package. The colour is a theme role picked by family: `text-info` for TypeScript,
 `text-agent` for components, `text-warn` for JavaScript and JSON, `text-accent` for styles and
 media, `text-ok` for shells, `text-spark` for config and data, `text-ember` for markup, SQL and
 Rust. A kind of file that has no mark yet falls back to plain lines; a new one goes into

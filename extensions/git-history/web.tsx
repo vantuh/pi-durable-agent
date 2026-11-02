@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     ArrowDown,
     ArrowUp,
+    ChevronRight,
     Pencil,
     RefreshCw,
     LoaderCircle,
@@ -19,17 +20,10 @@ import {
 } from "react";
 
 import { Badge } from "@/components/ui/badge.tsx";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog.tsx";
 import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
-import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+import type { PageProps, WebExtension } from "@/sdk/types.ts";
 
 import {
     UNTRACKED_FILE_CAP,
@@ -46,11 +40,16 @@ import {
 } from "./refs.ts";
 
 /**
- * Pierre's diff view and its shiki warm-up are 630 kB of client code that only the open panel draws, so the
- * module is fetched when the panel opens: at boot it would be downloaded for a panel that may never open.
+ * Pierre's diff view and its shiki warm-up are 630 kB of client code that only the open page draws, so the
+ * module is fetched when a commit opens: at boot it would be downloaded for a page that may never open.
  */
 const loadPreview = () => import("./preview.tsx");
 const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPreview }));
+
+/** Uncommitted changes travel as `worktree` to the server and as `working` in the address: a commit
+ * hash is hex, so it can never be mistaken for the working tree. */
+const WORKING = "working";
+const HASH = /^[0-9a-f]{4,64}$/i;
 
 const button =
     "rounded-control border-edge hover:bg-raised text-interface border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
@@ -69,6 +68,44 @@ const running = (value: ReviewState | null) =>
 
 const fieldClass =
     "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent w-full border px-2 py-1.5 outline-none focus-visible:ring-2";
+
+/** A place in the page: the list, one commit (or the working tree), or a review of it. */
+type Place =
+    | { kind: "list" }
+    | { kind: "commit"; target: string }
+    | { kind: "review"; target: string };
+
+/** The address's `sub` as a place; anything else falls back to the list. */
+function placeOf(sub: string | undefined): Place {
+    if (sub === undefined) {
+        return { kind: "list" };
+    }
+
+    const [first, ...rest] = sub.split("/");
+    const target = first === undefined ? undefined : targetOfSub(first);
+
+    if (target === undefined) {
+        return { kind: "list" };
+    }
+
+    if (rest.length === 0) {
+        return { kind: "commit", target };
+    }
+
+    return rest.length === 1 && rest[0] === "review"
+        ? { kind: "review", target }
+        : { kind: "list" };
+}
+
+function targetOfSub(sub: string): string | undefined {
+    return sub === WORKING || HASH.test(sub) ? sub : undefined;
+}
+
+/** The action's name for a place's target. */
+const actionTarget = (target: string): string => (target === WORKING ? "worktree" : target);
+
+/** The address's name for a review's target. */
+const subTarget = (target: string): string => (target === "worktree" ? WORKING : target);
 
 function submitOnEnter(event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -96,19 +133,6 @@ function RewordForm({
     useEffect(() => {
         titleRef.current?.focus();
     }, []);
-    useEffect(() => {
-        // Window capture runs before the dialog's own Escape handler, which would close the whole history.
-        const onKey = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                event.stopPropagation();
-                onClose();
-            }
-        };
-        window.addEventListener("keydown", onKey, true);
-        return () => {
-            window.removeEventListener("keydown", onKey, true);
-        };
-    }, [onClose]);
     async function save(event: FormEvent) {
         event.preventDefault();
         setSaving(true);
@@ -224,8 +248,6 @@ function forgetPatches(): void {
 
 const PREFETCHED = 3;
 const HOVER_DELAY = 120;
-// Matches the `duration-200` on the row that holds a diff.
-const COLLAPSE_MS = 200;
 
 /** Reading is half the wait; parsing and highlighting otherwise start on the click. */
 async function prefetch(session: number, target: string): Promise<void> {
@@ -259,7 +281,8 @@ function whenIdle(run: () => void): () => void {
     };
 }
 
-function Preview({ session, target }: { session: number; target: string }) {
+/** One commit's changes, in the page's own scroll: the summary counts and the diffs flow together. */
+function ChangesView({ session, target }: { session: number; target: string }) {
     const [data, setData] = useState<Changes | null>(() => cachedPatch(session, target) ?? null);
     const [error, setError] = useState<string | null>(null);
     useEffect(() => {
@@ -291,7 +314,7 @@ function Preview({ session, target }: { session: number; target: string }) {
         return <p className="text-muted p-3">Reading changes…</p>;
     }
     return (
-        <div className="border-edge-soft bg-panel border-t">
+        <div className="flex flex-col">
             <div className="text-meta text-muted flex flex-wrap gap-3 px-3 py-2">
                 <span>{data.files.length} files</span>
                 <span className="text-ok">
@@ -333,69 +356,347 @@ function ReviewFrame({ url }: { url: string }) {
 }
 /* oxlint-enable react/iframe-missing-sandbox */
 
-function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"]> }) {
-    const [open, setOpen] = useState(false);
+/** A row of the list: the whole row opens the commit. */
+function HistoryRow({
+    target,
+    title,
+    detail,
+    at,
+    marker,
+    onOpen,
+    onPrefetch,
+}: {
+    target: string;
+    title: string;
+    detail: string;
+    at: number | undefined;
+    marker: "local" | "remote" | undefined;
+    onOpen: (target: string) => void;
+    onPrefetch: (target: string | undefined) => void;
+}) {
+    return (
+        <li className="border-edge-soft border-b">
+            <button
+                type="button"
+                onClick={() => {
+                    onOpen(target);
+                }}
+                onPointerEnter={() => {
+                    onPrefetch(target === WORKING ? undefined : target);
+                }}
+                onPointerLeave={() => {
+                    onPrefetch(undefined);
+                }}
+                onFocus={() => {
+                    onPrefetch(target === WORKING ? undefined : target);
+                }}
+                className="hover:bg-raised focus-visible:ring-accent flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
+            >
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
+                        {marker === "local" ? (
+                            <ArrowUp className="text-ok size-3 shrink-0" aria-label="Not pushed" />
+                        ) : marker === "remote" ? (
+                            <ArrowDown
+                                className="text-info size-3 shrink-0"
+                                aria-label="Not pulled"
+                            />
+                        ) : null}
+                        <span className="truncate">{title}</span>
+                    </span>
+                    <span
+                        className="text-meta text-faint block truncate font-mono leading-tight"
+                        title={at === undefined ? undefined : EXACT_TIME.format(at)}
+                    >
+                        {detail}
+                    </span>
+                </span>
+                <ChevronRight className="text-faint size-4 shrink-0" />
+            </button>
+        </li>
+    );
+}
+
+/** The open commit (or the working tree): its message, the actions, and its diffs in the page's scroll. */
+function CommitDetail({
+    session,
+    target,
+    commit,
+    now,
+    upstream,
+    reviewState,
+    open,
+    onBack,
+    onReview,
+    onReviewAgain,
+    onRewritten,
+}: {
+    session: number;
+    target: string;
+    commit: Commit | undefined;
+    now: number;
+    upstream: string | null | undefined;
+    reviewState: ReviewState | null;
+    open: boolean;
+    onBack: () => void;
+    onReview: (target: string) => Promise<void>;
+    onReviewAgain: (target: string) => void;
+    onRewritten: () => void;
+}) {
+    const [editing, setEditing] = useState(false);
+    const [starting, setStarting] = useState(false);
+    const scroller = useRef<HTMLDivElement>(null);
+    // A page opens at its top, even when the commit was read before.
+    useEffect(() => {
+        if (open) {
+            scroller.current?.scrollTo({ top: 0 });
+        }
+    }, [open]);
+    const rewritable =
+        commit !== undefined && !commit.remote && (upstream === null || commit.unpushed);
+    const mine = reviewState !== null && subTarget(reviewState.target) === target;
+    async function begin(): Promise<void> {
+        setStarting(true);
+        try {
+            await onReview(target);
+        } finally {
+            setStarting(false);
+        }
+    }
+    return (
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-3 px-3 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
+                        onClick={onBack}
+                    >
+                        <ArrowLeft className="size-3" /> History
+                    </button>
+                    <div className="ml-auto flex flex-wrap gap-2">
+                        {rewritable && commit !== undefined ? (
+                            <button
+                                type="button"
+                                className={`${button} flex items-center gap-1.5`}
+                                onClick={() => {
+                                    setEditing((old) => !old);
+                                }}
+                            >
+                                <Pencil className="size-3.5" /> Reword
+                            </button>
+                        ) : null}
+                        {mine && running(reviewState) ? (
+                            <button
+                                type="button"
+                                className={button}
+                                onClick={() => {
+                                    onReviewAgain(target);
+                                }}
+                            >
+                                Resume review
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className={button}
+                                disabled={starting || running(reviewState)}
+                                onClick={() => {
+                                    void begin();
+                                }}
+                            >
+                                Review
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {commit === undefined ? (
+                    <header className="flex flex-col gap-1">
+                        <h3 className="text-interface text-ink font-medium">Uncommitted changes</h3>
+                        <p className="text-meta text-faint font-mono">the working tree</p>
+                    </header>
+                ) : (
+                    <header className="flex flex-col gap-1.5">
+                        <h3 className="text-interface text-ink text-prose leading-snug font-medium">
+                            {commit.subject || "(no message)"}
+                        </h3>
+                        {commit.body === "" ? null : (
+                            <p className="text-muted text-interface whitespace-pre-wrap">
+                                {commit.body}
+                            </p>
+                        )}
+                        <p className="text-meta text-faint flex flex-wrap gap-2 font-mono">
+                            <span>{commit.short}</span>
+                            <span>{commit.author}</span>
+                            <span>{EXACT_TIME.format(commit.at)}</span>
+                            <span>{ago(commit.at, now)}</span>
+                        </p>
+                    </header>
+                )}
+
+                {editing && commit !== undefined ? (
+                    <RewordForm
+                        session={session}
+                        commit={commit}
+                        onClose={() => {
+                            setEditing(false);
+                        }}
+                        onRewritten={onRewritten}
+                    />
+                ) : null}
+
+                <ChangesView session={session} target={actionTarget(target)} />
+            </div>
+        </div>
+    );
+}
+
+function ReviewView({
+    state,
+    starting,
+    issue,
+    target,
+    onBack,
+    onCancel,
+    onClose,
+}: {
+    state: ReviewState | null;
+    starting: boolean;
+    issue: string | null;
+    target: string;
+    onBack: () => void;
+    onCancel: () => Promise<void>;
+    onClose: () => void;
+}) {
+    return (
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="border-edge-soft flex items-center gap-2 border-b px-3 py-1.5">
+                <button
+                    type="button"
+                    className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
+                    onClick={onBack}
+                >
+                    <ArrowLeft className="size-3" /> Back
+                </button>
+                <span className="text-meta text-muted">Plannotator review</span>
+                {running(state) ? (
+                    <button
+                        type="button"
+                        className={`${button} ml-auto`}
+                        onClick={() => {
+                            void onCancel();
+                        }}
+                    >
+                        Cancel review
+                    </button>
+                ) : null}
+            </div>
+
+            {issue !== null ? (
+                <p
+                    role="alert"
+                    className="text-danger text-interface border-edge-soft border-b px-3 py-2"
+                >
+                    {issue}
+                </p>
+            ) : null}
+
+            {starting || state?.state === "starting" ? (
+                <div className="text-muted flex flex-1 items-center justify-center gap-2">
+                    <LoaderCircle className="size-4 animate-spin" />
+                    Starting Plannotator…
+                </div>
+            ) : state?.state === "running" && state.url !== undefined ? (
+                <ReviewFrame key={state.id} url={state.url} />
+            ) : state?.state === "done" ? (
+                <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4">
+                    <h3 className="text-ink font-medium">
+                        {state.decision === "dismissed"
+                            ? "Review closed"
+                            : state.decision === "approved"
+                              ? "Approved"
+                              : "Feedback received"}
+                    </h3>
+                    <p className="text-muted text-interface">
+                        {state.decision === "dismissed"
+                            ? "No feedback was sent."
+                            : state.message?.trim()
+                              ? "Feedback has been added to this session’s composer. Check it before sending it to the agent."
+                              : "Review completed without comments."}
+                    </p>
+                    {state.message ? (
+                        <pre className="text-meta text-muted bg-panel rounded-card overflow-auto p-3 whitespace-pre-wrap">
+                            {state.message}
+                        </pre>
+                    ) : null}
+                    <button type="button" className={`${button} self-start`} onClick={onClose}>
+                        Return to conversation
+                    </button>
+                </div>
+            ) : state?.state === "failed" ? (
+                <p role="alert" className="text-danger text-interface p-4">
+                    {state.error ?? "Review failed."}
+                </p>
+            ) : state?.state === "cancelled" ? (
+                <div className="text-muted text-interface flex flex-1 flex-col items-center justify-center gap-3 p-4">
+                    <p>Review was cancelled.</p>
+                    <button
+                        type="button"
+                        className={button}
+                        onClick={() => {
+                            onBack();
+                        }}
+                    >
+                        Back to {target === WORKING ? "the changes" : "the commit"}
+                    </button>
+                </div>
+            ) : (
+                <div className="text-muted text-interface flex flex-1 flex-col items-center justify-center gap-3 p-4">
+                    <p>Review is not running.</p>
+                    <button type="button" className={button} onClick={onBack}>
+                        Back to {target === WORKING ? "the changes" : "the commit"}
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** The Git history page: the list at its root, a commit (or the working tree) at `<target>`, a review at `<target>/review`. */
+function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
+    const id = session.id;
+    const place = placeOf(sub);
+    const open = place.kind !== "list";
+    const [detailTarget, setDetailTarget] = useState<string | undefined>(
+        place.kind === "list" ? undefined : place.target,
+    );
+    const openedTarget = place.kind === "list" ? undefined : place.target;
+    const shownTarget = openedTarget ?? detailTarget;
+
     const [data, setData] = useState<History | null>(null);
     const [limit, setLimit] = useState(50);
     const [refresh, setRefresh] = useState(0);
-    const [selected, setSelected] = useState<string | null>(null);
-    const [collapsing, setCollapsing] = useState<string | null>(null);
-    const [state, setState] = useState<ReviewState | null>(null);
+    const [loading, setLoading] = useState(true);
     const [issue, setIssue] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [starting, setStarting] = useState(false);
-    const [closing, setClosing] = useState(false);
-    const [editing, setEditing] = useState<Commit | null>(null);
     const [now, setNow] = useState(() => Date.now());
-    const pendingStart = useRef<Promise<ReviewState | null> | null>(null);
-    const [viewer, setViewer] = useState(false);
-    const scroller = useRef<HTMLDivElement | null>(null);
-    const rows = useRef(new Map<string, HTMLLIElement>());
-    const id = session.id;
+    const [state, setState] = useState<ReviewState | null>(null);
+    const [starting, setStarting] = useState(false);
+    const closed = useRef<string | null>(null);
+    const latestReview = useRef<ReviewState | null>(null);
+    const leaving = useRef(false);
 
     // The list says how long ago each commit landed, so the clock it counts from ticks while open.
     useEffect(() => {
-        if (!open) {
-            return undefined;
-        }
         const tick = setInterval(() => {
             setNow(Date.now());
         }, MINUTE);
         return () => {
             clearInterval(tick);
         };
-    }, [open]);
-
-    // The opened row moves to the top of the list so its diff starts at the top of the screen.
-    useEffect(() => {
-        const row = selected === null ? undefined : rows.current.get(selected);
-        const box = scroller.current;
-        if (row === undefined || box === null) {
-            return;
-        }
-        box.scrollTo({
-            top: box.scrollTop + row.getBoundingClientRect().top - box.getBoundingClientRect().top,
-            behavior: "smooth",
-        });
-    }, [selected]);
-
-    // A closed diff stays mounted until its row has folded, so the fold is seen rather than a jump.
-    useEffect(() => {
-        if (collapsing === null) {
-            return undefined;
-        }
-        const timer = setTimeout(() => {
-            setCollapsing(null);
-        }, COLLAPSE_MS);
-        return () => {
-            clearTimeout(timer);
-        };
-    }, [collapsing]);
+    }, []);
 
     useEffect(() => {
-        if (!open) {
-            return undefined;
-        }
         let alive = true;
         void (async () => {
             try {
@@ -418,11 +719,11 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             alive = false;
         };
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Refresh explicitly reloads the same Git query
-    }, [id, open, limit, refresh]);
+    }, [id, limit, refresh]);
 
     // The newest commits are the ones opened next: read them while nobody is waiting.
     useEffect(() => {
-        if (!open || data === null) {
+        if (data === null) {
             return undefined;
         }
         let alive = true;
@@ -446,12 +747,9 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             alive = false;
             stop();
         };
-    }, [id, open, data]);
+    }, [id, data]);
 
     useEffect(() => {
-        if (!open) {
-            return undefined;
-        }
         let alive = true;
         let timer: ReturnType<typeof setTimeout>;
         const poll = async () => {
@@ -476,299 +774,151 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
             alive = false;
             clearTimeout(timer);
         };
-    }, [id, open]);
+    }, [id]);
 
+    // Leaving the page ends a review still running, as closing the old dialog did.
     useEffect(() => {
-        if (state?.state === "done" && state.decision !== "dismissed" && state.message?.trim()) {
-            appendComposerDraft(id, state.message, `git-history:${state.id}`);
-        }
-    }, [id, state]);
+        latestReview.current = state;
+    }, [state]);
+    useEffect(() => {
+        leaving.current = false;
+        return () => {
+            leaving.current = true;
+            const found = latestReview.current;
+            if (found !== null && running(found)) {
+                void callAction(cancel, { id: found.id }, id).catch(() => undefined);
+            }
+        };
+    }, [id]);
 
-    async function begin(target: string) {
+    // Feedback goes into the composer and the person lands in the chat to edit and send it themselves.
+    useEffect(() => {
+        if (state?.state !== "done" || state.decision === "dismissed" || !state.message?.trim()) {
+            return;
+        }
+        appendComposerDraft(id, state.message, `git-history:${state.id}`);
+        if (closed.current !== state.id) {
+            closed.current = state.id;
+            close();
+        }
+    }, [id, state, close]);
+
+    // The last detail is kept mounted offscreen when the list comes back, so the slide returns.
+    const openCommit = (target: string): void => {
+        setDetailTarget(target);
+        navigate(target);
+    };
+
+    async function begin(target: string): Promise<void> {
         setStarting(true);
         setIssue(null);
-        const request = callAction(start, { target }, id);
-        pendingStart.current = request;
+        // The review's own place, at once: starting the CLI can take a while and its spinner belongs there.
+        navigate(`${target}/review`);
         try {
-            const found = await request;
-            setState(found);
-            setViewer(true);
+            const found = await callAction(start, { target: actionTarget(target) }, id);
+            if (found !== null) {
+                if (leaving.current) {
+                    // The page is gone, so nobody would see this review: stop it instead of leaving it to expire.
+                    void callAction(cancel, { id: found.id }, id).catch(() => undefined);
+                } else {
+                    setState(found);
+                }
+            }
         } catch (error) {
             setIssue(errorText(error));
         } finally {
-            pendingStart.current = null;
             setStarting(false);
         }
     }
-    async function closeDialog() {
-        if (closing) {
-            return;
-        }
-        setClosing(true);
-        try {
-            // A close must not overtake an in-flight start; begin reports its own errors.
-            await pendingStart.current?.catch(() => undefined);
-            const current = await callAction(review, undefined, id);
-            setState(
-                current !== null && running(current)
-                    ? await callAction(cancel, { id: current.id }, id)
-                    : current,
-            );
-            setViewer(false);
-            setOpen(false);
-        } catch (error) {
-            setIssue(errorText(error));
-        } finally {
-            setClosing(false);
-        }
-    }
-    async function stopReview() {
+
+    async function stopReview(): Promise<boolean> {
         if (state === null) {
-            return;
+            return false;
         }
         try {
             setState(await callAction(cancel, { id: state.id }, id));
-            setViewer(false);
+            return true;
         } catch (error) {
             setIssue(errorText(error));
+            return false;
         }
     }
-    const canStart = !starting && !closing && !running(state);
-    // A commit the upstream can reach keeps its message: a push could not send the new history.
-    const rewritable = (commit: Commit) =>
-        !commit.remote && (data?.upstream === null || commit.unpushed);
-    const row = (
-        target: string,
-        title: string,
-        detail: string,
-        marker?: "local" | "remote",
-        commit?: Commit,
-    ) => (
-        <li
-            key={target}
-            ref={(element) => {
-                if (element === null) {
-                    rows.current.delete(target);
-                } else {
-                    rows.current.set(target, element);
-                }
-            }}
-            className="border-edge-soft border-b"
-        >
-            <div className="flex items-center gap-2 px-3 py-2">
-                <button
-                    type="button"
-                    aria-expanded={selected === target}
-                    onClick={() => {
-                        // Another row's diff snaps shut: it has to be gone before the scroll to the
-                        // newly opened row is measured, or that scroll lands a diff too low.
-                        if (selected === target) {
-                            setCollapsing(target);
-                            setSelected(null);
-                        } else {
-                            setCollapsing(null);
-                            setSelected(target);
-                        }
-                    }}
-                    onPointerEnter={() => {
-                        prefetchSoon(id, commit?.hash);
-                    }}
-                    onPointerLeave={() => {
-                        prefetchSoon(id, undefined);
-                    }}
-                    onFocus={() => {
-                        prefetchSoon(id, commit?.hash);
-                    }}
-                    className="min-w-0 flex-1 text-left"
+
+    const commit =
+        shownTarget === undefined || actionTarget(shownTarget) === "worktree"
+            ? undefined
+            : data?.commits.find((candidate) => candidate.hash === shownTarget);
+    const toolbar = (
+        <div className="border-edge-soft flex min-h-[35px] flex-wrap items-center gap-2 border-b px-3 py-1.5">
+            {data?.branch ? (
+                <Badge
+                    title={`${data.branch} in ${session.cwd ?? "this folder"}`}
+                    className="h-4 max-w-36 min-w-0 shrink px-1.5 [&>svg]:size-2.5"
                 >
-                    <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
-                        {marker === "local" ? (
-                            <ArrowUp className="text-ok size-3 shrink-0" aria-label="Not pushed" />
-                        ) : marker === "remote" ? (
-                            <ArrowDown
-                                className="text-info size-3 shrink-0"
-                                aria-label="Not pulled"
-                            />
-                        ) : null}
-                        <span className="truncate">{title}</span>
-                    </span>
-                    <span
-                        className="text-meta text-faint block truncate leading-tight"
-                        title={commit === undefined ? undefined : EXACT_TIME.format(commit.at)}
-                    >
-                        {detail}
-                    </span>
-                </button>
-                {commit !== undefined && rewritable(commit) ? (
-                    <button
-                        type="button"
-                        title="Edit the commit message"
-                        aria-label="Edit the commit message"
-                        className={`${button} flex size-9 shrink-0 items-center justify-center p-0`}
-                        onClick={() => {
-                            setEditing((old) => (old?.hash === commit.hash ? null : commit));
-                        }}
-                    >
-                        <Pencil className="size-4" />
-                    </button>
+                    <GitBranch />
+                    <span className="truncate">{data.branch}</span>
+                </Badge>
+            ) : null}
+            {data?.upstream ? (
+                <span
+                    className="text-meta text-muted shrink-0"
+                    title={`${data.upstream} as of the last fetch`}
+                >
+                    ↑{data.ahead} ↓{data.behind}
+                </span>
+            ) : null}
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+                {running(state) ? (
+                    <>
+                        <button
+                            type="button"
+                            className={button}
+                            onClick={() => {
+                                if (state !== null) {
+                                    navigate(`${subTarget(state.target)}/review`);
+                                }
+                            }}
+                        >
+                            Resume review
+                        </button>
+                        <button
+                            type="button"
+                            className={button}
+                            onClick={() => {
+                                void stopReview();
+                            }}
+                        >
+                            Cancel review
+                        </button>
+                    </>
                 ) : null}
                 <button
                     type="button"
-                    className={button}
-                    disabled={!canStart}
+                    title="Refresh history"
+                    aria-label="Refresh history"
+                    disabled={loading}
+                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center disabled:opacity-40"
                     onClick={() => {
-                        void begin(target);
-                    }}
-                >
-                    Review
-                </button>
-            </div>
-            {selected === target || collapsing === target ? (
-                // The row grows from 0fr: the diff lays out at full size at once and is clipped, so
-                // the virtualised diff never re-measures itself while it opens or folds.
-                <div
-                    className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none starting:grid-rows-[0fr] ${
-                        collapsing === target ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
-                    }`}
-                >
-                    <div className="min-h-0 overflow-hidden">
-                        <Preview
-                            key={`${target}:${String(refresh)}`}
-                            session={id}
-                            target={target}
-                        />
-                    </div>
-                </div>
-            ) : null}
-            {editing?.hash === target ? (
-                <RewordForm
-                    session={id}
-                    commit={editing}
-                    onClose={() => {
-                        setEditing(null);
-                    }}
-                    onRewritten={() => {
-                        setEditing(null);
-                        setSelected(null);
                         setLoading(true);
                         forgetPatches();
                         setRefresh((value) => value + 1);
                     }}
-                />
-            ) : null}
-        </li>
+                >
+                    <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                </button>
+            </div>
+        </div>
     );
 
     return (
-        <>
-            <button
-                type="button"
-                title="Git history & review"
-                aria-label="Git history & review"
-                onClick={() => {
-                    setLoading(true);
-                    setOpen(true);
-                }}
-                className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+            <div
+                inert={open}
+                aria-hidden={open}
+                className={`absolute inset-0 flex min-h-0 flex-col transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "-translate-x-full" : "translate-x-0"}`}
             >
-                <HistoryIcon className="size-4" />
-            </button>
-            <Dialog
-                open={open}
-                onOpenChange={(value) => {
-                    if (value) {
-                        setOpen(true);
-                    } else {
-                        void closeDialog();
-                    }
-                }}
-            >
-                <DialogContent className="sm:inset-3 sm:max-h-none sm:w-auto sm:max-w-none sm:translate-x-0 sm:translate-y-0">
-                    {/* One row: the title, then what the session's folder is and its way of refreshing.
-                        `pr-11` leaves the gap the close button needs without crowding the refresh. */}
-                    <DialogHeader className="pr-11">
-                        <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <DialogTitle className="min-w-0 flex-1 truncate">
-                                {viewer ? "Plannotator review" : "Git history & review"}
-                            </DialogTitle>
-                            {viewer ? (
-                                <button
-                                    type="button"
-                                    title="Back to history"
-                                    className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
-                                    onClick={() => {
-                                        setViewer(false);
-                                    }}
-                                >
-                                    <ArrowLeft className="size-3" /> History
-                                </button>
-                            ) : data?.branch ? (
-                                <Badge
-                                    title={`${data.branch} in ${session.cwd ?? "this folder"}`}
-                                    className="h-4 max-w-36 min-w-0 shrink px-1.5 [&>svg]:size-2.5"
-                                >
-                                    <GitBranch />
-                                    <span className="truncate">{data.branch}</span>
-                                </Badge>
-                            ) : null}
-                            {viewer ? null : (
-                                <>
-                                    {data?.upstream ? (
-                                        <span
-                                            className="text-meta text-muted shrink-0"
-                                            title={`${data.upstream} as of the last fetch`}
-                                        >
-                                            ↑{data.ahead} ↓{data.behind}
-                                        </span>
-                                    ) : null}
-                                    <button
-                                        type="button"
-                                        title="Refresh history"
-                                        aria-label="Refresh history"
-                                        disabled={loading}
-                                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center disabled:opacity-40"
-                                        onClick={() => {
-                                            setLoading(true);
-                                            forgetPatches();
-                                            setRefresh((value) => value + 1);
-                                        }}
-                                    >
-                                        <RefreshCw
-                                            className={`size-4 ${loading ? "animate-spin" : ""}`}
-                                        />
-                                    </button>
-                                    {running(state) ? (
-                                        <>
-                                            <button
-                                                type="button"
-                                                className={button}
-                                                onClick={() => {
-                                                    setViewer(true);
-                                                }}
-                                            >
-                                                Resume review
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={button}
-                                                disabled={closing}
-                                                onClick={() => {
-                                                    void stopReview();
-                                                }}
-                                            >
-                                                Cancel review
-                                            </button>
-                                        </>
-                                    ) : null}
-                                </>
-                            )}
-                        </div>
-                        <DialogDescription className={viewer ? undefined : "sr-only"}>
-                            {viewer
-                                ? "Review stays inside this app. Feedback returns to the composer; nothing is sent automatically."
-                                : "Commits and uncommitted changes in this session’s folder. Ahead/behind reflects the last fetch."}
-                        </DialogDescription>
-                    </DialogHeader>
+                {toolbar}
+                <div className="min-h-0 flex-1 overflow-y-auto">
                     {issue !== null ? (
                         <p
                             role="alert"
@@ -777,117 +927,131 @@ function HistoryDialog({ session }: { session: NonNullable<StatusProps["session"
                             {issue}
                         </p>
                     ) : null}
-                    {state?.state === "failed" ? (
-                        <p role="alert" className="text-danger text-interface px-3 py-2">
-                            {state.error}
-                        </p>
+                    {data === null && loading ? (
+                        <p className="text-muted p-4">Reading Git history…</p>
                     ) : null}
-                    {viewer && state?.state === "running" && state.url ? (
-                        <ReviewFrame key={state.id} url={state.url} />
-                    ) : viewer && (starting || state?.state === "starting") ? (
-                        <div className="text-muted flex flex-1 items-center justify-center gap-2">
-                            <LoaderCircle className="size-4 animate-spin" />
-                            Starting Plannotator…
-                        </div>
-                    ) : viewer && state?.state === "done" ? (
-                        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4">
-                            <h3 className="text-ink font-medium">
-                                {state.decision === "dismissed"
-                                    ? "Review closed"
-                                    : state.decision === "approved"
-                                      ? "Approved"
-                                      : "Feedback received"}
-                            </h3>
-                            <p className="text-muted text-interface">
-                                {state.decision === "dismissed"
-                                    ? "No feedback was sent."
-                                    : state.message?.trim()
-                                      ? "Feedback has been added to this session’s composer. Check it before sending it to the agent."
-                                      : "Review completed without comments."}
-                            </p>
-                            {state.message ? (
-                                <pre className="text-meta text-muted bg-panel rounded-card overflow-auto p-3 whitespace-pre-wrap">
-                                    {state.message}
-                                </pre>
+                    {data !== null ? (
+                        <>
+                            <ol>
+                                {data.changes > 0 ? (
+                                    <HistoryRow
+                                        target={WORKING}
+                                        title="Uncommitted changes"
+                                        detail={`${String(data.changes)} files changed · live Git review`}
+                                        at={undefined}
+                                        marker={undefined}
+                                        onOpen={openCommit}
+                                        onPrefetch={(target) => {
+                                            prefetchSoon(id, target);
+                                        }}
+                                    />
+                                ) : null}
+                                {data.commits.map((each) => (
+                                    <HistoryRow
+                                        key={each.hash}
+                                        target={each.hash}
+                                        title={each.subject || "(no message)"}
+                                        detail={`${each.short} · ${each.author} · ${ago(each.at, now)}`}
+                                        at={each.at}
+                                        marker={
+                                            each.remote
+                                                ? "remote"
+                                                : each.unpushed
+                                                  ? "local"
+                                                  : undefined
+                                        }
+                                        onOpen={openCommit}
+                                        onPrefetch={(target) => {
+                                            prefetchSoon(id, target);
+                                        }}
+                                    />
+                                ))}
+                            </ol>
+                            {data.commits.length === 0 && data.changes === 0 ? (
+                                <p className="text-muted p-4">
+                                    No commits or uncommitted changes yet.
+                                </p>
                             ) : null}
-                            <button
-                                type="button"
-                                className={`${button} self-start`}
-                                onClick={() => {
-                                    setOpen(false);
-                                }}
-                            >
-                                Return to conversation
-                            </button>
-                        </div>
-                    ) : viewer ? (
-                        <div className="text-muted text-interface p-4">
-                            Review is not running. Return to history to start another.
-                        </div>
-                    ) : (
-                        <div
-                            className="animate-drop-in min-h-0 flex-1 overflow-auto"
-                            ref={scroller}
-                        >
-                            {data === null && loading ? (
-                                <p className="text-muted p-4">Reading Git history…</p>
+                            {data.more ? (
+                                <div className="p-3">
+                                    <button
+                                        type="button"
+                                        className={button}
+                                        disabled={limit >= 200 || loading}
+                                        onClick={() => {
+                                            setLoading(true);
+                                            setLimit((value) => Math.min(200, value + 50));
+                                        }}
+                                    >
+                                        {limit >= 200
+                                            ? "Showing the newest 200 commits"
+                                            : "Load older commits"}
+                                    </button>
+                                </div>
                             ) : null}
-                            {data !== null ? (
-                                <>
-                                    <ol>
-                                        {data.changes > 0
-                                            ? row(
-                                                  "worktree",
-                                                  "Uncommitted changes",
-                                                  `${String(data.changes)} files changed · live Git review`,
-                                              )
-                                            : null}
-                                        {data.commits.map((commit) =>
-                                            row(
-                                                commit.hash,
-                                                commit.subject || "(no message)",
-                                                `${commit.short} · ${commit.author} · ${ago(commit.at, now)}`,
-                                                commit.remote
-                                                    ? "remote"
-                                                    : commit.unpushed
-                                                      ? "local"
-                                                      : undefined,
-                                                commit,
-                                            ),
-                                        )}
-                                    </ol>
-                                    {data.commits.length === 0 && data.changes === 0 ? (
-                                        <p className="text-muted p-4">
-                                            No commits or uncommitted changes yet.
-                                        </p>
-                                    ) : null}
-                                    {data.more ? (
-                                        <div className="p-3">
-                                            <button
-                                                type="button"
-                                                className={button}
-                                                disabled={limit >= 200 || loading}
-                                                onClick={() => {
-                                                    setLoading(true);
-                                                    setLimit((value) => Math.min(200, value + 50));
-                                                }}
-                                            >
-                                                {limit >= 200
-                                                    ? "Showing the newest 200 commits"
-                                                    : "Load older commits"}
-                                            </button>
-                                        </div>
-                                    ) : null}
-                                </>
-                            ) : null}
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-        </>
+                        </>
+                    ) : null}
+                </div>
+            </div>
+
+            <div
+                inert={!open}
+                aria-hidden={!open}
+                className={`bg-canvas absolute inset-0 flex min-h-0 flex-col transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "translate-x-full"}`}
+            >
+                {shownTarget === undefined ? null : place.kind === "review" ? (
+                    <ReviewView
+                        state={state}
+                        starting={starting}
+                        issue={issue}
+                        target={shownTarget}
+                        onBack={() => {
+                            navigate(shownTarget);
+                        }}
+                        onCancel={async () => {
+                            if (await stopReview()) {
+                                navigate(shownTarget);
+                            }
+                        }}
+                        onClose={close}
+                    />
+                ) : (
+                    <CommitDetail
+                        key={shownTarget}
+                        session={id}
+                        target={shownTarget}
+                        commit={commit}
+                        now={now}
+                        upstream={data?.upstream}
+                        reviewState={state}
+                        open={open}
+                        onBack={() => {
+                            navigate(undefined);
+                        }}
+                        onReview={begin}
+                        onReviewAgain={(target) => {
+                            navigate(`${target}/review`);
+                        }}
+                        onRewritten={() => {
+                            setLoading(true);
+                            forgetPatches();
+                            setRefresh((value) => value + 1);
+                            navigate(undefined);
+                        }}
+                    />
+                )}
+            </div>
+        </div>
     );
 }
-function Item({ session }: StatusProps) {
-    return session === null ? null : <HistoryDialog key={session.id} session={session} />;
-}
-export default { header: [{ id: "history", component: Item }] } satisfies WebExtension;
+
+export default {
+    pages: [
+        {
+            id: "history",
+            title: "Git history",
+            icon: <HistoryIcon className="size-4" />,
+            component: GitHistoryPage,
+        },
+    ],
+} satisfies WebExtension;
