@@ -361,7 +361,9 @@ function ChangesView({
         <>
             {header}
             <div className="text-meta text-muted flex flex-wrap gap-3">
-                <span>{data.files.length} files</span>
+                <span>
+                    {data.files.length} {data.files.length === 1 ? "file" : "files"}
+                </span>
                 <span className="text-ok">
                     +{data.files.reduce((sum, file) => sum + file.added, 0)}
                 </span>
@@ -539,8 +541,41 @@ function CommitDetail({
     }
     const header = (
         <>
-            <div className="flex flex-wrap items-center gap-2">
-                <div className="ml-auto flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5">
+                {commit === undefined ? (
+                    <header className="flex min-w-0 grow basis-full flex-col gap-1 sm:basis-0">
+                        <h3
+                            ref={takeTitle}
+                            tabIndex={-1}
+                            className="text-interface text-ink font-medium outline-none"
+                        >
+                            Uncommitted changes
+                        </h3>
+                        <p className="text-meta text-faint font-mono">the working tree</p>
+                    </header>
+                ) : (
+                    <header className="flex min-w-0 grow basis-full flex-col gap-1.5 sm:basis-0">
+                        <h3
+                            ref={takeTitle}
+                            tabIndex={-1}
+                            className="text-interface text-ink text-prose leading-snug font-medium outline-none"
+                        >
+                            {commit.subject || "(no message)"}
+                        </h3>
+                        {commit.body === "" ? null : (
+                            <p className="text-muted text-interface whitespace-pre-wrap">
+                                {commit.body}
+                            </p>
+                        )}
+                        <p className="text-meta text-faint flex flex-wrap gap-2 font-mono">
+                            <span>{commit.short}</span>
+                            <span>{commit.author}</span>
+                            <span title={EXACT_TIME.format(commit.at)}>{ago(commit.at, now)}</span>
+                        </p>
+                    </header>
+                )}
+
+                <div className="flex shrink-0 flex-wrap gap-2">
                     {rewritable && commit !== undefined ? (
                         <button
                             type="button"
@@ -576,40 +611,6 @@ function CommitDetail({
                     )}
                 </div>
             </div>
-
-            {commit === undefined ? (
-                <header className="flex flex-col gap-1">
-                    <h3
-                        ref={takeTitle}
-                        tabIndex={-1}
-                        className="text-interface text-ink font-medium outline-none"
-                    >
-                        Uncommitted changes
-                    </h3>
-                    <p className="text-meta text-faint font-mono">the working tree</p>
-                </header>
-            ) : (
-                <header className="flex flex-col gap-1.5">
-                    <h3
-                        ref={takeTitle}
-                        tabIndex={-1}
-                        className="text-interface text-ink text-prose leading-snug font-medium outline-none"
-                    >
-                        {commit.subject || "(no message)"}
-                    </h3>
-                    {commit.body === "" ? null : (
-                        <p className="text-muted text-interface whitespace-pre-wrap">
-                            {commit.body}
-                        </p>
-                    )}
-                    <p className="text-meta text-faint flex flex-wrap gap-2 font-mono">
-                        <span>{commit.short}</span>
-                        <span>{commit.author}</span>
-                        <span>{EXACT_TIME.format(commit.at)}</span>
-                        <span>{ago(commit.at, now)}</span>
-                    </p>
-                </header>
-            )}
 
             {editing && commit !== undefined ? (
                 <RewordForm
