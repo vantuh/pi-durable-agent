@@ -1,6 +1,8 @@
 import {
     ArrowLeft,
     ArrowRight,
+    Maximize2,
+    Minimize2,
     Monitor,
     RotateCw,
     Smartphone,
@@ -351,31 +353,41 @@ function Console({ id, count }: { id: number | null; count: number }) {
 
 function IconButton({
     title,
+    label,
     onClick,
     disabled,
     active,
+    pressed,
+    className = "",
     children,
 }: {
     title: string;
+    /** The name a tooltip does not carry on its own; a toggle passes it to say what the press did. */
+    label?: string;
     onClick: () => void;
     disabled?: boolean;
     active?: boolean;
+    /** Set only by a toggle: a button that acts on each press carries no state to announce. */
+    pressed?: boolean;
+    className?: string;
     children: React.ReactNode;
 }) {
     return (
         <button
             type="button"
             title={title}
+            aria-label={label}
+            aria-pressed={pressed}
             disabled={disabled === true}
             onClick={onClick}
-            className={`rounded-control hover:bg-raised hover:text-ink flex size-7 shrink-0 items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : "text-muted"}`}
+            className={`rounded-control hover:bg-raised hover:text-ink flex size-7 shrink-0 items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : "text-muted"} ${className}`}
         >
             {children}
         </button>
     );
 }
 
-export function BrowserPanel({ session }: PanelProps) {
+export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
     const id = session?.id ?? null;
     const { page, error, setError, run } = usePageState(id);
     const shot = useFrame(id, page?.open === true);
@@ -475,6 +487,18 @@ export function BrowserPanel({ session }: PanelProps) {
                     }}
                 >
                     <Terminal className="size-4" />
+                </IconButton>
+                {/* Below `lg` the drawer is already the screen, so there is nothing to fill. */}
+                <IconButton
+                    title={expanded ? "Exit full screen" : "Full screen"}
+                    label={expanded ? "Exit full screen" : "Full screen"}
+                    pressed={expanded}
+                    className="max-lg:hidden"
+                    onClick={() => {
+                        setExpanded(!expanded);
+                    }}
+                >
+                    {expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                 </IconButton>
                 {page !== undefined && page.errors > 0 ? (
                     <span className="text-meta text-danger">{page.errors}</span>
