@@ -1,8 +1,9 @@
 import { ChevronRight } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { callAction } from "@/sdk/actions.ts";
@@ -12,8 +13,6 @@ import { type Breakdown, breakdown, type Part } from "./refs.ts";
 
 const WARN_ABOVE = 0.7;
 const DANGER_ABOVE = 0.9;
-const POPUP_WIDTH = 640;
-const GAP = 8;
 const ROW =
     "grid grid-cols-[minmax(0,9rem)_1fr_4rem_3rem] items-center gap-3 text-left max-sm:grid-cols-[minmax(0,1fr)_4rem_3rem]";
 
@@ -110,58 +109,56 @@ function Group({ title, unit, parts }: { title: string; unit: string; parts: Par
     );
 }
 
-function Popup({ data, left, bottom }: { data: Breakdown; left: number; bottom: number }) {
+function Popup({ data }: { data: Breakdown }) {
     const fill = data.window > 0 ? data.used / data.window : 0;
 
     return (
-        <div
-            style={{ left, bottom, width: `min(${String(POPUP_WIDTH)}px, calc(100vw - 1rem))` }}
-            className="fixed z-50 pb-2"
+        <PopoverContent
+            side="top"
+            aria-label="Context breakdown"
+            className="w-[min(40rem,calc(100vw-1rem))] p-0 font-mono"
         >
-            <div className="rounded-card border-edge-soft bg-canvas border font-mono shadow-lg">
-                {/* The cap sits on the viewport: a card capped by max-height gives the area no height to fill. */}
-                <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>
-                    <div className="text-meta text-muted flex flex-col gap-4 p-4">
-                        <div className="grid grid-cols-[5rem_1fr] gap-y-1">
-                            <span className="text-faint">model</span>
-                            <span className="text-ink">{data.model}</span>
-                            <span className="text-faint">context</span>
-                            <span className="flex items-center gap-3">
-                                <span className="text-ink">
-                                    {compact(data.used)}
-                                    {data.window > 0 ? ` of ${compact(data.window)}` : ""}
-                                </span>
-                                {data.window > 0 ? (
-                                    <>
-                                        <Progress
-                                            value={Math.round(fill * 100)}
-                                            tone={toneOf(fill)}
-                                            className="w-32"
-                                            aria-label="context"
-                                        />
-                                        <span>{percent(fill)}</span>
-                                    </>
-                                ) : null}
+            {/* The cap sits on the viewport: a card capped by max-height gives the area no height to fill. */}
+            <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>
+                <div className="text-meta text-muted flex flex-col gap-4 p-4">
+                    <div className="grid grid-cols-[5rem_1fr] gap-y-1">
+                        <span className="text-faint">model</span>
+                        <span className="text-ink">{data.model}</span>
+                        <span className="text-faint">context</span>
+                        <span className="flex items-center gap-3">
+                            <span className="text-ink">
+                                {compact(data.used)}
+                                {data.window > 0 ? ` of ${compact(data.window)}` : ""}
                             </span>
-                        </div>
-                        <Group title="system prompt" unit="sections" parts={data.sections} />
-                        <Group title="tools" unit="tools" parts={data.tools} />
-                        <p className="text-faint">
-                            {data.calibrated
-                                ? "Approximate: sizes are scaled to the model's own count of the first request."
-                                : "Approximate: 3.5 characters per token, not the model's own count."}
-                        </p>
+                            {data.window > 0 ? (
+                                <>
+                                    <Progress
+                                        value={Math.round(fill * 100)}
+                                        tone={toneOf(fill)}
+                                        className="w-32"
+                                        aria-label="context"
+                                    />
+                                    <span>{percent(fill)}</span>
+                                </>
+                            ) : null}
+                        </span>
                     </div>
-                </ScrollArea>
-            </div>
-        </div>
+                    <Group title="system prompt" unit="sections" parts={data.sections} />
+                    <Group title="tools" unit="tools" parts={data.tools} />
+                    <p className="text-faint">
+                        {data.calibrated
+                            ? "Approximate: sizes are scaled to the model's own count of the first request."
+                            : "Approximate: 3.5 characters per token, not the model's own count."}
+                    </p>
+                </div>
+            </ScrollArea>
+        </PopoverContent>
     );
 }
 
 function Context({ session }: StatusProps) {
     const [data, setData] = useState<Breakdown | null>(null);
-    const [at, setAt] = useState<{ left: number; bottom: number } | null>(null);
-    const trigger = useRef<HTMLSpanElement>(null);
+    const [open, setOpen] = useState(false);
     const id = session?.id ?? null;
     const busy = session?.busy ?? false;
 
@@ -198,53 +195,26 @@ function Context({ session }: StatusProps) {
 
     const fill = Math.min(1, data.used / data.window);
 
-    const open = () => {
-        const rect = trigger.current?.getBoundingClientRect();
-
-        if (rect === undefined) {
-            return;
-        }
-
-        const width = Math.min(POPUP_WIDTH, window.innerWidth - 2 * GAP);
-        const centered = rect.left + rect.width / 2 - width / 2;
-
-        setAt({
-            left: Math.max(GAP, Math.min(centered, window.innerWidth - width - GAP)),
-            bottom: window.innerHeight - rect.top,
-        });
-    };
-
     return (
-        <span
-            ref={trigger}
-            onMouseEnter={open}
-            onMouseLeave={() => {
-                setAt(null);
-            }}
-            className="flex shrink-0"
-        >
-            <Button
-                variant="ghost"
-                size="sm"
-                onFocus={open}
-                onBlur={() => {
-                    setAt(null);
-                }}
-                onClick={open}
-                aria-expanded={at !== null}
-                className="text-faint hover:bg-sunken aria-expanded:bg-sunken px-1.5 py-0.5 font-mono"
-            >
-                <span>context</span>
-                <Progress
-                    value={Math.round(fill * 100)}
-                    tone={toneOf(fill)}
-                    className="w-9"
-                    aria-label="context"
-                />
-                {percent(fill)}
-            </Button>
-            {at === null ? null : <Popup data={data} left={at.left} bottom={at.bottom} />}
-        </span>
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-faint hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono"
+                >
+                    <span>context</span>
+                    <Progress
+                        value={Math.round(fill * 100)}
+                        tone={toneOf(fill)}
+                        className="w-9"
+                        aria-label="context"
+                    />
+                    {percent(fill)}
+                </Button>
+            </PopoverTrigger>
+            <Popup data={data} />
+        </Popover>
     );
 }
 

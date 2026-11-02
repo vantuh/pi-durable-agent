@@ -1,8 +1,8 @@
 import { Flame, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
@@ -21,7 +21,6 @@ import {
 } from "./refs.ts";
 
 const POLL_MS = 60_000;
-const POPOVER_WIDTH = 256;
 
 const tokens = (count = 0) =>
     count >= 1000 ? `${String(Math.round(count / 1000))}k` : String(count);
@@ -83,7 +82,6 @@ function Panel({
     warm,
     rows,
     current,
-    anchor,
     now,
     onToggle,
     onStop,
@@ -95,60 +93,19 @@ function Panel({
     rows: WarmSession[];
     /** The conversation the user is in: listed, but not a link. */
     current: number;
-    anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
     onStop: (session: number, label: string) => void;
     onOpen: (session: number) => void;
     onClose: () => void;
 }) {
-    const ref = useRef<HTMLDialogElement>(null);
-    // Above the button, since the status bar is at the bottom; kept inside the window on a phone.
-    const [place] = useState(() => {
-        const box = anchor.getBoundingClientRect();
-        const width = Math.min(POPOVER_WIDTH, innerWidth - 16);
-        const left = Math.min(
-            Math.max(8, box.left + box.width / 2 - width / 2),
-            innerWidth - width - 8,
-        );
-
-        return { bottom: innerHeight - box.top + 8, left };
-    });
-
-    useEffect(() => {
-        const away = (event: PointerEvent) => {
-            if (
-                event.target instanceof Node &&
-                !ref.current?.contains(event.target) &&
-                !anchor.contains(event.target)
-            ) {
-                onClose();
-            }
-        };
-        const escape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        };
-
-        document.addEventListener("pointerdown", away);
-        document.addEventListener("keydown", escape);
-
-        return () => {
-            document.removeEventListener("pointerdown", away);
-            document.removeEventListener("keydown", escape);
-        };
-    }, [anchor, onClose]);
-
     const failed = warm.last?.error !== undefined;
 
-    return createPortal(
-        <dialog
-            ref={ref}
-            open
+    return (
+        <PopoverContent
+            side="top"
             aria-label="Keep warm"
-            style={place}
-            className="border-edge bg-panel text-meta text-ink fixed top-auto right-auto z-50 m-0 max-h-[70vh] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border p-3 font-mono shadow-lg"
+            className="text-meta max-h-[70vh] w-64 overflow-y-auto p-3 font-mono"
         >
             <div className="flex items-center justify-between gap-3">
                 <span className="text-ink">Keep this context warm</span>
@@ -227,15 +184,13 @@ function Panel({
                     </div>
                 </>
             )}
-        </dialog>,
-        document.body,
+        </PopoverContent>
     );
 }
 
 function KeepWarm({ session, openSession }: StatusItemProps) {
     const [warm, setWarm] = useState<WarmState | null>(null);
     const [open, setOpen] = useState(false);
-    const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
     const [now, setNow] = useState(() => Date.now());
     const id = session?.id ?? null;
 
@@ -294,40 +249,42 @@ function KeepWarm({ session, openSession }: StatusItemProps) {
     };
 
     return (
-        <>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                if (next) {
+                    setNow(Date.now());
+                }
+
+                setOpen(next);
+            }}
+        >
             <Hint label={`Keep warm: ${cacheLine(warm, now).toLowerCase()}`}>
-                <Button
-                    ref={setAnchor}
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Keep warm"
-                    aria-expanded={open}
-                    onClick={() => {
-                        setNow(Date.now());
-                        setOpen((previous) => !previous);
-                    }}
-                    className={`hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono ${
-                        warm.on ? "text-ember" : "text-faint/60"
-                    }`}
-                >
-                    <Flame className="size-3.5" />
-                    warm
-                </Button>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Keep warm"
+                        className={`hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono ${
+                            warm.on ? "text-ember" : "text-faint/60"
+                        }`}
+                    >
+                        <Flame className="size-3.5" />
+                        warm
+                    </Button>
+                </PopoverTrigger>
             </Hint>
-            {open && anchor !== null ? (
-                <Panel
-                    warm={warm}
-                    rows={warm.sessions}
-                    current={session.id}
-                    anchor={anchor}
-                    now={now}
-                    onToggle={toggle}
-                    onStop={stopWarming}
-                    onOpen={openSession}
-                    onClose={close}
-                />
-            ) : null}
-        </>
+            <Panel
+                warm={warm}
+                rows={warm.sessions}
+                current={session.id}
+                now={now}
+                onToggle={toggle}
+                onStop={stopWarming}
+                onOpen={openSession}
+                onClose={close}
+            />
+        </Popover>
     );
 }
 

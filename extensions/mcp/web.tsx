@@ -1,8 +1,8 @@
 import { Plug } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -75,67 +75,19 @@ function detail(server: ServerInfo): string {
     return server.status === "error" ? (server.error ?? "failed") : "connecting…";
 }
 
-function Popover({
-    anchor,
+function Panel({
     servers,
     problem,
     busy,
     onToggle,
-    onClose,
 }: {
-    anchor: HTMLElement;
     servers: ServerInfo[];
     problem: string | undefined;
     busy: string | undefined;
     onToggle: (name: string, on: boolean) => void;
-    onClose: () => void;
 }) {
-    const ref = useRef<HTMLDialogElement>(null);
-    // Above the button, since the status bar is at the bottom; kept inside the window on a phone.
-    const [place] = useState(() => {
-        const box = anchor.getBoundingClientRect();
-        const width = Math.min(288, innerWidth - 16);
-        const left = Math.min(
-            Math.max(8, box.left + box.width / 2 - width / 2),
-            innerWidth - width - 8,
-        );
-
-        return { bottom: innerHeight - box.top + 8, left };
-    });
-
-    useEffect(() => {
-        const away = (event: PointerEvent) => {
-            if (
-                event.target instanceof Node &&
-                !ref.current?.contains(event.target) &&
-                !anchor.contains(event.target)
-            ) {
-                onClose();
-            }
-        };
-        const escape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        };
-
-        document.addEventListener("pointerdown", away);
-        document.addEventListener("keydown", escape);
-
-        return () => {
-            document.removeEventListener("pointerdown", away);
-            document.removeEventListener("keydown", escape);
-        };
-    }, [anchor, onClose]);
-
-    return createPortal(
-        <dialog
-            ref={ref}
-            open
-            aria-label="MCP servers"
-            style={place}
-            className="border-edge-soft bg-panel text-meta text-ink rounded-control fixed top-auto right-auto z-50 m-0 w-72 max-w-[calc(100vw-1rem)] border p-1 shadow-lg"
-        >
+    return (
+        <PopoverContent side="top" aria-label="MCP servers" className="text-meta w-72 p-1">
             {problem === undefined ? null : <p className="text-danger px-2 py-1.5">{problem}</p>}
             {servers.length === 0 && problem === undefined ? (
                 <p className="text-faint px-2 py-1.5">No servers in mcp.json.</p>
@@ -174,8 +126,7 @@ function Popover({
                     </div>
                 ))}
             </ScrollArea>
-        </dialog>,
-        document.body,
+        </PopoverContent>
     );
 }
 
@@ -184,10 +135,6 @@ function McpStatus() {
     const [busy, setBusy] = useState<string | undefined>();
     const [failure, setFailure] = useState<string | undefined>();
     const [open, setOpen] = useState(false);
-    const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
-    const close = useCallback(() => {
-        setOpen(false);
-    }, []);
 
     if (current === undefined) {
         return null;
@@ -210,39 +157,32 @@ function McpStatus() {
     const title = `MCP: ${String(on.length)} of ${String(current.servers.length)} servers on`;
 
     return (
-        <>
+        <Popover open={open} onOpenChange={setOpen}>
             <Hint label={title}>
-                <Button
-                    ref={setAnchor}
-                    variant="ghost"
-                    size="sm"
-                    aria-label={title}
-                    aria-expanded={open}
-                    onClick={() => {
-                        setOpen((previous) => !previous);
-                    }}
-                    className="hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5"
-                >
-                    <Plug className={`size-3.5 ${toneOf(on)}`} />
-                    <span className="text-ink">MCP</span>
-                    <span className="text-muted font-mono tabular-nums">
-                        {String(on.length)}/{String(current.servers.length)}
-                    </span>
-                </Button>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={title}
+                        className="hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5"
+                    >
+                        <Plug className={`size-3.5 ${toneOf(on)}`} />
+                        <span className="text-ink">MCP</span>
+                        <span className="text-muted font-mono tabular-nums">
+                            {String(on.length)}/{String(current.servers.length)}
+                        </span>
+                    </Button>
+                </PopoverTrigger>
             </Hint>
-            {open && anchor !== null ? (
-                <Popover
-                    anchor={anchor}
-                    servers={current.servers}
-                    problem={failure ?? current.problem}
-                    busy={busy}
-                    onToggle={(name, wanted) => {
-                        void change(name, wanted);
-                    }}
-                    onClose={close}
-                />
-            ) : null}
-        </>
+            <Panel
+                servers={current.servers}
+                problem={failure ?? current.problem}
+                busy={busy}
+                onToggle={(name, wanted) => {
+                    void change(name, wanted);
+                }}
+            />
+        </Popover>
     );
 }
 

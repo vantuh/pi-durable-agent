@@ -31,6 +31,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
@@ -236,13 +237,66 @@ type RowProps = {
     menu: readonly FolderSessionMenuItem[];
     running: ReadonlySet<string>;
     pending: boolean;
+    /** This row is the one being renamed. */
+    renaming: boolean;
     registerRow: (id: number, node: HTMLDivElement | null) => void;
     onOpen: (id: number) => void;
     onRunItem: (item: FolderSessionMenuItem, session: SessionSummary) => void;
     onRename: (session: SessionSummary) => void;
+    onRenameSave: (id: number, name: string) => Promise<void>;
+    onRenameCancel: () => void;
     onArchive: (id: number, archived: boolean) => Promise<void>;
     onDelete: (session: SessionSummary) => void;
 };
+
+/** Mounted only while its popover is open, so a draft always starts from the session's current name. */
+function RenameForm({
+    id,
+    name,
+    pending,
+    onSave,
+    onCancel,
+}: {
+    id: number;
+    name: string;
+    pending: boolean;
+    onSave: (id: number, name: string) => Promise<void>;
+    onCancel: () => void;
+}) {
+    const [draft, setDraft] = useState(name);
+
+    return (
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                void onSave(id, draft);
+            }}
+            className="flex flex-col gap-2"
+        >
+            <label className="text-meta text-muted" htmlFor="rename-session">
+                Session name
+            </label>
+            <Input
+                id="rename-session"
+                maxLength={80}
+                value={draft}
+                placeholder="Leave empty for automatic name"
+                onChange={(event) => {
+                    setDraft(event.target.value);
+                }}
+                className="border-edge-soft bg-canvas text-sidebar"
+            />
+            <div className="flex justify-end gap-1">
+                <Button variant="ghost" size="sm" onClick={onCancel}>
+                    Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={pending} className="font-normal">
+                    Save
+                </Button>
+            </div>
+        </form>
+    );
+}
 
 // Every prop is a primitive, a row object that keeps its identity until the row changes, or a callback
 // that Sessions keeps stable: a session-list event then re-renders only the rows it touched.
@@ -256,10 +310,13 @@ const SessionRow = memo(function SessionRow({
     menu,
     running,
     pending,
+    renaming,
     registerRow,
     onOpen,
     onRunItem,
     onRename,
+    onRenameSave,
+    onRenameCancel,
     onArchive,
     onDelete,
 }: RowProps) {
@@ -269,122 +326,156 @@ const SessionRow = memo(function SessionRow({
         },
         [registerRow, session.id],
     );
+    const actions = useRef<HTMLButtonElement>(null);
 
     return (
-        <div
-            ref={attach}
-            data-holds-open={holding ? "" : undefined}
-            className={`session-row group rounded-control relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
+        <Popover
+            open={renaming}
+            onOpenChange={(next) => {
+                if (!next) {
+                    onRenameCancel();
+                }
+            }}
         >
-            <a
-                href={sessionHref(session.id)}
-                onClick={(event) => {
-                    if (!isPlainClick(event)) {
-                        return;
-                    }
-
-                    event.preventDefault();
-                    onOpen(session.id);
-                }}
-                aria-current={current ? "page" : holding ? "true" : undefined}
-                className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
-            >
-                <StateMark session={session} working={working} />
-                <span className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}>
-                    {segments(session.title ?? "New session", ranges).map((part, index) => (
-                        <span
-                            key={`${String(index)}-${part.text}`}
-                            className={part.hit ? "bg-warn/30 text-ink rounded-[2px]" : undefined}
-                        >
-                            {part.text}
-                        </span>
-                    ))}
-                </span>
-                <SessionMarks session={session} />
-                <span
-                    className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
+            <PopoverAnchor asChild>
+                <div
+                    ref={attach}
+                    data-holds-open={holding ? "" : undefined}
+                    className={`session-row group rounded-control relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
                 >
-                    {time}
-                </span>
-            </a>
-            <DropdownMenu modal={false}>
-                <Hint label="Session actions">
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Actions for ${session.title ?? "New session"}`}
-                            className="session-actions hover:bg-panel absolute right-1 lg:group-data-[collapsed]/side:hidden"
-                        >
-                            <MoreHorizontal className="size-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                </Hint>
-                <DropdownMenuContent
-                    align="end"
-                    onCloseAutoFocus={(event) => {
-                        event.preventDefault();
-                    }}
-                >
-                    {menu.map((item) => {
-                        const { submenu: Submenu } = item;
+                    <a
+                        href={sessionHref(session.id)}
+                        onClick={(event) => {
+                            if (!isPlainClick(event)) {
+                                return;
+                            }
 
-                        if (Submenu === undefined) {
-                            return (
-                                <DropdownMenuItem
-                                    key={item.id}
-                                    disabled={running.has(runKey(item, session))}
-                                    onSelect={() => {
-                                        onRunItem(item, session);
-                                    }}
+                            event.preventDefault();
+                            onOpen(session.id);
+                        }}
+                        aria-current={current ? "page" : holding ? "true" : undefined}
+                        className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
+                    >
+                        <StateMark session={session} working={working} />
+                        <span className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}>
+                            {segments(session.title ?? "New session", ranges).map((part, index) => (
+                                <span
+                                    key={`${String(index)}-${part.text}`}
+                                    className={
+                                        part.hit ? "bg-warn/30 text-ink rounded-[2px]" : undefined
+                                    }
                                 >
-                                    {iconOf(item.icon, session)}
-                                    {labelOf(item, session)}
-                                </DropdownMenuItem>
-                            );
-                        }
+                                    {part.text}
+                                </span>
+                            ))}
+                        </span>
+                        <SessionMarks session={session} />
+                        <span
+                            className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
+                        >
+                            {time}
+                        </span>
+                    </a>
+                    <DropdownMenu modal={false}>
+                        <Hint label="Session actions">
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    ref={actions}
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Actions for ${session.title ?? "New session"}`}
+                                    className="session-actions hover:bg-panel absolute right-1 lg:group-data-[collapsed]/side:hidden"
+                                >
+                                    <MoreHorizontal className="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </Hint>
+                        <DropdownMenuContent
+                            align="end"
+                            onCloseAutoFocus={(event) => {
+                                event.preventDefault();
+                            }}
+                        >
+                            {menu.map((item) => {
+                                const { submenu: Submenu } = item;
 
-                        return (
-                            <DropdownMenuSub key={item.id}>
-                                <DropdownMenuSubTrigger>
-                                    {iconOf(item.icon, session)}
-                                    {labelOf(item, session)}
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                    <Submenu session={session} />
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                        );
-                    })}
-                    {menu.length === 0 ? null : <DropdownMenuSeparator />}
-                    <DropdownMenuItem
-                        onSelect={() => {
-                            onRename(session);
-                        }}
-                    >
-                        <Pencil />
-                        Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        disabled={pending}
-                        onSelect={() => {
-                            void onArchive(session.id, !session.archived);
-                        }}
-                    >
-                        {session.archived ? <ArchiveRestore /> : <Archive />}
-                        {session.archived ? "Restore" : "Archive"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        onSelect={() => {
-                            onDelete(session);
-                        }}
-                    >
-                        <Trash2 />
-                        Delete
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
+                                if (Submenu === undefined) {
+                                    return (
+                                        <DropdownMenuItem
+                                            key={item.id}
+                                            disabled={running.has(runKey(item, session))}
+                                            onSelect={() => {
+                                                onRunItem(item, session);
+                                            }}
+                                        >
+                                            {iconOf(item.icon, session)}
+                                            {labelOf(item, session)}
+                                        </DropdownMenuItem>
+                                    );
+                                }
+
+                                return (
+                                    <DropdownMenuSub key={item.id}>
+                                        <DropdownMenuSubTrigger>
+                                            {iconOf(item.icon, session)}
+                                            {labelOf(item, session)}
+                                        </DropdownMenuSubTrigger>
+                                        <DropdownMenuSubContent>
+                                            <Submenu session={session} />
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+                                );
+                            })}
+                            {menu.length === 0 ? null : <DropdownMenuSeparator />}
+                            <DropdownMenuItem
+                                onSelect={() => {
+                                    onRename(session);
+                                }}
+                            >
+                                <Pencil />
+                                Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                disabled={pending}
+                                onSelect={() => {
+                                    void onArchive(session.id, !session.archived);
+                                }}
+                            >
+                                {session.archived ? <ArchiveRestore /> : <Archive />}
+                                {session.archived ? "Restore" : "Archive"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={() => {
+                                    onDelete(session);
+                                }}
+                            >
+                                <Trash2 />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </PopoverAnchor>
+            <PopoverContent
+                side="bottom"
+                align="start"
+                aria-label="Rename session"
+                className="text-meta w-64 p-2"
+                onCloseAutoFocus={(event) => {
+                    // The menu item that opened it is gone with its menu: the row's own trigger takes focus back.
+                    event.preventDefault();
+                    actions.current?.focus();
+                }}
+            >
+                <RenameForm
+                    id={session.id}
+                    name={session.name ?? ""}
+                    pending={pending}
+                    onSave={onRenameSave}
+                    onCancel={onRenameCancel}
+                />
+            </PopoverContent>
+        </Popover>
     );
 });
 
@@ -512,9 +603,8 @@ export const Sessions = memo(function Sessions({
         },
         [],
     );
-    const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
+    const [renaming, setRenaming] = useState<number | null>(null);
     const shell = useRef<HTMLElement | null>(null);
-    const form = useRef<HTMLFormElement | null>(null);
     const dialog = useRef<HTMLDivElement | null>(null);
     // The rows on screen, so a panel opens at the height of the one it acts on instead of at the top.
     const rowNodes = useRef(new Map<number, HTMLDivElement>());
@@ -526,7 +616,7 @@ export const Sessions = memo(function Sessions({
         }
     }, []);
     const startRename = useCallback((target: SessionSummary): void => {
-        setRenaming({ id: target.id, name: target.name ?? "" });
+        setRenaming(target.id);
     }, []);
 
     useShellCommand("session.rename", () => {
@@ -534,17 +624,15 @@ export const Sessions = memo(function Sessions({
 
         if (target !== undefined) {
             rowNodes.current.get(target.id)?.scrollIntoView({ block: "nearest" });
-            setRenaming({ id: target.id, name: target.name ?? "" });
+            setRenaming(target.id);
         }
     });
     const [place, setPlace] = useState(0);
 
     useLayoutEffect(() => {
         const side = shell.current?.getBoundingClientRect();
-        const target = renaming ?? deleting;
-        // Only one panel is open at a time; the height of that one decides how low it may sit.
-        const panel = renaming === null ? dialog.current : form.current;
-        const row = target === null ? undefined : rowNodes.current.get(target.id);
+        const panel = dialog.current;
+        const row = deleting === null ? undefined : rowNodes.current.get(deleting.id);
 
         if (side === undefined || row === undefined || panel === null) {
             return;
@@ -555,24 +643,26 @@ export const Sessions = memo(function Sessions({
         const lowest = side.height - panel.offsetHeight - 8;
 
         setPlace(Math.min(Math.max(rowTop, 8), Math.max(lowest, 8)));
-    }, [renaming, deleting]);
+    }, [deleting]);
 
-    const saveName = async (): Promise<void> => {
-        if (renaming === null) {
-            return;
-        }
-
-        setPending(true);
-        try {
-            await onRename(renaming.id, renaming.name);
-            setRenaming(null);
-            toast.success("Session renamed");
-        } catch {
-            toast.error("Could not rename the session. Please try again.");
-        } finally {
-            setPending(false);
-        }
-    };
+    const saveName = useCallback(
+        async (id: number, name: string): Promise<void> => {
+            setPending(true);
+            try {
+                await onRename(id, name);
+                setRenaming(null);
+                toast.success("Session renamed");
+            } catch {
+                toast.error("Could not rename the session. Please try again.");
+            } finally {
+                setPending(false);
+            }
+        },
+        [onRename],
+    );
+    const stopRenaming = useCallback((): void => {
+        setRenaming(null);
+    }, []);
     const changeArchive = useCallback(
         async (id: number, value: boolean): Promise<void> => {
             setPending(true);
@@ -1129,10 +1219,13 @@ export const Sessions = memo(function Sessions({
                                             menu={menu}
                                             running={running}
                                             pending={pending}
+                                            renaming={renaming === session.id}
                                             registerRow={registerRow}
                                             onOpen={openRow}
                                             onRunItem={runMenuItem}
                                             onRename={startRename}
+                                            onRenameSave={saveName}
+                                            onRenameCancel={stopRenaming}
                                             onArchive={changeArchive}
                                             onDelete={setDeleting}
                                         />
@@ -1149,56 +1242,6 @@ export const Sessions = memo(function Sessions({
                     openSession={onSelect}
                 />
             </div>
-
-            {renaming === null ? null : (
-                <form
-                    ref={form}
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        void saveName();
-                    }}
-                    style={{ top: place }}
-                    className="rounded-card border-edge-soft bg-panel absolute inset-x-2 z-20 flex flex-col gap-2 border p-2 shadow-lg lg:inset-x-auto lg:left-full lg:ml-2 lg:w-64"
-                >
-                    <label className="text-meta text-muted" htmlFor="rename-session">
-                        Session name
-                    </label>
-                    <Input
-                        id="rename-session"
-                        ref={(node) => {
-                            node?.focus();
-                        }}
-                        maxLength={80}
-                        value={renaming.name}
-                        placeholder="Leave empty for automatic name"
-                        onChange={(event) => {
-                            setRenaming({ id: renaming.id, name: event.target.value });
-                        }}
-                        onKeyDown={(event) => {
-                            if (event.key === "Escape") {
-                                // The key is this field's: it must not also leave the panel's full screen.
-                                event.stopPropagation();
-                                setRenaming(null);
-                            }
-                        }}
-                        className="border-edge-soft bg-canvas text-sidebar"
-                    />
-                    <div className="flex justify-end gap-1">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                setRenaming(null);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" size="sm" disabled={pending} className="font-normal">
-                            Save
-                        </Button>
-                    </div>
-                </form>
-            )}
 
             {deleting === null ? null : (
                 <div

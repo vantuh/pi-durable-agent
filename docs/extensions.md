@@ -95,7 +95,7 @@ about the app; `composer`, the line under the composer, for what one conversatio
 in a small line under the conversation's title. It may also have a
 `label`, and a `meter` (`fill` 0 to 1, `tone` `warn` or `danger`). `contextWindow(provider, model)` gives a
 model's window from the catalog. Below `sm`, `end` fields are hidden and a `center` field loses its label.
-`extensions/context-meter` draws its own `composer` item in `web.tsx` instead, because it opens a popup on hover; its server half serves the breakdown as an action and reads `host.contextWindow`.
+`extensions/context-meter` draws its own `composer` item in `web.tsx` instead, because it opens a popover on click; its server half serves the breakdown as an action and reads `host.contextWindow`.
 
 The field travels in `live.status` of the event stream, keyed by the folder's name. The core knows no
 field by name: install the folder and it appears, remove the folder and the next event drops it.

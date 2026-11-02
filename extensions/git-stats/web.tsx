@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -89,7 +91,24 @@ function GitBadge({ session }: StatusProps) {
     }
 
     return (
-        <div className="relative">
+        <Popover
+            open={confirm || issue !== null}
+            onOpenChange={(next) => {
+                if (!next) {
+                    setConfirm(false);
+                    setIssue(null);
+
+                    return;
+                }
+
+                // `aria-disabled` keeps the hint a disabled button could never show, so the guard is here.
+                if (!canPush || pushing) {
+                    return;
+                }
+
+                setConfirm(true);
+            }}
+        >
             <Badge
                 title={description}
                 aria-label={description}
@@ -112,65 +131,71 @@ function GitBadge({ session }: StatusProps) {
                         {value.upstream === null ? "?" : value.behind}
                     </span>
                 </span>
-                <button
-                    type="button"
-                    disabled={!canPush || pushing}
-                    title={
+                <Hint
+                    label={
                         canPush
                             ? "Push commits"
                             : "Push needs an upstream, unpushed commits and no incoming commits"
                     }
-                    onClick={() => {
-                        setConfirm(true);
-                    }}
-                    className="border-edge text-accent hover:bg-raised -mr-1 flex h-5 items-center gap-1 rounded-full border px-1.5 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                    {pushing ? (
-                        <LoaderCircle className="size-3 animate-spin" />
-                    ) : (
-                        <ArrowUp className="size-3" />
-                    )}
-                    <span className="hidden sm:inline">Push</span>
-                </button>
-            </Badge>
-            {confirm || issue !== null ? (
-                <div
-                    className="border-edge bg-panel text-interface absolute top-9 right-0 z-30 w-64 rounded-xl border p-3 shadow-lg"
-                    role={issue === null ? "dialog" : "alert"}
-                    aria-label="Git push"
-                >
-                    <div className="flex items-start justify-between gap-2">
-                        <p className={issue === null ? "text-ink" : "text-danger"}>
-                            {issue ??
-                                `Push ${String(value.ahead)} commit(s) to ${value.upstream ?? "upstream"}?`}
-                        </p>
+                    <PopoverTrigger asChild>
                         <Button
                             variant="ghost"
-                            size="icon"
-                            aria-label="Close Git message"
-                            className="size-4 shrink-0 p-0 hover:bg-transparent"
-                            onClick={() => {
-                                setConfirm(false);
-                                setIssue(null);
-                            }}
+                            size="sm"
+                            aria-label="Push commits"
+                            aria-disabled={!canPush || pushing}
+                            className="border-edge text-accent hover:text-accent -mr-1 h-5 gap-1 rounded-full border px-1.5 aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
                         >
-                            <X className="size-4" />
+                            {pushing ? (
+                                <LoaderCircle className="size-3 animate-spin" />
+                            ) : (
+                                <ArrowUp className="size-3" />
+                            )}
+                            <span className="hidden sm:inline">Push</span>
                         </Button>
-                    </div>
-                    {confirm ? (
-                        <button
-                            type="button"
-                            className="bg-accent text-on-accent mt-3 rounded-full px-3 py-1"
-                            onClick={() => {
-                                void doPush();
-                            }}
-                        >
-                            Push commits
-                        </button>
-                    ) : null}
+                    </PopoverTrigger>
+                </Hint>
+            </Badge>
+            <PopoverContent
+                side="bottom"
+                align="end"
+                aria-label="Git push"
+                className="text-interface w-64 p-3"
+            >
+                <div className="flex items-start justify-between gap-2">
+                    {/* The error waits for `Alert` (3.7); the role keeps it announced until then. */}
+                    <p
+                        role={issue === null ? undefined : "alert"}
+                        className={issue === null ? "text-ink" : "text-danger"}
+                    >
+                        {issue ??
+                            `Push ${String(value.ahead)} commit(s) to ${value.upstream ?? "upstream"}?`}
+                    </p>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Close Git message"
+                        className="size-4 shrink-0 p-0 hover:bg-transparent"
+                        onClick={() => {
+                            setConfirm(false);
+                            setIssue(null);
+                        }}
+                    >
+                        <X className="size-4" />
+                    </Button>
                 </div>
-            ) : null}
-        </div>
+                {confirm ? (
+                    <Button
+                        className="mt-3 rounded-full"
+                        onClick={() => {
+                            void doPush();
+                        }}
+                    >
+                        Push commits
+                    </Button>
+                ) : null}
+            </PopoverContent>
+        </Popover>
     );
 }
 

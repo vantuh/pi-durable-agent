@@ -476,15 +476,60 @@ gain in reading is on the popup's meter and the subagents chip's, which are anno
 
 Collision-aware placement, outside-click and Escape, focus return.
 
-- [ ] Add `components/ui/popover.tsx`.
-- [ ] `extensions/keep-warm/web.tsx:143–180` — native `<dialog>`.
-- [ ] `extensions/mcp/web.tsx:130–150` — native `<dialog>`.
-- [ ] `extensions/usage-limits/web.tsx:186–216` — native `<dialog>`.
-- [ ] `extensions/git-stats/web.tsx:113–160` — `role="dialog"` panel; its error state → `Alert`.
-- [ ] `extensions/context-meter/web.tsx:118–120` — popup.
-- [ ] `web/src/shell/sessions.tsx:1130–1182` — rename form.
-- [ ] `web/src/composer/composer.tsx:726–739` — model chip, only if the model menu moves from a
-      dialog into a popover; otherwise the chip stays a `Button` that opens the dialog.
+- [x] Add `components/ui/popover.tsx`. The content is the dropdown's surface — `rounded-control`,
+      `border-edge-soft`, `bg-panel`, `shadow-lg`, `z-50`, `collisionPadding={8}` — with no padding
+      or width of its own: a popup holds prose, rows or a form, and each frame is the caller's. The
+      anchor is exported for the rename form, which the row's menu item opens. No animation: the
+      repo has no `tailwindcss-animate`, and the theme has no motion for a popup.
+- [x] `extensions/keep-warm/web.tsx:143–180` — native `<dialog>`. The trigger is the `Button`
+      through `PopoverTrigger asChild`, inside its `Hint`; opening also re-reads the clock. Gone:
+      the portal, the `bottom`/`left` math, the two document listeners, the `rounded-xl` and the
+      `max-w` fallback. New: opening moves focus into the popup (the first control is the Switch),
+      Escape closes and returns focus to the warm button, and the popup re-centres itself on a
+      phone instead of being pinned at 8px.
+- [x] `extensions/mcp/web.tsx:130–150` — native `<dialog>`. Same trigger shape as keep-warm's; the
+      rows, the switch per server, the spinner and the `max-h-33` scroll area are unchanged. Gone:
+      the portal, the placement math, the two listeners, the `max-w` fallback. The item is off on
+      this machine, so the change was read rather than opened.
+- [x] `extensions/usage-limits/web.tsx:186–216` — native `<dialog>`. The trigger and the rows keep
+      everything they had; opening still calls `usage.refresh()` and closing still does not, now in
+      `onOpenChange` instead of a click handler that read the old state. Gone: the portal, the
+      placement math, the two listeners, `POPOVER_WIDTH`, the `rounded-xl` and the `max-w` fallback.
+      The `border-edge` it carried went too: one popover wears `edge-soft` like the menu family.
+- [x] `extensions/git-stats/web.tsx:113–160` — `role="dialog"` panel. Its Push trigger is a
+      `Button` with a `Hint` that also says why it is disabled: `aria-disabled` instead of
+      `disabled`, so the button stays focusable and the hint can show, and `onOpenChange` keeps the
+      guard the `disabled` attribute used to be. The confirm is a primary `Button`. Focus lands on
+      the panel's close first, so a second Enter closes instead of pushing. Gone: the `relative`
+      wrapper, the absolute `top-9 right-0`, the `role`/`aria-label` pair, `z-30` and `rounded-xl`.
+      The error keeps its `role="alert"` on the message and moves to [Alert](#37-alert-new) later.
+- [x] `extensions/context-meter/web.tsx:118–120` — popup. **Hover became click**, as the orchestrator
+      decided for this step: one behaviour for every popup (click, Enter or Space opens; Escape and an
+      outside click close; focus returns), and no `HoverCard`. Gone: the `onMouseEnter`/`onMouseLeave`
+      wrapper, `onFocus`/`onBlur`/`onClick` and the `rect`/`left`/`bottom` math with `POPUP_WIDTH` and
+      `GAP`. The frame is the primitive's now, so `bg-canvas` and `rounded-card` went with it and the
+      card is `bg-panel` like the menu family; the width is the caller's
+      (`w-[min(40rem,calc(100vw-1rem))]`) and the rows, the folds and the `max-h-[70vh]` scroll area are
+      unchanged. The keyboard can reach the folds now: focus enters the popup, whose first stop is the
+      first fold.
+- [x] `web/src/shell/sessions.tsx:1130–1182` — rename form. The row is the `PopoverAnchor` and the
+      popover's `open` is the row's id in `Sessions`, because the menu item that starts a rename goes
+      away with its menu; the form is its own `RenameForm`, mounted only while the popover is open, so
+      the draft starts from the session's name each time. Autofocus and select-all are the
+      primitive's: the first stop in the content is the field, and `FocusScope` selects what it
+      focuses. Enter still submits the form, Escape still closes, Save still waits on `pending`, and
+      `onCloseAutoFocus` gives focus back to the row's actions. Gone: the `place` math for this panel,
+      `form.current`, `absolute inset-x-2`, `lg:left-full`, the ref callback that focused on every
+      render and the field's own Escape handler. Placement is `bottom`/`start`: under the row, where
+      flip can move it above one near the bottom of the window — `right` cannot, because Radix shifts
+      a popover only on its own axis and a row 4px from the screen edge holds no room for 256px.
+- [x] `web/src/composer/composer.tsx:726–739` — the model chip stays a `Button` that opens the dialog,
+      and the model menu stays a `Dialog`. It is not a popup: `ModelMenu` is two tabs, a search field,
+      a list of every model of every provider, a thinking-level picker and per-row add, remove and
+      "Make default" actions, with its own Enter, arrow and chosen-mark state. The dialog is the frame
+      that fits it — centred, focus-trapped, as tall as the screen allows, and on a phone above the
+      keyboard rather than hanging off a chip that sits a few pixels from the bottom edge. Nothing
+      about the dialog costs the phone user anything, so there is no reason to move it.
 
 ### 3.2 DropdownMenu (installed, bypassed)
 
@@ -533,6 +578,8 @@ Collision-aware placement, outside-click and Escape, focus return.
 - [ ] `extensions/subagents/profile-models.tsx:79`.
 - [ ] `extensions/tags/details.tsx:110`.
 - [ ] `extensions/usage-limits/details.tsx:63`.
+- [ ] `extensions/git-stats/web.tsx` — the push panel's error state, left inside the popover by
+      [Popover](#31-popover-new).
 
 ### 3.8 Empty (new)
 
