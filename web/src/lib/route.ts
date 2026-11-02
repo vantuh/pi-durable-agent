@@ -93,10 +93,16 @@ function historyEntry(): Entry | undefined {
 const ENTRIES = "pi.route.entries";
 // A step back is worth more than the oldest ids: past this, an arrow replaces instead of going back.
 const ENTRIES_KEPT = 200;
+// A record that cannot be written is a record that would answer with what an entry used to show.
+let unsaved = false;
 
 /** The route each entry shows now, by id: replaced since it was pushed, it no longer answers its children. */
 function entryRoutes(): Map<string, Route> {
     const routes = new Map<string, Route>();
+
+    if (unsaved) {
+        return routes;
+    }
 
     try {
         const stored: unknown = JSON.parse(sessionStorage.getItem(ENTRIES) ?? "{}");
@@ -130,7 +136,15 @@ function rememberRoute(id: string, route: Route): void {
     try {
         sessionStorage.setItem(ENTRIES, JSON.stringify(Object.fromEntries(routes)));
     } catch {
-        // Nothing remembered means the arrows replace instead of stepping back: correct, just longer.
+        // What is stored is now behind the truth, and an arrow reading it would step into the wrong
+        // entry: trust nothing for the rest of the page's life, and leave nothing for a reload either.
+        unsaved = true;
+
+        try {
+            sessionStorage.removeItem(ENTRIES);
+        } catch {
+            // A storage that refuses both leaves only the flag above.
+        }
     }
 }
 
