@@ -45,7 +45,39 @@ export const write = actionRef<{ text: string; base: string }, WriteResult>(
     },
 );
 
-/** Open Markdown checkboxes (`- [ ]`, `* [ ]`, any indentation). */
-export function openTasks(text: string): number {
-    return text.match(/^[ \t]*[-*][ \t]+\[ \](?=[ \t]|$)/gm)?.length ?? 0;
+/** One to-do of the repository; the list's order is the order the person dragged it into. */
+export type Todo = { id: number; title: string; description: string; done: boolean };
+
+function isTodo(value: unknown): value is Todo {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "number" &&
+        typeof Reflect.get(value, "title") === "string" &&
+        typeof Reflect.get(value, "description") === "string" &&
+        typeof Reflect.get(value, "done") === "boolean"
+    );
 }
+
+export function asTodos(value: unknown): Todo[] {
+    if (Array.isArray(value) && value.every(isTodo)) {
+        return value;
+    }
+
+    throw new Error("not a to-do list");
+}
+
+/** Every to-do changes on the server and answers with the whole list as it now is. */
+const todoAction = <Args>(name: string) => actionRef<Args, Todo[]>("notes", name, asTodos);
+
+/** The session's repository to-dos; null when the session has no folder. */
+export const listTodos = actionRef<undefined, Todo[] | null>("notes", "todos", (value) =>
+    value === null ? null : asTodos(value),
+);
+export const addTodo = todoAction<{ title: string }>("addTodo");
+export const updateTodo = todoAction<{ id: number } & Partial<Omit<Todo, "id">>>("updateTodo");
+/** Puts `id` where `over` is, the way a sortable list drops one item on another. */
+export const moveTodo = todoAction<{ id: number; over: number }>("moveTodo");
+export const removeTodo = todoAction<{ id: number }>("removeTodo");
+/** Puts a removed to-do back at `index`: the undo of `removeTodo`. */
+export const restoreTodo = todoAction<{ todo: Todo; index: number }>("restoreTodo");

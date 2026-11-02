@@ -5,11 +5,11 @@ import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
 import { NotesPanel } from "./panel.tsx";
-import { openTasks, read } from "./refs.ts";
-import { flushed, isClaimed, setCount, useCount } from "./store.ts";
+import { listTodos } from "./refs.ts";
+import { setCount, useCount } from "./store.ts";
 
-/** Open tasks of the session's note, read at mount and on window focus unless a panel holds the note. */
-function OpenTasks({ session }: StatusProps) {
+/** Open to-dos of the session's repository, read at mount and on window focus; the panel sets it on each change. */
+function OpenTodos({ session }: StatusProps) {
     const id = session?.id ?? null;
     const hasFolder = session !== null && session.cwd !== null;
     const count = useCount(id);
@@ -21,21 +21,11 @@ function OpenTasks({ session }: StatusProps) {
 
         let alive = true;
         const refresh = async (): Promise<void> => {
-            if (isClaimed(id)) {
-                return;
-            }
-
             try {
-                await flushed();
+                const todos = await callAction(listTodos, undefined, id);
 
-                if (!alive || isClaimed(id)) {
-                    return;
-                }
-
-                const note = await callAction(read, undefined, id);
-
-                if (alive && note !== null && !isClaimed(id)) {
-                    setCount(id, openTasks(note.text));
+                if (alive && todos !== null) {
+                    setCount(id, todos.filter((todo) => !todo.done).length);
                 }
             } catch {
                 // The panel says what went wrong; a badge that cannot read just keeps its last count.
@@ -63,7 +53,7 @@ export default {
             id: "notes",
             title: "Notes",
             icon: <NotebookPen className="size-4" />,
-            badge: OpenTasks,
+            badge: OpenTodos,
             component: NotesPanel,
         },
     ],

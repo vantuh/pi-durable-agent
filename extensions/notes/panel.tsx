@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
-import { Markdown } from "@/ui/markdown.tsx";
 
-import { type Note, openTasks, read, write } from "./refs.ts";
-import { claim, flushed, setCount, trackFlush } from "./store.ts";
+import { type Note, read, write } from "./refs.ts";
+import { flushed, trackFlush } from "./store.ts";
+import { Todos } from "./todos.tsx";
 
 const DEBOUNCE_MS = 600;
 
@@ -79,19 +80,15 @@ function useNote(id: number) {
     const flight = useRef<Promise<void> | null>(null);
     const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-    const show = useCallback(
-        (note: Note) => {
-            memory.current.disk = note;
-            memory.current.latest = note.text;
-            memory.current.conflicted = false;
-            setText(note.text);
-            setOther(null);
-            setError(null);
-            setState("saved");
-            setCount(id, openTasks(note.text));
-        },
-        [id],
-    );
+    const show = useCallback((note: Note) => {
+        memory.current.disk = note;
+        memory.current.latest = note.text;
+        memory.current.conflicted = false;
+        setText(note.text);
+        setOther(null);
+        setError(null);
+        setState("saved");
+    }, []);
 
     const save = useCallback((): Promise<void> => {
         clearTimeout(timer.current);
@@ -126,12 +123,16 @@ function useNote(id: number) {
     }, [id]);
 
     useEffect(() => {
-        const release = claim(id);
         let alive = true;
         // Only a note with no local edits is replaced; an edited one meets the disk through a write.
         const clean = (): boolean =>
             flight.current === null && memory.current.latest === memory.current.disk.text;
         const refresh = async (): Promise<void> => {
+            // A remount (StrictMode, or switching tabs back) starts while the unmount's save runs.
+            if (flight.current !== null) {
+                await flight.current;
+            }
+
             if (!clean()) {
                 return;
             }
@@ -170,9 +171,7 @@ function useNote(id: number) {
             alive = false;
             window.removeEventListener("focus", onFocus);
 
-            const last = save().finally(release);
-
-            trackFlush(last);
+            trackFlush(save());
         };
     }, [id, save, show]);
 
@@ -184,7 +183,6 @@ function useNote(id: number) {
         edit: (value: string) => {
             memory.current.latest = value;
             setText(value);
-            setCount(id, openTasks(value));
 
             if (!memory.current.conflicted) {
                 setState("dirty");
@@ -211,34 +209,35 @@ function useNote(id: number) {
 }
 
 export function NotesPanel({ session }: PanelProps) {
+    const [tab, setTab] = useState("todos");
+
     if (session === null || session.cwd === null) {
         return <p className="text-faint text-interface p-3">This session has no folder.</p>;
     }
 
-    return <Notes id={session.id} />;
+    const tabs = (
+        <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+                <TabsTrigger value="todos">To-dos</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
+            </TabsList>
+        </Tabs>
+    );
+
+    return tab === "todos" ? (
+        <Todos id={session.id} tabs={tabs} />
+    ) : (
+        <Notes id={session.id} tabs={tabs} />
+    );
 }
 
-function Notes({ id }: { id: number }) {
+function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
     const note = useNote(id);
-    const [preview, setPreview] = useState(false);
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="border-edge-soft text-meta flex items-center justify-between gap-2 border-b px-3 py-1.5">
-                <div className="flex gap-1">
-                    {[false, true].map((on) => (
-                        <button
-                            key={String(on)}
-                            type="button"
-                            onClick={() => {
-                                setPreview(on);
-                            }}
-                            className={`rounded-control px-2 py-0.5 ${preview === on ? "bg-raised text-ink" : "text-muted hover:text-ink"}`}
-                        >
-                            {on ? "Preview" : "Edit"}
-                        </button>
-                    ))}
-                </div>
+                {tabs}
                 <span
                     title={note.error ?? undefined}
                     className={
@@ -250,7 +249,6 @@ function Notes({ id }: { id: number }) {
                     {LABEL[note.state]}
                 </span>
             </div>
-
             {note.other === null ? null : (
                 <div className="border-edge-soft text-interface flex flex-col gap-2 border-b px-3 py-2">
                     <p className="text-ink">This note changed on another device or tab.</p>
@@ -267,22 +265,16 @@ function Notes({ id }: { id: number }) {
                 <p className="text-danger text-interface px-3 py-2">{note.error}</p>
             ) : null}
 
-            {preview ? (
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-                    <Markdown text={note.text} />
-                </div>
-            ) : (
-                <textarea
-                    value={note.text}
-                    disabled={note.state === "loading"}
-                    spellCheck={false}
-                    placeholder="Notes for this repository, in Markdown. - [ ] adds a task."
-                    onChange={(event) => {
-                        note.edit(event.target.value);
-                    }}
-                    className="text-prose text-ink placeholder:text-faint min-h-0 flex-1 resize-none bg-transparent px-3 py-2 outline-none"
-                />
-            )}
+            <textarea
+                value={note.text}
+                disabled={note.state === "loading"}
+                spellCheck={false}
+                placeholder="Notes for this repository."
+                onChange={(event) => {
+                    note.edit(event.target.value);
+                }}
+                className="text-prose text-ink placeholder:text-faint min-h-0 flex-1 resize-none bg-transparent px-3 py-2 outline-none"
+            />
         </div>
     );
 }

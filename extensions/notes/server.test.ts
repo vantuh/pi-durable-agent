@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
-import { openTasks, type Note, type WriteResult } from "./refs.ts";
-import { actions, noteFile, repositoryOf } from "./server.ts";
+import { asTodos, type Note, type Todo, type WriteResult } from "./refs.ts";
+import { actions, noteFile, repositoryOf, takeTasks, todosFile } from "./server.ts";
 
 const run = promisify(execFile);
 
@@ -53,6 +53,10 @@ void describe("notes", () => {
             : { conflict: false, version };
     };
 
+    const todos = async (name: string, args?: unknown): Promise<Todo[]> =>
+        asTodos(await call(name, repo, args));
+    const titles = (list: Todo[]): string[] => list.map((todo) => todo.title);
+
     beforeEach(async () => {
         dir = await realpath(await mkdtemp(join(tmpdir(), "notes-test-")));
         data = join(dir, "data");
@@ -79,8 +83,9 @@ void describe("notes", () => {
         assert.equal(saved.conflict, false);
         assert.equal((await read(worktree)).text, "shared\n");
         assert.equal((await read(join(repo, "src"))).text, "shared\n");
-        assert.deepEqual(await readdir(join(data, "notes")), [
+        assert.deepEqual((await readdir(join(data, "notes"))).toSorted(), [
             noteFile(data, repo).split("/").pop(),
+            todosFile(noteFile(data, repo)).split("/").pop(),
         ]);
     });
 
@@ -148,7 +153,63 @@ void describe("notes", () => {
         await assert.rejects(call("write", repo, { text: 1, base: "" }), /args must be/);
     });
 
-    void it("counts open checkboxes at any indentation", () => {
-        assert.equal(openTasks("- [ ] a\n  * [ ] b\n- [x] c\n- [ ]\n-[ ] d\ntext - [ ] e"), 3);
+    void it("takes checkbox lines with a title out of a note", () => {
+        const { tasks, rest } = takeTasks(
+            "intro\n- [ ] a\n  * [x] b \n- [ ]\n-[ ] c\ntext - [ ] d",
+        );
+
+        assert.deepEqual(tasks, [
+            { title: "a", done: false },
+            { title: "b", done: true },
+        ]);
+        assert.equal(rest, "intro\n- [ ]\n-[ ] c\ntext - [ ] d");
+    });
+
+    void it("moves the note's checkboxes into the to-dos once", async () => {
+        await mkdir(join(data, "notes"), { recursive: true });
+        await writeFile(noteFile(data, repo), "plan\n- [ ] one\n- [x] two\n");
+
+        assert.equal((await read(repo)).text, "plan\n");
+        assert.deepEqual(await todos("todos"), [
+            { id: 1, title: "one", description: "", done: false },
+            { id: 2, title: "two", description: "", done: true },
+        ]);
+
+        const later = await write(repo, "plan\n- [ ] stays\n", (await read(repo)).version);
+
+        assert.equal(later.conflict, false);
+        assert.equal((await read(repo)).text, "plan\n- [ ] stays\n");
+        assert.equal((await todos("todos")).length, 2);
+    });
+
+    void it("adds, edits, moves and removes to-dos, and restores a removed one in place", async () => {
+        assert.deepEqual(await todos("todos"), []);
+
+        await todos("addTodo", { title: "  a  " });
+        await todos("addTodo", { title: "b" });
+        await todos("addTodo", { title: "c" });
+
+        const edited = await todos("updateTodo", { id: 2, description: "long", done: true });
+
+        assert.deepEqual(edited[1], { id: 2, title: "b", description: "long", done: true });
+        assert.deepEqual(titles(await todos("moveTodo", { id: 3, over: 1 })), ["c", "a", "b"]);
+
+        const [removed] = (await todos("todos")).filter((todo) => todo.id === 1);
+
+        assert.deepEqual(titles(await todos("removeTodo", { id: 1 })), ["c", "b"]);
+        await todos("restoreTodo", { todo: removed, index: 1 });
+        assert.deepEqual(titles(await todos("restoreTodo", { todo: removed, index: 1 })), [
+            "c",
+            "a",
+            "b",
+        ]);
+        assert.deepEqual(titles(await todos("addTodo", { title: "d" })), ["c", "a", "b", "d"]);
+        assert.equal((await todos("todos")).at(-1)?.id, 4);
+    });
+
+    void it("refuses an empty title and an unknown to-do", async () => {
+        await assert.rejects(todos("addTodo", { title: " " }), /title must be/);
+        await assert.rejects(todos("updateTodo", { id: 9, done: true }), /No to-do 9/);
+        assert.equal(await call("todos", null), null);
     });
 });

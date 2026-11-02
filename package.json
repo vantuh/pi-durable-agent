@@ -16,6 +16,8 @@
         "fix": "oxfmt && oxlint --type-aware --fix"
     },
     "dependencies": {
+        "@dnd-kit/core": "6.3.1",
+        "@dnd-kit/sortable": "10.0.0",
         "@earendil-works/chord": "1.4.0",
         "@earendil-works/pi-ai": "1.4.0",
         "@earendil-works/pi-codemode": "1.4.0",
