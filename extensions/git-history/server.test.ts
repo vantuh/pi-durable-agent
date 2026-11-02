@@ -286,13 +286,8 @@ void describe("git-history commit", () => {
         assert.equal(Reflect.get(await subjectOf(hash.slice(0, 7)), "hash"), hash);
     });
 
-    void it("refuses a sha this history does not have", async () => {
-        const refuses = async (target: string) => {
-            const answer = commitOf({ target });
-            assert.ok(answer instanceof Promise);
-            await assert.rejects(answer, /no such commit/);
-        };
-        await refuses("0".repeat(40));
-        await refuses("not a hash");
+    void it("answers null for a sha this history does not have", async () => {
+        assert.equal(await commitOf({ target: "0".repeat(40) }), null);
+        assert.throws(() => commitOf({ target: "not a hash" }), /Choose a commit/);
     });
 });

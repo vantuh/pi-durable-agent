@@ -85,7 +85,7 @@ export const actions = (host: Host): Record<string, Action> => ({
     },
     commit({ args, session }) {
         const target = field(args, "target");
-        if (typeof target !== "string") {
+        if (typeof target !== "string" || !/^[0-9a-f]{4,64}$/i.test(target)) {
             throw new ActionError("Choose a commit from the history.");
         }
         return readCommit(sessionOf(session).cwd, target);

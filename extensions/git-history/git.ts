@@ -215,19 +215,22 @@ export async function readHistory(cwd: string, limit: number): Promise<History> 
 /**
  * One commit's message, read on its own: the page's list is only as long as it was asked to be, and a
  * link may name a commit beyond it, or abbreviate the sha. The flags are the list's, computed for one.
+ * A sha this history does not have is no answer at all, which the page tells apart from a failed read.
  */
-export async function readCommit(cwd: string, target: string): Promise<Commit> {
+export async function readCommit(cwd: string, target: string): Promise<Commit | null> {
     const root = await rootOf(cwd);
-    const hash = await resolveCommit(root, target).catch(() => {
-        throw new ActionError("This folder's history has no such commit.");
-    });
+    const hash = await resolveCommit(root, target).catch(() => null);
+
+    if (hash === null) {
+        return null;
+    }
     const [found] = commitsOf(
         await git(root, ["log", "-z", "-n1", `--format=${LOG}`, hash, "--"]),
         new Set<string>(),
         false,
     );
     if (found === undefined) {
-        throw new ActionError("This folder's history has no such commit.");
+        return null;
     }
     const reaches = (ref: string): Promise<boolean> =>
         git(root, ["merge-base", "--is-ancestor", hash, ref]).then(

@@ -151,14 +151,17 @@ export const changes = actionRef<{ target: string }, Changes>(
     "changes",
     parseChanges,
 );
-function parseCommit(value: unknown): Commit {
-    if (isCommit(value)) {
+function parseCommit(value: unknown): Commit | null {
+    if (value === null || isCommit(value)) {
         return value;
     }
     throw new Error("Invalid commit response");
 }
-/** One commit's message, for a link that names a commit the loaded page of history stops short of. */
-export const commitMeta = actionRef<{ target: string }, Commit>(
+/**
+ * One commit's message, for a link that names a commit the loaded page of history stops short of.
+ * `null` is that history not having the sha; a thrown error is a read that did not happen.
+ */
+export const commitMeta = actionRef<{ target: string }, Commit | null>(
     "git-history",
     "commit",
     parseCommit,

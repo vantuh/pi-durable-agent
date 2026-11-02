@@ -482,14 +482,25 @@ type Shown =
     | { kind: "working" }
     | { kind: "commit"; commit: Commit }
     | { kind: "reading" }
-    | { kind: "missing" };
+    | { kind: "missing" }
+    | { kind: "error"; error: string };
+
+/** What the page made of a target it read on its own: the commit, no such commit, or a read that failed. */
+type Looked =
+    | { target: string; kind: "commit"; commit: Commit }
+    | { target: string; kind: "missing" }
+    | { target: string; kind: "error"; error: string };
+
+/** What a detail with no commit message calls itself: what the target is, or why it is not here. */
+const UNREAD: Record<Exclude<Shown["kind"], "commit">, string> = {
+    working: "Uncommitted changes",
+    reading: "Reading the commit…",
+    missing: "No such commit",
+    error: "Could not read the commit",
+};
 
 /** The detail of the address's target: a commit from the loaded list, or one read on its own. */
-function detailOf(
-    target: string,
-    listed: Commit | undefined,
-    looked: { target: string; commit: Commit | null } | null,
-): Shown {
+function detailOf(target: string, listed: Commit | undefined, looked: Looked | null): Shown {
     if (actionTarget(target) === "worktree") {
         return { kind: "working" };
     }
@@ -499,7 +510,7 @@ function detailOf(
     if (looked === null || looked.target !== target) {
         return { kind: "reading" };
     }
-    return looked.commit === null ? { kind: "missing" } : { kind: "commit", commit: looked.commit };
+    return looked;
 }
 
 /** The open commit (or the working tree): its message, the actions, and its diffs in the page's scroll. */
@@ -562,6 +573,8 @@ function CommitDetail({
         !shown.commit.remote &&
         (upstream === null || shown.commit.unpushed);
     const mine = reviewState !== null && subTarget(reviewState.target) === target;
+    // No actions on a target with no commit behind it, nor on a read that failed before it got there.
+    const broken = shown.kind === "missing" || shown.kind === "error";
     async function begin(): Promise<void> {
         setStarting(true);
         try {
@@ -602,11 +615,7 @@ function CommitDetail({
                             tabIndex={-1}
                             className="text-interface text-ink font-medium outline-none"
                         >
-                            {shown.kind === "working"
-                                ? "Uncommitted changes"
-                                : shown.kind === "reading"
-                                  ? "Reading the commit…"
-                                  : "No such commit"}
+                            {UNREAD[shown.kind]}
                         </h3>
                         <p className="text-meta text-faint font-mono">
                             {shown.kind === "working" ? "the working tree" : target}
@@ -614,7 +623,7 @@ function CommitDetail({
                     </header>
                 )}
 
-                {shown.kind === "missing" ? null : (
+                {broken ? null : (
                     <div className="flex shrink-0 flex-wrap gap-2">
                         {rewritable ? (
                             <button
@@ -666,11 +675,18 @@ function CommitDetail({
         </>
     );
 
-    if (shown.kind === "missing") {
+    if (shown.kind === "missing" || shown.kind === "error") {
+        const failure = shown.kind === "error" ? shown.error : null;
+
         return (
             <PendingPane header={header}>
-                <p className="text-muted text-interface p-3">
-                    Nothing in this folder's history has that id. Open the history to pick a commit.
+                <p
+                    role={failure === null ? undefined : "alert"}
+                    className={`text-interface p-3 ${failure === null ? "text-muted" : "text-danger"}`}
+                >
+                    {failure === null
+                        ? "Nothing in this folder's history has that id. Open the history to pick a commit."
+                        : `${failure} Refresh the history to try again.`}
                 </p>
             </PendingPane>
         );
@@ -808,7 +824,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const [state, setState] = useState<ReviewState | null>(null);
     const [starting, setStarting] = useState(false);
     // The message of a commit the loaded page of history stops short of, or an abbreviated sha's full one.
-    const [looked, setLooked] = useState<{ target: string; commit: Commit | null } | null>(null);
+    const [looked, setLooked] = useState<Looked | null>(null);
     const rows = useRef(new Map<string, HTMLButtonElement>());
     const layer = useRef(false);
     const latestReview = useRef<ReviewState | null>(null);
@@ -867,11 +883,15 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             try {
                 const commit = await callAction(commitMeta, { target: shownTarget }, id);
                 if (alive) {
-                    setLooked({ target: shownTarget, commit });
+                    setLooked(
+                        commit === null
+                            ? { target: shownTarget, kind: "missing" }
+                            : { target: shownTarget, kind: "commit", commit },
+                    );
                 }
-            } catch {
+            } catch (error) {
                 if (alive) {
-                    setLooked({ target: shownTarget, commit: null });
+                    setLooked({ target: shownTarget, kind: "error", error: errorText(error) });
                 }
             }
         })();
@@ -1085,6 +1105,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                     onClick={() => {
                         setLoading(true);
                         forgetPatches();
+                        // A read that failed, and a commit a reword moved, are both read again here.
+                        setLooked(null);
                         setRefresh((value) => value + 1);
                     }}
                 >
@@ -1232,6 +1254,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         onRewritten={() => {
                             setLoading(true);
                             forgetPatches();
+                            // The rewrite moves this commit: its flags and its id are read again.
+                            setLooked(null);
                             setRefresh((value) => value + 1);
 
                             // The reword outlives the form: leaving the commit meanwhile must not move the page.
