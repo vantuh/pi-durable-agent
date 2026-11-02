@@ -924,6 +924,8 @@ export const Sessions = memo(function Sessions({
                                 onKeyDown={(event) => {
                                     if (event.key === "Escape") {
                                         event.preventDefault();
+                                        // The key is this field's: it must not also leave the panel's full screen.
+                                        event.stopPropagation();
                                         stopSearch();
                                     }
                                 }}
@@ -1081,6 +1083,8 @@ export const Sessions = memo(function Sessions({
                         }}
                         onKeyDown={(event) => {
                             if (event.key === "Escape") {
+                                // The key is this field's: it must not also leave the panel's full screen.
+                                event.stopPropagation();
                                 setRenaming(null);
                             }
                         }}
