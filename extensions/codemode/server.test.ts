@@ -136,7 +136,8 @@ void describe("codemode extension", () => {
 
         let history = "";
 
-        for (let attempt = 0; attempt < 100 && !history.includes("bash said"); attempt += 1) {
+        // The script's own source says "bash said " too, so wait for the result, not the call.
+        for (let attempt = 0; attempt < 100 && !history.includes("bash said 42"); attempt += 1) {
             await delay(100);
             history = await (await fetch(`${base}/api/history?session=${String(session)}`)).text();
         }
