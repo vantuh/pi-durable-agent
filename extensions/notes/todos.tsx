@@ -320,7 +320,7 @@ function SortableRow(props: RowProps) {
                     ref={setActivatorNodeRef}
                     type="button"
                     aria-label="Drag to reorder"
-                    className="text-faint hover:text-muted shrink-0 cursor-grab touch-none"
+                    className="text-faint hover:text-muted mt-0.75 shrink-0 cursor-grab touch-none"
                     {...attributes}
                     {...listeners}
                 >
@@ -353,7 +353,7 @@ function Row({
             style={style}
             className={cn("group rounded-control", dragging && "bg-raised relative z-10")}
         >
-            <div className="flex items-center gap-2 px-2 py-1">
+            <div className="flex items-start gap-2 px-2 py-1">
                 {handle ?? <span className="size-4 shrink-0" />}
                 <input
                     type="checkbox"
@@ -362,27 +362,30 @@ function Row({
                     onChange={(event) => {
                         onChange({ done: event.target.checked });
                     }}
-                    className="accent-accent size-4 shrink-0"
+                    className="accent-accent mt-0.75 size-4 shrink-0"
                 />
                 <button
                     type="button"
                     aria-expanded={expanded}
                     onClick={onExpand}
                     className={cn(
-                        "text-interface min-w-0 flex-1 truncate text-left",
+                        "text-interface min-w-0 flex-1 text-left break-words",
                         todo.done ? "text-faint line-through" : "text-ink",
                     )}
                 >
                     {todo.title}
                 </button>
                 {todo.description === "" ? null : (
-                    <Text aria-label="Has a description" className="text-faint size-3.5 shrink-0" />
+                    <Text
+                        aria-label="Has a description"
+                        className="text-faint mt-1 size-3.5 shrink-0"
+                    />
                 )}
                 <button
                     type="button"
                     aria-label="Delete"
                     onClick={onRemove}
-                    className="text-faint hover:text-danger shrink-0 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                    className="text-faint hover:text-danger mt-1 shrink-0 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
                 >
                     <Trash2 className="size-3.5" />
                 </button>
