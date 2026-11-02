@@ -7,9 +7,17 @@ import {
     type CodeViewItem,
     type FileDiffMetadata,
 } from "@pierre/diffs";
-import { CodeView, type CodeViewDiffItem } from "@pierre/diffs/react";
+import { CodeView, type CodeViewDiffItem, type CodeViewHandle } from "@pierre/diffs/react";
 import { ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+    type ReactNode,
+    type RefObject,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import { flushSync } from "react-dom";
 
 import { cn } from "@/lib/utils";
@@ -231,7 +239,25 @@ function WithoutDiff({ files }: { files: ChangedFile[] }) {
     );
 }
 
-export function PatchPreview({ data }: { data: Changes }) {
+/** The page's one scroll while the diff is not drawn yet, or cannot be: the same header, then a note. */
+function PendingPane({ header, children }: { header: ReactNode; children: ReactNode }) {
+    return (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-3 px-3 py-3">{header}</div>
+            {children}
+        </div>
+    );
+}
+
+export function PatchPreview({
+    data,
+    header,
+    viewRef,
+}: {
+    data: Changes;
+    header: ReactNode;
+    viewRef: RefObject<CodeViewHandle<undefined, undefined> | null>;
+}) {
     const style = useSyncExternalStore(subscribeDiffStyle, diffStyle);
     const [parsed, setParsed] = useState<{
         files: FileDiffMetadata[];
@@ -265,8 +291,8 @@ export function PatchPreview({ data }: { data: Changes }) {
     // An item mid-fold is not listening: a second click would animate from a height nobody shows.
     const folding = useRef(new Set<string>());
     const toggle = useCallback(
-        (id: string, header?: HTMLElement) => {
-            const fold = header === undefined ? undefined : foldOf(header);
+        (id: string, element?: HTMLElement) => {
+            const fold = element === undefined ? undefined : foldOf(element);
             const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             const commit = (): void => {
                 setFolded((old) => ({ ...old, [id]: old[id] !== true }));
@@ -328,7 +354,7 @@ export function PatchPreview({ data }: { data: Changes }) {
         },
         [folded],
     );
-    const header = useCallback(
+    const fileHeader = useCallback(
         (item: CodeViewItem<undefined>) =>
             item.type === "diff" ? (
                 <FileHeader
@@ -343,17 +369,25 @@ export function PatchPreview({ data }: { data: Changes }) {
             ) : null,
         [folded, toggle],
     );
+    const pageHeader = <div className="flex flex-col gap-3 px-3 py-3">{header}</div>;
     if (parsed === null) {
-        return <p className="text-muted text-meta px-3 py-2">Rendering diff…</p>;
+        return (
+            <PendingPane header={header}>
+                <p className="text-muted text-meta px-3 py-2">Rendering diff…</p>
+            </PendingPane>
+        );
     }
     if (parsed.error !== null) {
         return (
-            <p role="alert" className="text-danger text-meta px-3 py-2">
-                Could not render this diff: {parsed.error}
-            </p>
+            <PendingPane header={header}>
+                <p role="alert" className="text-danger text-meta px-3 py-2">
+                    Could not render this diff: {parsed.error}
+                </p>
+            </PendingPane>
         );
     }
     const inPatch = new Set(parsed.files.map((file) => file.name));
+    const outside = data.files.filter((file) => !inPatch.has(file.path));
     const items: CodeViewDiffItem[] = parsed.files.map((file, index) => {
         const id = itemId(file, index);
         return {
@@ -364,19 +398,26 @@ export function PatchPreview({ data }: { data: Changes }) {
             version: versions[id] ?? 0,
         };
     });
+    if (items.length === 0) {
+        return (
+            <PendingPane header={header}>
+                {outside.length === 0 ? null : <WithoutDiff files={outside} />}
+            </PendingPane>
+        );
+    }
     return (
-        <>
-            {/* The page is the one scroller: the diff lays its files out in full and the page scrolls
-                past them. CodeView renders every file then, which the read-only 400 KiB cap keeps small. */}
-            {items.length === 0 ? null : (
-                <CodeView
-                    items={items}
-                    options={{ ...options, diffStyle: style }}
-                    renderCustomHeader={header}
-                    className="min-h-0"
-                />
-            )}
-            <WithoutDiff files={data.files.filter((file) => !inPatch.has(file.path))} />
-        </>
+        <CodeView
+            ref={viewRef}
+            items={items}
+            options={{ ...options, diffStyle: style }}
+            renderCustomHeader={fileHeader}
+            renderCodeViewHeader={() => pageHeader}
+            renderCodeViewFooter={() =>
+                outside.length === 0 ? null : <WithoutDiff files={outside} />
+            }
+            // The diff is the page's one scroll, so CodeView measures this box as its viewport and
+            // mounts only the files and lines near it. Without a bounded height it renders them all.
+            className="block min-h-0 min-w-0 flex-1 overflow-y-auto"
+        />
     );
 }

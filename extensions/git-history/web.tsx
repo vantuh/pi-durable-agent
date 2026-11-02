@@ -1,3 +1,4 @@
+import type { CodeViewHandle } from "@pierre/diffs/react";
 import {
     History as HistoryIcon,
     ArrowLeft,
@@ -13,6 +14,8 @@ import {
     type FormEvent,
     type KeyboardEvent as ReactKeyboardEvent,
     lazy,
+    type ReactNode,
+    type RefObject,
     Suspense,
     useEffect,
     useRef,
@@ -281,8 +284,28 @@ function whenIdle(run: () => void): () => void {
     };
 }
 
-/** One commit's changes, in the page's own scroll: the summary counts and the diffs flow together. */
-function ChangesView({ session, target }: { session: number; target: string }) {
+/** The page's one scroll until the diff is ready: the commit's own header, then a note. */
+function PendingPane({ header, children }: { header: ReactNode; children: ReactNode }) {
+    return (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-3 px-3 py-3">{header}</div>
+            {children}
+        </div>
+    );
+}
+
+/** One commit's changes; the diff, when it is drawn, owns the page's only scroll. */
+function ChangesView({
+    session,
+    target,
+    header,
+    viewRef,
+}: {
+    session: number;
+    target: string;
+    header: ReactNode;
+    viewRef: RefObject<CodeViewHandle<undefined, undefined> | null>;
+}) {
     const [data, setData] = useState<Changes | null>(() => cachedPatch(session, target) ?? null);
     const [error, setError] = useState<string | null>(null);
     useEffect(() => {
@@ -305,17 +328,24 @@ function ChangesView({ session, target }: { session: number; target: string }) {
     }, [session, target]);
     if (error !== null) {
         return (
-            <p role="alert" className="text-danger p-3">
-                {error}
-            </p>
+            <PendingPane header={header}>
+                <p role="alert" className="text-danger p-3">
+                    {error}
+                </p>
+            </PendingPane>
         );
     }
     if (data === null) {
-        return <p className="text-muted p-3">Reading changes…</p>;
+        return (
+            <PendingPane header={header}>
+                <p className="text-muted p-3">Reading changes…</p>
+            </PendingPane>
+        );
     }
-    return (
-        <div className="flex flex-col">
-            <div className="text-meta text-muted flex flex-wrap gap-3 px-3 py-2">
+    const withSummary = (
+        <>
+            {header}
+            <div className="text-meta text-muted flex flex-wrap gap-3">
                 <span>{data.files.length} files</span>
                 <span className="text-ok">
                     +{data.files.reduce((sum, file) => sum + file.added, 0)}
@@ -325,18 +355,24 @@ function ChangesView({ session, target }: { session: number; target: string }) {
                 </span>
             </div>
             {data.truncated ? (
-                <p className="text-warn text-meta px-3 pb-2">
+                <p className="text-warn text-meta">
                     Preview stops at 400 KiB and {UNTRACKED_FILE_CAP} new files: files that fit keep
                     their diff, the rest are listed without one.
                 </p>
             ) : null}
-            {data.files.length === 0 ? (
-                <p className="text-meta text-muted p-3">No changes.</p>
-            ) : null}
-            <Suspense fallback={<p className="text-muted p-3">Reading the diff…</p>}>
-                <PatchPreview data={data} />
-            </Suspense>
-        </div>
+            {data.files.length === 0 ? <p className="text-meta text-muted">No changes.</p> : null}
+        </>
+    );
+    return (
+        <Suspense
+            fallback={
+                <PendingPane header={withSummary}>
+                    <p className="text-muted p-3">Reading the diff…</p>
+                </PendingPane>
+            }
+        >
+            <PatchPreview data={data} header={withSummary} viewRef={viewRef} />
+        </Suspense>
     );
 }
 
@@ -445,11 +481,11 @@ function CommitDetail({
 }) {
     const [editing, setEditing] = useState(false);
     const [starting, setStarting] = useState(false);
-    const scroller = useRef<HTMLDivElement>(null);
+    const view = useRef<CodeViewHandle<undefined, undefined>>(null);
     // A page opens at its top, even when the commit was read before.
     useEffect(() => {
         if (open) {
-            scroller.current?.scrollTo({ top: 0 });
+            view.current?.scrollTo({ type: "position", position: 0, behavior: "instant" });
         }
     }, [open]);
     const rewritable =
@@ -463,92 +499,97 @@ function CommitDetail({
             setStarting(false);
         }
     }
-    return (
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
-            <div className="flex flex-col gap-3 px-3 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
-                        onClick={onBack}
-                    >
-                        <ArrowLeft className="size-3" /> History
-                    </button>
-                    <div className="ml-auto flex flex-wrap gap-2">
-                        {rewritable && commit !== undefined ? (
-                            <button
-                                type="button"
-                                className={`${button} flex items-center gap-1.5`}
-                                onClick={() => {
-                                    setEditing((old) => !old);
-                                }}
-                            >
-                                <Pencil className="size-3.5" /> Reword
-                            </button>
-                        ) : null}
-                        {mine && running(reviewState) ? (
-                            <button
-                                type="button"
-                                className={button}
-                                onClick={() => {
-                                    onReviewAgain(target);
-                                }}
-                            >
-                                Resume review
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                className={button}
-                                disabled={starting || running(reviewState)}
-                                onClick={() => {
-                                    void begin();
-                                }}
-                            >
-                                Review
-                            </button>
-                        )}
-                    </div>
+    const header = (
+        <>
+            <div className="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
+                    onClick={onBack}
+                >
+                    <ArrowLeft className="size-3" /> History
+                </button>
+                <div className="ml-auto flex flex-wrap gap-2">
+                    {rewritable && commit !== undefined ? (
+                        <button
+                            type="button"
+                            className={`${button} flex items-center gap-1.5`}
+                            onClick={() => {
+                                setEditing((old) => !old);
+                            }}
+                        >
+                            <Pencil className="size-3.5" /> Reword
+                        </button>
+                    ) : null}
+                    {mine && running(reviewState) ? (
+                        <button
+                            type="button"
+                            className={button}
+                            onClick={() => {
+                                onReviewAgain(target);
+                            }}
+                        >
+                            Resume review
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className={button}
+                            disabled={starting || running(reviewState)}
+                            onClick={() => {
+                                void begin();
+                            }}
+                        >
+                            Review
+                        </button>
+                    )}
                 </div>
-
-                {commit === undefined ? (
-                    <header className="flex flex-col gap-1">
-                        <h3 className="text-interface text-ink font-medium">Uncommitted changes</h3>
-                        <p className="text-meta text-faint font-mono">the working tree</p>
-                    </header>
-                ) : (
-                    <header className="flex flex-col gap-1.5">
-                        <h3 className="text-interface text-ink text-prose leading-snug font-medium">
-                            {commit.subject || "(no message)"}
-                        </h3>
-                        {commit.body === "" ? null : (
-                            <p className="text-muted text-interface whitespace-pre-wrap">
-                                {commit.body}
-                            </p>
-                        )}
-                        <p className="text-meta text-faint flex flex-wrap gap-2 font-mono">
-                            <span>{commit.short}</span>
-                            <span>{commit.author}</span>
-                            <span>{EXACT_TIME.format(commit.at)}</span>
-                            <span>{ago(commit.at, now)}</span>
-                        </p>
-                    </header>
-                )}
-
-                {editing && commit !== undefined ? (
-                    <RewordForm
-                        session={session}
-                        commit={commit}
-                        onClose={() => {
-                            setEditing(false);
-                        }}
-                        onRewritten={onRewritten}
-                    />
-                ) : null}
-
-                <ChangesView session={session} target={actionTarget(target)} />
             </div>
-        </div>
+
+            {commit === undefined ? (
+                <header className="flex flex-col gap-1">
+                    <h3 className="text-interface text-ink font-medium">Uncommitted changes</h3>
+                    <p className="text-meta text-faint font-mono">the working tree</p>
+                </header>
+            ) : (
+                <header className="flex flex-col gap-1.5">
+                    <h3 className="text-interface text-ink text-prose leading-snug font-medium">
+                        {commit.subject || "(no message)"}
+                    </h3>
+                    {commit.body === "" ? null : (
+                        <p className="text-muted text-interface whitespace-pre-wrap">
+                            {commit.body}
+                        </p>
+                    )}
+                    <p className="text-meta text-faint flex flex-wrap gap-2 font-mono">
+                        <span>{commit.short}</span>
+                        <span>{commit.author}</span>
+                        <span>{EXACT_TIME.format(commit.at)}</span>
+                        <span>{ago(commit.at, now)}</span>
+                    </p>
+                </header>
+            )}
+
+            {editing && commit !== undefined ? (
+                <RewordForm
+                    session={session}
+                    commit={commit}
+                    onClose={() => {
+                        setEditing(false);
+                    }}
+                    onRewritten={onRewritten}
+                />
+            ) : null}
+        </>
+    );
+
+    return (
+        <ChangesView
+            session={session}
+            target={actionTarget(target)}
+            header={header}
+            viewRef={view}
+        />
     );
 }
 

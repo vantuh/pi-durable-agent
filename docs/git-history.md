@@ -15,13 +15,15 @@ of `git-stats`: disabling either does not disable the other.
   or `sub=working` for the working tree). The list slides out to the left as the detail slides in from
   the right; browser Back or **← History** plays it in reverse and the list keeps its scroll position.
 - The detail page shows the subject, the full message, the sha, author and local date, the actions,
-  a file summary and the diffs. It has one scroll for the whole page: no part of a diff scrolls by
-  itself. A commit's diff cannot change, so reopening it is a cache hit; the working tree is read
-  again every time. The diff lays every file out in full, bounded by the read-only 400 KiB cap below.
+  a file summary and the diffs. It has one scroll for the whole page: the diff view itself is the
+  scroller, so no part of a diff scrolls by itself. Only the files and lines near the viewport are
+  mounted, and the read-only 400 KiB cap below bounds the text. A commit's diff cannot change, so
+  reopening it is a cache hit; the working tree is read again every time.
 - A commit's diff is rendered by `@pierre/diffs`, with line numbers, syntax and word-level
-  highlighting. Each file has its own header with its line counts: clicking it folds the file under
-  that header. The fold takes 200 ms and the files below move with it rather than after it; a
-  reduced-motion setting folds at once. Files start expanded. Every file carries a mark for its kind.
+  highlighting. Each file has its own sticky header with its line counts: it pins to the top of the
+  page scroll while that file is under it, and clicking it folds the file under that header. The
+  fold takes 200 ms and the files below move with it rather than after it; a reduced-motion setting
+  folds at once. Files start expanded. Every file carries a mark for its kind.
   Untracked non-ignored files are included; binary files are listed without a text diff.
 - In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
   **Side by side** for history previews. The choice is saved in this browser, applies to all
@@ -95,8 +97,11 @@ parent come from one `rev-list`, and the title is not read at all — the list t
 says what each commit is called. New files in the working tree cost two processes each, so they are
 read eight at a time.
 
+The diff view is the detail page's scroller: it measures the box between the page frame and the
+bottom and mounts only the files near it, so the diff does not scroll inside another scroll box.
 The preview's file header is our own row, 36 px tall, and `itemMetrics.diffHeaderHeight` says the
-same. A header of another height leaves every file below it a little too low.
+same. A header of another height leaves every file below it a little too low and a jump to a file a
+header's height off.
 
 The marks beside a file name are Nerd Font glyphs — 27 of them, 6.6 KB — subsetted from the
 JetBrains Mono Nerd Font an editor uses, so a file's header shows the same picture a terminal does
