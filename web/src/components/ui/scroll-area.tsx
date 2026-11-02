@@ -7,6 +7,8 @@ type ScrollAreaProps = ComponentProps<typeof ScrollAreaPrimitive.Root> & {
     /** The element that actually scrolls — for code that reads `scrollTop` or listens to scroll. */
     viewportRef?: Ref<HTMLDivElement>;
     viewportProps?: ComponentProps<typeof ScrollAreaPrimitive.Viewport>;
+    /** The axis it scrolls on: a diff's columns scroll sideways. */
+    orientation?: "vertical" | "horizontal";
 };
 
 export function ScrollArea({
@@ -14,6 +16,7 @@ export function ScrollArea({
     children,
     viewportRef,
     viewportProps,
+    orientation = "vertical",
     ...props
 }: ScrollAreaProps) {
     const { className: viewportClass, ...viewport } = viewportProps ?? {};
@@ -28,7 +31,7 @@ export function ScrollArea({
             >
                 {children}
             </ScrollAreaPrimitive.Viewport>
-            <ScrollBar />
+            <ScrollBar orientation={orientation} />
             <ScrollAreaPrimitive.Corner />
         </ScrollAreaPrimitive.Root>
     );
