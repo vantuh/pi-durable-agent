@@ -21,8 +21,6 @@ export const meta = {
     description: "Shrinks images the provider would refuse to accept, before each request.",
 };
 
-/** The longest side both providers accept when a request carries several images. */
-const MAX_SIDE = 2000;
 /**
  * How many images stay remembered. The hook runs on every request and each conversation sends its
  * own images, so this covers what is open for a while without pinning a session's whole history.
@@ -46,19 +44,20 @@ function keyOf(image: ImageContent): string {
 }
 
 /**
- * Resize one image, or `null` when it goes as it is: within the limit, unreadable, or the encoder
- * found nothing that fits. PNG comes back before JPEG, so an image with transparency stays PNG
+ * Resize one image, or `null` when it goes as it is: within the library's 2000 px default, unreadable,
+ * or the encoder found nothing that fits. PNG comes back before JPEG, so an image with transparency stays PNG
  * whenever it fits under the encoder's 4.5 MB cap, which is also what keeps a result under the
  * provider's 5 MB per-image limit.
  */
 async function shrink(image: ImageContent): Promise<ImageContent | null> {
     try {
-        const result = await resizeImage(Buffer.from(image.data, "base64"), image.mimeType, {
-            maxWidth: MAX_SIDE,
-            maxHeight: MAX_SIDE,
-        });
+        const result = await resizeImage(Buffer.from(image.data, "base64"), image.mimeType);
 
-        if (result === null || Math.max(result.originalWidth, result.originalHeight) <= MAX_SIDE) {
+        // A result of the same size only re-encoded the bytes; sending the original keeps the cache.
+        if (
+            result === null ||
+            (result.width === result.originalWidth && result.height === result.originalHeight)
+        ) {
             return null;
         }
 
