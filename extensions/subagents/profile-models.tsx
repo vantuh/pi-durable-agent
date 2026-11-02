@@ -109,22 +109,6 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                                 )}
                             </div>
                             <div className="flex shrink-0 items-center">
-                                {row.model === null ? null : (
-                                    <Button
-                                        variant="ghost"
-                                        className={
-                                            compact
-                                                ? "text-meta h-6 px-1.5 py-0"
-                                                : "text-meta px-2 py-1"
-                                        }
-                                        disabled={saving}
-                                        onClick={() => {
-                                            void write(row.name, null, null);
-                                        }}
-                                    >
-                                        {compact ? "Default" : "Use default"}
-                                    </Button>
-                                )}
                                 <Button
                                     variant="ghost"
                                     className={

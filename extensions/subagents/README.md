@@ -187,8 +187,8 @@ Markdown names, and a **Change model** button that opens the composer's own mode
 here offers the same `scoped` and `all` tabs, scoped first, from the same `enabledModels` the
 composer reads; a menu with nothing scoped lists the catalog. The chosen model and level are
 written by the `setModel` action into the profile's frontmatter, so the next `agent_spawn` uses
-them; an agent already running keeps what it started with. **Use default** removes both lines,
-which leaves the profile without a model, and `agent_spawn` then refuses it.
+them; an agent already running keeps what it started with. There is no "default": a profile
+without a model cannot spawn, so the dialog only changes a model, never removes it.
 
 - The "+" that adds a model to `enabledModels` and **Make default** belong to the composer's
   session, so this menu leaves them out; it writes a profile, not a setting.
@@ -385,7 +385,7 @@ child process is created here.
 | `server.ts`        | Four tools, `agents` prompt section, durable agent document, anchor and reporter tasks.                                           |
 | `refs.ts`          | The `strip`, `agents`, `profiles` and `setModel` action refs and their types, shared by `server.ts`, `web.tsx` and `details.tsx`. |
 | `profile-model.ts` | Writes `model:` and `thinking:` into a profile's frontmatter, and nothing else. Tested in `profile-model.test.ts`.                |
-| `details.tsx`      | The profiles list in the Extensions dialog, with the model menu and **Use default**.                                              |
+| `details.tsx`      | The profiles list in the Extensions dialog, with the model menu.                                                                  |
 | `area.ts`          | Pure helpers for the area: parent, order, "ago", counts. Tested in `area.test.ts`.                                                |
 | `web.tsx`          | Bot icons, the strip, the agents area, the status count and the popover marker.                                                   |
 | `server.test.ts`   | Real-Harness integration tests with a faux model and disposable SQLite storage.                                                   |
