@@ -1,8 +1,9 @@
 import { Hammer, LoaderCircle, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Hint } from "@/components/ui/tooltip";
 
 import { useSettingsSections } from "../extensions.ts";
@@ -27,7 +28,7 @@ export function SettingsContent({ model, cwd, session }: Omit<Props, "open" | "o
     return (
         <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
             <ScrollArea className="min-h-0 flex-1">
-                <div className="divide-edge-soft flex flex-col divide-y">
+                <div className="flex flex-col">
                     <section className="flex flex-col gap-1.5 p-3">
                         <h3 className="text-meta text-faint">Session</h3>
                         <Row label="model" value={model} />
@@ -36,12 +37,15 @@ export function SettingsContent({ model, cwd, session }: Omit<Props, "open" | "o
 
                     {/* The sheet is unmounted when closed, so each open reads the sections afresh. */}
                     {sections.map(({ folder, id, title, component: Section }) => (
-                        <section key={`${folder}:${id}`} className="flex flex-col gap-1.5 p-3">
-                            <h3 className="text-meta text-faint">{title}</h3>
-                            <ItemBoundary name={`${folder}:${id}`}>
-                                <Section session={session} />
-                            </ItemBoundary>
-                        </section>
+                        <Fragment key={`${folder}:${id}`}>
+                            <Separator />
+                            <section className="flex flex-col gap-1.5 p-3">
+                                <h3 className="text-meta text-faint">{title}</h3>
+                                <ItemBoundary name={`${folder}:${id}`}>
+                                    <Section session={session} />
+                                </ItemBoundary>
+                            </section>
+                        </Fragment>
                     ))}
                 </div>
             </ScrollArea>

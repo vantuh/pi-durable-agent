@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Hint } from "@/components/ui/tooltip";
@@ -248,7 +249,12 @@ function ErrorNotice({ text }: { text: string }) {
     );
 }
 
-const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1" />;
+/** The line beside a compaction pill: a span, because two of its hosts are collapsible triggers, which are buttons. */
+const Rule = () => (
+    <Separator asChild className="flex-1">
+        <span />
+    </Separator>
+);
 
 /** The mark's pill, in the tone of what it says: a chip on the line between messages. */
 const PILL_TONES = {

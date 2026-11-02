@@ -313,23 +313,46 @@ field in the app.
 Only where the border is a divider of its own; a border that is part of a panel's frame stays a
 border.
 
-- [ ] Add `components/ui/separator.tsx`.
-- [ ] `web/src/shell/sessions.tsx` — `<hr>` (`1084`), section borders (`901`, `952`).
-- [ ] `web/src/shell/settings-content.tsx` — `28`, `47`.
-- [ ] `web/src/shell/extensions-dialog.tsx` — `149`.
-- [ ] `web/src/shell/folder-picker.tsx` — `310`.
-- [ ] `web/src/shell/panels.tsx` — `311`.
-- [ ] `web/src/shell/home.tsx` — `84`.
-- [ ] `web/src/transcript/transcript.tsx:250` — 1px `span` rule.
-- [ ] `web/src/transcript/activity.tsx:418–426` — vertical timeline rule, if `orientation` fits.
-- [ ] `web/src/ui/diff.tsx:177` — split-view divider, if it does not fight the column geometry.
-- [ ] `extensions/files/panel.tsx` — `151`, `202`.
-- [ ] `extensions/git-history/web.tsx` — `732–750`, `1057`.
-- [ ] `extensions/git-history/preview.tsx` — `227–231`.
-- [ ] `extensions/keep-warm/web.tsx` — `158–175`.
-- [ ] `extensions/notes/panel.tsx` — `239–254`.
-- [ ] `extensions/notes/todos.tsx` — `215`.
-- [ ] `extensions/git-stats/web.tsx` — `99–101`.
+- [x] Add `components/ui/separator.tsx`. Radix hands `decorative` through as given rather than
+      defaulting it, so the primitive states `true` itself; the line is `edge-soft`, the colour of the
+      borders it replaces, `h-px w-full` across its parent or `w-px self-stretch` down it.
+- [x] `web/src/shell/sessions.tsx` — `<hr>` (`1084`), section borders (`901`, `952`). The `<hr>` is a
+      `Separator decorative={false}`, and it keeps its `mx-2` beside `w-auto`: a box with side margins
+      cannot be `w-full`. The two section borders stay: each is the bottom edge of a toolbar block — the
+      folder bar, whose border the rail's `FOLD` transitions away, and the filter strip that closes the
+      same region right under it.
+- [x] `web/src/shell/settings-content.tsx` — `28`, `47`. The `divide-y` between the sections is a
+      `Separator` before each section an extension adds. The footer's top border stays: it is the edge
+      of the sheet's footer, not a line between two sections.
+- [x] `web/src/shell/extensions-dialog.tsx` — `149`. The rule above an extension's details is a
+      `Separator` in the column's `gap-3`, and the block below it drops `pt-3`: the gap below the line
+      and that padding were both 12px, so one of them is enough.
+- [x] `web/src/shell/folder-picker.tsx` — `310`. Stays: the footer's top edge.
+- [x] `web/src/shell/panels.tsx` — `311`. Stays: the panel header's bottom edge.
+- [x] `web/src/shell/home.tsx` — `84`. Stays: the home card's header bottom edge.
+- [x] `web/src/transcript/transcript.tsx:250` — 1px `span` rule. It is `Separator asChild` over the
+      span, because half of its eight hosts are `CollapsibleTrigger`s, which are buttons, and a
+      button takes phrasing content only.
+- [x] `web/src/transcript/activity.tsx:418–426` — vertical timeline rule. `orientation="vertical"` fits
+      the absolute placement without a wrapper: its base is `w-px self-stretch`, a height that does not
+      fight `top-5 bottom-5`, and its colour was `edge`, not `edge-soft`.
+- [x] `web/src/ui/diff.tsx:177` — split-view divider. Stays: it is the right column's own left edge,
+      the two columns are `flex-1` siblings that scroll inside their own boxes, and a line between them
+      would be a third element with the geometry of neither.
+- [x] `extensions/files/panel.tsx` — `151`, `202`. Stay: the bottom edge of each view's toolbar — the
+      tree's label row and the viewer's back row.
+- [x] `extensions/git-history/web.tsx` — `732–750`, `1057`. Stay: the bottom edge of the review header
+      and of the toolbar, and the issue banner's own bottom edge.
+- [x] `extensions/git-history/preview.tsx` — `227–231`. Stays: each row's own top edge, and the row
+      family is [Item](#39-item-new)'s.
+- [x] `extensions/keep-warm/web.tsx` — `158–175`. Both rules of the popup are `Separator`s carrying the
+      `mt-2` the border had, and the blocks under them keep their `pt-2`.
+- [x] `extensions/notes/panel.tsx` — `239–254`. Stay: the bottom edge of the tabs header, and of the
+      conflict banner under it.
+- [x] `extensions/notes/todos.tsx` — `215`. Stays: the tabs header's bottom edge.
+- [x] `extensions/git-stats/web.tsx` — `99–101`. Stays: a divider inside the pill, as tall as the text
+      beside it (measured 18px in the pill's 28), which a stretched separator would run taller;
+      [Badge](#25-badge-installed-reduced-to-one-look) takes the pill whole.
 
 `web/src/ui/markdown.tsx:203` keeps the native `<hr>`: it already has separator semantics.
 

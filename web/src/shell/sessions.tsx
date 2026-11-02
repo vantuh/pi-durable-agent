@@ -32,6 +32,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Hint } from "@/components/ui/tooltip";
 import { DAY, MINUTE, ago } from "@/lib/time.ts";
@@ -1102,8 +1103,9 @@ export const Sessions = memo(function Sessions({
 
                             return (
                                 <div key={group}>
-                                    <hr
-                                        className={`bg-edge-soft mx-2 mt-1 mb-0.5 h-px border-0 ${FADE} ${FOLD}`}
+                                    <Separator
+                                        decorative={false}
+                                        className={`mx-2 mt-1 mb-0.5 w-auto ${FADE} ${FOLD}`}
                                     />
                                     <div
                                         className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE} ${FOLD}`}

@@ -11,6 +11,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -145,7 +146,8 @@ function ExtensionList() {
                                 {problem}
                             </span>
                         )}
-                        <div className="border-edge-soft border-t pt-3">
+                        <Separator />
+                        <div>
                             <ExtensionDetails
                                 folder={current.name}
                                 enabled={current.enabled}

@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
@@ -416,9 +417,9 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                 <CollapsibleContent>
                     {lone === undefined ? (
                         <div className="relative py-1.5">
-                            <span
-                                aria-hidden="true"
-                                className="bg-edge absolute top-5 bottom-5 left-[22px] w-px"
+                            <Separator
+                                orientation="vertical"
+                                className="bg-edge absolute top-5 bottom-5 left-[22px]"
                             />
                             {item.steps.map((step) => (
                                 <StepRow key={step.key} step={step} icons={icons} views={views} />

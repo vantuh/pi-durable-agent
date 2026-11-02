@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
@@ -157,7 +158,8 @@ function Panel({
                     aria-label="Keep this context warm"
                 />
             </div>
-            <div className="border-edge-soft text-faint mt-2 space-y-1 border-t pt-2">
+            <Separator className="mt-2" />
+            <div className="text-faint space-y-1 pt-2">
                 <div className="text-muted">{cacheLine(warm, now)}</div>
                 <div>{nextLine(warm, now)}</div>
                 {warm.last === undefined ? null : (
@@ -173,52 +175,57 @@ function Panel({
                 </div>
             </div>
             {rows.length === 0 ? null : (
-                <div className="border-edge-soft mt-2 border-t pt-2">
-                    <div className="text-faint mb-1">Warming</div>
-                    {rows.map((row) => (
-                        <div key={row.id} className="flex items-center gap-2">
-                            {row.id === current ? (
-                                <span
-                                    aria-current="true"
-                                    className="text-ink min-w-0 flex-1 truncate"
-                                >
-                                    {row.label}
+                <>
+                    <Separator className="mt-2" />
+                    <div className="pt-2">
+                        <div className="text-faint mb-1">Warming</div>
+                        {rows.map((row) => (
+                            <div key={row.id} className="flex items-center gap-2">
+                                {row.id === current ? (
+                                    <span
+                                        aria-current="true"
+                                        className="text-ink min-w-0 flex-1 truncate"
+                                    >
+                                        {row.label}
+                                    </span>
+                                ) : (
+                                    <a
+                                        href={sessionHref(row.id)}
+                                        onClick={(event) => {
+                                            // A modified click is the browser's: a new tab, and the popover stays.
+                                            if (isPlainClick(event)) {
+                                                event.preventDefault();
+                                                onOpen(row.id);
+                                                onClose();
+                                            }
+                                        }}
+                                        className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
+                                    >
+                                        {row.label}
+                                    </a>
+                                )}
+                                <span className="text-faint shrink-0 text-right tabular-nums">
+                                    {clock(row.nextAt)}
                                 </span>
-                            ) : (
-                                <a
-                                    href={sessionHref(row.id)}
-                                    onClick={(event) => {
-                                        // A modified click is the browser's: a new tab, and the popover stays.
-                                        if (isPlainClick(event)) {
-                                            event.preventDefault();
-                                            onOpen(row.id);
-                                            onClose();
-                                        }
-                                    }}
-                                    className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
+                                <Hint
+                                    label={`Stop warming ${row.label} until you write in it again`}
                                 >
-                                    {row.label}
-                                </a>
-                            )}
-                            <span className="text-faint shrink-0 text-right tabular-nums">
-                                {clock(row.nextAt)}
-                            </span>
-                            <Hint label={`Stop warming ${row.label} until you write in it again`}>
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`Stop warming ${row.label}`}
-                                    onClick={() => {
-                                        onStop(row.id, row.label);
-                                    }}
-                                    className="text-faint shrink-0"
-                                >
-                                    <X className="size-3" />
-                                </Button>
-                            </Hint>
-                        </div>
-                    ))}
-                </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Stop warming ${row.label}`}
+                                        onClick={() => {
+                                            onStop(row.id, row.label);
+                                        }}
+                                        className="text-faint shrink-0"
+                                    >
+                                        <X className="size-3" />
+                                    </Button>
+                                </Hint>
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
         </dialog>,
         document.body,
