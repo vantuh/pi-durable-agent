@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { Progress } from "@/components/ui/progress.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -136,12 +137,12 @@ function Chip({
                 <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
                     {agent.window > 0 ? (
                         <>
-                            <span className="bg-raised flex h-1 w-7 overflow-hidden rounded-full">
-                                <span
-                                    className={agent.fill > WARN_ABOVE ? "bg-warn" : "bg-accent"}
-                                    style={{ width: `${String(agent.fill)}%` }}
-                                />
-                            </span>
+                            <Progress
+                                value={agent.fill}
+                                tone={agent.fill > WARN_ABOVE ? "warn" : "accent"}
+                                className="w-7"
+                                aria-label={`${agent.name} context`}
+                            />
                             {`${String(agent.fill)}%`}
                         </>
                     ) : (

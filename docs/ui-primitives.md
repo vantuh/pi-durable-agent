@@ -430,13 +430,45 @@ border.
 
 One meter, value plus tone (`warn`, `danger`), `role="progressbar"` and `aria-valuenow`.
 
-- [ ] Add `components/ui/progress.tsx`.
-- [ ] `web/src/ui/status-fields.tsx:48–58`.
-- [ ] `extensions/context-meter/web.tsx:37–38` (the per-part bar at `56` only if it is one
-      value; a segmented bar stays custom).
-- [ ] `extensions/subagents/web.tsx:135–140`.
-- [ ] `extensions/usage-limits/web.tsx:46–52`.
-- [ ] `extensions/browser/panel.tsx:328–330`.
+- [x] Add `components/ui/progress.tsx`. Radix's `Progress` brings the `progressbar` role,
+      `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, and `aria-valuetext` as a percentage. The
+      tones are `accent` (the default), `warn`, and `danger`: the three the callers were already
+      choosing between. Size and name stay with the caller, `className` for the geometry and
+      `aria-label` for the name, because every host labels its meter with its own words. The
+      indicator is filled by width, the way the hand-written meters were, not by the shadcn
+      `translateX`: the two draw the same bar, and the width is what the sites already wrote. The
+      root is a `span` through `asChild`, because three of the four hosts are a button or a span,
+      which take phrasing content only, as the timeline rule needed.
+- [x] `web/src/ui/status-fields.tsx:48–58`. The field's meter is a `w-9` `Progress`, 36×4 as before,
+      in the field's own tone, named by the field's `label` or by the extension's folder name when
+      the field has none. No installed extension writes a meter today, so this site was checked by
+      reading it and by the primitive's other hosts, not on screen.
+- [x] `extensions/context-meter/web.tsx:37–38` (the per-part bar at `56` only if it is one
+      value; a segmented bar stays custom). The status bar's meter and the popup's are `w-9` and
+      `w-32` `Progress`es, 36×4 and 128×4 as before, both named "context"; the trigger reads
+      132.02×24 either way. The per-part rows stay custom: each bar is that part's share of the
+      biggest row, not a value on its way to full, so it keeps its `aria-hidden` while the row's
+      numbers beside it say what it is.
+- [x] `extensions/subagents/web.tsx:135–140`. The chip's meter is a `w-7` `Progress`, 28×4 as
+      before, accent or warn by the same line, named "<agent> context": the strip holds one chip per
+      agent, so "context" alone would not say whose. The meter's box is unmoved, so the chip is
+      249.3×36 still.
+- [x] `extensions/usage-limits/web.tsx:46–52`. Both bars are `Progress`es: the status bar's `w-9`, 36×4
+      as before, and the popover row's `h-1.5 w-full`; the tone lines at 70 and 90 and the rounded
+      percentage are what they were, and each bar is named by the bucket's label, "5 hours". The
+      popover could not be opened without the usage refresh that calls the provider, so its row was
+      checked by its classes and by `tailwind-merge` dropping the base `h-1` for `h-1.5`, not on
+      screen.
+- [x] `extensions/browser/panel.tsx:328–330`. Nothing to migrate: the panel holds no fill meter,
+      and the line the audit named is the console's box. Its loading state is the toolbar's Stop in
+      place of Reload and the words "Starting the browser…": an indeterminate state with no bar,
+      which `Progress` at `value={null}` would draw as an empty track, a look the panel never had.
+      Nothing there has a value to name.
+
+Two of the four hosts are buttons, and ARIA gives `button` presentational children: a screen reader
+hears the button's own label, "context 19%" and "5 hours 16%", rather than the bar inside it. Those
+two keep the role and the value for the markup's sake and for one implementation of the bar; the
+gain in reading is on the popup's meter and the subagents chip's, which are announced on their own.
 
 ## Phase 3: overlays and structure
 

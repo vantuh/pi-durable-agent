@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
@@ -29,14 +30,15 @@ function compact(count: number): string {
 
 const percent = (fill: number): string => `${String(Math.round(fill * 100))}%`;
 
-function toneOf(fill: number): string {
-    return fill > DANGER_ABOVE ? "bg-danger" : fill > WARN_ABOVE ? "bg-warn" : "bg-accent";
+function toneOf(fill: number): "accent" | "warn" | "danger" {
+    return fill > DANGER_ABOVE ? "danger" : fill > WARN_ABOVE ? "warn" : "accent";
 }
 
-function Bar({ fill, className }: { fill: number; className: string }) {
+/** A share of the biggest row, not a value on its way to full: the row's numbers beside it are what it says. */
+function Share({ fill }: { fill: number }) {
     return (
         <span className="bg-raised flex h-1 overflow-hidden rounded-full" aria-hidden>
-            <span className={className} style={{ width: percent(Math.min(1, fill)) }} />
+            <span className="bg-accent" style={{ width: percent(Math.min(1, fill)) }} />
         </span>
     );
 }
@@ -54,7 +56,7 @@ function Cells({ part, biggest, fold }: { part: Part; biggest: number; fold?: bo
                 <span className="text-ink truncate">{part.name}</span>
             )}
             <span className="text-faint truncate max-sm:hidden">{part.preview}</span>
-            <Bar fill={part.tokens / biggest} className="bg-accent" />
+            <Share fill={part.tokens / biggest} />
             <span className="text-muted text-right">{compact(part.tokens)}</span>
         </>
     );
@@ -131,9 +133,12 @@ function Popup({ data, left, bottom }: { data: Breakdown; left: number; bottom: 
                                 </span>
                                 {data.window > 0 ? (
                                     <>
-                                        <span className="w-32">
-                                            <Bar fill={fill} className={toneOf(fill)} />
-                                        </span>
+                                        <Progress
+                                            value={Math.round(fill * 100)}
+                                            tone={toneOf(fill)}
+                                            className="w-32"
+                                            aria-label="context"
+                                        />
                                         <span>{percent(fill)}</span>
                                     </>
                                 ) : null}
@@ -230,9 +235,12 @@ function Context({ session }: StatusProps) {
                 className="text-faint hover:bg-sunken aria-expanded:bg-sunken px-1.5 py-0.5 font-mono"
             >
                 <span>context</span>
-                <span className="w-9">
-                    <Bar fill={fill} className={toneOf(fill)} />
-                </span>
+                <Progress
+                    value={Math.round(fill * 100)}
+                    tone={toneOf(fill)}
+                    className="w-9"
+                    aria-label="context"
+                />
                 {percent(fill)}
             </Button>
             {at === null ? null : <Popup data={data} left={at.left} bottom={at.bottom} />}

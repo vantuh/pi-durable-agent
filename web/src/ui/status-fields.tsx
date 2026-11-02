@@ -1,5 +1,6 @@
 import { memo } from "react";
 
+import { Progress } from "@/components/ui/progress";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
@@ -33,8 +34,6 @@ export const StatusItems = memo(function StatusItems({
         ));
 });
 
-const FILL_TONE = { warn: "bg-warn", danger: "bg-danger" };
-
 /** One field a server half sent. Below `sm` an `end` field is hidden, and a `center` one loses its label. */
 export function StatusField({ field }: { field: ClientStatus }) {
     const readout = (
@@ -47,16 +46,12 @@ export function StatusField({ field }: { field: ClientStatus }) {
                 </span>
             )}
             {field.meter === undefined ? null : (
-                <span className="bg-raised flex h-1 w-9 overflow-hidden rounded-full">
-                    <span
-                        className={
-                            field.meter.tone === undefined
-                                ? "bg-accent"
-                                : FILL_TONE[field.meter.tone]
-                        }
-                        style={{ width: `${String(Math.round(field.meter.fill * 100))}%` }}
-                    />
-                </span>
+                <Progress
+                    value={Math.round(field.meter.fill * 100)}
+                    tone={field.meter.tone ?? "accent"}
+                    className="w-9"
+                    aria-label={field.label ?? field.source}
+                />
             )}
             {field.text}
         </span>

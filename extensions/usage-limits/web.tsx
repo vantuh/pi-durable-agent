@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button.tsx";
+import { Progress } from "@/components/ui/progress.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
@@ -14,9 +15,12 @@ const POPOVER_WIDTH = 288;
 const WARN_ABOVE = 70;
 const DANGER_ABOVE = 90;
 
-function tone(pct: number): string {
-    return pct > DANGER_ABOVE ? "bg-danger" : pct > WARN_ABOVE ? "bg-warn" : "bg-accent";
+function toneOf(pct: number): "accent" | "warn" | "danger" {
+    return pct > DANGER_ABOVE ? "danger" : pct > WARN_ABOVE ? "warn" : "accent";
 }
+
+/** The bar's fill, 0 to 100: the rounded percentage beside it, which is what the width used to be. */
+const fillOf = (pct: number): number => Math.min(100, Math.max(0, Math.round(pct)));
 
 /** "resets in 2d 3h", as the terminal's `/usage` says it. */
 /** The status bar is narrow: long window labels shrink there; the popover keeps them whole. */
@@ -41,17 +45,6 @@ function until(resetsAt: number | null, now: number): string {
     }
 
     return `resets in ${parts.join(" ")}`;
-}
-
-function Bar({ pct, className }: { pct: number; className: string }) {
-    return (
-        <span className={`bg-raised overflow-hidden rounded-full ${className}`}>
-            <span
-                className={`${tone(pct)} h-full`}
-                style={{ width: `${String(Math.min(100, Math.max(0, Math.round(pct))))}%` }}
-            />
-        </span>
-    );
 }
 
 /** Every provider's limits, read on a slow timer and when the popover opens; a session switch only picks another row. */
@@ -127,7 +120,12 @@ function Row({ bucket, now }: { bucket: Bucket; now: number }) {
                 <span className="text-muted">{bucket.label}</span>
                 <span className="text-ink font-mono tabular-nums">{Math.round(bucket.pct)}%</span>
             </div>
-            <Bar pct={bucket.pct} className="my-1 flex h-1.5 w-full" />
+            <Progress
+                value={fillOf(bucket.pct)}
+                tone={toneOf(bucket.pct)}
+                className="my-1 h-1.5 w-full"
+                aria-label={bucket.label}
+            />
             {reset === "" ? null : <div className="text-faint">{reset}</div>}
         </div>
     );
@@ -273,7 +271,12 @@ function UsageLimits({ session }: StatusProps) {
                     ) : (
                         <>
                             <span>{SHORT[bucket.label] ?? bucket.label}</span>
-                            <Bar pct={bucket.pct} className="flex h-1 w-9" />
+                            <Progress
+                                value={fillOf(bucket.pct)}
+                                tone={toneOf(bucket.pct)}
+                                className="w-9"
+                                aria-label={bucket.label}
+                            />
                             {String(Math.round(bucket.pct))}%
                         </>
                     )}

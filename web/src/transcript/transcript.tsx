@@ -45,7 +45,7 @@ function WithFiles({ text }: { text: string }) {
 
         parts.push(text.slice(at, start));
         parts.push(
-            <Badge key={start} className="border-info/40 bg-info/15 text-info align-middle">
+            <Badge key={start} tone="info" className="align-middle">
                 <File />
                 {match[2]}
             </Badge>,
@@ -69,7 +69,7 @@ function MessageBody({ text }: { text: string }) {
 
     return (
         <div className="flex flex-col items-start gap-1.5">
-            <Badge className="border-warn/40 bg-warn/15 text-warn">
+            <Badge tone="warn">
                 <Lightbulb />
                 {match[1]}
             </Badge>

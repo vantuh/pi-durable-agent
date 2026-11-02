@@ -32,7 +32,9 @@ function SessionTags({ session }: SessionItemProps) {
                     title={tag.name}
                     className={`rounded-control h-auto max-w-20 truncate border-0 px-1 py-0.5 font-sans ${TAG_TONE[tag.color]}`}
                 >
-                    {tag.name}
+                    {/* The name is its own box, because `truncate` clips a badge's anonymous text child
+                        without an ellipsis; the badge keeps its own so `max-w-20` still wins. */}
+                    <span className="truncate">{tag.name}</span>
                 </Badge>
             ))}
             {tags.length === shown.length ? null : (

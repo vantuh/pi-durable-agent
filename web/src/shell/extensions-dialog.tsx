@@ -178,7 +178,7 @@ function ExtensionList() {
                                         {hasExtensionDetails(row.name) ? (
                                             <Button
                                                 variant="ghost"
-                                                className="text-ink justify-start rounded px-0 py-0 text-left after:absolute after:inset-0"
+                                                className="text-ink justify-start px-0 py-0 text-left after:absolute after:inset-0"
                                                 onClick={() => setSelected(row.name)}
                                             >
                                                 {row.title}
