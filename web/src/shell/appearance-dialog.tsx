@@ -11,6 +11,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { DiffLayout } from "../lib/diff-layout.ts";
@@ -39,7 +40,9 @@ export function AppearanceButton() {
                 ref={content}
                 onOpenAutoFocus={(event) => {
                     event.preventDefault();
-                    content.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus();
+                    content.current
+                        ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+                        ?.focus();
                 }}
             >
                 <DialogHeader>
@@ -61,20 +64,29 @@ function FlavourGrid() {
 
     return (
         <ScrollArea className="min-h-0 flex-1">
-            <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-4">
+            <ToggleGroup
+                type="single"
+                value={active}
+                aria-label="Theme"
+                onValueChange={(value) => {
+                    // A single group lets its pressed item be pressed off; a flavour always stays chosen.
+                    const flavour = FLAVOURS.find((name) => name === value);
+
+                    if (flavour === undefined) {
+                        return;
+                    }
+
+                    applyFlavour(flavour);
+                    setActive(flavour);
+                }}
+                className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
+            >
                 {FLAVOURS.map((flavour) => (
-                    <button
+                    <ToggleGroupItem
                         key={flavour}
-                        type="button"
-                        aria-pressed={flavour === active}
+                        value={flavour}
                         aria-label={flavour}
-                        onClick={() => {
-                            applyFlavour(flavour);
-                            setActive(flavour);
-                        }}
-                        className={`rounded-card border-edge-soft bg-raised focus-visible:outline-ink flex flex-col gap-2 border p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                            flavour === active ? "ring-accent ring-2" : ""
-                        }`}
+                        className="bg-raised border-edge-soft rounded-card focus-visible:outline-ink text-ink data-[state=on]:ring-accent flex flex-col gap-2 border p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 data-[state=on]:ring-2"
                     >
                         <Preview flavour={flavour} />
                         <span className="text-interface text-ink capitalize">{flavour}</span>
@@ -86,9 +98,9 @@ function FlavourGrid() {
                                 />
                             ))}
                         </span>
-                    </button>
+                    </ToggleGroupItem>
                 ))}
-            </div>
+            </ToggleGroup>
         </ScrollArea>
     );
 }
@@ -104,24 +116,29 @@ function WidthPicker() {
                     Wide screens: how much room the conversation takes.
                 </span>
             </div>
-            <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
+            <ToggleGroup
+                type="single"
+                value={active}
+                aria-label="Width"
+                onValueChange={(value) => {
+                    // A single group lets its pressed item be pressed off; a width always stays chosen.
+                    const width = WIDTH_NAMES.find((name) => name === value);
+
+                    if (width === undefined) {
+                        return;
+                    }
+
+                    applyWidth(width);
+                    setActive(width);
+                }}
+                className="rounded-control bg-sunken flex shrink-0 p-0.5"
+            >
                 {WIDTH_NAMES.map((width) => (
-                    <button
-                        key={width}
-                        type="button"
-                        aria-pressed={width === active}
-                        onClick={() => {
-                            applyWidth(width);
-                            setActive(width);
-                        }}
-                        className={`rounded-control text-interface px-2 py-1 capitalize ${
-                            width === active ? "bg-raised text-ink" : "text-muted"
-                        }`}
-                    >
+                    <ToggleGroupItem key={width} value={width} className="px-2 py-1 capitalize">
                         {width}
-                    </button>
+                    </ToggleGroupItem>
                 ))}
-            </div>
+            </ToggleGroup>
         </div>
     );
 }
@@ -137,24 +154,29 @@ function DiffLayoutPicker() {
                     An edit's changes: one column, or the old file beside the new.
                 </span>
             </div>
-            <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
+            <ToggleGroup
+                type="single"
+                value={active}
+                aria-label="Diffs"
+                onValueChange={(value) => {
+                    // A single group lets its pressed item be pressed off; a layout always stays chosen.
+                    const layout = DIFF_LAYOUTS.find((name) => name === value);
+
+                    if (layout === undefined) {
+                        return;
+                    }
+
+                    applyDiffLayout(layout);
+                    setActive(layout);
+                }}
+                className="rounded-control bg-sunken flex shrink-0 p-0.5"
+            >
                 {DIFF_LAYOUTS.map((layout) => (
-                    <button
-                        key={layout}
-                        type="button"
-                        aria-pressed={layout === active}
-                        onClick={() => {
-                            applyDiffLayout(layout);
-                            setActive(layout);
-                        }}
-                        className={`rounded-control text-interface px-2 py-1 ${
-                            layout === active ? "bg-raised text-ink" : "text-muted"
-                        }`}
-                    >
+                    <ToggleGroupItem key={layout} value={layout} className="px-2 py-1">
                         {layout === "split" ? "Side by side" : "Unified"}
-                    </button>
+                    </ToggleGroupItem>
                 ))}
-            </div>
+            </ToggleGroup>
         </div>
     );
 }

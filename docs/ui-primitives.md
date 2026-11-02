@@ -658,9 +658,27 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 ### 3.6 ToggleGroup (new)
 
-- [ ] Add `components/ui/toggle-group.tsx`.
-- [ ] `web/src/shell/appearance-dialog.tsx` — flavour (`65–83`), sidebar width (`110–123`),
-      layout (`143–155`). The palette gear above them is a `Button` already.
+- [x] Add `components/ui/toggle-group.tsx`, with the flavour cards of the appearance dialog as its
+      first caller. Radix's `type="single"` emits `role="radiogroup"` over `role="radio"` items
+      carrying `aria-checked`, not the `aria-pressed` the hand-written buttons had, and it lets the
+      pressed item be pressed off again: a caller that must always have one value ignores the empty
+      one. The item carries the look the three groups share — `rounded-control`, `text-interface`, the
+      raised fill and ink of a pressed control, muted when not, read off `data-[state=on]` — and the
+      caller keeps the padding and the layout, so the segmented rows and the card grid are unmoved.
+- [x] `web/src/shell/appearance-dialog.tsx` — flavour (`65–83`, with the primitive), sidebar width
+      (`110–123`), layout (`143–155`). The palette gear above them is a `Button` already. Each group
+      keeps the value it reads at mount and the call that persists it: `flavour` and `width` in
+      localStorage, `diff-layout` as a key plus an event its viewers listen to. What changed is the
+      keyboard and the announcement: the dialog's ten tab stops are five, one per group and one for
+      the close, and a group is entered on the item it has pressed; arrows move the focus inside a
+      group, Space or Enter presses, and the dialog's open-focus rule reads
+      `[role="radio"][aria-checked="true"]` instead of the `aria-pressed` that is gone. The groups are
+      named `Theme`, `Width` and `Diffs` so a `radiogroup` is announced with the label its row already
+      shows. Measured unmoved at 1280×800 and 390×844: a flavour card
+      112.5×132.5 and 177×132.5, a segmented item 30.5 tall in a 196.28×34.5 pill, the same fills,
+      radii and paddings. The flavour card's focus ring is its own (`outline-ink` over the accent
+      ring of the pressed card); the segmented items keep the browser's ring they had, since neither
+      the primitive nor the caller gives them one.
 
 ### 3.7 Alert (new)
 
@@ -750,6 +768,49 @@ match, never to force one look.
       `extensions/git-history/web.tsx:780–782`, `extensions/git-worktree/web.tsx:153–156`.
       Code block (`markdown.tsx:80`), diff (`diff.tsx:297`), user bubble (`transcript.tsx:389`)
       and attachments stay as they are.
+
+## Phase 4: design-system audit
+
+Starts only after every Phase 3 box is ticked. Its aim: a change to the theme — a radius, a colour,
+a base spacing step, a font size — reaches every screen by itself, with no call site to edit. Every
+finding is fixed in this phase, not just listed.
+
+### 4.1 Every class comes from the theme
+
+- [ ] Audit every `className` and `cn(...)` in `web/src` and `extensions/` for values that bypass
+      the theme: arbitrary values (`rounded-[4px]`, `px-[7px]`, `h-[30px]`, `text-[11px]`,
+      `gap-[3px]`, `shadow-[…]`), raw lengths in inline `style` that are not computed geometry,
+      Tailwind defaults where the theme has its own name (`rounded` / `rounded-md` beside
+      `rounded-control`, `text-xs` beside `text-meta`), and any colour that is not a role.
+- [ ] Fix each finding: use the theme's token, or add the missing token to the theme first
+      (`styles.css`, and `catppuccin.css` for a colour), then use it. A value that must stay
+      literal (measured geometry, a computed width) gets a one-line reason beside it.
+- [ ] One focus treatment: every focusable primitive draws the theme's ring. Known gaps:
+      `ToggleGroupItem` shows the browser's own outline, the flavour cards use `outline-ink`.
+- [ ] Teach `cn` (`web/src/lib/utils.ts`) every theme scale it does not know yet, so a caller's
+      token always wins over a primitive's base.
+
+### 4.2 Repeated code goes to one place
+
+- [ ] Audit for repetition across `web/src` and `extensions/`: the same class string or class
+      fragment in several files, the same small function (formatting a time, a path, a percentage,
+      a count; picking a tone; building a class), the same wrapper component written twice.
+- [ ] Move each repeat to the place that owns it: a primitive's variant or size, a component in
+      `web/src/ui/`, a helper in `web/src/lib/`, or an extension's own `refs.ts`. Extensions still
+      never import each other (AGENTS.md); a helper two extensions need goes to the core only if
+      it is not about either of them.
+- [ ] Delete the copies; no re-export shims.
+
+### 4.3 The rule, written down
+
+- [ ] Extend the colour rule in `AGENTS.md` (and `docs/conventions.md`) to every design value:
+      radius, spacing, font size, line height, shadow, and control height come from the theme by
+      name; an arbitrary value needs a reason in the code.
+
+### 4.4 What changed, in plain words
+
+- [ ] When everything above is done, write a short summary for the person using the app: what
+      looks and works better, what is new, and what to expect — without implementation detail.
 
 ## Repeated elements this plan unifies
 
