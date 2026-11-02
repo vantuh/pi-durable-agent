@@ -303,15 +303,26 @@ function ChangesView({
     target,
     header,
     viewRef,
+    open,
+    reread,
 }: {
     session: number;
     target: string;
     header: ReactNode;
     viewRef: RefObject<CodeViewHandle<undefined, undefined> | null>;
+    /** This detail is the one on screen: opening it again reads it again. */
+    open: boolean;
+    /** Bumped by Refresh and by a reword: the commit it names comes back from the cache. */
+    reread: number;
 }) {
     const [data, setData] = useState<Changes | null>(() => cachedPatch(session, target) ?? null);
     const [error, setError] = useState<string | null>(null);
     useEffect(() => {
+        // A detail kept offscreen under the list reads nothing; the commit comes back from the cache,
+        // but the working tree has changed under the page, so opening it again reads it again.
+        if (!open) {
+            return undefined;
+        }
         let alive = true;
         void (async () => {
             try {
@@ -328,7 +339,8 @@ function ChangesView({
         return () => {
             alive = false;
         };
-    }, [session, target]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Refresh reads the shown target again
+    }, [session, target, open, reread]);
     if (error !== null) {
         return (
             <PendingPane header={header}>
@@ -468,6 +480,7 @@ function CommitDetail({
     upstream,
     reviewState,
     open,
+    reread,
     active,
     onReview,
     onReviewAgain,
@@ -480,6 +493,7 @@ function CommitDetail({
     upstream: string | null | undefined;
     reviewState: ReviewState | null;
     open: boolean;
+    reread: number;
     /** This detail is the layer on screen; a review on top of it makes it inactive for the keyboard. */
     active: boolean;
     onReview: (target: string) => Promise<void>;
@@ -616,6 +630,8 @@ function CommitDetail({
             target={actionTarget(target)}
             header={header}
             viewRef={view}
+            open={open}
+            reread={reread}
         />
     );
 }
@@ -1118,6 +1134,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         upstream={data?.upstream}
                         reviewState={state}
                         open={open}
+                        reread={refresh}
                         active={place.kind === "commit"}
                         onReview={begin}
                         onReviewAgain={(target) => {
