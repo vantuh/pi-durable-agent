@@ -180,7 +180,7 @@ Extensions:
 - [x] `extensions/git-worktree/web.tsx` — remove (`116–120`). The × is ghost in the icon's own 14px
       box with the hover fill off, so nothing paints outside the 16px pill; its action title is a
       `Hint` now. The dialog's `Remove worktree` is `variant="danger"` instead of a hand-painted one,
-      and the flow itself waits for [AlertDialog](#34-alertdialog-new).
+      and the flow itself waited for [AlertDialog](#34-alertdialog-new).
 - [x] `extensions/anthropic-subscription/account-details.tsx` — submit (`49–61`). The button is ghost
       inside its own border, with `text-ink` and `font-normal` so it reads as the outline action it
       was; it is a `type="button"` that reads and does not submit, and the field beside it stays for
@@ -582,19 +582,79 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 ### 3.4 AlertDialog (new)
 
-- [ ] Add `components/ui/alert-dialog.tsx`.
-- [ ] `web/src/shell/sessions.tsx:1184–1220` — delete confirmation; keep the pending state.
-- [ ] `extensions/git-worktree/web.tsx:116–175` — remove-worktree flow.
+- [x] Add `components/ui/alert-dialog.tsx`. The overlay and the surface are `dialog.tsx`'s; the card
+      is sized to a question — `max-w-md`, centred, with its margins at every width — where a dialog
+      fills the screen below `sm` because it holds a body. `AlertDialogFooter` is
+      `flex-col … sm:flex-row`, not the dialog's `flex-col-reverse`: Cancel is first in the DOM
+      because it is the first tab stop and the focus on open, and it must stay the first on screen
+      too. `Action` and `Cancel` are our `Button` through `asChild`, `danger` and `ghost` unless the
+      caller says otherwise. A caller whose answer waits calls `event.preventDefault()`: `Action` is
+      the primitive's `Close`, so without it the question would close on the click and not on the
+      answer. `Trigger` is exported with the rest of the family; neither site opens one from a
+      trigger.
+- [x] `web/src/shell/sessions.tsx:1184–1220` — delete confirmation; keep the pending state. The row
+      mounts its own `AlertDialog` beside its rename popover, because the actions trigger that has to
+      take the focus back is there: `onCloseAutoFocus` preventDefaults and focuses it, the one line
+      the rename popover already needed. Gone: `role="alertdialog"`, the `ref` that called
+      `node?.focus()`, and `place` with its `useLayoutEffect` and `dialog` ref — the last user of the
+      placement math; `rowNodes` stays for `session.rename`'s scroll into view. The wording is the old
+      sentence split into a title and its line, `Delete “X”?` over `It disappears for good.`, and the
+      answers are the same `No` and `Yes, delete` at the button's own size instead of the narrow
+      panel's `sm`. The pending state stays: both answers disabled, the label reads `Deleting…`, and
+      neither Escape nor `No` closes the card until the delete returns. The toast and the navigation
+      away from a deleted session are App's, unchanged. What moved: the panel was anchored at the
+      row's height and is a centred modal over an overlay now.
+- [x] `extensions/git-worktree/web.tsx:116–175` — remove-worktree flow. The same content, the same
+      `Removing…` and the same error line; the hand-written `danger` `Button` is `AlertDialogAction`
+      and the `ghost` one is `AlertDialogCancel`, without the `font-medium` and the
+      `flex-col sm:flex-row` override the footer carries now. The `!removing` guard in `onOpenChange`
+      keeps Escape dead while the removal runs. No session on this machine works in a worktree, so
+      the pending pair, the refusal keeping the card open, and Escape in between were measured in a
+      throwaway page that mounted the primitive with a call that rejects — deleted afterwards.
 
 ### 3.5 Sheet (new)
 
-- [ ] Add `components/ui/sheet.tsx` on top of the dialog primitive.
-- [ ] `web/src/shell/settings.tsx:20–60` — direct Radix Dialog → Sheet; keep the explicit
-      return-focus target. The header's close is a `Button` already.
-- [ ] `extensions/git-history/web.tsx:1210–1283` — sliding panel.
-- [ ] Decide after the two above: `web/src/shell/panels.tsx:181–187, 293–321` and
-      `web/src/shell/sessions.tsx:840–846` on narrow screens only. Wide screens keep the
-      resizable panel.
+- [x] Add `components/ui/sheet.tsx` on top of the dialog primitive: `Sheet`, `SheetTrigger`,
+      `SheetClose`, `SheetContent`, `SheetTitle`. The overlay is `dialog.tsx`'s, slot and all, so the
+      scrim fades with the 150ms the dialog's does. `SheetContent` draws no button of its own, where
+      the shadcn sheet carries an X in a corner: the settings sheet keeps its close in its header
+      row, and a second one would move the first tab stop into the body. The motion is the
+      stylesheet's `[data-slot="sheet-content"]` (`panel-in`/`panel-out`, 200ms, already 1ms under
+      `prefers-reduced-motion`), so no `tailwindcss-animate` and no new keyframes. `side` is a record
+      with `right` only, the one caller's edge; `top`, `bottom` and `left` wait for a caller.
+      `SheetHeader`, `SheetDescription` and `SheetFooter` are not exported: the settings header is its
+      own row with the close button in it, it has no description, and its footer belongs to
+      `settings-content.tsx`. `SheetTrigger` has no caller yet either — the gear that opens the sheet
+      is outside it, which is why the sheet still states its own return-focus target.
+- [x] `web/src/shell/settings.tsx:20–60` — direct Radix Dialog → Sheet; keep the explicit
+      return-focus target. The header's close is a `Button` already, and is a `SheetClose asChild`
+      inside the same `Hint`. Unmoved: 360×744 at (912, 8) at 1280×800 and 374×828 at (8, 8) at
+      390×844, `rounded-card`, one `edge-soft` border, `panel-in` on open; Close is the focus on
+      open, Escape, the close button and a click on the scrim all close, and the gear takes the focus
+      back. One look changed: the scrim is `sunken` at 70% like the two dialogs', not the sheet's own
+      40%, since one overlay is one element. [layout.md](layout.md) says so now. Escape reaches the
+      sheet on the second press while the close button holds the focus and its `Hint` is showing: that
+      was true of the dialog it was built from, and is not the Sheet's.
+
+- [x] `extensions/git-history/web.tsx:1219–1270` — sliding panel. **Stays custom**, and it is not an
+      edge panel at all: no overlay, no focus trap, no Escape, and the page stays live behind it. It is
+      a second pane pushed over the first inside the git-history page (a `transition-transform` on two
+      `aria-hidden`/`inert` siblings), addressed by `?page=history&sub=…`, so Back, the frame's own
+      Back button and a review's address all move it (`navigate`, `parentSub`). A sheet would answer
+      all three with a modal: its overlay would cut the page out of reach of the list behind it, its
+      Escape would fight the frame's, and its own unmount would throw away the address-driven place
+      that survives a re-open. Kept.
+- [x] Decide after the two above: `web/src/shell/panels.tsx:190–204, 305` and
+      `web/src/shell/sessions.tsx:984–992` on narrow screens only. Wide screens keep the resizable
+      panel. **Both stay custom.** Neither is a dialog: both mount the one component that also fills
+      the desktop column, the same `aside` with the same children, and only the classes change at
+      `lg`. A sheet mounts its content in a portal that Radix unmounts when closed, so the sidebar
+      would lose its list scroll, its search state and its place at every breakpoint change, and a
+      panel would lose its body — a live browser view inside it is thrown away by a remount, which is
+      why the panel is already kept mounted and slid out with `panel-in`/`panel-out` (the motion the
+      sheet reuses was written for it). Radix's overlay also takes the app out of reach: the panel
+      host is a sibling column on a desktop, and the status bar, the conversation and its own close
+      button have to stay usable while it is open.
 
 ### 3.6 ToggleGroup (new)
 

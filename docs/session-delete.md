@@ -2,7 +2,8 @@
 
 Archiving hides a conversation and can be undone; deleting is the other action in the same row menu
 and has no way back. The row's ellipsis offers Rename, Archive / Restore and Delete; Delete asks
-first — one small panel with No and Yes, delete — and only then removes the row from every list.
+first — a small dialog over the app with No and Yes, delete, No focused, Escape or No to back out —
+and only then removes the row from every list.
 
 Deleting writes nothing but a note: the `app.deleted` conversation document, default false, no
 migration. The conversation, its entries and its documents stay in `data/state.sqlite` exactly as

@@ -182,11 +182,12 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 ## Settings
 
 The gear at the right end of the status bar opens a sheet from the right edge, over the app: the
-sidebar and the conversation keep their width, a scrim (`sunken` at 40%) dims them, and a click on
-the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear stays
-raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm` up;
-below `sm` it fills the screen inside the 8px gaps. It is a Radix dialog that is unmounted when
-closed, so its sections read afresh at each open. Under its sections is a footer row with two icon
+sidebar and the conversation keep their width, a scrim (`sunken` at 70%, the dialogs' own) dims them,
+and a click on the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear
+stays raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm`
+up; below `sm` it fills the screen inside the 8px gaps. It is a `Sheet`
+(`components/ui/sheet.tsx`, over the dialog primitive) that is unmounted when closed, so its sections
+read afresh at each open. Under its sections is a footer row with two icon
 buttons: a puzzle ("Extensions") that opens a modal to turn extensions on and off
 ([extensions.md](extensions.md)), and a palette ("Appearance: theme") that opens a modal with one
 card per flavour ([theme.md](theme.md)). Both modals are full screen below `sm` and a centred card

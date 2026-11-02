@@ -1,8 +1,8 @@
 import { X } from "lucide-react";
-import { Dialog as DialogPrimitive } from "radix-ui";
 import { lazy, type RefObject, Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { Props } from "./settings-content.tsx";
@@ -20,7 +20,7 @@ export function Settings({
     ...props
 }: Props & { returnFocusTo: RefObject<HTMLElement | null> }) {
     return (
-        <DialogPrimitive.Root
+        <Sheet
             open={open}
             onOpenChange={(next) => {
                 if (!next) {
@@ -28,38 +28,28 @@ export function Settings({
                 }
             }}
         >
-            <DialogPrimitive.Portal>
-                <DialogPrimitive.Overlay
-                    data-slot="dialog-overlay"
-                    className="bg-sunken/40 fixed inset-0 z-50"
-                />
-                <DialogPrimitive.Content
-                    data-slot="sheet-content"
-                    aria-describedby={undefined}
-                    // The gear is outside this dialog, so Radix has no trigger to give focus back to.
-                    onCloseAutoFocus={(event) => {
-                        event.preventDefault();
-                        returnFocusTo.current?.focus();
-                    }}
-                    className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-50 flex flex-col overflow-hidden border outline-none sm:bottom-12 sm:left-auto sm:w-[360px]"
-                >
-                    <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
-                        <DialogPrimitive.Title className="text-interface text-ink font-medium">
-                            Settings
-                        </DialogPrimitive.Title>
-                        <Hint label="Close">
-                            <DialogPrimitive.Close asChild>
-                                <Button variant="ghost" size="icon-sm" aria-label="Close">
-                                    <X className="size-4" />
-                                </Button>
-                            </DialogPrimitive.Close>
-                        </Hint>
-                    </header>
-                    <Suspense fallback={null}>
-                        <Content {...props} />
-                    </Suspense>
-                </DialogPrimitive.Content>
-            </DialogPrimitive.Portal>
-        </DialogPrimitive.Root>
+            <SheetContent
+                aria-describedby={undefined}
+                // The gear is outside this sheet, so Radix has no trigger to give focus back to.
+                onCloseAutoFocus={(event) => {
+                    event.preventDefault();
+                    returnFocusTo.current?.focus();
+                }}
+            >
+                <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
+                    <SheetTitle>Settings</SheetTitle>
+                    <Hint label="Close">
+                        <SheetClose asChild>
+                            <Button variant="ghost" size="icon-sm" aria-label="Close">
+                                <X className="size-4" />
+                            </Button>
+                        </SheetClose>
+                    </Hint>
+                </header>
+                <Suspense fallback={null}>
+                    <Content {...props} />
+                </Suspense>
+            </SheetContent>
+        </Sheet>
     );
 }

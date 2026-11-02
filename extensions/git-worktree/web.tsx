@@ -1,17 +1,19 @@
 import { CircleAlert, FolderGit2, FolderX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
@@ -134,7 +136,7 @@ function Mark({ session }: StatusProps) {
                 ) : null}
             </Badge>
 
-            <Dialog
+            <AlertDialog
                 open={asking}
                 onOpenChange={(open) => {
                     if (!removing) {
@@ -143,17 +145,16 @@ function Mark({ session }: StatusProps) {
                     }
                 }}
             >
-                <DialogContent>
-                    {/* The notice stands in for the line under the header, and keeps the dialog's
-                        own side margins, which the header's do not reach past the close button. */}
-                    <DialogHeader className={failure === null ? undefined : "border-b-0"}>
-                        <DialogTitle>Remove the worktree {worktree.name}?</DialogTitle>
-                        <DialogDescription>
+                <AlertDialogContent>
+                    {/* The notice stands in for the line under the header. */}
+                    <AlertDialogHeader className={failure === null ? undefined : "border-b-0"}>
+                        <AlertDialogTitle>Remove the worktree {worktree.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
                             {worktree.folder} goes, with everything in it that is not committed.
                             What is committed stays on the branch {worktree.name}. The session stays
                             too, but nothing it runs will work until a folder is there again.
-                        </DialogDescription>
-                    </DialogHeader>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
 
                     {failure === null ? null : (
                         <div className="bg-danger/10 text-meta mx-3 mb-1 flex items-start gap-2 rounded-lg px-3 py-2">
@@ -162,23 +163,13 @@ function Mark({ session }: StatusProps) {
                         </div>
                     )}
 
-                    {/* No first on a phone too: the safe answer is where the thumb lands. */}
-                    <DialogFooter className="flex-col sm:flex-row">
-                        <Button
-                            variant="ghost"
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={removing}>No</AlertDialogCancel>
+                        <AlertDialogAction
                             disabled={removing}
-                            className="font-medium"
-                            onClick={() => {
-                                setAsking(false);
-                                setFailure(null);
-                            }}
-                        >
-                            No
-                        </Button>
-                        <Button
-                            variant="danger"
-                            disabled={removing}
-                            onClick={() => {
+                            onClick={(event) => {
+                                // The answer is the removal: the question closes once it returns.
+                                event.preventDefault();
                                 setRemoving(true);
                                 setFailure(null);
 
@@ -204,10 +195,10 @@ function Mark({ session }: StatusProps) {
                             }}
                         >
                             {removing ? "Removing…" : "Remove worktree"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
