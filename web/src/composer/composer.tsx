@@ -13,6 +13,7 @@ import {
     withdrawQueued,
 } from "../lib/api.ts";
 import { fuzzyScore } from "../lib/fuzzy.ts";
+import { randomId } from "../lib/id.ts";
 import { splitQuote, withQuotes } from "../lib/quote.ts";
 import { thinkingText } from "../lib/thinking.ts";
 import { toast } from "../lib/toast.ts";
@@ -150,7 +151,7 @@ function forget(gone: Pending[]): void {
 /** A file that waits in the queue, back as a composer attachment: the bytes are still under its path. */
 function pendingOf(file: ClientAttachment): Pending {
     return {
-        key: crypto.randomUUID(),
+        key: randomId(),
         name: file.name,
         size: file.size,
         image: file.image,
@@ -321,7 +322,7 @@ export const Composer = memo(function Composer({
             return [
                 file,
                 {
-                    key: crypto.randomUUID(),
+                    key: randomId(),
                     name: file.name,
                     size: file.size,
                     image,

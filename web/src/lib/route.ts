@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type Route, routeFromSearch, routeHref } from "./deep-link.ts";
+import { randomId } from "./id.ts";
 
 /** `/` is home, `?session=N` is a session: the links pushes already send. */
 export function sessionHref(session: number | null): string {
@@ -184,7 +185,7 @@ export function useRoute(): RouteNavigation {
         const entry = historyEntry();
 
         if (entry === undefined) {
-            const id = crypto.randomUUID();
+            const id = randomId();
 
             history.replaceState({ pi: { route: current.current, id } }, "");
             rememberRoute(id, current.current);
@@ -227,7 +228,7 @@ export function useRoute(): RouteNavigation {
                 return;
             }
 
-            const id = crypto.randomUUID();
+            const id = randomId();
             const behind = historyEntry()?.id;
             const entry: Entry =
                 behind === undefined ? { route: next, id } : { route: next, id, from: behind };
@@ -246,7 +247,7 @@ export function useRoute(): RouteNavigation {
             const before = current.current;
             // The entry keeps its id, so a child still names it; the record shows it is no longer that
             // route, which is what stops the child's marker from being trusted. It forgets its own way back.
-            const id = historyEntry()?.id ?? crypto.randomUUID();
+            const id = historyEntry()?.id ?? randomId();
 
             history.replaceState({ pi: { route: next, id } }, "", routeHref(next));
             rememberRoute(id, next);
