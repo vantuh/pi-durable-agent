@@ -21,6 +21,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { FileTree } from "./file-tree.tsx";
@@ -191,13 +192,14 @@ function FileHeader({
     onToggle: (header: HTMLButtonElement) => void;
 }) {
     return (
-        <button
-            type="button"
+        <Button
+            variant="ghost"
+            size="sm"
             aria-expanded={open}
             onClick={(event) => {
                 onToggle(event.currentTarget);
             }}
-            className="bg-panel border-edge-soft text-meta text-muted hover:bg-raised flex h-9 w-full items-center gap-2 border-t px-3 text-left font-mono"
+            className="bg-panel border-edge-soft text-muted hover:bg-raised hover:text-muted h-9 w-full gap-2 rounded-none border-t px-3 font-mono font-normal"
         >
             <ChevronRight
                 className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
@@ -213,7 +215,7 @@ function FileHeader({
             {counts.deleted > 0 ? (
                 <span className="text-danger shrink-0 tabular-nums">−{counts.deleted}</span>
             ) : null}
-        </button>
+        </Button>
     );
 }
 

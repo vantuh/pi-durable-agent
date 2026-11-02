@@ -8,7 +8,9 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 import { langOfPath } from "@/lib/highlight.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
@@ -150,18 +152,20 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
         <>
             <div className="border-edge-soft flex items-center justify-between border-b px-3 py-1.5">
                 <span className="text-faint text-meta">Session folder</span>
-                <button
-                    type="button"
-                    title="Reload"
-                    onClick={() => {
-                        setFolders({});
-                        setOpen(new Set([""]));
-                        void load("");
-                    }}
-                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                >
-                    <RotateCw className="size-3.5" />
-                </button>
+                <Hint label="Reload">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Reload"
+                        onClick={() => {
+                            setFolders({});
+                            setOpen(new Set([""]));
+                            void load("");
+                        }}
+                    >
+                        <RotateCw className="size-3.5" />
+                    </Button>
+                </Hint>
             </div>
             {error === null ? null : <p className="text-danger text-interface p-3">{error}</p>}
             <ScrollArea className="min-h-0 flex-1">
@@ -200,14 +204,17 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
     return (
         <>
             <div className="border-edge-soft flex items-center gap-1 border-b p-2">
-                <button
-                    type="button"
-                    title="Back to the tree"
-                    onClick={onBack}
-                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 shrink-0 items-center justify-center"
-                >
-                    <ArrowLeft className="size-4" />
-                </button>
+                <Hint label="Back to the tree">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Back to the tree"
+                        onClick={onBack}
+                        className="shrink-0"
+                    >
+                        <ArrowLeft className="size-4" />
+                    </Button>
+                </Hint>
                 <span className="text-interface text-ink min-w-0 flex-1 truncate font-mono">
                     {path}
                 </span>

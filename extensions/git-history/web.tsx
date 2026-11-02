@@ -23,6 +23,8 @@ import {
 } from "react";
 
 import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
@@ -58,8 +60,9 @@ const WORKING = "working";
 const reported = new Set<string>();
 const HASH = /^[0-9a-f]{4,64}$/i;
 
+/** The page's outline action: ghost's hover fill inside a border, with the ink the page's text has. */
 const button =
-    "rounded-control border-edge hover:bg-raised text-interface border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
+    "border-edge text-interface text-ink border px-2.5 py-1.5 font-normal disabled:opacity-40 disabled:cursor-not-allowed";
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 // A commit row counts from now; this is the same instant spelled out in the reader's own zone.
 const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
@@ -193,16 +196,16 @@ function RewordForm({
                 </p>
             ) : null}
             <div className="flex gap-2">
-                <button type="button" className={button} disabled={saving} onClick={onClose}>
+                <Button variant="ghost" className={button} disabled={saving} onClick={onClose}>
                     Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                     type="submit"
-                    className="rounded-control bg-accent text-on-accent text-interface px-4 py-1.5 font-medium disabled:opacity-40"
+                    className="px-4 py-1.5 disabled:opacity-40"
                     disabled={saving || subject.trim() === ""}
                 >
                     {saving ? "Saving…" : "Save"}
-                </button>
+                </Button>
             </div>
         </form>
     );
@@ -432,9 +435,9 @@ function HistoryRow({
 }) {
     return (
         <li className="border-edge-soft border-b">
-            <button
+            <Button
                 ref={rowRef}
-                type="button"
+                variant="ghost"
                 onClick={() => {
                     onOpen(target);
                 }}
@@ -447,7 +450,7 @@ function HistoryRow({
                 onFocus={() => {
                     onPrefetch(target === WORKING ? undefined : target);
                 }}
-                className="hover:bg-raised focus-visible:ring-accent flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                className="w-full min-w-0 justify-start gap-2 rounded-none px-3 py-2 font-normal focus-visible:ring-inset"
             >
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
@@ -469,7 +472,7 @@ function HistoryRow({
                     </span>
                 </span>
                 <ChevronRight className="text-faint size-4 shrink-0" />
-            </button>
+            </Button>
         </li>
     );
 }
@@ -626,29 +629,29 @@ function CommitDetail({
                 {broken ? null : (
                     <div className="flex shrink-0 flex-wrap gap-2">
                         {rewritable ? (
-                            <button
-                                type="button"
-                                className={`${button} flex items-center gap-1.5`}
+                            <Button
+                                variant="ghost"
+                                className={button}
                                 onClick={() => {
                                     setEditing((old) => !old);
                                 }}
                             >
                                 <Pencil className="size-3.5" /> Reword
-                            </button>
+                            </Button>
                         ) : null}
                         {mine && running(reviewState) ? (
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 className={button}
                                 onClick={() => {
                                     onReviewAgain(target);
                                 }}
                             >
                                 Resume review
-                            </button>
+                            </Button>
                         ) : (
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 className={button}
                                 disabled={starting || running(reviewState)}
                                 onClick={() => {
@@ -656,7 +659,7 @@ function CommitDetail({
                                 }}
                             >
                                 Review
-                            </button>
+                            </Button>
                         )}
                     </div>
                 )}
@@ -732,15 +735,15 @@ function ReviewView({
             <div className="border-edge-soft flex items-center gap-2 border-b px-3 py-1.5">
                 <span className="text-meta text-muted">Plannotator review</span>
                 {running(state) ? (
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         className={`${button} ml-auto`}
                         onClick={() => {
                             void onCancel();
                         }}
                     >
                         Cancel review
-                    </button>
+                    </Button>
                 ) : null}
             </div>
 
@@ -781,15 +784,15 @@ function ReviewView({
                             {state.message}
                         </pre>
                     ) : null}
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         className={`${button} self-start`}
                         onClick={() => {
                             onClose();
                         }}
                     >
                         Return to conversation
-                    </button>
+                    </Button>
                 </div>
             ) : state?.state === "failed" ? (
                 <p role="alert" className="text-danger text-interface p-4">
@@ -1075,8 +1078,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             <div className="ml-auto flex shrink-0 items-center gap-2">
                 {running(state) ? (
                     <>
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             className={button}
                             onClick={() => {
                                 if (state !== null) {
@@ -1085,34 +1088,36 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                             }}
                         >
                             Resume review
-                        </button>
-                        <button
-                            type="button"
+                        </Button>
+                        <Button
+                            variant="ghost"
                             className={button}
                             onClick={() => {
                                 void stopReview();
                             }}
                         >
                             Cancel review
-                        </button>
+                        </Button>
                     </>
                 ) : null}
-                <button
-                    type="button"
-                    title="Refresh history"
-                    aria-label="Refresh history"
-                    disabled={loading}
-                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center disabled:opacity-40"
-                    onClick={() => {
-                        setLoading(true);
-                        forgetPatches();
-                        // A read that failed, and a commit a reword moved, are both read again here.
-                        setLooked(null);
-                        setRefresh((value) => value + 1);
-                    }}
-                >
-                    <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-                </button>
+                <Hint label="Refresh history">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Refresh history"
+                        disabled={loading}
+                        className="disabled:opacity-40"
+                        onClick={() => {
+                            setLoading(true);
+                            forgetPatches();
+                            // A read that failed, and a commit a reword moved, are both read again here.
+                            setLooked(null);
+                            setRefresh((value) => value + 1);
+                        }}
+                    >
+                        <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                    </Button>
+                </Hint>
             </div>
         </div>
     );
@@ -1195,8 +1200,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                             ) : null}
                             {data.more ? (
                                 <div className="p-3">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="ghost"
                                         className={button}
                                         disabled={limit >= 200 || loading}
                                         onClick={() => {
@@ -1207,7 +1212,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                         {limit >= 200
                                             ? "Showing the newest 200 commits"
                                             : "Load older commits"}
-                                    </button>
+                                    </Button>
                                 </div>
                             ) : null}
                         </>

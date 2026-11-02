@@ -114,14 +114,30 @@ Core:
 
 Extensions:
 
-- [ ] `extensions/browser/panel.tsx` — toolbar (`376–383`, `419–493`, `517–520`).
-- [ ] `extensions/context-meter/web.tsx` — trigger (`220–229`).
-- [ ] `extensions/dictation/web.tsx` — controls (`198–212`).
-- [ ] `extensions/files/panel.tsx` — reload, back, row actions (`106–115`, `153–161`, `203–207`).
-- [ ] `extensions/git-history/file-tree.tsx` — rows (`60–84`).
-- [ ] `extensions/git-history/preview.tsx` — actions (`194–200`).
-- [ ] `extensions/git-history/web.tsx` — `196–201`, `435–450`, `629–650`, `735–740`, `784–790`,
-      `1078–1105`, `1198–1205`.
+- [x] `extensions/browser/panel.tsx` — toolbar (`376–383`, `419–493`, `517–520`). `IconButton` keeps its
+      `disabled:opacity-40` and `disabled:hover:bg-transparent`; a disabled hint waits for the
+      button to work again, since its title only named the action. The address field stays for
+      [Input](#21-input-installed-bypassed) and the error count for [Progress](#26-progress-new);
+      the presets read "Mobile", "Tablet", and "Desktop" instead of the lowercase operation names.
+- [x] `extensions/context-meter/web.tsx` — trigger (`220–229`). `font-normal` and `text-faint` keep the
+      readout as light as it was, and `hover:bg-sunken` as quiet; the popup stays for
+      [Popover](#31-popover-new) and the bars for [Progress](#26-progress-new).
+- [x] `extensions/dictation/web.tsx` — controls (`198–212`). Each state names its own hover: ghost's
+      `hover:text-ink` would repaint the red recording state and the yellow wait. The pointer-down
+      guard that keeps focus in the textarea stays on the button.
+- [x] `extensions/files/panel.tsx` — reload, back (`153–161`, `203–207`). The row itself (`106–115`)
+      waits for [Item](#39-item-new): it is one button that the whole row is, indented by padding.
+- [x] `extensions/git-history/file-tree.tsx` — rows (`60–84`). Kept hand-written; see
+      [Kept custom](#kept-custom).
+- [x] `extensions/git-history/preview.tsx` — actions (`194–200`). The header keeps `h-9`, `bg-panel`,
+      its top border, and its square corners: it is measured as 36px by the diff view.
+      Its `WithoutDiff` rows stay for [Item](#39-item-new).
+- [x] `extensions/git-history/web.tsx` — `196–201`, `435–450`, `629–650`, `735–740`, `784–790`,
+      `1078–1105`, `1198–1205`. `font-normal` and `text-ink` keep the page's actions as light as
+      they were, and the shared `button` string keeps the border, the 40% disabled look, and the
+      not-allowed cursor ghost has no tone for. The commit row keeps its square corners and its
+      inset ring; `Item` still owns the row's content. Refresh keeps `disabled`, so its hint waits
+      for the read to end. Pills, fields, the sliding panel, and the separators stay as they are.
 - [ ] `extensions/keep-warm/web.tsx` — `204–211`, `287–301`.
 - [ ] `extensions/mcp/web.tsx` — `212–222`.
 - [ ] `extensions/notes/todos.tsx` — `319–327`, `367–391`.
@@ -418,5 +434,10 @@ Replacing these costs more than it saves. They stay hand-written and need no box
   stays.
 - **Sessions-status submenu** — `web/src/shell/sessions-status.tsx:120–187`: two-tap touch
   activation and inline narrow submenu are deliberate.
+- **File tree rows** — `extensions/git-history/file-tree.tsx:60–101`: the row is the indent
+  (`paddingLeft` computed from the depth), the folder row's name is not `flex-1` so `justify-center`
+  would centre it, and `Button` brings corners, `font-medium`, and `hover:text-ink` that every row
+  would then have to undo. They are list rows, and [Item](#39-item-new) is the primitive that owns
+  the family.
 - **Theme preview bars** — `web/src/shell/appearance-dialog.tsx:180–184`: an illustration, not a
   meter.

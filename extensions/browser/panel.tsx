@@ -19,7 +19,9 @@ import {
     useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
 
@@ -37,9 +39,9 @@ import {
 
 const sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 const PRESETS = [
-    { name: "mobile", icon: Smartphone },
-    { name: "tablet", icon: Tablet },
-    { name: "desktop", icon: Monitor },
+    { name: "mobile", hint: "Mobile", icon: Smartphone },
+    { name: "tablet", hint: "Tablet", icon: Tablet },
+    { name: "desktop", hint: "Desktop", icon: Monitor },
 ] as const;
 const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta"]);
 
@@ -352,8 +354,7 @@ function Console({ id, count }: { id: number | null; count: number }) {
 }
 
 function IconButton({
-    title,
-    label,
+    hint,
     onClick,
     disabled,
     active,
@@ -361,9 +362,8 @@ function IconButton({
     className = "",
     children,
 }: {
-    title: string;
-    /** The name a tooltip does not carry on its own; a toggle passes it to say what the press did. */
-    label?: string;
+    /** The action, which is also the name: the toolbar holds no text a screen reader could read. */
+    hint: string;
     onClick: () => void;
     disabled?: boolean;
     active?: boolean;
@@ -373,17 +373,19 @@ function IconButton({
     children: React.ReactNode;
 }) {
     return (
-        <button
-            type="button"
-            title={title}
-            aria-label={label}
-            aria-pressed={pressed}
-            disabled={disabled === true}
-            onClick={onClick}
-            className={`rounded-control hover:bg-raised hover:text-ink flex size-7 shrink-0 items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : "text-muted"} ${className}`}
-        >
-            {children}
-        </button>
+        <Hint label={hint}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label={hint}
+                aria-pressed={pressed}
+                disabled={disabled === true}
+                onClick={onClick}
+                className={`shrink-0 disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : ""} ${className}`}
+            >
+                {children}
+            </Button>
+        </Hint>
     );
 }
 
@@ -416,21 +418,21 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
         <>
             <div className="border-edge-soft flex items-center gap-1 border-b p-2">
                 <IconButton
-                    title="Back"
+                    hint="Back"
                     disabled={page?.canGoBack !== true}
                     onClick={() => void run({ op: "back" })}
                 >
                     <ArrowLeft className="size-4" />
                 </IconButton>
                 <IconButton
-                    title="Forward"
+                    hint="Forward"
                     disabled={page?.canGoForward !== true}
                     onClick={() => void run({ op: "forward" })}
                 >
                     <ArrowRight className="size-4" />
                 </IconButton>
                 <IconButton
-                    title={page?.loading === true ? "Stop" : "Reload"}
+                    hint={page?.loading === true ? "Stop" : "Reload"}
                     disabled={page?.open !== true}
                     onClick={() => void run({ op: page?.loading === true ? "stop" : "reload" })}
                 >
@@ -469,10 +471,10 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                         className="rounded-control bg-sunken text-interface text-ink placeholder:text-faint w-full min-w-0 px-2.5 py-1 font-mono outline-none"
                     />
                 </form>
-                {PRESETS.map(({ name, icon: Icon }) => (
+                {PRESETS.map(({ name, hint, icon: Icon }) => (
                     <IconButton
                         key={name}
-                        title={name}
+                        hint={hint}
                         active={page?.preset === name}
                         onClick={() => void run({ op: "viewport", viewport: name })}
                     >
@@ -480,7 +482,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                     </IconButton>
                 ))}
                 <IconButton
-                    title="Console"
+                    hint="Console"
                     active={showConsole}
                     onClick={() => {
                         setShowConsole((open) => !open);
@@ -490,8 +492,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                 </IconButton>
                 {/* Below `lg` the drawer is already the screen, so there is nothing to fill. */}
                 <IconButton
-                    title={expanded ? "Exit full screen" : "Full screen"}
-                    label={expanded ? "Exit full screen" : "Full screen"}
+                    hint={expanded ? "Exit full screen" : "Full screen"}
                     pressed={expanded}
                     className="max-lg:hidden"
                     onClick={() => {
@@ -514,13 +515,13 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
             ) : (
                 <div className="text-faint text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
                     <p>{page?.loading === true ? "Starting the browser…" : "Nothing is open."}</p>
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         onClick={() => void run({ op: "open" })}
-                        className="rounded-control bg-raised text-ink hover:bg-edge-soft px-3 py-1"
+                        className="bg-raised text-ink py-1 font-normal"
                     >
                         Open the browser
-                    </button>
+                    </Button>
                 </div>
             )}
 

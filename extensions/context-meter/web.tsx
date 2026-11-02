@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { callAction } from "@/sdk/actions.ts";
@@ -217,22 +218,23 @@ function Context({ session }: StatusProps) {
             }}
             className="flex shrink-0"
         >
-            <button
-                type="button"
+            <Button
+                variant="ghost"
+                size="sm"
                 onFocus={open}
                 onBlur={() => {
                     setAt(null);
                 }}
                 onClick={open}
                 aria-expanded={at !== null}
-                className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono"
+                className="text-faint hover:bg-sunken aria-expanded:bg-sunken px-1.5 py-0.5 font-mono font-normal"
             >
                 <span>context</span>
                 <span className="w-9">
                     <Bar fill={fill} className={toneOf(fill)} />
                 </span>
                 {percent(fill)}
-            </button>
+            </Button>
             {at === null ? null : <Popup data={data} left={at.left} bottom={at.bottom} />}
         </span>
     );
