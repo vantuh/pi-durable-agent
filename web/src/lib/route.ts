@@ -64,7 +64,9 @@ function isRoute(value: unknown): value is Route {
 }
 
 /** The app's own history entry: the route it shows, and the route it was pushed from. */
-function historyEntry(): { route: Route; from?: Route } | undefined {
+type Entry = { route: Route; from?: Route };
+
+function historyEntry(): Entry | undefined {
     const state: unknown = history.state;
 
     if (typeof state !== "object" || state === null) {
@@ -85,6 +87,22 @@ function historyEntry(): { route: Route; from?: Route } | undefined {
     }
 
     return isRoute(from) ? { route, from } : { route };
+}
+
+/**
+ * The state an entry keeps after a traversal: the route it now shows, and the marker its own push wrote.
+ * Back and Forward only move between the app's own entries, so a marker still names the step behind it;
+ * dropping it here would leave the second parent arrow with nothing to step back to.
+ */
+export function keptState(entry: Entry | undefined, route: Route): { pi: Entry } {
+    const from = entry?.from;
+
+    return from === undefined ? { pi: { route } } : { pi: { route, from } };
+}
+
+/** Whether the parent arrow steps back: the entry behind this one already shows the route it goes to. */
+export function stepsBack(entry: Entry | undefined, next: Route): boolean {
+    return entry?.from !== undefined && sameRoute(entry.from, next);
 }
 
 /** The address is the state: every move pushes a history step, so Back returns. */
@@ -117,9 +135,7 @@ export function useRoute(): RouteNavigation {
             const before = current.current;
             current.current = next;
             setRoute(next);
-            // The entry's `from` belonged to the push that made it; a traversal may have skipped
-            // that entry, so this one no longer knows its neighbour.
-            history.replaceState({ pi: { route: next } }, "");
+            history.replaceState(keptState(historyEntry(), next), "");
             countOpening(before, next);
         };
 
@@ -203,11 +219,9 @@ export function useRoute(): RouteNavigation {
                 session: now.session,
                 page: { key: now.page.key, sub: parent },
             };
-            const previous = historyEntry()?.from;
 
-            // Back only if the entry behind this one is the parent we are going to. A deep link
-            // has no such entry, so it replaces its own step instead of leaving the app.
-            if (previous !== undefined && sameRoute(previous, next)) {
+            // A deep link has no entry behind it, so it replaces its own step instead of leaving the app.
+            if (stepsBack(historyEntry(), next)) {
                 history.back();
                 return;
             }
