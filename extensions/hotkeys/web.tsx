@@ -4,7 +4,7 @@ import { callAction } from "@/sdk/actions.ts";
 import { runCommand } from "@/sdk/commands.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { DEFAULT_KEYMAP, ownsKeys, step, type Keymap } from "./lib.ts";
+import { DEFAULT_KEYMAP, fieldKeeps, step, type Keymap } from "./lib.ts";
 import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
@@ -32,15 +32,16 @@ function Hotkeys() {
 
         const onKey = (event: KeyboardEvent): void => {
             const focus = document.activeElement;
-            const typing = event.target instanceof HTMLElement && ownsKeys(event.target);
+            const target = event.target instanceof HTMLElement ? event.target : null;
 
             if (map === null || event.isComposing) {
                 return;
             }
 
-            // A dialog, or the field the person is typing in, owns the keyboard; only a prefix already
-            // pressed carries on.
-            if (!armed && (typing || focus?.closest('[role="dialog"]'))) {
+            // A dialog owns the keyboard; a field keeps what it types but not the prefix, which has to
+            // reach `step` so the shell arms from anywhere. Only a prefix already pressed carries on.
+            const dialog = focus !== null && focus.closest('[role="dialog"]') !== null;
+            if (!armed && (dialog || (target !== null && fieldKeeps(target, map, event)))) {
                 return;
             }
 

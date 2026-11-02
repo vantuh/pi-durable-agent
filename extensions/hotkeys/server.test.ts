@@ -7,6 +7,7 @@ import { test } from "node:test";
 import {
     COMMANDS,
     DEFAULT_KEYMAP,
+    fieldKeeps,
     mergeKeymap,
     ownsKeys,
     parseBinding,
@@ -155,6 +156,29 @@ void test("ownsKeys leaves the keys typed into a field to that field", () => {
     assert.equal(ownsKeys({ tagName: "DIV", isContentEditable: true }), true);
     assert.equal(ownsKeys({ tagName: "DIV", isContentEditable: false }), false);
     assert.equal(ownsKeys({ tagName: "BUTTON", isContentEditable: false }), false);
+});
+
+void test("a field keeps its keys, except the prefix that arms the shell", () => {
+    const field = { tagName: "TEXTAREA", isContentEditable: false };
+
+    // The prefix reaches `step` from the composer, where it arms instead of being swallowed.
+    assert.equal(fieldKeeps(field, DEFAULT_KEYMAP, ctrlA), false);
+    assert.deepEqual(step(DEFAULT_KEYMAP, false, ctrlA), {
+        armed: true,
+        command: null,
+        consume: true,
+    });
+
+    // Shift+Left there types a selection: the shell must not switch sessions under it.
+    const left = key("ArrowLeft", { shiftKey: true });
+    assert.equal(fieldKeeps(field, DEFAULT_KEYMAP, left), true);
+    assert.equal(step(DEFAULT_KEYMAP, false, left).command, "session.prev");
+
+    // Only a field keeps anything: elsewhere the same key is the shell's.
+    assert.equal(
+        fieldKeeps({ tagName: "DIV", isContentEditable: false }, DEFAULT_KEYMAP, left),
+        false,
+    );
 });
 
 void test("a held prefix does not arm", () => {

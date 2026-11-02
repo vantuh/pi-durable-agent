@@ -187,6 +187,16 @@ export function ownsKeys(target: Target): boolean {
     return FIELD.test(target.tagName) || target.isContentEditable;
 }
 
+/** Whether the key is the keymap's prefix, the one key no field may keep: it is what arms the shell. */
+function arms(keymap: Keymap, event: KeyEvent): boolean {
+    return matches(parseBinding(keymap.prefix, "prefix"), event);
+}
+
+/** Whether a field keeps the key: everything it types, and nothing that arms the shell behind it. */
+export function fieldKeeps(target: Target, keymap: Keymap, event: KeyEvent): boolean {
+    return ownsKeys(target) && !arms(keymap, event);
+}
+
 /** One key press: idle, the prefix arms, and the next key runs a command or cancels. */
 export function step(keymap: Keymap, armed: boolean, event: KeyEvent): Step {
     const prefix = parseBinding(keymap.prefix, "prefix");
