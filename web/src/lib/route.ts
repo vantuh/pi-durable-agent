@@ -146,9 +146,15 @@ export function useRoute(): RouteNavigation {
     );
     const setPageSub = useCallback(
         (sub: string | undefined) => {
-            if (session !== null && page !== null) {
-                show({ session, page: { key: page, sub } });
+            // A page hands its own navigation out as a closure; once the address has moved off that
+            // page — an answer arriving after it left — the closure must not reopen it.
+            const now = current.current;
+
+            if (page === null || now.session !== session || now.page?.key !== page) {
+                return;
             }
+
+            show({ session, page: { key: page, sub } });
         },
         [session, page, show],
     );
@@ -178,10 +184,15 @@ export function useRoute(): RouteNavigation {
         [replace],
     );
     const closePage = useCallback(() => {
-        if (session !== null) {
-            show({ session, page: null });
+        const now = current.current;
+
+        // The same closure rule as `setPageSub`: a close from a page that has already been left.
+        if (page === null || now.session !== session || now.page?.key !== page) {
+            return;
         }
-    }, [session, show]);
+
+        show({ session, page: null });
+    }, [session, page, show]);
 
     return { route, go, openPage, setPageSub, backPage, closePage };
 }
