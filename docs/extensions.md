@@ -345,6 +345,7 @@ setCommandKeys("session.new", null); // the command shows no key again
 | `sessionRequest`        | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. `send(messages, signal, options?)` takes `{ systemPrompt, maxTokens, cacheRetention, sessionId, reasoning }` for a request of its own — the messages you pass are what is sent, not the conversation's. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm)                                                                                                                                                    |
 | `sessionTitle`          | `(session) => Promise<string \| null>`: the name the sidebar shows — the one set by hand from `app.title`, else the conversation's first question — or null while it has neither. Titles belong to the core, so an extension that names a conversation in its own UI asks instead of guessing                                                                                                                                                                                                                                                                                                                                                                                |
 | `sessionName`           | `(session) => Promise<string \| null>`: the name someone gave it, by hand or through an extension, without the first question the sidebar falls back to. This is the "is it named yet?" question; `sessionTitle` is the "what do I show?" one                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `sessionOwner`          | `(session) => Promise<number \| undefined>`: the id of the conversation that started this one, read from the conversation record. It does not depend on commit publication, so it answers while that conversation's own commits are still on their way; `undefined` covers a conversation a person created and one the core does not know at all                                                                                                                                                                                                                                                                                                                             |
 | `setSessionTitle`       | `(session, title) => Promise<void>`: names the conversation for every browser, and an empty title goes back to the first question. The list is sent to the browsers at once, because a title is a document and no commit carries it                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `readDoc`               | `(doc, session) => Promise<value>`: the current value of a conversation document, or its initial value while that conversation has none. It is for the places a tool call's `api.snapshot` does not reach, a commit listener and an action. The extension passes its own `defineDoc` token. It only reads: it creates no document and moves no revision                                                                                                                                                                                                                                                                                                                      |
 | `notifySessionChanged`  | `(session) => void`: says that something about the session changed which its own commits do not show, such as a conversation this extension started for it. Within 250 ms the server sends that session's `live` event again with a new `revision`, and a web component reads it as `session.revision` in `StatusProps`. Many calls in the window make one event                                                                                                                                                                                                                                                                                                             |
@@ -1156,3 +1157,49 @@ environment kills the command's process group and the caller's own Stop still re
   minutes — a buffered compile, a slow pull — is killed. The kill is recoverable, the model sees the
   output so far and is told why, and 120 s is deliberately generous. A command printing steadily while
   stuck satisfies the idle guard; only the ceiling stops that, which is why both timers stay.
+
+## Caveman and Ponytail
+
+Two voices, one folder each: `extensions/caveman` and `extensions/ponytail`. Both are **off by
+default**, and both are built the same way — one section, one switch, one state file — and they
+differ in one thing only: who the voice reaches. Caveman never reaches a conversation a tool
+started; ponytail reaches every conversation, subagents included.
+
+The rules are not here. Each folder adds one system prompt section whose text is the body of the Pi
+skill of its name — `~/.pi/agent/skills/caveman/SKILL.md`, `~/.pi/agent/skills/ponytail/SKILL.md` —
+read through `skillsFor` on every prompt build, so editing the skill shows up on the next run and the
+repo holds no copy to drift. The section opens with one line that says why it is on (this app's
+status bar, not the chat) and that the phrase in a message which would switch it off in chat does
+not switch it here. Ponytail's line adds that the level is `full`, because lite and ultra are levels
+a `/ponytail` argument picks and there is no `/ponytail` command here.
+
+- **The switch** is a chip in the status bar's `end` slot, like keep-warm's: a bone for caveman, a
+  turtle for ponytail, lit in `text-accent` and `text-ok` when on and faded to `text-faint/60` when
+  off. The popover holds one `Switch` and one line saying what the voice changes: caveman — every
+  conversation you start, never a subagent; ponytail — every conversation, subagents included.
+- **The state** is one boolean for the whole app, `caveman.json` and `ponytail.json` in the data
+  directory, `{ "on": true }`; a missing, broken or non-boolean `on` means off. A failed save leaves
+  the mode it had. The chip reads it when the conversation opens and again whenever the popover
+  opens, because another tab or a phone runs the same switch; a token per reading means an answer
+  that arrives late never overwrites a newer one or a toggle, a reading that starts while a save is
+  running is dropped as stale, and every toggle re-reads once it is done so the switch settles on
+  what the server stored. Nothing polls: a conversation whose first reading fails gets three bounded
+  tries five seconds apart, so an unreachable server is not asked forever, and the chip appears only
+  once a real state is known.
+- **Caveman is parent-only.** A conversation that a tool started has an owner, and pi-durable's
+  `createAgent()` copies the owner's agent, so the child inherits the parent's extension selection
+  and would otherwise inherit the voice too. Caveman's owner comes from two places: the commits,
+  through `onCommit` and `SessionRef.owner`, and the record itself, through `host.sessionOwner` —
+  the immutable owner read from the conversation record. The commits alone are not enough: a new
+  conversation's first commit is published after an asynchronous chain (`setImmediate`, the view
+  opening, the cwd and owner lookups), while the harness builds a child's first request off
+  microtasks, so the child would render the section before its baseline view arrived. Caveman
+  therefore returns no section at all for a conversation with an owner, caches what the record
+  answers (an `undefined` answer is a person's conversation too, and `Map.has` tells "asked and
+  ownerless" from "never asked"), and asks nothing again for a conversation a commit already named.
+- **Ponytail reaches everyone.** It keeps no ownership machinery: no commit listener, no record
+  read, no owner check. A subagent answers in the same voice its parent does, deliberately — the
+  lazy-senior rules are as useful inside a worker as at the top, and the smallest change that works
+  is exactly what a child is for.
+- **The skill must exist.** The check runs at load time and throws, naming the skill, so the
+  Extensions dialog says what is wrong instead of offering a switch that does nothing.
