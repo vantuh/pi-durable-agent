@@ -56,6 +56,7 @@ The largest win. Every later phase uses both.
 ### 1.2 Tooltip
 
 - [x] Add `components/ui/tooltip.tsx`, one `TooltipProvider` at the root in `main.tsx`.
+- [x] `Hint`: one-line wrapper (trigger as child + content), so call sites stay one element.
 - [ ] Optional content `Kbd` slot inside a tooltip, for the shortcut that triggers the action
       (see 3.10).
 
@@ -66,17 +67,18 @@ Each line: raw `<button>` → `Button` (variant, size); action hint in `title` �
 
 Core:
 
-- [ ] `web/src/composer/composer.tsx` — attach (`697`), model chip (`726`), stop (`753`,
-      `danger`), send (`800`, keep the busy label and split layout), send-mode trigger (`818`).
-- [ ] `web/src/composer/model-menu-dialog.tsx` — add/remove scoped model (`201`, `217`),
+- [x] `web/src/composer/composer.tsx` — attach (`697`), model chip (`726`), stop (`753`,
+      soft danger on `ghost`, not the solid `danger`), send (`800`, keep the busy label and split layout), send-mode trigger (`818`).
+- [x] `web/src/composer/model-menu-dialog.tsx` — add/remove scoped model (`201`, `217`),
       "Make default" (`241`).
-- [ ] `web/src/composer/queued.tsx` — queue text, edit, remove (`87–136`).
-- [ ] `web/src/transcript/agent-message.tsx` — open-agent icon link (`37`, `asChild` over the
+- [x] `web/src/composer/queued.tsx` — edit, remove (`87–136`). The queue text at `89–103`
+      stays custom; see [Kept custom](#kept-custom).
+- [x] `web/src/transcript/agent-message.tsx` — open-agent icon link (`37`, `asChild` over the
       link).
-- [ ] `web/src/transcript/selection-quote.tsx` — floating quote action (`94`).
-- [ ] `web/src/transcript/transcript.tsx` — session sidebar icon (`580`); stats `title` (`216`)
+- [x] `web/src/transcript/selection-quote.tsx` — floating quote action (`94`).
+- [x] `web/src/transcript/transcript.tsx` — session sidebar icon (`580`); stats `title` (`216`)
       → Tooltip.
-- [ ] `web/src/composer/meta.tsx` — stats `title` (`56`) → Tooltip.
+- [x] `web/src/composer/meta.tsx` — stats `title` (`56`) → Tooltip.
 - [ ] `web/src/ui/markdown.tsx` — code-block copy (`83`).
 - [ ] `web/src/ui/quote.tsx` — remove (`27`).
 - [ ] `web/src/ui/lightbox.tsx` — previous / next (`22–36`); keep `aria-disabled` or move to
@@ -395,6 +397,8 @@ Replacing these costs more than it saves. They stay hand-written and need no box
 - **Lightbox close target** — `web/src/ui/lightbox.tsx:101–108`: click-on-empty-space close next
   to zoom and pan; the viewer itself already is a `Dialog`.
 - **Timeline marks** — `web/src/transcript/activity.tsx:160–178`.
+- **Queue text** — `web/src/composer/queued.tsx:90–103`: `line-clamp-2` needs `display: -webkit-box`,
+  and `Button`'s `inline-flex` would override it, unfolding a long message in the card.
 - **Attachment** — `web/src/components/ui/attachment.tsx`: our own primitive, already shared.
 - **Collapsible** — `web/src/components/ui/collapsible.tsx`: the measured `data-beyond` content
   stays.

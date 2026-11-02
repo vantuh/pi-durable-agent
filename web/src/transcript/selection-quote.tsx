@@ -1,6 +1,9 @@
 import { Quote } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 type Props = {
     /** Takes the words the person picked; they land above the composer. */
     onQuote: (text: string) => void;
@@ -91,33 +94,34 @@ export function SelectionQuote({ onQuote }: Props) {
     }
 
     return (
-        <button
-            type="button"
-            title="Quote this in the composer"
-            // The press itself, not the click after it: iOS only opens the keyboard for a focus asked for during the
-            // touch, and a focus asked for later shows a frame but no caret. Preventing the default keeps the
-            // selection from clearing before the words are read.
-            onPointerDown={(event) => {
-                if (event.button !== 0) {
-                    return;
-                }
+        <Hint label="Quote this in the composer">
+            <Button
+                variant="ghost"
+                // The press itself, not the click after it: iOS only opens the keyboard for a focus asked for during the
+                // touch, and a focus asked for later shows a frame but no caret. Preventing the default keeps the
+                // selection from clearing before the words are read.
+                onPointerDown={(event) => {
+                    if (event.button !== 0) {
+                        return;
+                    }
 
-                event.preventDefault();
-                const text = picked.text;
+                    event.preventDefault();
+                    const text = picked.text;
 
-                document.getSelection()?.removeAllRanges();
-                setPicked(null);
-                onQuote(text);
-            }}
-            style={{
-                left: picked.left,
-                top: picked.top,
-                transform: `translate(0, ${picked.below ? "0" : "-100%"})`,
-            }}
-            className="rounded-control border-edge bg-panel text-interface text-ink hover:bg-raised focus-visible:ring-accent fixed z-30 flex items-center gap-1.5 border px-2 py-1 shadow-lg focus-visible:ring-2 focus-visible:outline-none"
-        >
-            <Quote className="text-accent size-3.5" />
-            Quote
-        </button>
+                    document.getSelection()?.removeAllRanges();
+                    setPicked(null);
+                    onQuote(text);
+                }}
+                style={{
+                    left: picked.left,
+                    top: picked.top,
+                    transform: `translate(0, ${picked.below ? "0" : "-100%"})`,
+                }}
+                className="border-edge bg-panel text-ink fixed z-30 gap-1.5 border px-2 py-1 font-normal shadow-lg"
+            >
+                <Quote className="text-accent size-3.5" />
+                Quote
+            </Button>
+        </Hint>
     );
 }

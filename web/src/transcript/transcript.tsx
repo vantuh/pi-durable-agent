@@ -10,10 +10,12 @@ import {
 } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
@@ -176,7 +178,7 @@ const dollars = (cost: number): string => `$${cost.toFixed(cost < 1 ? 3 : 2)}`;
 
 /**
  * The answer's statistics, above it: model and thinking level, then context, output, cost and time. Context is the
- * newest response's prompt; output and cost add up every response of the turn. Its title says it in full.
+ * newest response's prompt; output and cost add up every response of the turn. Its hint says it in full.
  */
 function AnswerHeader({ turn }: { turn: Turn }) {
     const now = useNow(turn.live);
@@ -197,7 +199,7 @@ function AnswerHeader({ turn }: { turn: Turn }) {
                   `↑${tokens(stats.context)} ↓${tokens(stats.output)}`,
                   ...(stats.cost > 0 ? [dollars(stats.cost)] : []),
               ];
-    const title =
+    const hint =
         stats === undefined
             ? undefined
             : [
@@ -212,11 +214,8 @@ function AnswerHeader({ turn }: { turn: Turn }) {
                   ...(stats.cost > 0 ? [`cost ${dollars(stats.cost)}`] : []),
               ].join(" · ");
 
-    return (
-        <div
-            title={title}
-            className="text-meta text-faint flex min-w-0 items-center gap-2 font-mono"
-        >
+    const row = (
+        <div className="text-meta text-faint flex min-w-0 items-center gap-2 font-mono">
             {turn.live ? <Spinner className="size-3 shrink-0" /> : null}
             <span className="text-muted truncate">
                 {stats === undefined ? "working" : stats.model}
@@ -227,6 +226,8 @@ function AnswerHeader({ turn }: { turn: Turn }) {
             </span>
         </div>
     );
+
+    return hint === undefined ? row : <Hint label={hint}>{row}</Hint>;
 }
 
 function ErrorNotice({ text }: { text: string }) {
@@ -577,14 +578,17 @@ export function Transcript({
         <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
             <header className="border-edge-soft flex min-h-[45px] items-center justify-between gap-3 border-b px-3 py-0.5">
                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                    <button
-                        type="button"
-                        title="Sessions"
-                        onClick={onSessions}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center lg:hidden"
-                    >
-                        <PanelLeft className="size-4" />
-                    </button>
+                    <Hint label="Sessions">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Sessions"
+                            onClick={onSessions}
+                            className="shrink-0 lg:hidden"
+                        >
+                            <PanelLeft className="size-4" />
+                        </Button>
+                    </Hint>
                     <div className="flex min-w-0 flex-col gap-0.5">
                         <h1 className="text-interface text-ink truncate leading-5 font-medium">
                             {title ?? "New session"}

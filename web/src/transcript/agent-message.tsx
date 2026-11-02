@@ -1,6 +1,8 @@
 import { Bot, ChevronRight, SquareArrowOutUpRight } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientAuthor } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
@@ -34,20 +36,22 @@ export function AgentMessage({ text, author, onOpenSession }: Props) {
                     </span>
                 </CollapsibleTrigger>
                 {session === undefined ? null : (
-                    <a
-                        href={sessionHref(session)}
-                        title={`Open ${author.name}'s conversation`}
-                        aria-label={`Open ${author.name}'s conversation`}
-                        onClick={(event) => {
-                            if (isPlainClick(event)) {
-                                event.preventDefault();
-                                onOpenSession(session);
-                            }
-                        }}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center"
-                    >
-                        <SquareArrowOutUpRight className="size-3.5" />
-                    </a>
+                    <Hint label={`Open ${author.name}'s conversation`}>
+                        <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
+                            <a
+                                href={sessionHref(session)}
+                                aria-label={`Open ${author.name}'s conversation`}
+                                onClick={(event) => {
+                                    if (isPlainClick(event)) {
+                                        event.preventDefault();
+                                        onOpenSession(session);
+                                    }
+                                }}
+                            >
+                                <SquareArrowOutUpRight className="size-3.5" />
+                            </a>
+                        </Button>
+                    </Hint>
                 )}
             </div>
             <CollapsibleContent className="text-prose px-3 pb-2.5">

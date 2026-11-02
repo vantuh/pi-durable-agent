@@ -1,6 +1,9 @@
 import { Bot, Clock, Paperclip, Pencil, X, Zap } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { ClientQueued } from "../../../shared/protocol.ts";
 import { splitQuote } from "../lib/quote.ts";
 import { QuoteCard } from "../ui/quote.tsx";
@@ -112,29 +115,32 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                         <div className="flex shrink-0 items-center">
                             {/* Editing puts the text in the composer as the person's own; an agent's is not theirs to resend. */}
                             {item.author !== undefined ? null : (
-                                <button
-                                    type="button"
-                                    title="Edit and send again"
-                                    aria-label="Edit and send again"
-                                    onClick={() => {
-                                        onEdit(item);
-                                    }}
-                                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 items-center justify-center"
-                                >
-                                    <Pencil className="size-3.5" />
-                                </button>
+                                <Hint label="Edit and send again">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label="Edit and send again"
+                                        onClick={() => {
+                                            onEdit(item);
+                                        }}
+                                    >
+                                        <Pencil className="size-3.5" />
+                                    </Button>
+                                </Hint>
                             )}
-                            <button
-                                type="button"
-                                title="Remove from the queue"
-                                aria-label="Remove from the queue"
-                                onClick={() => {
-                                    onWithdraw(item);
-                                }}
-                                className="rounded-control text-muted hover:bg-raised hover:text-danger flex size-7 items-center justify-center"
-                            >
-                                <X className="size-4" />
-                            </button>
+                            <Hint label="Remove from the queue">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Remove from the queue"
+                                    onClick={() => {
+                                        onWithdraw(item);
+                                    }}
+                                    className="hover:text-danger"
+                                >
+                                    <X className="size-4" />
+                                </Button>
+                            </Hint>
                         </div>
                     </li>
                 );

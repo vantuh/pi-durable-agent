@@ -1,5 +1,5 @@
 import { Tooltip as TooltipPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -46,5 +46,23 @@ export function TooltipContent({
                 {...props}
             />
         </TooltipPrimitive.Portal>
+    );
+}
+
+/** A trigger and its label in one element, so a call site adds a hint instead of three tooltip parts. */
+export function Hint({
+    label,
+    side,
+    children,
+}: {
+    label: ReactNode;
+    side?: ComponentProps<typeof TooltipPrimitive.Content>["side"];
+    children: ReactNode;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side={side}>{label}</TooltipContent>
+        </Tooltip>
     );
 }

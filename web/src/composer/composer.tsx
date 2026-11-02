@@ -1,7 +1,9 @@
 import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import {
@@ -695,16 +697,18 @@ export const Composer = memo(function Composer({
                 </ScrollArea>
 
                 <div className="mt-1.5 flex items-center gap-1.5">
-                    <button
-                        type="button"
-                        title="Attach a file"
-                        onClick={() => {
-                            picker.current?.click();
-                        }}
-                        className="text-muted hover:text-ink rounded-control hover:bg-raised flex size-7 items-center justify-center"
-                    >
-                        <Paperclip className="size-4" />
-                    </button>
+                    <Hint label="Attach a file">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Attach a file"
+                            onClick={() => {
+                                picker.current?.click();
+                            }}
+                        >
+                            <Paperclip className="size-4" />
+                        </Button>
+                    </Hint>
 
                     <input
                         ref={picker}
@@ -724,11 +728,11 @@ export const Composer = memo(function Composer({
                         }}
                     />
 
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         onClick={onToggleMenu}
-                        className={`text-interface flex min-w-0 items-center gap-1.5 rounded-full px-2 py-1 ${
-                            menuOpen ? "bg-raised text-ink" : "text-muted hover:bg-raised"
+                        className={`min-w-0 rounded-full px-2 py-1 font-normal ${
+                            menuOpen ? "bg-raised text-ink" : "hover:bg-raised"
                         }`}
                     >
                         <Sparkles className="text-accent size-3.5" />
@@ -737,7 +741,7 @@ export const Composer = memo(function Composer({
                             <span className={`shrink-0 ${thinkingText(level)}`}>{level}</span>
                         )}
                         <ChevronDown className="size-3.5 shrink-0" />
-                    </button>
+                    </Button>
 
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
                         <ComposerItems
@@ -751,14 +755,17 @@ export const Composer = memo(function Composer({
                             onSent={onSent}
                         />
                         {busy ? (
-                            <button
-                                type="button"
-                                onClick={onStop}
-                                title="Stop"
-                                className="rounded-control bg-danger/20 text-danger hover:bg-danger/30 flex size-7 items-center justify-center"
-                            >
-                                <Square className="size-3 fill-current" />
-                            </button>
+                            <Hint label="Stop">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Stop"
+                                    onClick={onStop}
+                                    className="bg-danger/20 text-danger hover:bg-danger/30 hover:text-danger"
+                                >
+                                    <Square className="size-3 fill-current" />
+                                </Button>
+                            </Hint>
                         ) : null}
                         <div
                             className="relative flex items-center"
@@ -798,37 +805,41 @@ export const Composer = memo(function Composer({
                                     ))}
                                 </ul>
                             ) : null}
-                            <button
-                                type="button"
-                                onClick={submit}
-                                // Keep focus in the textarea so the phone keyboard stays put and the tap is not lost.
-                                onMouseDown={(event) => {
-                                    event.preventDefault();
-                                }}
-                                title={busy ? (how?.label ?? "Send") : "Send"}
-                                className={`bg-accent text-on-accent relative flex h-7 items-center justify-center gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
-                                    busy
-                                        ? "rounded-l-control text-interface pr-1.5 pl-2"
-                                        : "rounded-control w-7"
-                                }`}
-                                disabled={empty || uploading}
-                            >
-                                <ArrowUp className="size-4" />
-                                {busy ? <span>{how?.label}</span> : null}
-                            </button>
-                            {busy ? (
-                                <button
-                                    type="button"
-                                    title="How to send"
-                                    aria-haspopup="menu"
-                                    aria-expanded={modesOpen}
-                                    onClick={() => {
-                                        setModesOpen((open) => !open);
+                            <Hint label={busy ? (how?.label ?? "Send") : "Send"}>
+                                <Button
+                                    size={busy ? "default" : "icon"}
+                                    aria-label={busy ? (how?.label ?? "Send") : "Send"}
+                                    onClick={submit}
+                                    // Keep focus in the textarea so the phone keyboard stays put and the tap is not lost.
+                                    onMouseDown={(event) => {
+                                        event.preventDefault();
                                     }}
-                                    className="rounded-r-control bg-accent text-on-accent border-on-accent/30 flex h-7 w-6 items-center justify-center border-l"
+                                    className={`relative gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
+                                        busy
+                                            ? "rounded-l-control h-7 w-auto rounded-r-none pr-1.5 pl-2"
+                                            : ""
+                                    }`}
+                                    disabled={empty || uploading}
                                 >
-                                    <ChevronDown className="size-3.5" />
-                                </button>
+                                    <ArrowUp className="size-4" />
+                                    {busy ? <span>{how?.label}</span> : null}
+                                </Button>
+                            </Hint>
+                            {busy ? (
+                                <Hint label="How to send">
+                                    <Button
+                                        size="icon"
+                                        aria-label="How to send"
+                                        aria-haspopup="menu"
+                                        aria-expanded={modesOpen}
+                                        onClick={() => {
+                                            setModesOpen((open) => !open);
+                                        }}
+                                        className="rounded-r-control border-on-accent/30 w-6 rounded-l-none border-l"
+                                    >
+                                        <ChevronDown className="size-3.5" />
+                                    </Button>
+                                </Hint>
                             ) : null}
                         </div>
                     </div>
