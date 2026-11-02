@@ -513,17 +513,19 @@ export default function subagents(host: Host) {
 
         const answer = view.entries.findLast((entry) => entry.kind === "pi.assistant")?.model?.[0];
 
-        seen.set(id, {
-            owner,
-            cwd,
-            busy: view.busy,
-            answer: answer?.role === "assistant" ? answer : undefined,
-        });
+        // The strip shows working agents only, so an idle one is not kept.
+        if (view.busy) {
+            seen.set(id, {
+                owner,
+                cwd,
+                busy: true,
+                answer: answer?.role === "assistant" ? answer : undefined,
+            });
+        } else {
+            seen.delete(id);
+        }
         host.notifySessionChanged(owner);
     });
-
-    // Agents get no agents of their own: the extension is removed from them by name.
-    const self = defineExtension({ name: host.name });
 
     const spawn = defineTool({
         name: "agent_spawn",
