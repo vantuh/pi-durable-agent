@@ -1,6 +1,8 @@
 import { Quote, X } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 type Props = {
     text: string;
@@ -24,15 +26,17 @@ export function QuoteCard({ text, onRemove }: Props) {
                 <p className="break-words whitespace-pre-wrap">{text}</p>
             </ScrollArea>
             {onRemove === undefined ? null : (
-                <button
-                    type="button"
-                    title="Remove the quote"
-                    aria-label="Remove the quote"
-                    onClick={onRemove}
-                    className="rounded-control text-faint hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center"
-                >
-                    <X className="size-3.5" />
-                </button>
+                <Hint label="Remove the quote">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Remove the quote"
+                        onClick={onRemove}
+                        className="text-faint shrink-0"
+                    >
+                        <X className="size-3.5" />
+                    </Button>
+                </Hint>
             )}
         </div>
     );

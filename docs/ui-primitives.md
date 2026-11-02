@@ -79,10 +79,11 @@ Core:
 - [x] `web/src/transcript/transcript.tsx` — session sidebar icon (`580`); stats `title` (`216`)
       → Tooltip.
 - [x] `web/src/composer/meta.tsx` — stats `title` (`56`) → Tooltip.
-- [ ] `web/src/ui/markdown.tsx` — code-block copy (`83`).
-- [ ] `web/src/ui/quote.tsx` — remove (`27`).
-- [ ] `web/src/ui/lightbox.tsx` — previous / next (`22–36`); keep `aria-disabled` or move to
-      `disabled`.
+- [x] `web/src/ui/markdown.tsx` — code-block copy (`83`).
+- [x] `web/src/ui/quote.tsx` — remove (`27`).
+- [x] `web/src/ui/lightbox.tsx` — previous / next (`22–36`); keep `aria-disabled` or move to
+      `disabled`. Kept `aria-disabled`: a `disabled` trigger is not focusable, so its Hint would
+      never show.
 - [ ] `web/src/ui/attachments.tsx` — preview and remove actions (`64`, `90–99`, `109–117`).
 - [ ] `web/src/ui/status-fields.tsx` — field `title` (`40`) → Tooltip.
 - [ ] `web/src/shell/sessions.tsx` — header and search icons (`874–897`, `914–924`, `971–1034`,

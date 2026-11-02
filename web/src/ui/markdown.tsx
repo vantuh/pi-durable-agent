@@ -4,6 +4,8 @@ import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown"
 import remarkGfm from "remark-gfm";
 import type { ThemedToken } from "shiki";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { classOf, tokensOf } from "../lib/highlight.ts";
@@ -80,29 +82,32 @@ export function CodeBlock({ code, lang, title }: { code: string; lang: string; t
         <div className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border">
             <div className="border-edge-soft text-meta text-faint flex h-8 items-center justify-between border-b pr-1.5 pl-3 font-mono">
                 <span className="truncate">{title ?? (lang === "" ? "text" : lang)}</span>
-                <button
-                    type="button"
-                    title={copied ? "Copied" : "Copy"}
-                    onClick={() => {
-                        const copy = async () => {
-                            try {
-                                await navigator.clipboard.writeText(code);
-                                setCopied(true);
-                            } catch {
-                                // No clipboard (an insecure origin): the icon stays as it was.
-                            }
-                        };
+                <Hint label={copied ? "Copied" : "Copy"}>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={copied ? "Copied" : "Copy"}
+                        onClick={() => {
+                            const copy = async () => {
+                                try {
+                                    await navigator.clipboard.writeText(code);
+                                    setCopied(true);
+                                } catch {
+                                    // No clipboard (an insecure origin): the icon stays as it was.
+                                }
+                            };
 
-                        void copy();
-                    }}
-                    className="rounded-control hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                >
-                    {copied ? (
-                        <Check className="text-ok size-3.5" />
-                    ) : (
-                        <Copy className="size-3.5" />
-                    )}
-                </button>
+                            void copy();
+                        }}
+                        className="text-faint"
+                    >
+                        {copied ? (
+                            <Check className="text-ok size-3.5" />
+                        ) : (
+                            <Copy className="size-3.5" />
+                        )}
+                    </Button>
+                </Hint>
             </div>
             <pre className="text-ink overflow-x-auto px-3 py-2.5 font-mono text-[12.5px] leading-relaxed">
                 <code>
