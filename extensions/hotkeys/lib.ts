@@ -180,7 +180,12 @@ const MODIFIER_CODE = /^(Shift|Control|Alt|Meta)(Left|Right)$/;
 /** The part of a DOM element the shell asks about: what it is, and whether it is being typed into. */
 export type Target = { tagName: string; isContentEditable: boolean };
 
+/** The same, plus the one question a field asks of its ancestors: whether it opted into the shell's keys. */
+export type Field = Target & { closest(selector: string): object | null };
+
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
+// The composer carries it: the shell's keys reach it, so the arrows still switch sessions while typing.
+const SHELL_KEYS = "[data-shell-keys]";
 
 /** A field owns the keys typed into it: an unprefixed shortcut would eat the text the person writes. */
 export function ownsKeys(target: Target): boolean {
@@ -192,9 +197,9 @@ function arms(keymap: Keymap, event: KeyEvent): boolean {
     return matches(parseBinding(keymap.prefix, "prefix"), event);
 }
 
-/** Whether a field keeps the key: everything it types, and nothing that arms the shell behind it. */
-export function fieldKeeps(target: Target, keymap: Keymap, event: KeyEvent): boolean {
-    return ownsKeys(target) && !arms(keymap, event);
+/** Whether a field keeps the key: everything it types, but neither the prefix nor the keys it opted out of. */
+export function fieldKeeps(target: Field, keymap: Keymap, event: KeyEvent): boolean {
+    return ownsKeys(target) && !arms(keymap, event) && target.closest(SHELL_KEYS) === null;
 }
 
 /** One key press: idle, the prefix arms, and the next key runs a command or cancels. */

@@ -571,6 +571,8 @@ export const Composer = memo(function Composer({
                     <textarea
                         rows={2}
                         ref={field}
+                        // Opted in: the shell's keys, the session arrows among them, work while typing here.
+                        data-shell-keys
                         value={text}
                         placeholder={
                             busy && how !== undefined

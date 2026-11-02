@@ -159,26 +159,50 @@ void test("ownsKeys leaves the keys typed into a field to that field", () => {
 });
 
 void test("a field keeps its keys, except the prefix that arms the shell", () => {
-    const field = { tagName: "TEXTAREA", isContentEditable: false };
+    const typed = { tagName: "TEXTAREA", isContentEditable: false, closest: () => null };
+    const left = key("ArrowLeft", { shiftKey: true });
 
-    // The prefix reaches `step` from the composer, where it arms instead of being swallowed.
-    assert.equal(fieldKeeps(field, DEFAULT_KEYMAP, ctrlA), false);
+    // The prefix reaches `step` from a field, where it arms instead of being swallowed.
+    assert.equal(fieldKeeps(typed, DEFAULT_KEYMAP, ctrlA), false);
     assert.deepEqual(step(DEFAULT_KEYMAP, false, ctrlA), {
         armed: true,
         command: null,
         consume: true,
     });
 
-    // Shift+Left there types a selection: the shell must not switch sessions under it.
-    const left = key("ArrowLeft", { shiftKey: true });
-    assert.equal(fieldKeeps(field, DEFAULT_KEYMAP, left), true);
+    // Shift+Left in an ordinary field selects text: the shell must not switch sessions under it.
+    assert.equal(fieldKeeps(typed, DEFAULT_KEYMAP, left), true);
     assert.equal(step(DEFAULT_KEYMAP, false, left).command, "session.prev");
 
     // Only a field keeps anything: elsewhere the same key is the shell's.
     assert.equal(
-        fieldKeeps({ tagName: "DIV", isContentEditable: false }, DEFAULT_KEYMAP, left),
+        fieldKeeps(
+            { tagName: "DIV", isContentEditable: false, closest: () => null },
+            DEFAULT_KEYMAP,
+            left,
+        ),
         false,
     );
+});
+
+void test("a field that opted into the shell's keys lets the session arrows through", () => {
+    const left = key("ArrowLeft", { shiftKey: true });
+    const right = key("ArrowRight", { shiftKey: true });
+    // The composer's textarea: `data-shell-keys` on it, as the shell writes it.
+    const composer = {
+        tagName: "TEXTAREA",
+        isContentEditable: false,
+        closest: (selector: string) => (selector === "[data-shell-keys]" ? {} : null),
+    };
+
+    assert.equal(fieldKeeps(composer, DEFAULT_KEYMAP, left), false);
+    assert.equal(step(DEFAULT_KEYMAP, false, left).command, "session.prev");
+    assert.equal(fieldKeeps(composer, DEFAULT_KEYMAP, right), false);
+    assert.equal(step(DEFAULT_KEYMAP, false, right).command, "session.next");
+
+    // The prefix arms there too, as it does in any other field.
+    assert.equal(fieldKeeps(composer, DEFAULT_KEYMAP, ctrlA), false);
+    assert.equal(step(DEFAULT_KEYMAP, false, ctrlA).armed, true);
 });
 
 void test("a held prefix does not arm", () => {
