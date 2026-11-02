@@ -1,4 +1,4 @@
-import { Hammer, LoaderCircle, RotateCw, X } from "lucide-react";
+import { Hammer, LoaderCircle, RotateCw } from "lucide-react";
 import { useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,28 +16,14 @@ export type Props = {
     cwd: string;
     session: SettingsProps["session"];
     open: boolean;
-    epoch: number;
     onClose: () => void;
 };
 
-export function SettingsContent({ model, cwd, session, epoch, onClose }: Omit<Props, "open">) {
+export function SettingsContent({ model, cwd, session }: Omit<Props, "open" | "onClose">) {
     const sections = useSettingsSections();
 
     return (
-        <div className="flex w-full min-w-0 flex-col lg:w-[360px] lg:shrink-0">
-            {/* Pinned to the right edge while the panel narrows: it leaves like a drawer, not a squashed card. */}
-            <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
-                <h2 className="text-interface text-ink font-medium">Settings</h2>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    title="Close"
-                    className="rounded-control text-muted hover:bg-raised flex size-6 items-center justify-center"
-                >
-                    <X className="size-4" />
-                </button>
-            </header>
-
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
             <ScrollArea className="min-h-0 flex-1">
                 <div className="divide-edge-soft flex flex-col divide-y">
                     <section className="flex flex-col gap-1.5 p-3">
@@ -46,20 +32,15 @@ export function SettingsContent({ model, cwd, session, epoch, onClose }: Omit<Pr
                         <Row label="folder" value={cwd} />
                     </section>
 
-                    {/* Nothing reads until the first open; it then stays, so the closing panel still has content. */}
-                    {epoch === 0
-                        ? null
-                        : sections.map(({ folder, id, title, component: Section }) => (
-                              <section
-                                  key={`${folder}:${id}:${String(epoch)}`}
-                                  className="flex flex-col gap-1.5 p-3"
-                              >
-                                  <h3 className="text-meta text-faint">{title}</h3>
-                                  <ItemBoundary name={`${folder}:${id}`}>
-                                      <Section session={session} />
-                                  </ItemBoundary>
-                              </section>
-                          ))}
+                    {/* The sheet is unmounted when closed, so each open reads the sections afresh. */}
+                    {sections.map(({ folder, id, title, component: Section }) => (
+                        <section key={`${folder}:${id}`} className="flex flex-col gap-1.5 p-3">
+                            <h3 className="text-meta text-faint">{title}</h3>
+                            <ItemBoundary name={`${folder}:${id}`}>
+                                <Section session={session} />
+                            </ItemBoundary>
+                        </section>
+                    ))}
                 </div>
             </ScrollArea>
 

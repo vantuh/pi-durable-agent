@@ -1,4 +1,4 @@
-import { PanelLeft, Plus, Settings as SettingsIcon } from "lucide-react";
+import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,7 +14,6 @@ type Props = {
     onOpen: (id: number) => void;
     onNew: () => void;
     onSessions: () => void;
-    onSettings: () => void;
 };
 
 /** The rest of the history is the sidebar's, folder by folder. */
@@ -51,7 +50,7 @@ function Row({
 }
 
 /** Every folder's sessions on one page: what is working, what finished unseen, what was recent. */
-export function Home({ sessions, onOpen, onNew, onSessions, onSettings }: Props) {
+export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
@@ -98,14 +97,6 @@ export function Home({ sessions, onOpen, onNew, onSessions, onSettings }: Props)
                     >
                         <Plus className="size-3.5" />
                         New session
-                    </button>
-                    <button
-                        type="button"
-                        title="Settings"
-                        onClick={onSettings}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                    >
-                        <SettingsIcon className="size-4" />
                     </button>
                 </div>
             </header>

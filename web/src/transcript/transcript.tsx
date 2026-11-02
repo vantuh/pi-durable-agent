@@ -1,12 +1,4 @@
-import {
-    ChevronRight,
-    CircleAlert,
-    File,
-    Layers,
-    Lightbulb,
-    PanelLeft,
-    Settings as SettingsIcon,
-} from "lucide-react";
+import { ChevronRight, CircleAlert, File, Layers, Lightbulb, PanelLeft } from "lucide-react";
 import {
     memo,
     type ReactNode,
@@ -106,9 +98,8 @@ type Props = {
     title: string | null;
     entries: ClientEntry[];
     live: ClientLive;
-    /** Buttons of the extensions' panels, before the settings gear. */
+    /** Buttons of the extensions' panels. */
     tools?: ReactNode;
-    onSettings: () => void;
     onSessions: () => void;
     /** Goes to another conversation, the one an agent's message came from. */
     onOpenSession: (session: number) => void;
@@ -458,7 +449,6 @@ export function Transcript({
     entries,
     live,
     tools,
-    onSettings,
     onSessions,
     onOpenSession,
     below,
@@ -602,17 +592,7 @@ export function Transcript({
                         <div className="flex min-w-0 items-center gap-2 empty:hidden">{below}</div>
                     </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                    {tools}
-                    <button
-                        type="button"
-                        title="Settings"
-                        onClick={onSettings}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                    >
-                        <SettingsIcon className="size-4" />
-                    </button>
-                </div>
+                <div className="flex shrink-0 items-center gap-2">{tools}</div>
             </header>
 
             <ScrollArea

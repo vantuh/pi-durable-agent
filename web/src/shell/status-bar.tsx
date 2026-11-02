@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react";
 import { memo } from "react";
 
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
@@ -15,6 +16,8 @@ type Props = {
     /** Null on the home page. */
     current: number | null;
     onOpen: (id: number | null) => void;
+    settingsOpen: boolean;
+    onSettings: () => void;
 };
 
 function toneOf(status: "ok" | "warn" | "danger"): string {
@@ -39,6 +42,8 @@ export const StatusBar = memo(function StatusBar({
     sessions,
     current,
     onOpen,
+    settingsOpen,
+    onSettings,
 }: Props) {
     const tone = issue === null ? (busy ? "warn" : connected ? "ok" : "danger") : "danger";
     const label = issue ?? (busy ? "working" : connected ? "ready" : "offline");
@@ -85,6 +90,16 @@ export const StatusBar = memo(function StatusBar({
                 {at("end").map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
+                <button
+                    type="button"
+                    title="Settings"
+                    aria-label="Settings"
+                    aria-pressed={settingsOpen}
+                    onClick={onSettings}
+                    className={`rounded-control hover:bg-raised hover:text-ink focus-visible:ring-accent flex size-6 shrink-0 items-center justify-center outline-none focus-visible:ring-2 ${settingsOpen ? "bg-raised text-ink" : "text-muted"}`}
+                >
+                    <Settings className="size-4" />
+                </button>
             </div>
         </footer>
     );

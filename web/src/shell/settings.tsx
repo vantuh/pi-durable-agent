@@ -1,3 +1,5 @@
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import type { Props } from "./settings-content.tsx";
@@ -7,18 +9,44 @@ const Content = lazy(async () => ({
     default: (await import("./settings-content.tsx")).SettingsContent,
 }));
 
-export function Settings({ open, ...props }: Props) {
+/** A sheet from the right edge over the app: the layout under it keeps its width. */
+export function Settings({ open, onClose, ...props }: Props) {
     return (
-        <aside
-            data-open={open ? "" : undefined}
-            className="rounded-card border-edge-soft bg-canvas invisible fixed inset-2 z-20 flex min-w-0 shrink-0 justify-end overflow-hidden border transition-[translate,visibility] duration-200 ease-out data-[open]:pointer-events-auto data-[open]:visible motion-reduce:transition-none max-lg:translate-x-[calc(100%+8px)] max-lg:data-[open]:translate-x-0 lg:relative lg:inset-auto lg:z-auto lg:w-0 lg:transition-[width,visibility] lg:data-[open]:w-[360px]"
+        <DialogPrimitive.Root
+            open={open}
+            onOpenChange={(next) => {
+                if (!next) {
+                    onClose();
+                }
+            }}
         >
-            {/* Nothing is fetched until the first open; it then stays, so the closing panel still has content. */}
-            {props.epoch === 0 ? null : (
-                <Suspense fallback={null}>
-                    <Content {...props} />
-                </Suspense>
-            )}
-        </aside>
+            <DialogPrimitive.Portal>
+                <DialogPrimitive.Overlay
+                    data-slot="dialog-overlay"
+                    className="bg-sunken/40 fixed inset-0 z-50"
+                />
+                <DialogPrimitive.Content
+                    data-slot="sheet-content"
+                    aria-describedby={undefined}
+                    className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-50 flex flex-col overflow-hidden border outline-none sm:bottom-12 sm:left-auto sm:w-[360px]"
+                >
+                    <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
+                        <DialogPrimitive.Title className="text-interface text-ink font-medium">
+                            Settings
+                        </DialogPrimitive.Title>
+                        <DialogPrimitive.Close
+                            title="Close"
+                            aria-label="Close"
+                            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-6 items-center justify-center outline-none focus-visible:ring-2"
+                        >
+                            <X className="size-4" />
+                        </DialogPrimitive.Close>
+                    </header>
+                    <Suspense fallback={null}>
+                        <Content {...props} />
+                    </Suspense>
+                </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
     );
 }

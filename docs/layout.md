@@ -1,6 +1,6 @@
 # Layout
 
-Three floating panels with a gap between them, on a darker page, and one status bar underneath. This
+Floating panels with a gap between them, on a darker page, and one status bar underneath. This
 is the shape we settled on after the mockup: cards with gaps, not flush columns — the gaps are what
 tell a panel from the page.
 
@@ -8,15 +8,15 @@ tell a panel from the page.
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ page: bg-sunken, 8px padding, 8px gaps                                       │
 │ ┌────────────────┐ ┌───────────────────────────────────────┐ ┌────────────┐  │
-│ │ Sessions       │ │ Session name            ⎇ branch  ⚙   │ │ Settings   │  │
-│ │ 264px, drag    │ ├───────────────────────────────────────┤ │ 360px      │  │
-│ │ folder pill    │ │ transcript  (the only scroller)        │ │ closed by  │  │
-│ │ list of rows   │ │                                        │ │ default    │  │
+│ │ Sessions       │ │ Session name            ⎇ branch       │ │ (Settings  │  │
+│ │ 264px, drag    │ ├───────────────────────────────────────┤ │ sheet over │  │
+│ │ folder pill    │ │ transcript  (the only scroller)        │ │ the app,   │  │
+│ │ list of rows   │ │                                        │ │ 360px)     │  │
 │ │                │ ├───────────────────────────────────────┤ │            │  │
 │ │                │ │ composer                               │ │            │  │
 │ └────────────────┘ └───────────────────────────────────────┘ └────────────┘  │
 │ ┌──────────────────────────────────────────────────────────────────────────┐ │
-│ │ ● ready  ~/project  ⎇ main          model            ↑in ↓out · $cost   │ │
+│ │ ● ready  ~/project  ⎇ main          model            ↑in ↓out · $cost ⚙ │ │
 │ └──────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -83,8 +83,7 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 ## Conversation
 
 - **Header**: the session title, the `title` slot in a small line under it (the branch badge of
-  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`), and the
-  settings gear. The folder is the sidebar's. The mockup's other three
+  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - **What is loaded**: the event stream carries the active view, which starts at the newest
@@ -166,7 +165,11 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 
 ## Settings
 
-A panel on the right. Under its sections is a footer row with two icon buttons: a puzzle
+The gear at the right end of the status bar opens a sheet from the right edge, over the app: the
+sidebar and the conversation keep their width, a scrim (`sunken` at 40%) dims them, and a click on
+the scrim, `Esc` or the close button closes it. The gear stays raised while the sheet is open. The
+sheet is 360px wide and stops above the status bar from `sm` up; below `sm` it fills the screen. It
+is a Radix dialog that is unmounted when closed, so its sections read afresh at each open. Under its sections is a footer row with two icon buttons: a puzzle
 ("Extensions") that opens a modal to turn extensions on and off ([extensions.md](extensions.md)),
 and a palette ("Appearance: theme") that opens a modal with one card per flavour
 ([theme.md](theme.md)). Both modals are full screen below `sm` and a centred card from `sm` up;

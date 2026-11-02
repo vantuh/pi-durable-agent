@@ -265,6 +265,15 @@ body {
     animation: drop-out 100ms ease-out forwards;
 }
 
+/* The settings sheet slides over the app from the right edge, with the scrim fading behind it. */
+[data-slot="sheet-content"] {
+    animation: panel-in 200ms ease-out;
+}
+
+[data-slot="sheet-content"][data-state="closed"] {
+    animation: panel-out 200ms ease-out forwards;
+}
+
 /* An extension's panel comes in from the edge, as the settings panel does. */
 @keyframes panel-in {
     from {
@@ -321,6 +330,8 @@ body {
     [data-slot="dialog-overlay"],
     [data-slot="dialog-content"][data-state="closed"],
     [data-slot="dialog-overlay"][data-state="closed"],
+    [data-slot="sheet-content"],
+    [data-slot="sheet-content"][data-state="closed"],
     [data-slot="panel-host"],
     [data-slot="panel-host"][data-leaving] {
         animation-duration: 1ms;
