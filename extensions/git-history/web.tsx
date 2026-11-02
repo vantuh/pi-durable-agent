@@ -32,6 +32,7 @@ import {
     UNTRACKED_FILE_CAP,
     cancel,
     changes,
+    commitMeta,
     history,
     reword,
     review,
@@ -473,11 +474,39 @@ function HistoryRow({
     );
 }
 
+/**
+ * What the open place names, and what the page knows about it: the working tree, a commit whose message
+ * is at hand, a sha still being looked up, or one this folder's history does not have.
+ */
+type Shown =
+    | { kind: "working" }
+    | { kind: "commit"; commit: Commit }
+    | { kind: "reading" }
+    | { kind: "missing" };
+
+/** The detail of the address's target: a commit from the loaded list, or one read on its own. */
+function detailOf(
+    target: string,
+    listed: Commit | undefined,
+    looked: { target: string; commit: Commit | null } | null,
+): Shown {
+    if (actionTarget(target) === "worktree") {
+        return { kind: "working" };
+    }
+    if (listed !== undefined) {
+        return { kind: "commit", commit: listed };
+    }
+    if (looked === null || looked.target !== target) {
+        return { kind: "reading" };
+    }
+    return looked.commit === null ? { kind: "missing" } : { kind: "commit", commit: looked.commit };
+}
+
 /** The open commit (or the working tree): its message, the actions, and its diffs in the page's scroll. */
 function CommitDetail({
     session,
     target,
-    commit,
+    shown,
     now,
     upstream,
     reviewState,
@@ -490,7 +519,7 @@ function CommitDetail({
 }: {
     session: number;
     target: string;
-    commit: Commit | undefined;
+    shown: Shown;
     now: number;
     upstream: string | null | undefined;
     reviewState: ReviewState | null;
@@ -529,7 +558,9 @@ function CommitDetail({
         }
     }, [active]);
     const rewritable =
-        commit !== undefined && !commit.remote && (upstream === null || commit.unpushed);
+        shown.kind === "commit" &&
+        !shown.commit.remote &&
+        (upstream === null || shown.commit.unpushed);
     const mine = reviewState !== null && subTarget(reviewState.target) === target;
     async function begin(): Promise<void> {
         setStarting(true);
@@ -542,80 +573,90 @@ function CommitDetail({
     const header = (
         <>
             <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5">
-                {commit === undefined ? (
-                    <header className="flex min-w-0 grow basis-full flex-col gap-1 sm:basis-0">
-                        <h3
-                            ref={takeTitle}
-                            tabIndex={-1}
-                            className="text-interface text-ink font-medium outline-none"
-                        >
-                            Uncommitted changes
-                        </h3>
-                        <p className="text-meta text-faint font-mono">the working tree</p>
-                    </header>
-                ) : (
+                {shown.kind === "commit" ? (
                     <header className="flex min-w-0 grow basis-full flex-col gap-1.5 sm:basis-0">
                         <h3
                             ref={takeTitle}
                             tabIndex={-1}
                             className="text-interface text-ink text-prose leading-snug font-medium outline-none"
                         >
-                            {commit.subject || "(no message)"}
+                            {shown.commit.subject || "(no message)"}
                         </h3>
-                        {commit.body === "" ? null : (
+                        {shown.commit.body === "" ? null : (
                             <p className="text-muted text-interface whitespace-pre-wrap">
-                                {commit.body}
+                                {shown.commit.body}
                             </p>
                         )}
                         <p className="text-meta text-faint flex flex-wrap gap-2 font-mono">
-                            <span>{commit.short}</span>
-                            <span>{commit.author}</span>
-                            <span title={EXACT_TIME.format(commit.at)}>{ago(commit.at, now)}</span>
+                            <span>{shown.commit.short}</span>
+                            <span>{shown.commit.author}</span>
+                            <span title={EXACT_TIME.format(shown.commit.at)}>
+                                {ago(shown.commit.at, now)}
+                            </span>
+                        </p>
+                    </header>
+                ) : (
+                    <header className="flex min-w-0 grow basis-full flex-col gap-1 sm:basis-0">
+                        <h3
+                            ref={takeTitle}
+                            tabIndex={-1}
+                            className="text-interface text-ink font-medium outline-none"
+                        >
+                            {shown.kind === "working"
+                                ? "Uncommitted changes"
+                                : shown.kind === "reading"
+                                  ? "Reading the commit…"
+                                  : "No such commit"}
+                        </h3>
+                        <p className="text-meta text-faint font-mono">
+                            {shown.kind === "working" ? "the working tree" : target}
                         </p>
                     </header>
                 )}
 
-                <div className="flex shrink-0 flex-wrap gap-2">
-                    {rewritable && commit !== undefined ? (
-                        <button
-                            type="button"
-                            className={`${button} flex items-center gap-1.5`}
-                            onClick={() => {
-                                setEditing((old) => !old);
-                            }}
-                        >
-                            <Pencil className="size-3.5" /> Reword
-                        </button>
-                    ) : null}
-                    {mine && running(reviewState) ? (
-                        <button
-                            type="button"
-                            className={button}
-                            onClick={() => {
-                                onReviewAgain(target);
-                            }}
-                        >
-                            Resume review
-                        </button>
-                    ) : (
-                        <button
-                            type="button"
-                            className={button}
-                            disabled={starting || running(reviewState)}
-                            onClick={() => {
-                                void begin();
-                            }}
-                        >
-                            Review
-                        </button>
-                    )}
-                </div>
+                {shown.kind === "missing" ? null : (
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                        {rewritable ? (
+                            <button
+                                type="button"
+                                className={`${button} flex items-center gap-1.5`}
+                                onClick={() => {
+                                    setEditing((old) => !old);
+                                }}
+                            >
+                                <Pencil className="size-3.5" /> Reword
+                            </button>
+                        ) : null}
+                        {mine && running(reviewState) ? (
+                            <button
+                                type="button"
+                                className={button}
+                                onClick={() => {
+                                    onReviewAgain(target);
+                                }}
+                            >
+                                Resume review
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className={button}
+                                disabled={starting || running(reviewState)}
+                                onClick={() => {
+                                    void begin();
+                                }}
+                            >
+                                Review
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {editing && commit !== undefined ? (
+            {editing && shown.kind === "commit" ? (
                 <RewordForm
                     session={session}
-                    commit={commit}
+                    commit={shown.commit}
                     onClose={() => {
                         setEditing(false);
                     }}
@@ -624,6 +665,16 @@ function CommitDetail({
             ) : null}
         </>
     );
+
+    if (shown.kind === "missing") {
+        return (
+            <PendingPane header={header}>
+                <p className="text-muted text-interface p-3">
+                    Nothing in this folder's history has that id. Open the history to pick a commit.
+                </p>
+            </PendingPane>
+        );
+    }
 
     return (
         <ChangesView
@@ -756,6 +807,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const [now, setNow] = useState(() => Date.now());
     const [state, setState] = useState<ReviewState | null>(null);
     const [starting, setStarting] = useState(false);
+    // The message of a commit the loaded page of history stops short of, or an abbreviated sha's full one.
+    const [looked, setLooked] = useState<{ target: string; commit: Commit | null } | null>(null);
     const rows = useRef(new Map<string, HTMLButtonElement>());
     const layer = useRef(false);
     const latestReview = useRef<ReviewState | null>(null);
@@ -796,6 +849,36 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
         };
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Refresh explicitly reloads the same Git query
     }, [id, limit, refresh]);
+
+    // A link can name a commit the loaded list does not hold, or abbreviate the sha: its message is read
+    // on its own, since the diff under it is read from the same target anyway.
+    useEffect(() => {
+        if (shownTarget === undefined || actionTarget(shownTarget) === "worktree") {
+            return undefined;
+        }
+        if (data === null || data.commits.some((each) => each.hash === shownTarget)) {
+            return undefined;
+        }
+        if (looked !== null && looked.target === shownTarget) {
+            return undefined;
+        }
+        let alive = true;
+        void (async () => {
+            try {
+                const commit = await callAction(commitMeta, { target: shownTarget }, id);
+                if (alive) {
+                    setLooked({ target: shownTarget, commit });
+                }
+            } catch {
+                if (alive) {
+                    setLooked({ target: shownTarget, commit: null });
+                }
+            }
+        })();
+        return () => {
+            alive = false;
+        };
+    }, [id, shownTarget, data, looked]);
 
     // The newest commits are the ones opened next: read them while nobody is waiting.
     useEffect(() => {
@@ -944,10 +1027,11 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
         }
     }
 
-    const commit =
+    const listed =
         shownTarget === undefined || actionTarget(shownTarget) === "worktree"
             ? undefined
             : data?.commits.find((candidate) => candidate.hash === shownTarget);
+    const detail = shownTarget === undefined ? undefined : detailOf(shownTarget, listed, looked);
     const toolbar = (
         <div className="border-edge-soft flex min-h-[35px] flex-wrap items-center gap-2 border-b px-3 py-1.5">
             {data?.branch ? (
@@ -1129,12 +1213,12 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         }}
                         onClose={close}
                     />
-                ) : (
+                ) : detail === undefined ? null : (
                     <CommitDetail
                         key={shownTarget}
                         session={id}
                         target={shownTarget}
-                        commit={commit}
+                        shown={detail}
                         now={now}
                         upstream={data?.upstream}
                         reviewState={state}

@@ -239,3 +239,60 @@ void describe("git-history changes", () => {
         assert.match(await patchOf(second), /\n\+two/);
     });
 });
+
+void describe("git-history commit", () => {
+    let dir: string;
+    let repo: string;
+    const git = async (...args: string[]) => (await run("git", args, { cwd: repo })).stdout.trim();
+    const commitOf = (args: unknown) => {
+        const action = actions(host)["commit"];
+        assert.ok(action);
+        return action({ args, session: { id: 1, cwd: repo } });
+    };
+    const subjectOf = async (target: string) => {
+        const found = await commitOf({ target });
+        assert.ok(typeof found === "object" && found !== null);
+        return found;
+    };
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "git-history-commit-"));
+        repo = join(dir, "repo");
+        await mkdir(repo);
+        await git("init", "-b", "main");
+        await git("config", "user.name", "Test");
+        await git("config", "user.email", "test@example.com");
+        await git("config", "commit.gpgsign", "false");
+        await writeFile(join(repo, "file"), "one\n");
+        await git("add", "-A");
+        await git("commit", "-m", "first\n\nwith a body");
+    });
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    void it("reads one commit's message on its own", async () => {
+        const hash = await git("rev-parse", "HEAD");
+        const found = await subjectOf(hash);
+        assert.equal(Reflect.get(found, "hash"), hash);
+        assert.equal(Reflect.get(found, "subject"), "first");
+        assert.equal(Reflect.get(found, "body"), "with a body");
+        assert.equal(Reflect.get(found, "author"), "Test");
+        assert.equal(Reflect.get(found, "short"), hash.slice(0, 7));
+        assert.equal(Reflect.get(found, "remote"), false);
+    });
+
+    void it("answers an abbreviated sha with the full one", async () => {
+        const hash = await git("rev-parse", "HEAD");
+        assert.equal(Reflect.get(await subjectOf(hash.slice(0, 7)), "hash"), hash);
+    });
+
+    void it("refuses a sha this history does not have", async () => {
+        const refuses = async (target: string) => {
+            const answer = commitOf({ target });
+            assert.ok(answer instanceof Promise);
+            await assert.rejects(answer, /no such commit/);
+        };
+        await refuses("0".repeat(40));
+        await refuses("not a hash");
+    });
+});

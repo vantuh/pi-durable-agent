@@ -1,7 +1,7 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
-import { readChanges, readHistory, reword as rewordCommit } from "./git.ts";
+import { readChanges, readCommit, readHistory, reword as rewordCommit } from "./git.ts";
 import { reviewProxy } from "./proxy.ts";
 import type { Changes } from "./refs.ts";
 import { Reviews } from "./reviews.ts";
@@ -82,6 +82,13 @@ export const actions = (host: Host): Record<string, Action> => ({
     changes({ args, session }) {
         const current = sessionOf(session);
         return changesOf(current.cwd, targetOf(args));
+    },
+    commit({ args, session }) {
+        const target = field(args, "target");
+        if (typeof target !== "string") {
+            throw new ActionError("Choose a commit from the history.");
+        }
+        return readCommit(sessionOf(session).cwd, target);
     },
     reword({ args, session }) {
         const hash = field(args, "hash");

@@ -151,6 +151,18 @@ export const changes = actionRef<{ target: string }, Changes>(
     "changes",
     parseChanges,
 );
+function parseCommit(value: unknown): Commit {
+    if (isCommit(value)) {
+        return value;
+    }
+    throw new Error("Invalid commit response");
+}
+/** One commit's message, for a link that names a commit the loaded page of history stops short of. */
+export const commitMeta = actionRef<{ target: string }, Commit>(
+    "git-history",
+    "commit",
+    parseCommit,
+);
 export const start = actionRef<{ target: string }, ReviewState | null>(
     "git-history",
     "start",

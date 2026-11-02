@@ -212,6 +212,42 @@ export async function readHistory(cwd: string, limit: number): Promise<History> 
     };
 }
 
+/**
+ * One commit's message, read on its own: the page's list is only as long as it was asked to be, and a
+ * link may name a commit beyond it, or abbreviate the sha. The flags are the list's, computed for one.
+ */
+export async function readCommit(cwd: string, target: string): Promise<Commit> {
+    const root = await rootOf(cwd);
+    const hash = await resolveCommit(root, target).catch(() => {
+        throw new ActionError("This folder's history has no such commit.");
+    });
+    const [found] = commitsOf(
+        await git(root, ["log", "-z", "-n1", `--format=${LOG}`, hash, "--"]),
+        new Set<string>(),
+        false,
+    );
+    if (found === undefined) {
+        throw new ActionError("This folder's history has no such commit.");
+    }
+    const reaches = (ref: string): Promise<boolean> =>
+        git(root, ["merge-base", "--is-ancestor", hash, ref]).then(
+            () => true,
+            () => false,
+        );
+    const upstream = (
+        await git(root, ["rev-parse", "--verify", "--quiet", "@{upstream}"]).catch(() => "")
+    ).trim();
+    const own = await reaches("HEAD");
+    const pushed = upstream !== "" && (await reaches(upstream));
+
+    // The list's rule as well: with no upstream, nothing is known to be waiting to go out.
+    return {
+        ...found,
+        unpushed: upstream !== "" && own && !pushed,
+        remote: upstream !== "" && !own && pushed,
+    };
+}
+
 export function filesOf(output: string): ChangedFile[] {
     const fields = output.split("\0");
     const files: ChangedFile[] = [];
