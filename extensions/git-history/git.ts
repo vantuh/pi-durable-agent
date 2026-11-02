@@ -213,13 +213,42 @@ export async function readHistory(cwd: string, limit: number): Promise<History> 
 }
 
 /**
+ * The full id of a commit, or null when this history has no such commit. Under `--quiet` Git answers a
+ * revision it cannot resolve with exit 1 and no words; anything else — a Git that died, a folder that
+ * stopped being a repository — is a failed read, and its own message travels up rather than "absent".
+ */
+async function commitId(root: string, target: string): Promise<string | null> {
+    try {
+        const found = (
+            await git(root, [
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                "--end-of-options",
+                `${target}^{commit}`,
+            ])
+        ).trim();
+
+        return found === "" ? null : found;
+    } catch (error) {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === 1) {
+            return null;
+        }
+        throw new ActionError(gitMessage(error));
+    }
+}
+
+/**
  * One commit's message, read on its own: the page's list is only as long as it was asked to be, and a
  * link may name a commit beyond it, or abbreviate the sha. The flags are the list's, computed for one.
  * A sha this history does not have is no answer at all, which the page tells apart from a failed read.
  */
 export async function readCommit(cwd: string, target: string): Promise<Commit | null> {
+    if (!/^[0-9a-f]{4,64}$/i.test(target)) {
+        throw new ActionError("Choose a commit from the history.");
+    }
     const root = await rootOf(cwd);
-    const hash = await resolveCommit(root, target).catch(() => null);
+    const hash = await commitId(root, target);
 
     if (hash === null) {
         return null;
@@ -230,7 +259,7 @@ export async function readCommit(cwd: string, target: string): Promise<Commit | 
         false,
     );
     if (found === undefined) {
-        return null;
+        throw new ActionError("Git could not read that commit.");
     }
     const reaches = (ref: string): Promise<boolean> =>
         git(root, ["merge-base", "--is-ancestor", hash, ref]).then(

@@ -898,7 +898,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
         return () => {
             alive = false;
         };
-    }, [id, shownTarget, data, looked]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a refresh cancels the answer already on its way
+    }, [id, shownTarget, data, looked, refresh]);
 
     // The newest commits are the ones opened next: read them while nobody is waiting.
     useEffect(() => {

@@ -290,4 +290,18 @@ void describe("git-history commit", () => {
         assert.equal(await commitOf({ target: "0".repeat(40) }), null);
         assert.throws(() => commitOf({ target: "not a hash" }), /Choose a commit/);
     });
+
+    void it("hands back the words of a read that failed", async () => {
+        const hash = await git("rev-parse", "HEAD");
+
+        // Reads the repository once, which remembers its root for this folder.
+        assert.equal(Reflect.get(await subjectOf(hash), "hash"), hash);
+        // The same folder, no longer a repository: Git fails, and that is not a commit that is absent.
+        await rm(join(repo, ".git"), { recursive: true, force: true });
+
+        const failed = commitOf({ target: hash });
+
+        assert.ok(failed instanceof Promise);
+        await assert.rejects(failed, /not a git repository/);
+    });
 });
