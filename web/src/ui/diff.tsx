@@ -1,8 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import type { RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { type DiffLine, diffCounts, parseDiff, piecesOf } from "../lib/diff.ts";
+import { currentDiffLayout, watchDiffLayout } from "../lib/diff-layout.ts";
+import {
+    type DiffLine,
+    type DiffRow,
+    type DiffSpan,
+    diffCounts,
+    diffRows,
+    parseDiff,
+    piecesOf,
+} from "../lib/diff.ts";
 import { classOf, tokensOf } from "../lib/highlight.ts";
 
 const ROW = {
@@ -107,6 +117,144 @@ function useTokens(lines: DiffLine[], lang: string): Map<number, Tokens> | undef
     return tokens?.lines === lines ? tokens.byLine : undefined;
 }
 
+/** Narrower than this, two columns are each too narrow to read: the card keeps one. */
+const SPLIT_FROM = 560;
+
+/** A line as it reads in one column: its number, its sign, and its text with the words that changed marked. */
+function Line({
+    type,
+    num,
+    spans,
+    tokens,
+    width,
+}: {
+    type: "add" | "del" | "ctx";
+    num: number;
+    spans: DiffSpan[];
+    tokens: Tokens | undefined;
+    width: number;
+}) {
+    return (
+        <>
+            <span
+                className="text-faint shrink-0 pr-2 pl-3 text-right tabular-nums select-none"
+                style={{ width: `${String(width + 2)}ch` }}
+            >
+                {num}
+            </span>
+            <span className={cn("w-4 shrink-0 select-none", SIGN[type])}>
+                {type === "add" ? "+" : type === "del" ? "−" : ""}
+            </span>
+            <span className="text-ink whitespace-pre">
+                {piecesOf(spans, tokens).map((piece, index) => (
+                    <span
+                        // oxlint-disable-next-line react/no-array-index-key -- pieces of one line have no id
+                        key={index}
+                        className={cn(piece.className, piece.changed && CHANGED[type])}
+                    >
+                        {piece.text}
+                    </span>
+                ))}
+            </span>
+        </>
+    );
+}
+
+/** The old file on the left, the new on the right, each scrolling on its own. */
+function SplitBody({
+    rows,
+    tokens,
+    width,
+}: {
+    rows: DiffRow[];
+    tokens: Map<number, Tokens> | undefined;
+    width: number;
+}) {
+    return (
+        <div className="flex">
+            {(["left", "right"] as const).map((side) => (
+                <div
+                    key={side}
+                    className={cn(
+                        "min-w-0 flex-1 overflow-x-auto",
+                        side === "right" && "border-edge-soft border-l",
+                    )}
+                >
+                    <div className="min-w-max">
+                        {rows.map((row, at) => {
+                            if (row.type === "skip") {
+                                return side === "left" ? (
+                                    <div
+                                        // oxlint-disable-next-line react/no-array-index-key -- rows of one diff have no id
+                                        key={at}
+                                        className="text-faint min-h-[1lh] px-3 select-none"
+                                    >
+                                        {row.text}
+                                    </div>
+                                ) : (
+                                    // oxlint-disable-next-line react/no-array-index-key -- likewise
+                                    <div key={at} className="min-h-[1lh]" />
+                                );
+                            }
+
+                            const cell = side === "left" ? row.left : row.right;
+
+                            return (
+                                <div
+                                    // oxlint-disable-next-line react/no-array-index-key -- rows of one diff have no id
+                                    key={at}
+                                    className={cn(
+                                        "flex min-h-[1lh] pr-3",
+                                        cell !== undefined && ROW[cell.type],
+                                    )}
+                                >
+                                    {cell === undefined ? null : (
+                                        <Line
+                                            type={cell.type}
+                                            num={cell.num}
+                                            spans={cell.spans}
+                                            tokens={tokens?.get(cell.at)}
+                                            width={width}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/** Whether the card itself has room for two columns: the conversation column is not the window. */
+function useRoom(): [RefObject<HTMLDivElement | null>, boolean] {
+    const root = useRef<HTMLDivElement>(null);
+    const [room, setRoom] = useState(() => window.innerWidth >= SPLIT_FROM);
+
+    useEffect(() => {
+        const box = root.current;
+
+        if (box === null) {
+            return undefined;
+        }
+
+        const measure = (): void => {
+            setRoom(box.clientWidth >= SPLIT_FROM);
+        };
+        const observer = new ResizeObserver(measure);
+
+        observer.observe(box);
+        measure();
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
+
+    return [root, room];
+}
+
 /** Lines added and removed: the added green, the removed red, a side with none left out. */
 export function Counts({ added, removed }: { added: number; removed: number }) {
     return (
@@ -124,12 +272,19 @@ export function Counts({ added, removed }: { added: number; removed: number }) {
 export function DiffCard({ diff, path, lang }: { diff: string; path?: string; lang: string }) {
     const lines = useMemo(() => parseDiff(diff), [diff]);
     const tokens = useTokens(lines, lang);
+    const layout = useSyncExternalStore(watchDiffLayout, currentDiffLayout);
+    const [root, room] = useRoom();
+    const split = layout === "split" && room;
+    const rows = useMemo(() => diffRows(lines), [lines]);
     const width = String(
         Math.max(0, ...lines.map((line) => (line.type === "skip" ? 0 : line.num))),
     ).length;
 
     return (
-        <div className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border">
+        <div
+            ref={root}
+            className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border"
+        >
             {path === undefined ? null : (
                 <div className="border-edge-soft text-meta text-muted flex h-8 items-center gap-3 border-b px-3 font-mono">
                     <span className="min-w-0 flex-1 truncate">{path}</span>
@@ -137,43 +292,31 @@ export function DiffCard({ diff, path, lang }: { diff: string; path?: string; la
                 </div>
             )}
             <div className="overflow-x-auto py-1 font-mono text-[12.5px] leading-relaxed">
-                <div className="min-w-max">
-                    {lines.map((line, at) =>
-                        line.type === "skip" ? (
-                            // oxlint-disable-next-line react/no-array-index-key -- lines of one diff have no id; their order is the identity
-                            <div key={at} className="text-faint px-3 select-none">
-                                {line.text}
-                            </div>
-                        ) : (
-                            // oxlint-disable-next-line react/no-array-index-key -- likewise
-                            <div key={at} className={cn("flex pr-3", ROW[line.type])}>
-                                <span
-                                    className="text-faint shrink-0 pr-2 pl-3 text-right tabular-nums select-none"
-                                    style={{ width: `${String(width + 2)}ch` }}
-                                >
-                                    {line.num}
-                                </span>
-                                <span className={cn("w-4 shrink-0 select-none", SIGN[line.type])}>
-                                    {line.type === "add" ? "+" : line.type === "del" ? "−" : ""}
-                                </span>
-                                <span className="text-ink whitespace-pre">
-                                    {piecesOf(line.spans, tokens?.get(at)).map((piece, index) => (
-                                        <span
-                                            // oxlint-disable-next-line react/no-array-index-key -- pieces of one line have no id
-                                            key={index}
-                                            className={cn(
-                                                piece.className,
-                                                piece.changed && CHANGED[line.type],
-                                            )}
-                                        >
-                                            {piece.text}
-                                        </span>
-                                    ))}
-                                </span>
-                            </div>
-                        ),
-                    )}
-                </div>
+                {split ? (
+                    <SplitBody rows={rows} tokens={tokens} width={width} />
+                ) : (
+                    <div className="min-w-max">
+                        {lines.map((line, at) =>
+                            line.type === "skip" ? (
+                                // oxlint-disable-next-line react/no-array-index-key -- lines of one diff have no id; their order is the identity
+                                <div key={at} className="text-faint px-3 select-none">
+                                    {line.text}
+                                </div>
+                            ) : (
+                                // oxlint-disable-next-line react/no-array-index-key -- likewise
+                                <div key={at} className={cn("flex pr-3", ROW[line.type])}>
+                                    <Line
+                                        type={line.type}
+                                        num={line.num}
+                                        spans={line.spans}
+                                        tokens={tokens?.get(at)}
+                                        width={width}
+                                    />
+                                </div>
+                            ),
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

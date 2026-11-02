@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { parseDiff, piecesOf, wordDiff } from "../web/src/lib/diff.ts";
+import { diffRows, parseDiff, piecesOf, wordDiff } from "../web/src/lib/diff.ts";
 
 // The shape `pi-durable`'s edit tool writes (`generateDiffString`): sign, padded number, space, text.
 const DIFF = [
@@ -40,6 +40,25 @@ void describe("parseDiff", () => {
             del: [{ text: "return a;", changed: false }],
             add: [{ text: "throw new Error(x)", changed: false }],
         });
+    });
+});
+
+void describe("diffRows", () => {
+    const shape = (diff: string): string[] =>
+        diffRows(parseDiff(diff)).map((row) =>
+            row.type === "skip"
+                ? `skip ${row.text}`
+                : `${row.left === undefined ? "-" : String(row.left.num)}|${
+                      row.right === undefined ? "-" : String(row.right.num)
+                  }`,
+        );
+
+    void it("pairs a change line by line, a context line on both sides with each file's number", () => {
+        assert.deepEqual(shape(DIFF), ["9|9", "10|10", "-|11", "11|12", "skip ..."]);
+    });
+
+    void it("leaves the longer side of a change unpaired", () => {
+        assert.deepEqual(shape(["-1 a;", "-2 b;", "+1 c;"].join("\n")), ["1|1", "2|-"]);
     });
 });
 

@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import type { DiffLayout } from "../lib/diff-layout.ts";
+import { DIFF_LAYOUTS, applyDiffLayout, currentDiffLayout } from "../lib/diff-layout.ts";
 import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour, currentFlavour } from "../lib/flavour.ts";
 import type { Width } from "../lib/width.ts";
@@ -44,11 +46,12 @@ export function AppearanceButton() {
                 <DialogHeader>
                     <DialogTitle>Appearance</DialogTitle>
                     <DialogDescription>
-                        Pick a theme and a chat width. They apply at once.
+                        Pick a theme, a chat width and a diff layout. They apply at once.
                     </DialogDescription>
                 </DialogHeader>
                 <FlavourGrid />
                 <WidthPicker />
+                <DiffLayoutPicker />
             </DialogContent>
         </Dialog>
     );
@@ -117,6 +120,39 @@ function WidthPicker() {
                         }`}
                     >
                         {width}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function DiffLayoutPicker() {
+    const [active, setActive] = useState<DiffLayout>(currentDiffLayout);
+
+    return (
+        <div className="border-edge-soft flex items-center justify-between gap-3 border-t p-3">
+            <div className="flex min-w-0 flex-col">
+                <span className="text-interface text-ink">Diffs</span>
+                <span className="text-meta text-faint">
+                    An edit's changes: one column, or the old file beside the new.
+                </span>
+            </div>
+            <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
+                {DIFF_LAYOUTS.map((layout) => (
+                    <button
+                        key={layout}
+                        type="button"
+                        aria-pressed={layout === active}
+                        onClick={() => {
+                            applyDiffLayout(layout);
+                            setActive(layout);
+                        }}
+                        className={`rounded-control text-interface px-2 py-1 ${
+                            layout === active ? "bg-raised text-ink" : "text-muted"
+                        }`}
+                    >
+                        {layout === "split" ? "Side by side" : "Unified"}
                     </button>
                 ))}
             </div>

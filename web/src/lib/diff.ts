@@ -169,6 +169,86 @@ export function piecesOf(
     return pieces;
 }
 
+/** A line in one column of a side-by-side row: the line, where it sits in the diff, and its number in that file. */
+export type DiffCell = { at: number; type: "add" | "del" | "ctx"; num: number; spans: DiffSpan[] };
+
+/**
+ * The diff laid out two columns wide: a removed line beside the line that replaced it, a context line on both sides,
+ * a skip across both. A side with fewer lines in a change leaves the other's last lines unpaired.
+ */
+export type DiffRow =
+    | { type: "skip"; text: string }
+    | { type: "lines"; left?: DiffCell; right?: DiffCell };
+
+export function diffRows(lines: DiffLine[]): DiffRow[] {
+    const rows: DiffRow[] = [];
+    // A context line is numbered by the new file; its other column shows the old one's number.
+    let shift = 0;
+
+    const cellAt = (at: number, num?: number): DiffCell | undefined => {
+        const line = lines[at];
+
+        return line === undefined || line.type === "skip"
+            ? undefined
+            : { ...line, at, num: num ?? line.num };
+    };
+
+    for (let at = 0; at < lines.length;) {
+        const line = lines[at];
+
+        if (line === undefined) {
+            break;
+        }
+
+        if (line.type === "skip") {
+            rows.push({ type: "skip", text: line.text });
+            at++;
+            continue;
+        }
+
+        if (line.type === "ctx") {
+            rows.push({
+                type: "lines",
+                left: { ...line, at, num: line.num - shift },
+                right: { ...line, at },
+            });
+            at++;
+            continue;
+        }
+
+        let dels = at;
+
+        while (lines[dels]?.type === "del") {
+            dels++;
+        }
+
+        let adds = dels;
+
+        while (lines[adds]?.type === "add") {
+            adds++;
+        }
+
+        const removed = dels - at;
+        const added = adds - dels;
+
+        for (let pair = 0; pair < Math.max(removed, added); pair++) {
+            const left = pair < removed ? cellAt(at + pair) : undefined;
+            const right = pair < added ? cellAt(dels + pair) : undefined;
+
+            rows.push({
+                type: "lines",
+                ...(left === undefined ? {} : { left }),
+                ...(right === undefined ? {} : { right }),
+            });
+        }
+
+        shift += added - removed;
+        at = adds;
+    }
+
+    return rows;
+}
+
 /** Lines added and removed, as the diff counts them. */
 export function diffCounts(diff: string): { added: number; removed: number } {
     let added = 0;
