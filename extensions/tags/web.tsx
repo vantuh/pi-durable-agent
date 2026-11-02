@@ -7,7 +7,7 @@ import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/t
 
 import { toggleTag, useTags } from "./client.ts";
 import { tagsOf } from "./refs.ts";
-import { TAG_DOT, TAG_TONE } from "./tones.ts";
+import { TAG_DOT, TAG_TEXT, TAG_TONE } from "./tones.ts";
 
 /** How many names a row shows before it counts the rest: a row also has a title and a time to hold. */
 const SHOWN = 1;
@@ -128,15 +128,16 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                                     : [...held, tag.id],
                             );
                         }}
-                        className={`rounded-control text-meta max-w-24 truncate px-1.5 py-0.5 ${
-                            on ? TAG_TONE[tag.color] : "text-faint hover:bg-raised hover:text-muted"
+                        className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 ${
+                            on ? TAG_TONE[tag.color] : `${TAG_TEXT[tag.color]} hover:bg-raised`
                         }`}
                     >
-                        {tag.name}
+                        <span className="truncate">{tag.name}</span>
+                        {on ? <X aria-hidden className="size-2.5 shrink-0" /> : null}
                     </button>
                 );
             })}
-            {live.length === 0 ? null : (
+            {live.length < 2 ? null : (
                 <button
                     type="button"
                     aria-label="Show every tag"
@@ -144,9 +145,9 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                     onClick={() => {
                         setChosen([]);
                     }}
-                    className="text-faint hover:text-ink shrink-0 px-1"
+                    className="text-faint hover:text-ink text-meta shrink-0 px-1 underline-offset-2 hover:underline"
                 >
-                    <X className="size-3" />
+                    clear
                 </button>
             )}
         </div>

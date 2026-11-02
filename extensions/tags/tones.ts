@@ -16,6 +16,18 @@ export const TAG_TONE: Record<TagColor, string> = {
     pink: "bg-tag-pink/15 text-tag-pink",
 };
 
+/** The hue in text alone, for a chip that is not chosen yet: no wash, still its own colour. */
+export const TAG_TEXT: Record<TagColor, string> = {
+    red: "text-tag-red",
+    peach: "text-tag-peach",
+    yellow: "text-tag-yellow",
+    green: "text-tag-green",
+    teal: "text-tag-teal",
+    blue: "text-tag-blue",
+    mauve: "text-tag-mauve",
+    pink: "text-tag-pink",
+};
+
 /** The hue itself: a dot in a menu, a swatch in the picker. */
 export const TAG_DOT: Record<TagColor, string> = {
     red: "bg-tag-red",
