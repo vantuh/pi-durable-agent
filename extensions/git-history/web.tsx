@@ -1067,12 +1067,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 </Badge>
             ) : null}
             {data?.upstream ? (
-                <span
-                    className="text-meta text-muted shrink-0"
-                    title={`${data.upstream} as of the last fetch`}
-                >
-                    ↑{data.ahead} ↓{data.behind}
-                </span>
+                <Badge className="h-4 px-1.5" title={`${data.upstream} as of the last fetch`}>
+                    {`↑${String(data.ahead)} ↓${String(data.behind)}`}
+                </Badge>
             ) : null}
             <div className="ml-auto flex shrink-0 items-center gap-2">
                 {running(state) ? (

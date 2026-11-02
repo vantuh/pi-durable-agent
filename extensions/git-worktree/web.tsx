@@ -28,8 +28,7 @@ const NAME = "name";
 
 // Shown on a phone too, unlike the branch badge: it carries the button that removes a worktree, and
 // a session whose folder is gone cannot work at all.
-const WORKTREE = "inline-flex h-4 max-w-full min-w-0 shrink gap-1 px-1.5 [&>svg]:size-2.5";
-const GONE = `border-danger text-danger ${WORKTREE}`;
+const WORKTREE = "h-4 max-w-full min-w-0 shrink px-1.5 [&>svg]:size-2.5";
 
 function nameOf(collected: NewSessionCollected | null): string {
     const name: unknown = collected?.[NAME];
@@ -93,8 +92,9 @@ function Mark({ session }: StatusProps) {
     if (worktree.gone) {
         return (
             <Badge
+                tone="danger"
                 title={`The worktree ${worktree.name} was deleted: this session's folder is gone`}
-                className={GONE}
+                className={WORKTREE}
             >
                 <FolderX />
                 <span className="truncate">{worktree.name}</span>

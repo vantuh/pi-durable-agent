@@ -116,7 +116,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 /** A skill the model loaded, as the badge of a skill the person called. */
 function SkillBadge({ name }: { name: string }) {
     return (
-        <Badge className="border-warn/40 bg-warn/15 text-warn">
+        <Badge tone="warn">
             <Lightbulb />
             {name}
         </Badge>
@@ -398,11 +398,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                     {skills.map((name) => (
                         <SkillBadge key={name} name={name} />
                     ))}
-                    {failed > 0 ? (
-                        <span className="bg-danger/15 text-danger shrink-0 rounded-full px-1.5 py-px text-[11px] font-medium">
-                            {failed} failed
-                        </span>
-                    ) : null}
+                    {failed > 0 ? <Badge tone="danger">{failed} failed</Badge> : null}
                     {item.startedAt === undefined || until === undefined ? null : (
                         <span
                             className={cn(

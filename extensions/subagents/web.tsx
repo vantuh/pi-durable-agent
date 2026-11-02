@@ -1,6 +1,7 @@
 import { Bot } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
@@ -99,52 +100,56 @@ function Chip({
     const elsewhere = agent.cwd !== null && trimmed(agent.cwd) !== trimmed(folder);
 
     return (
-        <a
-            href={href}
-            title={hover(agent)}
-            aria-label={`Open ${agent.name}'s conversation`}
-            onClick={(event) => {
-                if (isPlainClick(event)) {
-                    event.preventDefault();
-                    onOpen();
-                }
-            }}
-            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:border-agent rounded-control flex shrink-0 items-center gap-2 border px-2 py-1 no-underline`}
+        <Badge
+            asChild
+            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:border-agent rounded-control gap-2 py-1 font-sans no-underline`}
         >
-            <span className="state-mark working text-warn" aria-hidden />
-            <span className="text-ink text-meta max-w-[120px] truncate">{agent.name}</span>
-            {agent.model === "" ? null : (
-                <span className="text-faint max-w-[84px] truncate text-[10px]">
-                    {shortModel(agent.model)}
-                </span>
-            )}
-            {elsewhere ? (
-                <span
-                    className="text-faint bg-raised border-edge-soft rounded-control hidden max-w-[70px] truncate border px-1 text-[10px] sm:inline"
-                    aria-hidden
-                >
-                    {agent.cwd
-                        ?.split("/")
-                        .filter((part) => part !== "")
-                        .at(-1) ?? agent.cwd}
-                </span>
-            ) : null}
-            <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
-                {agent.window > 0 ? (
-                    <>
-                        <span className="bg-raised flex h-1 w-7 overflow-hidden rounded-full">
-                            <span
-                                className={agent.fill > WARN_ABOVE ? "bg-warn" : "bg-accent"}
-                                style={{ width: `${String(agent.fill)}%` }}
-                            />
-                        </span>
-                        {`${String(agent.fill)}%`}
-                    </>
-                ) : (
-                    "—"
+            <a
+                href={href}
+                title={hover(agent)}
+                aria-label={`Open ${agent.name}'s conversation`}
+                onClick={(event) => {
+                    if (isPlainClick(event)) {
+                        event.preventDefault();
+                        onOpen();
+                    }
+                }}
+            >
+                <span className="state-mark working text-warn" aria-hidden />
+                <span className="text-ink text-meta max-w-[120px] truncate">{agent.name}</span>
+                {agent.model === "" ? null : (
+                    <span className="text-faint max-w-[84px] truncate text-[10px]">
+                        {shortModel(agent.model)}
+                    </span>
                 )}
-            </span>
-        </a>
+                {elsewhere ? (
+                    <span
+                        className="text-faint bg-raised border-edge-soft rounded-control hidden max-w-[70px] truncate border px-1 text-[10px] sm:inline"
+                        aria-hidden
+                    >
+                        {agent.cwd
+                            ?.split("/")
+                            .filter((part) => part !== "")
+                            .at(-1) ?? agent.cwd}
+                    </span>
+                ) : null}
+                <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
+                    {agent.window > 0 ? (
+                        <>
+                            <span className="bg-raised flex h-1 w-7 overflow-hidden rounded-full">
+                                <span
+                                    className={agent.fill > WARN_ABOVE ? "bg-warn" : "bg-accent"}
+                                    style={{ width: `${String(agent.fill)}%` }}
+                                />
+                            </span>
+                            {`${String(agent.fill)}%`}
+                        </>
+                    ) : (
+                        "—"
+                    )}
+                </span>
+            </a>
+        </Badge>
     );
 }
 

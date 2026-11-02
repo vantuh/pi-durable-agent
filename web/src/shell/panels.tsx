@@ -8,6 +8,7 @@ import {
     useState,
 } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -67,7 +68,7 @@ export function PanelButtons({
 }) {
     return panels.map((panel) => {
         const key = panelKey(panel);
-        const Badge = panel.badge;
+        const Count = panel.badge;
 
         return (
             <Hint key={key} label={panel.title}>
@@ -81,12 +82,15 @@ export function PanelButtons({
                     className={`relative ${open === key ? "bg-raised text-ink" : ""}`}
                 >
                     {panel.icon}
-                    {Badge === undefined ? null : (
-                        <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
+                    {Count === undefined ? null : (
+                        <Badge
+                            tone="accent"
+                            className="pointer-events-none absolute -top-1 -right-1 h-3.5 min-w-3.5 justify-center px-1 leading-none empty:hidden"
+                        >
                             <ItemBoundary name={`${key}:badge`}>
-                                <Badge session={session} />
+                                <Count session={session} />
                             </ItemBoundary>
-                        </span>
+                        </Badge>
                     )}
                 </Button>
             </Hint>

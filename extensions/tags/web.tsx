@@ -1,6 +1,7 @@
 import { Check, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
@@ -26,13 +27,13 @@ function SessionTags({ session }: SessionItemProps) {
     return (
         <span className="flex min-w-0 shrink items-center gap-1">
             {shown.map((tag) => (
-                <span
+                <Badge
                     key={tag.id}
                     title={tag.name}
-                    className={`rounded-control text-meta max-w-20 truncate px-1 py-0.5 ${TAG_TONE[tag.color]}`}
+                    className={`rounded-control h-auto max-w-20 truncate border-0 px-1 py-0.5 font-sans ${TAG_TONE[tag.color]}`}
                 >
                     {tag.name}
-                </span>
+                </Badge>
             ))}
             {tags.length === shown.length ? null : (
                 <span
@@ -122,23 +123,27 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                             on ? `${tag.name}: shown, click to stop` : `${tag.name}: click to show`
                         }
                     >
-                        {/* A wash of the tag's own hue is the pill: `hover:bg-raised` would replace it, so
-                            the chip waits for Badge, which owns the look. */}
-                        <button
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() => {
-                                setChosen((held) =>
-                                    held.includes(tag.id)
-                                        ? held.filter((each) => each !== tag.id)
-                                        : [...held, tag.id],
-                                );
-                            }}
-                            className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 hover:brightness-110 ${TAG_TONE[tag.color]}`}
+                        {/* A wash of the tag's own hue is the pill, and it stays on hover: ghost's raised fill
+                            would replace it. The focus ring is the app's, not the browser's. */}
+                        <Badge
+                            asChild
+                            className={`rounded-control focus-visible:ring-accent h-auto max-w-24 min-w-0 gap-0.5 border-0 px-1.5 py-0.5 font-sans outline-none hover:brightness-110 focus-visible:ring-2 [&>svg]:size-2.5 ${TAG_TONE[tag.color]}`}
                         >
-                            <span className="truncate">{tag.name}</span>
-                            {on ? <X aria-hidden className="size-2.5 shrink-0" /> : null}
-                        </button>
+                            <button
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => {
+                                    setChosen((held) =>
+                                        held.includes(tag.id)
+                                            ? held.filter((each) => each !== tag.id)
+                                            : [...held, tag.id],
+                                    );
+                                }}
+                            >
+                                <span className="truncate">{tag.name}</span>
+                                {on ? <X aria-hidden /> : null}
+                            </button>
+                        </Badge>
                     </Hint>
                 );
             })}

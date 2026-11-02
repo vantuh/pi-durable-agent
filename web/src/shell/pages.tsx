@@ -1,6 +1,7 @@
 import { ArrowLeft, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -31,7 +32,7 @@ export function PageButtons({
 }) {
     return pages.map((page) => {
         const key = pageKey(page);
-        const Badge = page.badge;
+        const Count = page.badge;
 
         return (
             <Hint key={key} label={page.title}>
@@ -46,12 +47,15 @@ export function PageButtons({
                     className={`relative ${open === key ? "bg-raised text-ink" : ""}`}
                 >
                     {page.icon}
-                    {Badge === undefined ? null : (
-                        <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
+                    {Count === undefined ? null : (
+                        <Badge
+                            tone="accent"
+                            className="pointer-events-none absolute -top-1 -right-1 h-3.5 min-w-3.5 justify-center px-1 leading-none empty:hidden"
+                        >
                             <ItemBoundary name={`${key}:badge`}>
-                                <Badge session={session} />
+                                <Count session={session} />
                             </ItemBoundary>
-                        </span>
+                        </Badge>
                     )}
                 </Button>
             </Hint>

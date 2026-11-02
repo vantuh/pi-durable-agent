@@ -256,47 +256,17 @@ const Rule = () => (
     </Separator>
 );
 
-/** The mark's pill, in the tone of what it says: a chip on the line between messages. */
-const PILL_TONES = {
-    raised: "border-edge bg-raised text-ink",
-    warn: "border-warn/30 bg-warn/10 text-warn",
-    danger: "border-danger/30 bg-danger/10 text-danger",
-} as const;
-
-function CompactionPill({
-    children,
-    tone = "raised",
-    interactive,
-}: {
-    children: ReactNode;
-    tone?: keyof typeof PILL_TONES;
-    interactive?: boolean;
-}) {
-    return (
-        <span
-            className={cn(
-                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1",
-                PILL_TONES[tone],
-                interactive === true && "hover:border-muted",
-            )}
-        >
-            {children}
-        </span>
-    );
-}
-
 /** A compaction that is running now, at the end of the transcript: where its marker lands once it is done. */
 function CompactingMark({ retrying }: { retrying: boolean }) {
     return (
         <div className="flex items-center gap-3">
             <Rule />
-            <CompactionPill tone={retrying ? "warn" : "raised"}>
-                <Layers className="size-3.5 shrink-0" />
-                <span className="text-meta">
-                    {retrying ? "compaction failed, retrying" : "compacting earlier messages"}
-                </span>
-                <Spinner className="size-3 shrink-0" />
-            </CompactionPill>
+            {/* Sans, unlike the badges that hold a value: this one holds a sentence. */}
+            <Badge tone={retrying ? "warn" : "raised"} className="font-sans">
+                <Layers />
+                {retrying ? "compaction failed, retrying" : "compacting earlier messages"}
+                <Spinner />
+            </Badge>
             <Rule />
         </div>
     );
@@ -308,11 +278,11 @@ function CompactionFailedMark({ error }: { error: string }) {
         <Collapsible className="group/failed flex flex-col gap-2">
             <CollapsibleTrigger className="flex items-center gap-3 text-left">
                 <Rule />
-                <CompactionPill tone="danger">
-                    <CircleAlert className="size-3.5 shrink-0" />
-                    <span className="text-meta">compaction failed</span>
-                    <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/failed:rotate-90" />
-                </CompactionPill>
+                <Badge tone="danger" className="font-sans">
+                    <CircleAlert />
+                    compaction failed
+                    <ChevronRight className="transition-transform group-data-[state=open]/failed:rotate-90" />
+                </Badge>
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -327,15 +297,17 @@ function CompactionFailedMark({ error }: { error: string }) {
  * The messages above stay on screen — they are the conversation, they are just no longer what is sent.
  */
 function CompactionMark({ summary }: { summary?: string }) {
-    const label = <span className="text-meta text-ink">earlier messages were compacted</span>;
     const pill = (
-        <CompactionPill interactive={summary !== undefined}>
-            <Layers className="size-3.5 shrink-0" />
-            {label}
+        <Badge
+            tone="raised"
+            className={cn("font-sans", summary !== undefined && "hover:border-muted")}
+        >
+            <Layers />
+            earlier messages were compacted
             {summary === undefined ? null : (
-                <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
+                <ChevronRight className="transition-transform group-data-[state=open]/fold:rotate-90" />
             )}
-        </CompactionPill>
+        </Badge>
     );
 
     if (summary === undefined) {

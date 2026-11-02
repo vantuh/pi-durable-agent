@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, GitCompareArrows, LoaderCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
@@ -89,10 +90,10 @@ function GitBadge({ session }: StatusProps) {
 
     return (
         <div className="relative">
-            <div
+            <Badge
                 title={description}
                 aria-label={description}
-                className="border-edge bg-panel text-meta text-muted flex h-7 items-center gap-2 rounded-full border px-2 font-mono tabular-nums"
+                className="bg-panel h-7 gap-2 tabular-nums [&>svg]:size-3.5"
             >
                 <GitCompareArrows className="hidden size-3.5 sm:block" />
                 <span className="text-ok">+{value.added}</span>
@@ -131,7 +132,7 @@ function GitBadge({ session }: StatusProps) {
                     )}
                     <span className="hidden sm:inline">Push</span>
                 </button>
-            </div>
+            </Badge>
             {confirm || issue !== null ? (
                 <div
                     className="border-edge bg-panel text-interface absolute top-9 right-0 z-30 w-64 rounded-xl border p-3 shadow-lg"

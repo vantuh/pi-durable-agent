@@ -358,23 +358,73 @@ border.
 
 ### 2.5 Badge (installed, reduced to one look)
 
-- [ ] `badge.tsx`: add tones (`muted`, `accent`, `ok`, `warn`, `danger`) on the outline base.
-- [ ] `web/src/transcript/activity.tsx:401` — "N failed".
-- [ ] `web/src/transcript/transcript.tsx:269–279` — compaction pill; the interactive case becomes
-      `Button` around a `Badge`, not a clickable badge.
-- [ ] `web/src/shell/pages.tsx:45–50`, `web/src/shell/panels.tsx:80–85` — count over an icon;
-      keep the absolute position and empty hiding.
-- [ ] `web/src/ui/diff.tsx:274–277` — +/− counts, if a pill reads better than bare numbers.
-- [ ] `extensions/git-history/web.tsx:1057–1089` — branch / upstream pills (`Badge` already
-      imported).
-- [ ] `extensions/git-branch/web.tsx:56` — drop the `BADGE` class override for a tone.
-- [ ] `extensions/git-stats/web.tsx:89–101`.
-- [ ] `extensions/subagents/web.tsx:112–126`.
-- [ ] The agent chip that is a link (`extensions/subagents/web.tsx:102`) takes `asChild` over its
-      `a`, so the link keeps Cmd-click while the badge gives the look.
-- [ ] `extensions/tags/web.tsx:24–41`, `117–136`; `extensions/tags/details.tsx:33–48`,
-      `158–171` — tag colour stays a theme role per tag.
-- [ ] `extensions/context-meter/web.tsx:98–99` — status dot keeps its text alternative.
+- [x] `badge.tsx`: tones (`muted`, `raised`, `accent`, `info`, `warn`, `danger`) as one colour set each on
+      the outline base, plus `asChild` (`Slot`) for a chip that is a link or a button. `muted` is the
+      default, so a caller that says nothing renders what it rendered before. No `ok`: nothing in the
+      app wears a green pill (the green marks are the timeline's circles).
+- [x] `web/src/transcript/activity.tsx:401` — "N failed". The pill takes the badge's own metrics: 18.5px
+      tall and 51.6px wide in 11px sans medium became 20px and 75.6px in the badge's 12px mono, and it
+      gains the tone's 40% border. The count now reads with the duration beside it.
+- [x] `web/src/transcript/transcript.tsx:269–279` — compaction pill; the interactive case becomes
+      `Button` around a `Badge`, not a clickable badge. No `Button` was needed: the pill was never the
+      click target, the `CollapsibleTrigger` around it and its two rules is, and it is already a real
+      button; the badge inside is inert content. `PILL_TONES` and `CompactionPill` went. The pill is
+      20px tall instead of 28 and 243.1px wide instead of 261.1: the badge's `px-2` and `gap-1`
+      instead of `px-3` and `gap-2`, and its 12px icon instead of 14. It keeps `font-sans`: unlike
+      every other badge it holds a sentence, not a value. The warn and danger pills lose a wash step
+      (`/30` border, `/10` fill) for the tone's `/40` and `/15`.
+- [x] `web/src/shell/pages.tsx:45–50`, `web/src/shell/panels.tsx:80–85` — count over an icon;
+      keep the absolute position and empty hiding. The 14px box, its `-top-1 -right-1` corner and
+      `empty:hidden` are the badge's, passed through: the height is still 14px, and a digit is 1.7px
+      wider (17.2 against 15.5) because the badge's border is 1px and its digit is mono. The
+      extension's own component was called `Badge` in both files and is `Count` now, so the import
+      does not shadow it.
+- [x] `web/src/ui/diff.tsx:274–277` — +/− counts stay bare numbers: both hosts put them in a row of
+      mono metadata (a diff header at 12px, a step row at 11px) beside a path that truncates, where a
+      frame around two already-coloured numbers would only take room from the name.
+- [x] `extensions/git-history/web.tsx:1057–1089` — branch / upstream pills (`Badge` already
+      imported). The branch pill was a badge already and keeps its `h-4 px-1.5` and its 10px icon.
+      The upstream readout was bare text; it is a badge at the branch pill's 16px now, 64.4px wide
+      with its frame and its `title`, and the two read as one row of git facts.
+- [x] `extensions/git-branch/web.tsx:56` — drop the `BADGE` class override for a tone. Nothing to
+      drop: `BADGE` holds only geometry (`hidden` until `sm`, `h-4`, `max-w-full min-w-0 shrink`,
+      `px-1.5`, a 10px icon) and never named a colour, so the default `muted` tone is already what the
+      pill wears. It keeps its `title`.
+- [x] `extensions/git-stats/web.tsx:89–101`. The pill is the badge whole: 28px tall, `px-2`, `gap-2`,
+      mono 12px, the muted tone's `border-edge` and `text-muted`, and `bg-panel` passed through, so
+      nothing moved. Two things are passed through as well: `[&>svg]:size-3.5` keeps the compare
+      icon at its 14px (the badge's own is 12, and the two arrows inside the divider are not direct
+      children, so they stay 12), and the divider stays the inner `border-l`, as tall as the text
+      beside it. The Push trigger inside stays for [Popover](#31-popover-new).
+- [x] `extensions/subagents/web.tsx:112–126`. What the chip holds is a state dot, a name, a model, and
+      a 10px path annotation; none of it is a pill, and the status a row shows
+      (`AgentRow`, `:297`) is bare text beside its dot. The badge takes the chip's frame; the path
+      annotation stays as it is, 10px text inside a 36px row that [Item](#39-item-new) owns.
+- [x] The agent chip that is a link (`extensions/subagents/web.tsx:102`) takes `asChild` over its
+      `a`, so the link keeps Cmd-click while the badge gives the look. It keeps its `href`, its
+      `isPlainClick` guard, its `aria-label` and its `title`; 36px tall, 6px radius, the panel fill
+      and the sans font are passed through, so the chip measures 249.2×36 as before. `web/src/lib/utils.ts`
+      had to learn the theme's two radius names: `rounded-control` was unknown to tailwind-merge and
+      lost to the badge's base `rounded-full`, which made the chip a pill.
+- [x] `extensions/tags/web.tsx:24–41`, `117–136`; `extensions/tags/details.tsx:33–48`,
+      `158–171` — tag colour stays a theme role per tag. Both chips are badges with the tag's
+      `TAG_TONE` passed through and `border-0 h-auto rounded-control px-1 py-0.5 font-sans` beside
+      it: 22px tall, 6px radius, no frame, sans, measured 66.9px and 70.9px wide as before. The
+      filter chip is `Badge asChild` over its `button`, so `aria-pressed` and its own
+      `hover:brightness-110` stay and the wash keeps its hue on hover; its × is 10px by
+      `[&>svg]:size-2.5`. It gains the accent focus ring every other control has, in place of the
+      browser's own outline. The colour dots in `details.tsx` stay: see [Kept custom](#kept-custom).
+- [x] `extensions/context-meter/web.tsx:98–99` — status dot keeps its text alternative. It is a 10px
+      accent square that marks a group's colour in the heading beside it, not a pill: a badge would
+      come with a 20px box, a 12px mono label and 8px of padding around a mark that has no text of
+      its own. The heading is the text alternative, so nothing is lost.
+- [x] `extensions/git-worktree/web.tsx:95`, `:107` — the two badges that hold the × migrated in Phase 1,
+      named by the [Kept custom](#kept-custom) inventory and not by a line of their own. `WORKTREE`
+      keeps only what the badge does not set (`h-4 max-w-full min-w-0 shrink px-1.5`, a 10px icon), and
+      the gone one is the `danger` tone: 16px as before, its solid red border now 40% with the tone's
+      15% wash behind it, so a session whose folder is gone reads as the failed pill does. No session
+      on this machine works in a worktree, so this pair was measured in the page rather than in a live
+      badge.
 
 ### 2.6 Progress (new)
 
