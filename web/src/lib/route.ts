@@ -63,8 +63,8 @@ function isRoute(value: unknown): value is Route {
     return typeof key === "string" && (sub === undefined || typeof sub === "string");
 }
 
-/** The app's own history entry: the route it shows, and the route it was pushed from. */
-type Entry = { route: Route; from?: Route };
+/** The app's own history entry: the route it shows, an id of its own, and the id of the step behind it. */
+export type Entry = { route: Route; id: string; from?: string };
 
 function historyEntry(): Entry | undefined {
     const state: unknown = history.state;
@@ -80,29 +80,70 @@ function historyEntry(): Entry | undefined {
     }
 
     const route: unknown = Reflect.get(pi, "route");
+    const id: unknown = Reflect.get(pi, "id");
     const from: unknown = Reflect.get(pi, "from");
 
-    if (!isRoute(route)) {
+    if (!isRoute(route) || typeof id !== "string") {
         return undefined;
     }
 
-    return isRoute(from) ? { route, from } : { route };
+    return typeof from === "string" ? { route, id, from } : { route, id };
+}
+
+const ENTRIES = "pi.route.entries";
+// A step back is worth more than the oldest ids: past this, an arrow replaces instead of going back.
+const ENTRIES_KEPT = 200;
+
+/** The route each entry shows now, by id: replaced since it was pushed, it no longer answers its children. */
+function entryRoutes(): Map<string, Route> {
+    const routes = new Map<string, Route>();
+
+    try {
+        const stored: unknown = JSON.parse(sessionStorage.getItem(ENTRIES) ?? "{}");
+
+        if (typeof stored === "object" && stored !== null) {
+            for (const [id, route] of Object.entries(stored)) {
+                if (isRoute(route)) {
+                    routes.set(id, route);
+                }
+            }
+        }
+    } catch {
+        return routes;
+    }
+
+    return routes;
+}
+
+function rememberRoute(id: string, route: Route): void {
+    const routes = entryRoutes();
+
+    routes.delete(id);
+    routes.set(id, route);
+
+    const ids = [...routes.keys()];
+
+    for (const stale of ids.slice(0, Math.max(0, ids.length - ENTRIES_KEPT))) {
+        routes.delete(stale);
+    }
+
+    try {
+        sessionStorage.setItem(ENTRIES, JSON.stringify(Object.fromEntries(routes)));
+    } catch {
+        // Nothing remembered means the arrows replace instead of stepping back: correct, just longer.
+    }
 }
 
 /**
- * The state an entry keeps after a traversal: the route it now shows, and the marker its own push wrote.
- * Back and Forward only move between the app's own entries, so a marker still names the step behind it;
- * dropping it here would leave the second parent arrow with nothing to step back to.
+ * Whether the parent arrow may step back: the entry behind this one is still the parent. `there` is the
+ * route the record says that entry shows now, which stops matching once it has been replaced.
  */
-export function keptState(entry: Entry | undefined, route: Route): { pi: Entry } {
-    const from = entry?.from;
-
-    return from === undefined ? { pi: { route } } : { pi: { route, from } };
-}
-
-/** Whether the parent arrow steps back: the entry behind this one already shows the route it goes to. */
-export function stepsBack(entry: Entry | undefined, next: Route): boolean {
-    return entry?.from !== undefined && sameRoute(entry.from, next);
+export function stepsBack(
+    entry: Entry | undefined,
+    there: Route | undefined,
+    parent: Route,
+): boolean {
+    return entry?.from !== undefined && there !== undefined && sameRoute(there, parent);
 }
 
 /** The address is the state: every move pushes a history step, so Back returns. */
@@ -126,16 +167,30 @@ export function useRoute(): RouteNavigation {
     useEffect(() => {
         // The first entry has no marker yet: it remembers the route it was loaded with, so a deep
         // link's close replaces it instead of stepping back out of the app.
-        if (historyEntry() === undefined) {
-            history.replaceState({ pi: { route: current.current } }, "");
+        const entry = historyEntry();
+
+        if (entry === undefined) {
+            const id = crypto.randomUUID();
+
+            history.replaceState({ pi: { route: current.current, id } }, "");
+            rememberRoute(id, current.current);
+        } else {
+            rememberRoute(entry.id, entry.route);
         }
 
         const back = (): void => {
             const next = routeFromSearch(location.search);
             const before = current.current;
+            const here = historyEntry();
+
             current.current = next;
             setRoute(next);
-            history.replaceState(keptState(historyEntry(), next), "");
+
+            // A traversal only moves between entries the app wrote, so its id and marker stay as pushed.
+            if (here !== undefined) {
+                rememberRoute(here.id, next);
+            }
+
             countOpening(before, next);
         };
 
@@ -158,7 +213,13 @@ export function useRoute(): RouteNavigation {
                 return;
             }
 
-            history.pushState({ pi: { route: next, from: before } }, "", href);
+            const id = crypto.randomUUID();
+            const behind = historyEntry()?.id;
+            const entry: Entry =
+                behind === undefined ? { route: next, id } : { route: next, id, from: behind };
+
+            history.pushState({ pi: entry }, "", href);
+            rememberRoute(id, next);
             current.current = next;
             setRoute(next);
             countOpening(before, next);
@@ -169,8 +230,12 @@ export function useRoute(): RouteNavigation {
     const replace = useCallback(
         (next: Route) => {
             const before = current.current;
+            // The entry keeps its id, so a child still names it; the record shows it is no longer that
+            // route, which is what stops the child's marker from being trusted. It forgets its own way back.
+            const id = historyEntry()?.id ?? crypto.randomUUID();
 
-            history.replaceState({ pi: { route: next } }, "", routeHref(next));
+            history.replaceState({ pi: { route: next, id } }, "", routeHref(next));
+            rememberRoute(id, next);
             current.current = next;
             setRoute(next);
             countOpening(before, next);
@@ -220,8 +285,12 @@ export function useRoute(): RouteNavigation {
                 page: { key: now.page.key, sub: parent },
             };
 
-            // A deep link has no entry behind it, so it replaces its own step instead of leaving the app.
-            if (stepsBack(historyEntry(), next)) {
+            const entry = historyEntry();
+            // A deep link has no entry behind it, and one replaced since no longer shows the parent: both
+            // replace this step instead of stepping back into something else.
+            const there = entry?.from === undefined ? undefined : entryRoutes().get(entry.from);
+
+            if (stepsBack(entry, there, next)) {
                 history.back();
                 return;
             }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { PageRoute, Route } from "../web/src/lib/deep-link.ts";
-import { endsPage, keptState, stepsBack } from "../web/src/lib/route.ts";
+import { endsPage, stepsBack } from "../web/src/lib/route.ts";
 
 const routeOf = (session: number | null, page: PageRoute | null = null): Route => ({
     session,
@@ -43,37 +43,35 @@ const commit = routeOf(1, { ...HISTORY, sub: "abc123" });
 const review = routeOf(1, { ...HISTORY, sub: "abc123/review" });
 
 void describe("stepsBack", () => {
-    // The entries the app pushes going chat → root → a commit → its review.
-    const commitEntry = { route: commit, from: root };
-    const reviewEntry = { route: review, from: commit };
+    // The entries the app pushes going chat → root → a commit → its review, each naming the step behind it.
+    const entries: Record<string, Route> = { chat, root, commit, review };
+    const commitEntry = { route: commit, id: "commit", from: "root" };
+    const reviewEntry = { route: review, id: "review", from: "commit" };
 
     void it("steps back for two parent arrows in a row", () => {
-        assert.equal(stepsBack(reviewEntry, commit), true);
-        // The commit's own entry, once Back landed on it and the traversal kept its marker.
-        assert.equal(stepsBack(keptState(commitEntry, commit).pi, root), true);
+        assert.equal(stepsBack(reviewEntry, entries["commit"], commit), true);
+        assert.equal(stepsBack(commitEntry, entries["root"], root), true);
     });
 
-    void it("still steps back to the parent after Forward returned to the child", () => {
-        assert.equal(stepsBack(keptState(reviewEntry, review).pi, commit), true);
+    void it("stops stepping back once the entry behind was replaced", () => {
+        // A deep link opens the commit with nothing behind it, then the review is pushed onto it.
+        const linked = { route: commit, id: "linked" };
+        const onLinked = { route: review, id: "review", from: linked.id };
+        const shown: Record<string, Route> = { [linked.id]: commit };
+
+        // The arrow at the review steps back while the entry behind it still shows the commit.
+        assert.equal(stepsBack(onLinked, shown[linked.id], commit), true);
+
+        // Browser Back, then the arrow at the commit replaces that entry with the page root.
+        shown[linked.id] = root;
+
+        // Forward returns to the review, whose marker still names the commit's entry: it is stale now.
+        assert.equal(stepsBack(onLinked, shown[linked.id], commit), false);
     });
 
-    void it("replaces instead when the step behind is not the parent", () => {
-        // A deep link, and an entry this app rewrote: neither knows a neighbour.
-        assert.equal(stepsBack(undefined, root), false);
-        assert.equal(stepsBack({ route: review }, commit), false);
-        assert.equal(stepsBack(reviewEntry, root), false);
-    });
-});
-
-void describe("keptState", () => {
-    void it("keeps the marker an entry was pushed with", () => {
-        const entry = { route: review, from: commit };
-
-        assert.deepEqual(keptState(entry, review), { pi: { route: review, from: commit } });
-    });
-
-    void it("writes no marker where there was none", () => {
-        assert.deepEqual(keptState(undefined, chat), { pi: { route: chat } });
-        assert.deepEqual(keptState({ route: chat }, chat), { pi: { route: chat } });
+    void it("replaces instead without a marker behind it", () => {
+        assert.equal(stepsBack(undefined, root, root), false);
+        assert.equal(stepsBack({ route: review, id: "review" }, root, commit), false);
+        assert.equal(stepsBack(reviewEntry, undefined, commit), false);
     });
 });
