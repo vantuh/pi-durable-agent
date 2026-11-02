@@ -44,8 +44,8 @@ function keyOf(image: ImageContent): string {
 }
 
 /**
- * Resize one image, or `null` when it goes as it is: within the library's 2000 px default, unreadable,
- * or the encoder found nothing that fits. PNG comes back before JPEG, so an image with transparency stays PNG
+ * Resize one image, or `null` when it goes as it is: within the library's 2000 px and 4.5 MB
+ * defaults, unreadable, or the encoder found nothing that fits. PNG comes back before JPEG, so an image with transparency stays PNG
  * whenever it fits under the encoder's 4.5 MB cap, which is also what keeps a result under the
  * provider's 5 MB per-image limit.
  */
@@ -53,11 +53,7 @@ async function shrink(image: ImageContent): Promise<ImageContent | null> {
     try {
         const result = await resizeImage(Buffer.from(image.data, "base64"), image.mimeType);
 
-        // A result of the same size only re-encoded the bytes; sending the original keeps the cache.
-        if (
-            result === null ||
-            (result.width === result.originalWidth && result.height === result.originalHeight)
-        ) {
+        if (result === null || !result.wasResized) {
             return null;
         }
 

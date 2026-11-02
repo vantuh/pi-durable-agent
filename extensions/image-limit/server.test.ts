@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomFillSync } from "node:crypto";
 import { describe, it } from "node:test";
 import { deflateSync } from "node:zlib";
 
@@ -38,8 +39,8 @@ function chunk(type: string, data: Buffer): Buffer {
     return out;
 }
 
-/** A real PNG of that size: a 24-bit gradient no encoder can reduce to nothing. */
-function png(width: number, height: number): ImageContent {
+/** A real PNG of that size: a 24-bit gradient no encoder can reduce to nothing, or noise that does not compress. */
+function png(width: number, height: number, noise = false): ImageContent {
     const header = Buffer.alloc(13);
 
     header.writeUInt32BE(width, 0);
@@ -57,6 +58,10 @@ function png(width: number, height: number): ImageContent {
             pixels[at] = (x * 7) & 0xff;
             pixels[at + 1] = (y * 11) & 0xff;
             pixels[at + 2] = (x ^ y) & 0xff;
+        }
+
+        if (noise) {
+            randomFillSync(pixels, y * row + 1, row - 1);
         }
     }
 
@@ -158,6 +163,18 @@ void describe("image-limit beforeRequest", () => {
 
         assert.ok(request !== undefined);
         assert.ok(longestSide(imageIn(request.messages[0])) <= 2000);
+    });
+
+    void it("re-encodes an image within the size that is too heavy to send", async () => {
+        const heavy = png(1500, 1100, true);
+        const message: Message = { role: "user", content: [heavy], timestamp: 0 };
+
+        assert.ok(heavy.data.length > 4.5 * 1024 * 1024);
+
+        const request = await beforeRequest({ messages: [message] });
+
+        assert.ok(request !== undefined);
+        assert.ok(imageIn(request.messages[0]).data.length <= 4.5 * 1024 * 1024);
     });
 
     void it("leaves a small image alone", async () => {
