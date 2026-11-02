@@ -4,7 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { COMMANDS, DEFAULT_KEYMAP, mergeKeymap, parseBinding, step, type KeyEvent } from "./lib.ts";
+import {
+    COMMANDS,
+    DEFAULT_KEYMAP,
+    mergeKeymap,
+    ownsKeys,
+    parseBinding,
+    step,
+    type KeyEvent,
+} from "./lib.ts";
 import { readKeymap } from "./server.ts";
 
 function key(code: string, modifiers: Partial<KeyEvent> = {}): KeyEvent {
@@ -138,6 +146,15 @@ void test("a key bound without the prefix runs at once, and only with exactly it
         null,
     );
     assert.equal(step(DEFAULT_KEYMAP, false, key("KeyC")).command, null);
+});
+
+void test("ownsKeys leaves the keys typed into a field to that field", () => {
+    assert.equal(ownsKeys({ tagName: "INPUT", isContentEditable: false }), true);
+    assert.equal(ownsKeys({ tagName: "TEXTAREA", isContentEditable: false }), true);
+    assert.equal(ownsKeys({ tagName: "SELECT", isContentEditable: false }), true);
+    assert.equal(ownsKeys({ tagName: "DIV", isContentEditable: true }), true);
+    assert.equal(ownsKeys({ tagName: "DIV", isContentEditable: false }), false);
+    assert.equal(ownsKeys({ tagName: "BUTTON", isContentEditable: false }), false);
 });
 
 void test("a held prefix does not arm", () => {

@@ -177,6 +177,16 @@ export type Step = {
 
 const MODIFIER_CODE = /^(Shift|Control|Alt|Meta)(Left|Right)$/;
 
+/** The part of a DOM element the shell asks about: what it is, and whether it is being typed into. */
+export type Target = { tagName: string; isContentEditable: boolean };
+
+const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
+
+/** A field owns the keys typed into it: an unprefixed shortcut would eat the text the person writes. */
+export function ownsKeys(target: Target): boolean {
+    return FIELD.test(target.tagName) || target.isContentEditable;
+}
+
 /** One key press: idle, the prefix arms, and the next key runs a command or cancels. */
 export function step(keymap: Keymap, armed: boolean, event: KeyEvent): Step {
     const prefix = parseBinding(keymap.prefix, "prefix");
