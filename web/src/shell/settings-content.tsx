@@ -1,7 +1,9 @@
 import { Hammer, LoaderCircle, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 import { useSettingsSections } from "../extensions.ts";
 import { rebuildShell, restartServer } from "../lib/api.ts";
@@ -59,26 +61,32 @@ function BuildButton() {
     const [building, setBuilding] = useState(false);
 
     return (
-        <button
-            type="button"
-            disabled={building}
-            aria-busy={building}
-            title={building ? "Building the web shell" : "Rebuild the web shell"}
-            aria-label="Rebuild the web shell"
-            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2 disabled:opacity-50"
-            onClick={() => {
-                setBuilding(true);
-                void rebuild().finally(() => {
-                    setBuilding(false);
-                });
-            }}
-        >
-            {building ? (
-                <LoaderCircle className="size-4 animate-spin" />
-            ) : (
-                <Hammer className="size-4" />
-            )}
-        </button>
+        <Hint label={building ? "Building the web shell" : "Rebuild the web shell"}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Rebuild the web shell"
+                aria-busy={building}
+                aria-disabled={building}
+                className="aria-disabled:opacity-50"
+                onClick={() => {
+                    if (building) {
+                        return;
+                    }
+
+                    setBuilding(true);
+                    void rebuild().finally(() => {
+                        setBuilding(false);
+                    });
+                }}
+            >
+                {building ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                    <Hammer className="size-4" />
+                )}
+            </Button>
+        </Hint>
     );
 }
 
@@ -107,17 +115,19 @@ async function rebuild(): Promise<void> {
 /** Starts a new server process; running work resumes, and the event stream reconnects on its own. */
 function RestartButton() {
     return (
-        <button
-            type="button"
-            title="Restart the server: running work resumes"
-            aria-label="Restart the server"
-            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent ml-auto flex size-7 items-center justify-center outline-none focus-visible:ring-2"
-            onClick={() => {
-                void restart();
-            }}
-        >
-            <RotateCw className="size-4" />
-        </button>
+        <Hint label="Restart the server: running work resumes">
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Restart the server"
+                className="ml-auto"
+                onClick={() => {
+                    void restart();
+                }}
+            >
+                <RotateCw className="size-4" />
+            </Button>
+        </Hint>
     );
 }
 

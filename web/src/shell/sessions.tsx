@@ -29,8 +29,10 @@ import {
     useSyncExternalStore,
 } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
+import { Hint } from "@/components/ui/tooltip";
 import { DAY, MINUTE, ago } from "@/lib/time.ts";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
@@ -846,55 +848,67 @@ export const Sessions = memo(function Sessions({
         >
             <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
                 <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-[6px]">
-                    <a
-                        href={sessionHref(null)}
-                        onClick={(event) => {
-                            if (isPlainClick(event)) {
-                                event.preventDefault();
-                                onHome();
-                            }
-                        }}
-                        title="Home: every session"
-                        aria-label="Home"
-                        aria-current={current === null ? "page" : undefined}
-                        className={`rounded-control -my-1 -ml-1 flex size-8 shrink-0 items-center justify-center lg:group-data-[collapsed]/side:my-0 lg:group-data-[collapsed]/side:ml-0 lg:group-data-[collapsed]/side:size-6 ${current === null ? "bg-raised" : "hover:bg-raised"}`}
-                    >
-                        <img
-                            src="/favicon.png"
-                            alt=""
-                            className="size-6 lg:group-data-[collapsed]/side:size-5"
-                        />
-                    </a>
+                    <Hint label="Home: every session">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                            className={`-my-1 -ml-1 size-8 shrink-0 lg:group-data-[collapsed]/side:my-0 lg:group-data-[collapsed]/side:ml-0 lg:group-data-[collapsed]/side:size-6 ${current === null ? "bg-raised" : ""}`}
+                        >
+                            <a
+                                href={sessionHref(null)}
+                                onClick={(event) => {
+                                    if (isPlainClick(event)) {
+                                        event.preventDefault();
+                                        onHome();
+                                    }
+                                }}
+                                aria-label="Home"
+                                aria-current={current === null ? "page" : undefined}
+                            >
+                                <img
+                                    src="/favicon.png"
+                                    alt=""
+                                    className="size-6 lg:group-data-[collapsed]/side:size-5"
+                                />
+                            </a>
+                        </Button>
+                    </Hint>
                     <h2
                         className={`text-sidebar text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
                     >
                         Sessions
                     </h2>
                     <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
-                                setCollapsed(!collapsed);
-                            }}
-                            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            className="rounded-control text-muted hover:bg-raised hover:text-ink hidden size-6 shrink-0 items-center justify-center lg:flex"
-                        >
-                            {collapsed ? (
-                                <PanelLeftOpen className="size-4" />
-                            ) : (
-                                <PanelLeftClose className="size-4" />
-                            )}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            title="Close"
-                            className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center lg:hidden"
-                        >
-                            <X className="size-4" />
-                        </button>
+                        <Hint label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                                onClick={() => {
+                                    localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
+                                    setCollapsed(!collapsed);
+                                }}
+                                className="hidden shrink-0 lg:inline-flex"
+                            >
+                                {collapsed ? (
+                                    <PanelLeftOpen className="size-4" />
+                                ) : (
+                                    <PanelLeftClose className="size-4" />
+                                )}
+                            </Button>
+                        </Hint>
+                        <Hint label="Close">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close"
+                                onClick={onClose}
+                                className="lg:hidden"
+                            >
+                                <X className="size-4" />
+                            </Button>
+                        </Hint>
                     </div>
                 </header>
 
@@ -911,16 +925,16 @@ export const Sessions = memo(function Sessions({
                         }}
                     >
                         <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                className="hover:bg-raised focus-visible:outline-accent flex w-full items-center gap-1.5 px-3 py-2 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid"
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start rounded-none px-3 py-2 font-normal"
                             >
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
                                     {scope}
                                 </span>
                                 <ChevronDown className="text-faint size-3.5 shrink-0" />
-                            </button>
+                            </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                             align="start"
@@ -968,15 +982,15 @@ export const Sessions = memo(function Sessions({
 
                 <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
                     <div className="relative min-w-0 flex-1">
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             onClick={onNew}
                             tabIndex={searching ? -1 : undefined}
-                            className={`rounded-control border-edge bg-sunken text-ink hover:bg-raised flex w-full items-center justify-center gap-2 border py-2.5 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
+                            className={`border-edge bg-sunken text-ink w-full gap-2 border py-2.5 font-normal transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
                         >
                             <Plus className="size-4" />
                             <span className="text-sidebar">New session</span>
-                        </button>
+                        </Button>
                         <div
                             className={`absolute inset-0 transition-[opacity,transform] duration-200 ${searching ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"}`}
                         >
@@ -1001,37 +1015,40 @@ export const Sessions = memo(function Sessions({
                                 }}
                                 className="rounded-control border-edge-soft bg-sunken text-sidebar text-ink placeholder:text-faint focus:border-accent h-full w-full border pr-7 pl-7 outline-none [&::-webkit-search-cancel-button]:hidden"
                             />
-                            <button
-                                type="button"
-                                onClick={stopSearch}
-                                title="Close search"
-                                aria-label="Close search"
-                                tabIndex={searching ? undefined : -1}
-                                className="rounded-control text-muted hover:bg-raised hover:text-ink absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center"
-                            >
-                                <X className="size-3.5" />
-                            </button>
+                            <Hint label="Close search">
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Close search"
+                                    onClick={stopSearch}
+                                    tabIndex={searching ? undefined : -1}
+                                    className="absolute top-1/2 right-1.5 -translate-y-1/2"
+                                >
+                                    <X className="size-3.5" />
+                                </Button>
+                            </Hint>
                         </div>
                     </div>
-                    <button
-                        ref={searchTrigger}
-                        type="button"
-                        onClick={() => {
-                            if (searching) {
-                                stopSearch();
-                            } else {
-                                setSearching(true);
-                            }
-                        }}
-                        title="Search sessions"
-                        aria-label="Search sessions"
-                        aria-expanded={searching}
-                        aria-hidden={searching ? true : undefined}
-                        tabIndex={searching ? -1 : undefined}
-                        className={`rounded-control border-edge-soft bg-sunken text-muted hover:bg-raised hover:text-ink flex shrink-0 items-center justify-center overflow-hidden border transition-[width,opacity] duration-200 ${searching ? "pointer-events-none w-0 border-transparent opacity-0" : "w-9 opacity-100"}`}
-                    >
-                        <Search className="size-4" />
-                    </button>
+                    <Hint label="Search sessions">
+                        <Button
+                            ref={searchTrigger}
+                            variant="ghost"
+                            aria-label="Search sessions"
+                            aria-expanded={searching}
+                            aria-hidden={searching ? true : undefined}
+                            tabIndex={searching ? -1 : undefined}
+                            onClick={() => {
+                                if (searching) {
+                                    stopSearch();
+                                } else {
+                                    setSearching(true);
+                                }
+                            }}
+                            className={`border-edge-soft bg-sunken shrink-0 overflow-hidden border px-0 transition-[width,opacity] duration-200 ${searching ? "pointer-events-none w-0 border-transparent opacity-0" : "w-9 opacity-100"}`}
+                        >
+                            <Search className="size-4" />
+                        </Button>
+                    </Hint>
                 </div>
 
                 <div className={`flex items-center justify-between px-3 pt-2 ${FADE} ${FOLD}`}>
@@ -1042,22 +1059,23 @@ export const Sessions = memo(function Sessions({
                               ? "Sessions"
                               : `${String(shown.length)} found`}
                     </span>
-                    <button
-                        type="button"
-                        title={archived ? "Back to sessions" : "Show archived sessions"}
-                        aria-label={archived ? "Back to sessions" : "Show archived sessions"}
-                        aria-pressed={archived}
-                        onClick={() => {
-                            setArchived(!archived);
-                        }}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 items-center justify-center"
-                    >
-                        {archived ? (
-                            <ArrowLeft className="size-4" />
-                        ) : (
-                            <Archive className="size-4" />
-                        )}
-                    </button>
+                    <Hint label={archived ? "Back to sessions" : "Show archived sessions"}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={archived ? "Back to sessions" : "Show archived sessions"}
+                            aria-pressed={archived}
+                            onClick={() => {
+                                setArchived(!archived);
+                            }}
+                        >
+                            {archived ? (
+                                <ArrowLeft className="size-4" />
+                            ) : (
+                                <Archive className="size-4" />
+                            )}
+                        </Button>
+                    </Hint>
                 </div>
                 <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">
@@ -1161,22 +1179,19 @@ export const Sessions = memo(function Sessions({
                         className="rounded-control border-edge-soft bg-canvas text-sidebar text-ink focus:border-accent border px-2 py-1.5 outline-none"
                     />
                     <div className="flex justify-end gap-1">
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="font-normal"
                             onClick={() => {
                                 setRenaming(null);
                             }}
-                            className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink px-2 py-1"
                         >
                             Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={pending}
-                            className="rounded-control text-meta bg-accent text-canvas px-2 py-1 disabled:opacity-50"
-                        >
+                        </Button>
+                        <Button type="submit" size="sm" disabled={pending} className="font-normal">
                             Save
-                        </button>
+                        </Button>
                     </div>
                 </form>
             )}
@@ -1193,28 +1208,30 @@ export const Sessions = memo(function Sessions({
                         Delete “{deleting.title ?? "New session"}”? It disappears for good.
                     </p>
                     <div className="flex justify-end gap-1">
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="font-normal"
                             ref={(node) => {
                                 node?.focus();
                             }}
                             onClick={() => {
                                 setDeleting(null);
                             }}
-                            className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink px-2 py-1"
                         >
                             No
-                        </button>
-                        <button
-                            type="button"
+                        </Button>
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            className="font-normal"
                             disabled={pending}
                             onClick={() => {
                                 void remove(deleting.id);
                             }}
-                            className="rounded-control text-meta bg-danger text-canvas px-2 py-1 disabled:opacity-50"
                         >
                             Yes, delete
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

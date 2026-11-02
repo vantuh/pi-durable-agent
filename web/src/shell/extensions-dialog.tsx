@@ -1,6 +1,7 @@
 import { ArrowLeft, ChevronRight, Puzzle } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { Hint } from "@/components/ui/tooltip";
 
 import { refreshExtensions } from "../extensions.ts";
 import { type ExtensionInfo, listExtensions, setExtensionEnabled } from "../lib/api.ts";
@@ -20,16 +22,13 @@ import { ExtensionDetails, hasExtensionDetails } from "./extension-details.tsx";
 export function ExtensionsButton() {
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <button
-                    type="button"
-                    title="Extensions"
-                    aria-label="Extensions"
-                    className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2"
-                >
-                    <Puzzle className="size-4" />
-                </button>
-            </DialogTrigger>
+            <Hint label="Extensions">
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Extensions">
+                        <Puzzle className="size-4" />
+                    </Button>
+                </DialogTrigger>
+            </Hint>
             <DialogContent className="sm:h-[min(44rem,88dvh)] sm:max-w-2xl">
                 <ExtensionList />
             </DialogContent>
@@ -92,14 +91,14 @@ function ExtensionList() {
     const header = (
         <DialogHeader>
             {current === undefined ? null : (
-                <button
-                    type="button"
-                    className="text-interface text-ink border-edge-soft hover:bg-raised focus-visible:ring-accent rounded-control mb-1 flex w-fit items-center gap-1.5 border px-3 py-1.5 outline-none focus-visible:ring-2"
+                <Button
+                    variant="ghost"
+                    className="border-edge-soft text-ink mb-1 w-fit border font-normal"
                     onClick={() => setSelected(undefined)}
                 >
                     <ArrowLeft className="size-4" />
                     Extensions
-                </button>
+                </Button>
             )}
             <DialogTitle className="text-lg">{current?.title ?? "Extensions"}</DialogTitle>
             <DialogDescription>
@@ -175,14 +174,14 @@ function ExtensionList() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex min-w-0 flex-col gap-0.5">
                                         {hasExtensionDetails(row.name) ? (
-                                            <button
-                                                type="button"
-                                                className="text-interface text-ink focus-visible:ring-accent flex items-center gap-1.5 rounded text-left outline-none after:absolute after:inset-0 focus-visible:ring-2"
+                                            <Button
+                                                variant="ghost"
+                                                className="text-ink justify-start gap-1.5 rounded px-0 py-0 text-left font-normal after:absolute after:inset-0"
                                                 onClick={() => setSelected(row.name)}
                                             >
                                                 {row.title}
                                                 <ChevronRight className="size-3 shrink-0" />
-                                            </button>
+                                            </Button>
                                         ) : (
                                             <span className="text-interface text-ink">
                                                 {row.title}

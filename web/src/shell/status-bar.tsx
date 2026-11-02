@@ -1,6 +1,9 @@
 import { Settings } from "lucide-react";
 import { memo, type RefObject } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
@@ -92,17 +95,19 @@ export const StatusBar = memo(function StatusBar({
                 {at("end").map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
-                <button
-                    ref={settingsGear}
-                    type="button"
-                    title="Settings"
-                    aria-label="Settings"
-                    aria-pressed={settingsOpen}
-                    onClick={onSettings}
-                    className={`rounded-control hover:bg-raised hover:text-ink focus-visible:ring-accent flex size-6 shrink-0 items-center justify-center outline-none focus-visible:ring-2 ${settingsOpen ? "bg-raised text-ink" : "text-muted"}`}
-                >
-                    <Settings className="size-4" />
-                </button>
+                <Hint label="Settings">
+                    <Button
+                        ref={settingsGear}
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Settings"
+                        aria-pressed={settingsOpen}
+                        onClick={onSettings}
+                        className={`shrink-0 ${settingsOpen ? "bg-raised text-ink" : ""}`}
+                    >
+                        <Settings className="size-4" />
+                    </Button>
+                </Hint>
             </div>
         </footer>
     );

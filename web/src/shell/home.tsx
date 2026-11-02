@@ -1,7 +1,9 @@
 import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
@@ -83,25 +85,24 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
         <section className="rounded-card border-edge-soft bg-canvas flex min-h-0 flex-1 flex-col border">
             <header className="border-edge-soft flex items-center justify-between gap-3 border-b px-3 py-2.5">
                 <div className="flex min-w-0 items-center gap-2">
-                    <button
-                        type="button"
-                        title="Sessions"
-                        onClick={onSessions}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center lg:hidden"
-                    >
-                        <PanelLeft className="size-4" />
-                    </button>
+                    <Hint label="Sessions">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Sessions"
+                            onClick={onSessions}
+                            className="shrink-0 lg:hidden"
+                        >
+                            <PanelLeft className="size-4" />
+                        </Button>
+                    </Hint>
                     <h1 className="text-interface text-ink truncate font-medium">Home</h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onNew}
-                        className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink flex items-center gap-1.5 px-2 py-1"
-                    >
+                    <Button variant="ghost" size="sm" onClick={onNew} className="font-normal">
                         <Plus className="size-3.5" />
                         New session
-                    </button>
+                    </Button>
                 </div>
             </header>
 

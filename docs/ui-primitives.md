@@ -89,20 +89,28 @@ Core:
       primitive; see [Kept custom](#kept-custom).
 - [x] `web/src/ui/status-fields.tsx` — field `title` (`40`) → Tooltip. Hover-only: the field is a
       readout, and a tab stop would put every field of the status bar in the tab order.
-- [ ] `web/src/shell/sessions.tsx` — header and search icons (`874–897`, `914–924`, `971–1034`,
-      `1045–1059`); keep pressed/expanded state and the search transition.
-- [ ] `web/src/shell/folder-picker.tsx` — crumb and navigation (`226–256`), Cancel / Open
-      (`334–355`).
-- [ ] `web/src/shell/home.tsx` — header icon, "New session" (`86–104`).
-- [ ] `web/src/shell/pages.tsx` — page toggle, back, close (`34–42`, `106–135`).
-- [ ] `web/src/shell/panels.tsx` — panel toggles (`70–87`), close (`313–320`).
-- [ ] `web/src/shell/settings-content.tsx` — Rebuild / Restart with spinner (`62–81`,
-      `110–121`).
-- [ ] `web/src/shell/status-bar.tsx` — settings toggle (`95–105`).
-- [ ] `web/src/shell/extensions-dialog.tsx` — open, close, actions (`24–35`, `95–106`,
+- [x] `web/src/shell/sessions.tsx` — header and search icons (`874–897`, `914–924`, `971–1034`,
+      `1045–1059`); keep pressed/expanded state and the search transition. The home link and the
+      two panels' own buttons (`type="submit"` kept) went with them; the row's actions trigger
+      stays for [Item](#39-item-new), and the rename and delete frames for [Popover](#31-popover-new)
+      and [AlertDialog](#34-alertdialog-new).
+- [x] `web/src/shell/folder-picker.tsx` — crumb and navigation (`226–256`), Cancel / Open
+      (`334–355`). The crumbs stay raw: they are text on a path, and
+      [Breadcrumb](#312-breadcrumb-new) replaces them with links and `aria-current`.
+- [x] `web/src/shell/home.tsx` — header icon, "New session" (`86–104`).
+- [x] `web/src/shell/pages.tsx` — page toggle, back, close (`34–42`, `106–135`).
+- [x] `web/src/shell/panels.tsx` — panel toggles (`70–87`), close (`313–320`). The close button
+      gains the `aria-label` it never had.
+- [x] `web/src/shell/settings-content.tsx` — Rebuild / Restart with spinner (`62–81`,
+      `110–121`). Rebuild keeps `aria-busy` and moves `disabled` to `aria-disabled`: its title said
+      what the disabled state was doing, and a disabled trigger would never show that hint.
+- [x] `web/src/shell/status-bar.tsx` — settings toggle (`95–105`).
+- [x] `web/src/shell/extensions-dialog.tsx` — open, close, actions (`24–35`, `95–106`,
       `178–193`).
-- [ ] `web/src/shell/sessions-status.tsx` — dropdown trigger (`246–264`).
-- [ ] `web/src/shell/session-parts.tsx` — mark/note `title` (`39`) → Tooltip.
+- [x] `web/src/shell/sessions-status.tsx` — dropdown trigger (`246–264`). `Hint` wraps the
+      `DropdownMenuTrigger`, so Radix still owns the trigger's `aria-expanded` and its menu.
+- [x] `web/src/shell/session-parts.tsx` — mark/note `title` (`39`) → Tooltip. Hover-only: the
+      mark is a readout, and a tab stop before every row's title would be noise.
 
 Extensions:
 

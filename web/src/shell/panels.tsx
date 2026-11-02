@@ -8,6 +8,9 @@ import {
     useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
 import type { PanelProps, StatusProps } from "../sdk/types.ts";
@@ -67,24 +70,26 @@ export function PanelButtons({
         const Badge = panel.badge;
 
         return (
-            <button
-                key={key}
-                type="button"
-                title={panel.title}
-                onClick={() => {
-                    onToggle(key);
-                }}
-                className={`rounded-control hover:bg-raised hover:text-ink relative flex size-6 items-center justify-center ${open === key ? "bg-raised text-ink" : "text-muted"}`}
-            >
-                {panel.icon}
-                {Badge === undefined ? null : (
-                    <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
-                        <ItemBoundary name={`${key}:badge`}>
-                            <Badge session={session} />
-                        </ItemBoundary>
-                    </span>
-                )}
-            </button>
+            <Hint key={key} label={panel.title}>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={panel.title}
+                    onClick={() => {
+                        onToggle(key);
+                    }}
+                    className={`relative ${open === key ? "bg-raised text-ink" : ""}`}
+                >
+                    {panel.icon}
+                    {Badge === undefined ? null : (
+                        <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
+                            <ItemBoundary name={`${key}:badge`}>
+                                <Badge session={session} />
+                            </ItemBoundary>
+                        </span>
+                    )}
+                </Button>
+            </Hint>
         );
     });
 }
@@ -310,14 +315,16 @@ export function PanelHost({
                 <div className={`flex w-full min-w-0 flex-col ${expanded ? "" : COLUMN}`}>
                     <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
                         <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            title="Close"
-                            className="rounded-control text-muted hover:bg-raised flex size-6 items-center justify-center"
-                        >
-                            <X className="size-4" />
-                        </button>
+                        <Hint label="Close">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close"
+                                onClick={onClose}
+                            >
+                                <X className="size-4" />
+                            </Button>
+                        </Hint>
                     </header>
 
                     <div className="flex min-h-0 flex-1 flex-col">

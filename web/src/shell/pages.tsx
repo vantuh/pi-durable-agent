@@ -1,6 +1,9 @@
 import { ArrowLeft, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { FolderPage } from "../extensions.ts";
 import type { PageProps, StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
@@ -31,25 +34,27 @@ export function PageButtons({
         const Badge = page.badge;
 
         return (
-            <button
-                key={key}
-                type="button"
-                title={page.title}
-                aria-pressed={open === key}
-                onClick={(event) => {
-                    onOpen(key, event.currentTarget);
-                }}
-                className={`rounded-control hover:bg-raised hover:text-ink relative flex size-6 items-center justify-center ${open === key ? "bg-raised text-ink" : "text-muted"}`}
-            >
-                {page.icon}
-                {Badge === undefined ? null : (
-                    <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
-                        <ItemBoundary name={`${key}:badge`}>
-                            <Badge session={session} />
-                        </ItemBoundary>
-                    </span>
-                )}
-            </button>
+            <Hint key={key} label={page.title}>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={page.title}
+                    aria-pressed={open === key}
+                    onClick={(event) => {
+                        onOpen(key, event.currentTarget);
+                    }}
+                    className={`relative ${open === key ? "bg-raised text-ink" : ""}`}
+                >
+                    {page.icon}
+                    {Badge === undefined ? null : (
+                        <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
+                            <ItemBoundary name={`${key}:badge`}>
+                                <Badge session={session} />
+                            </ItemBoundary>
+                        </span>
+                    )}
+                </Button>
+            </Hint>
         );
     });
 }
@@ -103,17 +108,19 @@ export function PageHost({
         >
             <header className="border-edge-soft flex min-h-[45px] items-center gap-2 border-b px-3 py-0.5">
                 {sub === undefined ? null : (
-                    <button
-                        type="button"
-                        title="Back"
-                        aria-label="Back"
-                        onClick={() => {
-                            onBack(parentSub(sub));
-                        }}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center"
-                    >
-                        <ArrowLeft className="size-4" />
-                    </button>
+                    <Hint label="Back">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Back"
+                            onClick={() => {
+                                onBack(parentSub(sub));
+                            }}
+                            className="shrink-0"
+                        >
+                            <ArrowLeft className="size-4" />
+                        </Button>
+                    </Hint>
                 )}
                 <h2
                     ref={heading}
@@ -122,17 +129,19 @@ export function PageHost({
                 >
                     {page.title}
                 </h2>
-                <button
-                    type="button"
-                    title="Close"
-                    aria-label="Close"
-                    onClick={() => {
-                        onClose();
-                    }}
-                    className="rounded-control text-muted hover:bg-raised flex size-6 shrink-0 items-center justify-center"
-                >
-                    <X className="size-4" />
-                </button>
+                <Hint label="Close">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                        onClick={() => {
+                            onClose();
+                        }}
+                        className="shrink-0"
+                    >
+                        <X className="size-4" />
+                    </Button>
+                </Hint>
             </header>
 
             <div className="flex min-h-0 flex-1 flex-col">

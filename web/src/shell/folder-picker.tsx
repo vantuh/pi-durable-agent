@@ -1,8 +1,10 @@
 import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 import type { NewSessionCollected } from "@/sdk/types.ts";
 
 import { type FolderNewSessionItem, useNewSessionItems } from "../extensions.ts";
@@ -223,16 +225,19 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 </DialogHeader>
 
                 <div className="flex items-center gap-2 px-4 py-3">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            go(page?.parent);
-                        }}
-                        title="Up"
-                        className="rounded-control bg-raised text-ink flex size-9 items-center justify-center"
-                    >
-                        <ArrowUp className="size-4" />
-                    </button>
+                    <Hint label="Up">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Up"
+                            onClick={() => {
+                                go(page?.parent);
+                            }}
+                            className="bg-raised text-ink size-9"
+                        >
+                            <ArrowUp className="size-4" />
+                        </Button>
+                    </Hint>
 
                     <div className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2 py-1.5 font-mono">
                         {trail.map((crumb, at) => (
@@ -331,28 +336,26 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         </label>
 
                         <div className="flex shrink-0 items-center gap-2">
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
+                                className="bg-raised text-ink font-normal"
                                 onClick={() => {
                                     leave(onClose);
                                 }}
-                                className="rounded-control bg-raised text-ink text-interface px-3 py-1.5"
                             >
                                 Cancel
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 ref={openRef}
-                                type="button"
                                 disabled={held}
                                 onClick={() => {
                                     setOpening(true);
                                     setProblem(null);
                                     void startIn(picked);
                                 }}
-                                className="rounded-control bg-accent text-on-accent text-interface px-3 py-1.5 font-medium disabled:opacity-50"
                             >
                                 Open
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </footer>

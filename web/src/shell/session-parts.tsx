@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Hint } from "@/components/ui/tooltip";
 import { ago, DAY, MINUTE } from "@/lib/time.ts";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
@@ -32,11 +33,10 @@ export function StateMark({ session, working = 0 }: { session: SessionSummary; w
     const label =
         mark ?? (busy ? "Working" : (note ?? (unseen ? "Finished, not viewed" : undefined)));
 
-    return (
+    const element = (
         <span
             role={label === undefined ? undefined : "status"}
             aria-label={label}
-            title={mark ?? note}
             className={`state-mark ${
                 mark !== undefined
                     ? "held text-warn"
@@ -50,6 +50,10 @@ export function StateMark({ session, working = 0 }: { session: SessionSummary; w
             }`}
         />
     );
+    const tip = mark ?? note;
+
+    // Hover-only: a mark is a readout, and a tab stop before every row's title would be noise.
+    return tip === undefined ? element : <Hint label={tip}>{element}</Hint>;
 }
 
 /** The marks extensions draw on a session row, between the title and the time; nothing when none does. */
