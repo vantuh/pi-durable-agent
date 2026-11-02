@@ -3,26 +3,47 @@
  * timeout of the model's own is left alone, and the file is read on each call so a save is in force
  * without a reload. A command the limit killed is said in the browsers, which only the limit's own
  * timeout is: the model's shorter one and every other failure stay in the transcript.
+ *
+ * The idle guard is checked against the real `bash` tool and a real `NodeExecutionEnv` in a real
+ * Harness, because what it has to survive — the abort the env throws, the spill file, the retained
+ * output — is pi's, and a stand-in would prove only that the stand-in behaves.
  */
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
+    createModels,
+    fauxAssistantMessage,
+    fauxProvider,
+    fauxToolCall,
+} from "@earendil-works/pi-ai";
+import {
+    createRegistry,
+    defineExtension,
+    defineTool,
+    type EntryRecord,
     type Extension,
+    Harness,
     type JsonObject,
     ToolTask,
     type ToolExecutionResult,
 } from "@earendil-works/pi-durable";
+import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
+import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
+import { CodingTools } from "@earendil-works/pi-durable/tools";
+import { Type } from "typebox";
 
 import type { Action, Host } from "../../server/sdk.ts";
 import { ActionError } from "../../server/sdk.ts";
 import type { ExtensionNotice } from "../../shared/protocol.ts";
-import { DEFAULT_MINUTES, FILE, MAX_MINUTES, MIN_MINUTES } from "./refs.ts";
-import bashTimeout, { actions } from "./server.ts";
+import { DEFAULT_MINUTES, FILE, IDLE_CODE, MAX_MINUTES, MIN_MINUTES } from "./refs.ts";
+import bashTimeout, { actions, idleGuard } from "./server.ts";
 
 /** A host that keeps what the extension says in the browsers. */
 type Captured = {
@@ -281,11 +302,7 @@ void describe("bash timeout", () => {
             command: "sleep 91; echo done",
             timeout: DEFAULT_MINUTES * 60,
         });
-        assert.equal(
-            await settle(call, timeoutResult(DEFAULT_MINUTES * 60), api),
-            undefined,
-            "the result must be kept as the harness wrote it",
-        );
+        await settle(call, timeoutResult(DEFAULT_MINUTES * 60), api);
         assert.deepEqual(captured.said, [
             {
                 level: "error",
@@ -294,6 +311,42 @@ void describe("bash timeout", () => {
                 description: "Bash timed out after 10 min · sleep 91; echo done · pi-durable-agent",
             },
         ]);
+    });
+
+    void it("tells the model which clock ran out", async () => {
+        const { api, decide, settle } = callIn(dir);
+        const call = { id: "call-3", name: "bash", arguments: { command: "sleep 700" } };
+
+        await decide(call, api);
+
+        assert.deepEqual(await settle(call, timeoutResult(DEFAULT_MINUTES * 60), api), {
+            isError: true,
+            diagnostics: [
+                {
+                    severity: "error",
+                    code: "tool_error",
+                    message:
+                        "Command timed out after 600 seconds — the agent's shared bash limit (10 min), not a timeout you asked for. The command was killed, not finished: the output above is everything it printed. Split it into smaller steps or narrow its scope.",
+                },
+            ],
+        });
+    });
+
+    void it("leaves the timeout the model asked for itself as pi wrote it", async () => {
+        const { api, decide, settle } = callIn(dir);
+        const call = {
+            id: "call-4",
+            name: "bash",
+            arguments: { command: "sleep 40", timeout: 30 },
+        };
+
+        await decide(call, api);
+
+        assert.equal(
+            await settle(call, timeoutResult(30), api),
+            undefined,
+            "the model's own timeout is not the agent's limit, and is not explained as one",
+        );
     });
 
     void it("does not say a timeout the model asked for itself", async () => {
@@ -383,3 +436,286 @@ void describe("bash timeout", () => {
         );
     });
 });
+
+/** A tool that runs `bash` as a nested call, as a script, a subagent or another tool does. */
+const NestedBash = defineTool({
+    name: "nested-bash",
+    description: "Runs a bash command as a nested call and reports what that call was told.",
+    parameters: Type.Object({ command: Type.String() }),
+    async execute(args, api, context) {
+        const nested = await api.executeTool("bash", { command: args.command }, context);
+
+        return {
+            output: [
+                {
+                    type: "text",
+                    text: nested.diagnostics
+                        .map((diagnostic) => `${diagnostic.code ?? "-"}: ${diagnostic.message}`)
+                        .join("\n"),
+                },
+            ],
+            isError: nested.isError,
+        };
+    },
+});
+
+/** One tool result as the transcript keeps it: the codes of its diagnostics, and the text the model read. */
+type BashResult = { codes: string[]; text: string };
+
+/** The diagnostic codes of one result, from its data: a code does not travel in the text the model reads. */
+function codesOf(entry: EntryRecord): string[] {
+    const data: unknown = entry.data;
+    const diagnostics: unknown =
+        typeof data === "object" && data !== null ? Reflect.get(data, "diagnostics") : undefined;
+
+    if (!Array.isArray(diagnostics)) {
+        return [];
+    }
+
+    return diagnostics.flatMap((diagnostic: unknown) => {
+        const code: unknown =
+            typeof diagnostic === "object" && diagnostic !== null
+                ? Reflect.get(diagnostic, "code")
+                : undefined;
+
+        return typeof code === "string" ? [code] : [];
+    });
+}
+
+/** What one result said to the model. */
+function textOf(entry: EntryRecord): string {
+    return (entry.model ?? [])
+        .flatMap((message) =>
+            message.role === "toolResult"
+                ? message.content.flatMap((item) => (item.type === "text" ? [item.text] : []))
+                : [],
+        )
+        .join("\n");
+}
+
+void describe("bash idle guard", () => {
+    const opened: (() => Promise<void>)[] = [];
+
+    afterEach(async () => {
+        for (const close of opened.splice(0)) {
+            await close();
+        }
+    });
+
+    /**
+     * A real Harness over a faux model, pi's own coding tools and this extension, with the idle guard shortened to
+     * `idleSeconds`: the shipped one waits `IDLE_SECONDS`, which no test is going to sit through seven times.
+     */
+    async function guarded(idleSeconds: number) {
+        const dir = await mkdtemp(join(tmpdir(), "bash-idle-"));
+        const captured = hostIn(dir);
+        const faux = fauxProvider({ models: [{ id: "m1" }] });
+        const models = createModels();
+        const registry = createRegistry();
+
+        models.setProvider(faux.provider);
+        registry.install(CodingTools);
+        registry.install(bashTimeout(captured.host));
+        // The same wrap the extension installs, with the wait a test can watch.
+        registry.install(
+            defineExtension({ name: "bash-idle-quick", wraps: [idleGuard(idleSeconds)] }),
+        );
+        registry.install(defineExtension({ name: "nested-bash", tools: [NestedBash] }));
+
+        const harness = await Harness.open(
+            await openNodeSqliteStorage(join(dir, "state.sqlite")),
+            { models, registry, env: ({ cwd }) => new NodeExecutionEnv({ cwd: cwd ?? dir }) },
+            BACKGROUND_CONTEXT,
+        );
+
+        harness.resume();
+        opened.push(async () => {
+            await harness.close(BACKGROUND_CONTEXT);
+            await rm(dir, { recursive: true, force: true });
+        });
+
+        const conversation = await harness.createConversation(
+            {
+                ownership: { kind: "ownerless" },
+                agent: { model: { provider: faux.provider.id, modelId: "m1" }, cwd: dir },
+            },
+            BACKGROUND_CONTEXT,
+        );
+
+        /** Every tool result of the conversation, in order. */
+        async function results(): Promise<BashResult[]> {
+            const view = await conversation.context(BACKGROUND_CONTEXT);
+
+            return view.entries
+                .filter((entry) => entry.kind === "pi.tool-result")
+                .map((entry) => ({ codes: codesOf(entry), text: textOf(entry) }));
+        }
+
+        return {
+            dir,
+            captured,
+            faux,
+            conversation,
+            results,
+            /** One answer that makes these calls, then one that ends the run. */
+            async round(...calls: { name: string; arguments: JsonObject }[]): Promise<void> {
+                faux.setResponses([
+                    fauxAssistantMessage(
+                        calls.map((call) => fauxToolCall(call.name, call.arguments)),
+                        { stopReason: "toolUse" },
+                    ),
+                    fauxAssistantMessage("done"),
+                ]);
+                await (
+                    await conversation.submit({ type: "input", content: "go" }, BACKGROUND_CONTEXT)
+                ).wait(BACKGROUND_CONTEXT);
+            },
+            /** The one result the run left, or a failed assertion. */
+            async only(): Promise<BashResult> {
+                const found = await results();
+                const [first] = found;
+
+                assert.equal(found.length, 1, JSON.stringify(found));
+                assert.ok(first !== undefined);
+
+                return first;
+            },
+        };
+    }
+
+    void it("ends a silent command after the idle wait, and says why", async () => {
+        const bash = await guarded(1);
+        const started = Date.now();
+
+        await bash.round({ name: "bash", arguments: { command: "sleep 30" } });
+
+        const elapsed = Date.now() - started;
+        const result = await bash.only();
+
+        assert.deepEqual(result.codes, [IDLE_CODE]);
+        assert.match(result.text, /No output for 1s/);
+        assert.ok(elapsed < 10_000, `the guard took ${String(elapsed)} ms, not about a second`);
+    });
+
+    void it("counts output on either stream as progress, so a talking command runs on", async () => {
+        const bash = await guarded(1);
+        const tape = "for i in 1 2 3 4 5 6 7 8; do echo tick; sleep 0.2; done";
+        const errors = "for i in 1 2 3 4 5 6 7 8; do echo tick >&2; sleep 0.2; done";
+
+        await bash.round(
+            { name: "bash", arguments: { command: tape } },
+            { name: "bash", arguments: { command: errors } },
+        );
+
+        const results = await bash.results();
+
+        assert.equal(results.length, 2);
+
+        for (const result of results) {
+            assert.deepEqual(
+                result.codes,
+                [],
+                `a command that prints is not killed: ${result.text}`,
+            );
+            assert.match(result.text, /tick/);
+        }
+    });
+
+    void it("keeps the output a killed command already printed, and the path of all of it", async () => {
+        const bash = await guarded(1);
+
+        await bash.round({ name: "bash", arguments: { command: "seq 1 3000; sleep 30" } });
+
+        const result = await bash.only();
+
+        assert.ok(result.codes.includes(IDLE_CODE), result.codes.join(", "));
+        assert.ok(result.codes.includes("full_output"), result.codes.join(", "));
+        assert.match(result.text, /^3000$/m, "the retained tail still reaches the model");
+    });
+
+    void it("does not call a timeout a hang when the idle wait is longer", async () => {
+        // The ceiling's smallest setting is a minute, so the call carries a timeout of its own instead: what the
+        // wrapper has to get right is that a timeout is never turned into an idle kill.
+        const bash = await guarded(90);
+
+        await bash.round({ name: "bash", arguments: { command: "sleep 30", timeout: 1 } });
+
+        const result = await bash.only();
+
+        assert.ok(
+            !result.codes.includes(IDLE_CODE),
+            "the environment reports a timeout ahead of an abort, and that is what happened",
+        );
+        assert.match(result.text, /Command timed out after 1 seconds/);
+    });
+
+    void it("passes the caller's own abort through without calling it a hang", async () => {
+        const bash = await guarded(30);
+        const marker = join(bash.dir, "running");
+
+        bash.faux.setResponses([
+            fauxAssistantMessage(fauxToolCall("bash", { command: `touch ${marker}; sleep 30` }), {
+                stopReason: "toolUse",
+            }),
+            fauxAssistantMessage("done"),
+        ]);
+
+        const submission = await bash.conversation.submit(
+            { type: "input", content: "go" },
+            BACKGROUND_CONTEXT,
+        );
+
+        // The abort has to land on a running command; the file says the shell really started.
+        await running(marker);
+        await bash.conversation.abort(BACKGROUND_CONTEXT);
+        await submission.wait(BACKGROUND_CONTEXT);
+
+        const results = await bash.results();
+
+        assert.deepEqual(
+            results.map((result) => result.codes),
+            [["aborted"]],
+            "the environment's abort, which the harness reports as its own",
+        );
+        assert.deepEqual(bash.captured.said, [], "Stop is not a hang");
+    });
+
+    void it("kills a call the ceiling never touched, and reports it", async () => {
+        const bash = await guarded(1);
+
+        await bash.round({ name: "bash", arguments: { command: "sleep 30", timeout: 30 } });
+
+        const result = await bash.only();
+
+        assert.deepEqual(result.codes, [IDLE_CODE]);
+        assert.deepEqual(
+            bash.captured.said.map((notice) => notice.description),
+            [`Bash idle for 1 s · sleep 30 · ${basename(bash.dir)}`],
+        );
+    });
+
+    void it("reaches a nested call, not only the call the model makes", async () => {
+        const bash = await guarded(1);
+
+        await bash.round({ name: "nested-bash", arguments: { command: "sleep 30" } });
+
+        const result = await bash.only();
+
+        assert.match(result.text, new RegExp(`^${IDLE_CODE}: No output for 1s`, "m"));
+    });
+});
+
+/** Waits until the command has created `marker`, so the next step acts on a process that is really running. */
+async function running(marker: string): Promise<void> {
+    for (let attempt = 0; attempt < 400; attempt += 1) {
+        try {
+            await access(marker);
+
+            return;
+        } catch {
+            await delay(25);
+        }
+    }
+
+    assert.fail(`${marker} was never created: the command never ran`);
+}

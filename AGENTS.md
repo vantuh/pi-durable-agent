@@ -185,7 +185,9 @@ Every rule, and the mistake it prevents: [docs/conventions.md](docs/conventions.
 - The agent is `@earendil-works/pi-durable`. Do not write an agent loop by hand.
 - `@earendil-works/pi-coding-agent` is here for one reason only: `ModelRuntime.create()` reads Pi's
   own logins and models from `~/.pi/agent`. Do not use it for tools or the harness.
-- `@earendil-works/chord` is a direct dependency for `BACKGROUND_CONTEXT`, nothing else.
+- `@earendil-works/chord` is a direct dependency for `BACKGROUND_CONTEXT` and the context helpers:
+  `withCancel` derives the child context that lets `bash-timeout` kill one idle command without
+  cancelling its caller. Nothing else.
 - One user, one process, `127.0.0.1`. No auth, roles, or sharing until something needs them.
 - Personal behaviour belongs in extensions, not in the core.
 - The theme is Catppuccin, in its own file, defined once as CSS variables. A colour that does not

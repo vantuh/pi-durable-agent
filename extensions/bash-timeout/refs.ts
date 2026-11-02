@@ -1,6 +1,6 @@
 /**
- * What the server and the browser half agree on about the limit. Browser-safe: the contract and the
- * check both halves use.
+ * What the server and the browser half agree on about the two timers. Browser-safe: the contract and
+ * the check both halves use.
  */
 
 import { actionRef } from "../../shared/extension-api.ts";
@@ -12,6 +12,15 @@ export const FILE = "bash-timeout.json";
 export const MIN_MINUTES = 1;
 export const MAX_MINUTES = 120;
 export const DEFAULT_MINUTES = 10;
+
+/**
+ * Seconds of silence after which a bash command counts as stuck and is killed, whatever its ceiling. An edit, not a
+ * setting: a value nobody tunes weekly does not need a second field in the dialog.
+ */
+export const IDLE_SECONDS = 120;
+
+/** The diagnostic code of a result the idle guard wrote, so the notice can find it without a memo. */
+export const IDLE_CODE = "bash_idle";
 
 /** What the file holds, and what both actions answer. */
 export type BashTimeout = { minutes: number };
