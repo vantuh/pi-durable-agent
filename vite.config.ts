@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -7,6 +8,15 @@ import { defineConfig, normalizePath } from "vite";
 import { pwa } from "./pwa.ts";
 
 const extensionsDir = normalizePath(fileURLToPath(new URL("./extensions", import.meta.url)));
+
+// A LAN address is a secure context only over HTTPS, and the certificate is the person's own
+// (mkcert, untracked): without it preview serves plain HTTP instead of refusing to start.
+const certFile = fileURLToPath(new URL("./.certs/lan.pem", import.meta.url));
+const keyFile = fileURLToPath(new URL("./.certs/lan-key.pem", import.meta.url));
+const https =
+    existsSync(certFile) && existsSync(keyFile)
+        ? { cert: readFileSync(certFile), key: readFileSync(keyFile) }
+        : undefined;
 
 export default defineConfig({
     root: "web",
@@ -50,6 +60,7 @@ export default defineConfig({
             "/api": { target: "http://127.0.0.1:8788", changeOrigin: false },
         },
     },
+    ...(https === undefined ? {} : { preview: { https } }),
     build: {
         outDir: "../dist",
         emptyOutDir: true,
