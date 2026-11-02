@@ -1119,7 +1119,11 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         starting={starting}
                         issue={issue}
                         onCancel={async () => {
-                            if ((await stopReview()) && address.current === sub) {
+                            if (
+                                (await stopReview()) &&
+                                !leaving.current &&
+                                address.current === sub
+                            ) {
                                 navigate(shownTarget);
                             }
                         }}

@@ -29,6 +29,14 @@ const sameRoute = (left: Route, right: Route): boolean =>
     left.page?.key === right.page?.key &&
     left.page?.sub === right.page?.sub;
 
+/**
+ * Whether a move ends the page instance on screen: another page, another session, or no page at all.
+ * Moving to another sub-location of the same page keeps it, and with it the handles it holds.
+ */
+export function endsPage(before: Route, after: Route): boolean {
+    return before.session !== after.session || before.page?.key !== after.page?.key;
+}
+
 function isRoute(value: unknown): value is Route {
     if (typeof value !== "object" || value === null) {
         return false;
@@ -84,6 +92,18 @@ export function useRoute(): RouteNavigation {
     const [route, setRoute] = useState(() => routeFromSearch(location.search));
     // Every move below writes this before it re-renders; the first render starts it at the address.
     const current = useRef(route);
+    // A page's `navigate` and `close` belong to the opening that made them. The counter moves on when
+    // that page leaves, so an answer arriving from a page instance that has gone cannot move the new one.
+    const [opening, setOpening] = useState(0);
+    const live = useRef(0);
+
+    /** Bumps the opening when a move ends the page on screen, which retires the handles it captured. */
+    const countOpening = useCallback((before: Route, after: Route) => {
+        if (endsPage(before, after)) {
+            live.current += 1;
+            setOpening(live.current);
+        }
+    }, []);
 
     useEffect(() => {
         // The first entry has no marker yet: it remembers the route it was loaded with, so a deep
@@ -94,11 +114,13 @@ export function useRoute(): RouteNavigation {
 
         const back = (): void => {
             const next = routeFromSearch(location.search);
+            const before = current.current;
             current.current = next;
             setRoute(next);
             // The entry's `from` belonged to the push that made it; a traversal may have skipped
             // that entry, so this one no longer knows its neighbour.
             history.replaceState({ pi: { route: next } }, "");
+            countOpening(before, next);
         };
 
         window.addEventListener("popstate", back);
@@ -106,28 +128,39 @@ export function useRoute(): RouteNavigation {
         return () => {
             window.removeEventListener("popstate", back);
         };
-    }, []);
+    }, [countOpening]);
 
-    const show = useCallback((next: Route) => {
-        const href = routeHref(next);
-        const here = location.pathname + location.search;
+    const show = useCallback(
+        (next: Route) => {
+            const before = current.current;
+            const href = routeHref(next);
+            const here = location.pathname + location.search;
 
-        if (href === here) {
+            if (href === here) {
+                current.current = next;
+                setRoute(next);
+                return;
+            }
+
+            history.pushState({ pi: { route: next, from: before } }, "", href);
             current.current = next;
             setRoute(next);
-            return;
-        }
+            countOpening(before, next);
+        },
+        [countOpening],
+    );
 
-        history.pushState({ pi: { route: next, from: current.current } }, "", href);
-        current.current = next;
-        setRoute(next);
-    }, []);
+    const replace = useCallback(
+        (next: Route) => {
+            const before = current.current;
 
-    const replace = useCallback((next: Route) => {
-        history.replaceState({ pi: { route: next } }, "", routeHref(next));
-        current.current = next;
-        setRoute(next);
-    }, []);
+            history.replaceState({ pi: { route: next } }, "", routeHref(next));
+            current.current = next;
+            setRoute(next);
+            countOpening(before, next);
+        },
+        [countOpening],
+    );
 
     const session = route.session;
     const page = route.page?.key ?? null;
@@ -148,17 +181,15 @@ export function useRoute(): RouteNavigation {
     );
     const setPageSub = useCallback(
         (sub: string | undefined) => {
-            // A page hands its own navigation out as a closure; once the address has moved off that
-            // page — an answer arriving after it left — the closure must not reopen it.
-            const now = current.current;
-
-            if (page === null || now.session !== session || now.page?.key !== page) {
+            // The handle belongs to the opening that made it: a page that has left and been opened
+            // again is a new one, and only its own navigation applies.
+            if (opening !== live.current || page === null) {
                 return;
             }
 
             show({ session, page: { key: page, sub } });
         },
-        [session, page, show],
+        [opening, session, page, show],
     );
     const backPage = useCallback(
         (parent: string | undefined) => {
@@ -186,15 +217,13 @@ export function useRoute(): RouteNavigation {
         [replace],
     );
     const closePage = useCallback(() => {
-        const now = current.current;
-
-        // The same closure rule as `setPageSub`: a close from a page that has already been left.
-        if (page === null || now.session !== session || now.page?.key !== page) {
+        // The same opening rule as `setPageSub`: a close from a page that has already been left.
+        if (opening !== live.current || page === null) {
             return;
         }
 
         show({ session, page: null });
-    }, [session, page, show]);
+    }, [opening, session, page, show]);
 
     const dropPage = useCallback(() => {
         const now = current.current;
