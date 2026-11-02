@@ -275,11 +275,22 @@ field in the app.
 
 ### 2.2 Textarea (new)
 
-- [ ] Add `components/ui/textarea.tsx`, with auto-size as a prop if two callers need it.
-- [ ] `web/src/composer/composer.tsx:571` — keep auto-size, keyboard handling, scroll area.
-- [ ] `extensions/notes/panel.tsx:268`.
-- [ ] `extensions/notes/todos.tsx:447`.
-- [ ] `extensions/git-history/web.tsx:180` — commit message.
+- [x] Add `components/ui/textarea.tsx`, with auto-size as a prop if two callers need it. No prop: only
+      the composer grows with its text, and it does that itself with `field-sizing: content`. The
+      primitive is `Input`'s look without a height, so it is as tall as its `rows` say.
+- [x] `web/src/composer/composer.tsx:571` — keep auto-size, keyboard handling, scroll area. It stays
+      hand-written: the card around it is the frame, so `Textarea` would arrive as a reset list and
+      give back only classes the field already has. The reason is under [Kept custom](#kept-custom).
+- [x] `extensions/notes/panel.tsx:268`. The editor fills the panel, so it takes the frame off
+      (`border-transparent bg-transparent`) and keeps its own `px-3 py-2`, `min-h-0 flex-1`, and
+      `resize-none`, as the browser's address field does. It drops the ring too
+      (`focus-visible:ring-0`): the panel clips it to a line at the top and bottom, and the caret
+      already shows the focus.
+- [x] `extensions/notes/todos.tsx:447`. The description keeps `rows={4}` and `resize-y`, the one
+      class it had over `Input`'s own; its height, padding, and colours are what they were.
+- [x] `extensions/git-history/web.tsx:180` — commit message. The description takes `htmlFor`/`id`
+      like the title, and drops the `fieldClass` that was left for it: `Input`'s padding step is the
+      textarea's now, so the 4px between the two fields of the form is gone.
 
 ### 2.3 Checkbox (new)
 
@@ -543,6 +554,13 @@ in `Button`. The list closes with the `title=` readouts that are not actions and
   new dependency and a layout rewrite.
 - **Drop overlay** — `web/src/composer/drop-overlay.tsx`: a non-modal drag cue. No primitive fits,
   and a `Button` is a control, not a cue.
+- **The composer's textarea** — `web/src/composer/composer.tsx:574`: the card around it is the frame,
+  so `Textarea` would come as a reset list — `border-transparent bg-transparent px-0 py-0
+  focus-visible:ring-0` — and give back only `text-ink`, `placeholder:text-faint` and an
+  `aria-invalid` look the field never asks for. Its focus treatment is the card's
+  `focus-within:border-accent`, one indicator where the primitive's ring would be a second one
+  inside it, and its height is `field-sizing: content` with `min-h-[2lh]`: the primitive carries no
+  height at all, since a textarea is otherwise as tall as its `rows` say.
 - **Lightbox close target** — `web/src/ui/lightbox.tsx:101–108`: a full-screen click target for
   closing next to zoom and pan. It is deliberately not a `Button`: the hit area is the whole
   viewport, and a box with a hover fill would read as an action in the middle of the picture. The

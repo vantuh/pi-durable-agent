@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast.ts";
 import { cn } from "@/lib/utils";
 import { callAction } from "@/sdk/actions.ts";
@@ -448,7 +449,7 @@ function Details({ todo, onChange }: { todo: Todo; onChange: (patch: Patch) => v
                     }
                 }}
             />
-            <textarea
+            <Textarea
                 value={description}
                 rows={4}
                 placeholder="Description"
@@ -459,7 +460,7 @@ function Details({ todo, onChange }: { todo: Todo; onChange: (patch: Patch) => v
                     timer.current = setTimeout(flush, DEBOUNCE_MS);
                 }}
                 onBlur={flush}
-                className="rounded-control border-edge bg-sunken text-interface text-ink placeholder:text-faint focus-visible:ring-accent resize-y border px-2 py-1 outline-none focus-visible:ring-2"
+                className="resize-y"
             />
         </div>
     );

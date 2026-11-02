@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
 
@@ -265,7 +266,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
                 <p className="text-danger text-interface px-3 py-2">{note.error}</p>
             ) : null}
 
-            <textarea
+            <Textarea
                 value={note.text}
                 disabled={note.state === "loading"}
                 spellCheck={false}
@@ -273,7 +274,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
                 onChange={(event) => {
                     note.edit(event.target.value);
                 }}
-                className="text-prose text-ink placeholder:text-faint min-h-0 flex-1 resize-none bg-transparent px-3 py-2 outline-none"
+                className="min-h-0 flex-1 resize-none border-transparent bg-transparent px-3 py-2 focus-visible:ring-0"
             />
         </div>
     );

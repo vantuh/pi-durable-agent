@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Hint } from "@/components/ui/tooltip";
 import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -76,9 +77,6 @@ const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
 });
 const running = (value: ReviewState | null) =>
     value?.state === "starting" || value?.state === "running";
-
-const fieldClass =
-    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent w-full border px-2 py-1.5 outline-none focus-visible:ring-2";
 
 /** A place in the page: the list, one commit (or the working tree), or a review of it. */
 type Place =
@@ -179,16 +177,16 @@ function RewordForm({
                     onKeyDown={submitOnEnter}
                 />
             </label>
-            <label className="block">
+            <label className="block" htmlFor="reword-description">
                 <span className="text-meta text-muted">Description</span>
-                <textarea
+                <Textarea
+                    id="reword-description"
                     rows={6}
                     value={body}
                     onChange={(event) => {
                         setBody(event.target.value);
                     }}
                     onKeyDown={submitOnEnter}
-                    className={fieldClass}
                 />
             </label>
             {error !== null ? (
