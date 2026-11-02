@@ -135,7 +135,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                     </button>
                 );
             })}
-            {live.length < 2 ? null : (
+            {live.length === 0 ? null : (
                 <button
                     type="button"
                     aria-label="Show every tag"
@@ -143,7 +143,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                     onClick={() => {
                         setChosen([]);
                     }}
-                    className="text-faint hover:text-ink text-meta shrink-0 px-1 underline-offset-2 hover:underline"
+                    className="text-muted hover:text-ink text-meta shrink-0 px-1 underline-offset-2 hover:underline"
                 >
                     clear
                 </button>
