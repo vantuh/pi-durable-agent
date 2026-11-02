@@ -40,7 +40,7 @@ Today Radix comes as six separate `@radix-ui/react-*` packages. This plan needs 
 more (tooltip, popover, alert-dialog, checkbox, toggle-group, progress, separator, label) plus
 `Slot` for `asChild`.
 
-- [ ] Replace the six `@radix-ui/react-*` packages with the single `radix-ui` package and update
+- [x] Replace the six `@radix-ui/react-*` packages with the single `radix-ui` package and update
       the imports in `web/src/components/ui/*`. One dependency instead of fifteen; tree-shaken
       per primitive. Commit reason: "one Radix package instead of one per primitive".
 
