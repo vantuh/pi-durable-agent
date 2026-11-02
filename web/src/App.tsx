@@ -22,6 +22,7 @@ import {
     setDefaultModel,
 } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
+import { noticeTarget } from "./lib/notice.ts";
 import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
@@ -33,6 +34,7 @@ import { HeaderItems } from "./shell/header-items.tsx";
 import { Home } from "./shell/home.tsx";
 import { PageButtons, PageHost, pageKey } from "./shell/pages.tsx";
 import { PanelButtons, PanelHost, panelKey, useOpenPanel } from "./shell/panels.tsx";
+import { showSessionAlert } from "./shell/session-alert.tsx";
 import { Sessions } from "./shell/sessions.tsx";
 import { Settings } from "./shell/settings.tsx";
 import { StatusBar } from "./shell/status-bar.tsx";
@@ -57,7 +59,6 @@ function shortName(model: string | null): string {
 
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
-    const { sessions, setSessions, connected } = useSessionList();
     const { route, go, openPage, setPageSub, backPage, closePage, dropPage } = useRoute();
     const current = route.session;
     const [picker, setPicker] = useState(false);
@@ -69,6 +70,22 @@ export function App() {
     const panels = usePanels();
     const pages = usePages();
     const extensionsLoaded = useExtensionsLoaded();
+
+    const goToSession = useCallback(
+        (id: number) => {
+            go(id);
+            setSheet(false);
+        },
+        [go],
+    );
+    // The list stream is the one every tab holds, so a notice about any session arrives here, the home page included.
+    const { sessions, setSessions, connected } = useSessionList((notice) => {
+        const target = noticeTarget(notice, current);
+
+        if (target.kind === "session") {
+            showSessionAlert(target, goToSession);
+        }
+    });
 
     const { state, send, stop, loadOlder } = useConversation(current);
     const {
@@ -116,10 +133,7 @@ export function App() {
         document.title = active?.title ? `Pi · ${active.title}` : "Pi";
     }, [active?.title]);
 
-    useFinishedToasts(sessions, current, (id) => {
-        go(id);
-        setSheet(false);
-    });
+    useFinishedToasts(sessions, current, goToSession);
 
     // The home page has no session; the sidebar keeps showing the folder of the last one opened.
     const last = sessions.find(

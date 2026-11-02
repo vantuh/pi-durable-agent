@@ -67,6 +67,7 @@ const host: Host = {
     setSessionMark: () => undefined,
     folderGroup: () => undefined,
     notifySessionChanged: () => undefined,
+    notify: () => undefined,
 };
 
 const commits: CommitListener[] = [];

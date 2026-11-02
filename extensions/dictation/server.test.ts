@@ -63,6 +63,7 @@ function hostOf(dataDir: string, disposed: Disposal[]): Host {
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
 }
 

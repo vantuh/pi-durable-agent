@@ -113,6 +113,11 @@ export type Host = {
      * moment, through `session.revision`; many calls in that moment make one change.
      */
     readonly notifySessionChanged: (session: number) => void;
+    /**
+     * Shows a notice in every open browser, whatever session it shows. With `session` it is that
+     * session's own toast, whose title opens it; a browser showing that session now stays silent.
+     */
+    readonly notify: (notice: ExtensionNotice) => void;
 };
 
 /** What one request on top of a conversation may ask for beyond its own messages. */
@@ -960,6 +965,10 @@ export class Extensions {
             },
             notifySessionChanged: (session) => {
                 this.#sessionChanged(session);
+            },
+            // The loader's own channel: an extension's notice reaches the browsers the same way a load does.
+            notify: (notice) => {
+                this.#notify(notice);
             },
             wrapModelFetch: (wrap) => {
                 activations.push(() => {

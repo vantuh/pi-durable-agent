@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import type { SessionSummary, SessionsEvent } from "../shared/protocol.ts";
+import type { SessionSummary, SessionListEvent } from "../shared/protocol.ts";
 
 const REPO = join(import.meta.dirname, "..");
 /** A debounce is 100 ms: this covers the last frame a burst can send plus the settle after it. */
@@ -111,8 +111,8 @@ function sessionOf(answer: unknown): number {
 }
 
 /** Every frame the sidebar's stream sends, as it arrives. */
-function watchFrames(base: string): { frames: SessionsEvent[]; stop: () => void } {
-    const frames: SessionsEvent[] = [];
+function watchFrames(base: string): { frames: SessionListEvent[]; stop: () => void } {
+    const frames: SessionListEvent[] = [];
     const abort = new AbortController();
 
     void (async () => {
@@ -129,8 +129,8 @@ function watchFrames(base: string): { frames: SessionsEvent[]; stop: () => void 
 
             for (const frame of text) {
                 if (frame.startsWith("data: ")) {
-                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the server writes SessionsEvent JSON
-                    frames.push(JSON.parse(frame.slice(6)) as SessionsEvent);
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the server writes the list's JSON
+                    frames.push(JSON.parse(frame.slice(6)) as SessionListEvent);
                 }
             }
         }
@@ -141,21 +141,21 @@ function watchFrames(base: string): { frames: SessionsEvent[]; stop: () => void 
 
 /** The frames that arrived after `from`, once a burst would have been flushed. */
 async function framesAfter(
-    watch: { frames: SessionsEvent[] },
+    watch: { frames: SessionListEvent[] },
     from: number,
-): Promise<SessionsEvent[]> {
+): Promise<SessionListEvent[]> {
     await delay(SETTLE_MS);
 
     return watch.frames.slice(from);
 }
 
-function rowsOf(frame: SessionsEvent | undefined): SessionSummary[] {
+function rowsOf(frame: SessionListEvent | undefined): SessionSummary[] {
     assert.ok(frame !== undefined, "a frame arrived");
 
     return frame.type === "sessions" ? frame.sessions : frame.rows;
 }
 
-function goneOf(frame: SessionsEvent | undefined): number[] {
+function goneOf(frame: SessionListEvent | undefined): number[] {
     assert.ok(frame !== undefined, "a frame arrived");
 
     return frame.type === "rows" ? frame.gone : [];

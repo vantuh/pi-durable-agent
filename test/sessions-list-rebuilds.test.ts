@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import type { SessionSummary, SessionsEvent } from "../shared/protocol.ts";
+import type { SessionSummary, SessionListEvent } from "../shared/protocol.ts";
 import { withSessionsEvent } from "../web/src/lib/session-list.ts";
 
 const REPO = join(import.meta.dirname, "..");
@@ -130,8 +130,8 @@ function watchList(base: string): { lists: SessionSummary[][]; stop: () => void 
 
             for (const frame of frames) {
                 if (frame.startsWith("data: ")) {
-                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the server writes SessionsEvent JSON
-                    held = withSessionsEvent(held, JSON.parse(frame.slice(6)) as SessionsEvent);
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the server writes the list's JSON
+                    held = withSessionsEvent(held, JSON.parse(frame.slice(6)) as SessionListEvent);
                     lists.push(held);
                 }
             }

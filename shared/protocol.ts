@@ -168,7 +168,18 @@ export type ClientHistory = {
     more: boolean;
 };
 
-export type ExtensionNotice = { level: "success" | "error"; message: string };
+/**
+ * Something an extension says in the browser, outside any transcript: a toast. With `session` it is that
+ * session's own toast — `message` is the session's title, `description` the line under it, and a click
+ * opens the session — and a browser showing that session stays silent, since it shows what happened.
+ */
+export type ExtensionNotice = {
+    level: "success" | "error";
+    message: string;
+    /** The session the notice is about; absent for a notice about the app. */
+    session?: number;
+    description?: string;
+};
 
 export type ServerEvent = { session: number } & (
     | {
@@ -222,10 +233,16 @@ export type SessionSummary = {
 /**
  * What `GET /api/sessions/events` sends: the whole list to a client that just connected, then after every change
  * only the rows that differ and the ids that are gone. All clients hold the same list, so one diff serves them.
+ * The same stream carries a session's own notice, because every tab holds this one: a tab showing no session at
+ * all hears about a session it is not looking at, which the transcript there cannot show.
  */
 export type SessionsEvent =
     | { type: "sessions"; sessions: SessionSummary[] }
-    | { type: "rows"; rows: SessionSummary[]; gone: number[] };
+    | { type: "rows"; rows: SessionSummary[]; gone: number[] }
+    | { type: "extension-notice"; notice: ExtensionNotice };
+
+/** One frame of the list itself, which a tab applies to the rows it holds. */
+export type SessionListEvent = Exclude<SessionsEvent, { type: "extension-notice" }>;
 
 /** One model the picker offers. */
 export type ModelChoice = {

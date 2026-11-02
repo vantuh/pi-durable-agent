@@ -335,6 +335,7 @@ void test("names the warmed conversations with the titles the core keeps", async
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
     const at = Date.now();
 
@@ -407,6 +408,7 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
     const at = Date.now();
     const sessions = async (): Promise<unknown> =>
@@ -479,6 +481,7 @@ void test("builds no request for a conversation the user left too long ago for a
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
     const at = Date.now();
 
@@ -547,6 +550,7 @@ void test("builds no request for a conversation no ping can be due for yet", asy
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
     const at = Date.now();
 
@@ -657,6 +661,7 @@ void test("sends no second ping and writes nothing after dispose", async () => {
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
     const at = Date.now();
     const warm = async (session: number): Promise<void> => {

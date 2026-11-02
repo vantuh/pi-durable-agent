@@ -2,6 +2,7 @@ import type {
     ClientHistory,
     CommandResult,
     DefaultModel,
+    ExtensionNotice,
     ModelChoice,
     SendMode,
     SessionSummary,
@@ -85,11 +86,20 @@ export function sessionsOf(value: unknown): SessionSummary[] {
 }
 
 /**
- * One frame of the list stream: the whole list, or the rows that changed since the last frame and the ids that
- * are gone. Anything else is read as a whole list, which replaces whatever the screen holds.
+ * One frame of the list stream: the whole list, the rows that changed since the last frame with the ids that are
+ * gone, or a session's own notice. Anything else is read as a whole list, which replaces whatever the screen holds.
  */
 export function sessionsEventOf(value: unknown): SessionsEvent {
     const body = record(value);
+
+    if (body?.["type"] === "extension-notice") {
+        const notice = noticeOf(body["notice"]);
+
+        // A notice this version cannot read changes no row.
+        return notice === undefined
+            ? { type: "rows", rows: [], gone: [] }
+            : { type: "extension-notice", notice };
+    }
 
     if (body?.["type"] !== "rows") {
         return { type: "sessions", sessions: rowsOf(body?.["sessions"]) };
@@ -99,6 +109,25 @@ export function sessionsEventOf(value: unknown): SessionsEvent {
         type: "rows",
         rows: rowsOf(body["rows"]),
         gone: list(body["gone"]).filter((id): id is number => typeof id === "number"),
+    };
+}
+
+function noticeOf(value: unknown): ExtensionNotice | undefined {
+    const notice = record(value);
+    const level = notice?.["level"];
+    const message = notice?.["message"];
+
+    if ((level !== "success" && level !== "error") || typeof message !== "string") {
+        return undefined;
+    }
+
+    return {
+        level,
+        message,
+        ...(typeof notice?.["session"] === "number" ? { session: notice["session"] } : {}),
+        ...(typeof notice?.["description"] === "string"
+            ? { description: notice["description"] }
+            : {}),
     };
 }
 

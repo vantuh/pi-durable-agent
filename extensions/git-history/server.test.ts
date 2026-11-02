@@ -31,6 +31,7 @@ const host: Host = {
     setSessionMark: () => undefined,
     folderGroup: () => undefined,
     notifySessionChanged: () => undefined,
+    notify: () => undefined,
 };
 
 void describe("git-history reword", () => {

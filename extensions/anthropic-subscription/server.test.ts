@@ -93,6 +93,7 @@ function setup() {
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
         wrapModelFetch: (wrap) => {
             wrappers.push(wrap);
         },

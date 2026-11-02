@@ -397,6 +397,7 @@ void describe("push", () => {
                 setSessionMark: () => undefined,
                 folderGroup: () => undefined,
                 notifySessionChanged: () => undefined,
+                notify: () => undefined,
             };
             const sends: string[] = [];
 

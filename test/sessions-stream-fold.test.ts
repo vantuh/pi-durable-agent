@@ -122,4 +122,34 @@ void describe("sessionsEventOf", () => {
             [4],
         );
     });
+
+    void it("reads a notice frame as a notice, and never as a list that would wipe the sidebar", () => {
+        const event = sessionsEventOf({
+            type: "extension-notice",
+            notice: {
+                level: "error",
+                message: "Fix the login bug",
+                session: 4,
+                description: "Bash timed out after 1 min · sleep 91 · pi",
+                extra: "dropped",
+            },
+        });
+
+        if (event.type !== "extension-notice") {
+            assert.fail("a notice stays one");
+        }
+
+        assert.deepEqual(event.notice, {
+            level: "error",
+            message: "Fix the login bug",
+            session: 4,
+            description: "Bash timed out after 1 min · sleep 91 · pi",
+        });
+    });
+
+    void it("reads a notice it cannot use as a frame that changes nothing", () => {
+        const event = sessionsEventOf({ type: "extension-notice", notice: { message: 4 } });
+
+        assert.deepEqual(event, { type: "rows", rows: [], gone: [] });
+    });
 });

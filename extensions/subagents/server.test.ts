@@ -88,6 +88,7 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
         notifySessionChanged: (session) => {
             wiring.notified.push(session);
         },
+        notify: () => undefined,
     };
 }
 

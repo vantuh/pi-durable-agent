@@ -716,6 +716,14 @@ async function boot(): Promise<void> {
 
     extensions = new Extensions({
         notify: (notice) => {
+            // A session's own notice rides the list stream every tab holds, so a tab showing no session hears it too,
+            // and no conversation stream says it twice. A notice about the app keeps to the conversation streams.
+            if (notice.session !== undefined) {
+                sendFrame(listWatchers, { type: "extension-notice", notice });
+
+                return;
+            }
+
             for (const client of clients) {
                 send(client, { type: "extension-notice", session: client.session, notice });
             }

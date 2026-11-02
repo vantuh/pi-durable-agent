@@ -167,6 +167,7 @@ function hostOf(cwd: string): Host {
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
 }
 

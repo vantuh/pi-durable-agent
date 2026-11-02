@@ -226,6 +226,7 @@ function hostOf(options: {
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
         sessionRequest: () =>
             Promise.resolve({
                 model: options.model ?? model,

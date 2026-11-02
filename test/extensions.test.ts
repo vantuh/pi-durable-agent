@@ -206,6 +206,28 @@ void describe("Extensions disposers", () => {
         return notices[count - 1];
     }
 
+    void it("carries an extension's own notice to the same channel a load reports on", async () => {
+        await write(
+            "alpha",
+            `export default function (host) {
+                host.notify({ level: "error", message: "Fix the bug", session: 4, description: "Bash timed out after 1 min" });
+                host.notify({ level: "success", message: "Nothing to see" });
+                return { name: host.name };
+            }`,
+        );
+        await extensions.load();
+
+        assert.deepEqual(notices, [
+            {
+                level: "error",
+                message: "Fix the bug",
+                session: 4,
+                description: "Bash timed out after 1 min",
+            },
+            { level: "success", message: "Nothing to see" },
+        ]);
+    });
+
     void it("watches only the changed folder and reports reload, failure, recovery and removal", async () => {
         await write("alpha", source({ tags: ["alpha-v1"] }));
         await write("beta", source({ tags: ["beta"] }));

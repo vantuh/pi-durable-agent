@@ -227,6 +227,7 @@ void test("settings: missing or broken file shows everything; actions validate a
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
         wrapModelFetch: () => undefined,
     };
     const { setShown, settings } = actions(host);
@@ -290,6 +291,7 @@ void test("a toggle while a reading runs keeps its answer out of the cache", asy
         setSessionMark: () => undefined,
         folderGroup: () => undefined,
         notifySessionChanged: () => undefined,
+        notify: () => undefined,
     };
 
     const call = async (action: Action | undefined, args: unknown): Promise<unknown> => {
