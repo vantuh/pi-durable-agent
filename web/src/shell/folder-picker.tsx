@@ -2,6 +2,7 @@ import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
@@ -324,12 +325,15 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     ))}
 
                     <div className="flex items-center justify-between gap-3">
-                        <label className="text-muted text-meta flex items-center gap-2">
-                            <input
-                                type="checkbox"
+                        <label
+                            htmlFor="folder-picker-show-hidden"
+                            className="text-muted text-meta flex items-center gap-2"
+                        >
+                            <Checkbox
+                                id="folder-picker-show-hidden"
                                 checked={hidden}
-                                onChange={(event) => {
-                                    setHidden(event.target.checked);
+                                onCheckedChange={(checked) => {
+                                    setHidden(checked === true);
                                 }}
                             />
                             Show hidden

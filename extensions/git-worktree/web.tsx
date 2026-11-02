@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog,
     DialogContent,
@@ -234,12 +235,15 @@ function Worktree({ use, refused }: NewSessionProps) {
     return (
         <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <label className="text-muted text-meta flex items-center gap-2">
-                    <input
-                        type="checkbox"
+                <label
+                    htmlFor="new-worktree"
+                    className="text-muted text-meta flex items-center gap-2"
+                >
+                    <Checkbox
+                        id="new-worktree"
                         checked={on}
-                        onChange={(event) => {
-                            setOn(event.target.checked);
+                        onCheckedChange={(checked) => {
+                            setOn(checked === true);
                         }}
                     />
                     New worktree

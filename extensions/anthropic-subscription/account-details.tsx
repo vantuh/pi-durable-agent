@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button.tsx";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
 import { callAction } from "@/sdk/actions.ts";
 
 import { account, type AccountResult } from "./account-refs.ts";
@@ -59,16 +60,18 @@ export function AccountDetails() {
                     {busy ? "Checking…" : "Check subscription"}
                 </Button>
             </div>
-            <label className="text-muted flex items-center gap-2">
-                <input
-                    type="checkbox"
+            <label
+                htmlFor="account-include-identity"
+                className="text-muted flex items-center gap-2"
+            >
+                <Checkbox
+                    id="account-include-identity"
                     checked={includeIdentity}
                     disabled={busy}
-                    onChange={(event) => {
-                        setIncludeIdentity(event.target.checked);
+                    onCheckedChange={(checked) => {
+                        setIncludeIdentity(checked === true);
                         setResult(null);
                     }}
-                    className="accent-accent"
                 />
                 Include email and organization
             </label>

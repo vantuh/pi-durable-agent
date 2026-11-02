@@ -294,11 +294,19 @@ field in the app.
 
 ### 2.3 Checkbox (new)
 
-- [ ] Add `components/ui/checkbox.tsx`.
-- [ ] `web/src/shell/folder-picker.tsx:324` — "Show hidden".
-- [ ] `extensions/notes/todos.tsx:359` — keep completion and drag.
-- [ ] `extensions/git-worktree/web.tsx:233`.
-- [ ] `extensions/anthropic-subscription/account-details.tsx:62`.
+- [x] Add `components/ui/checkbox.tsx`. Radix's root is a `button role="checkbox"`, so no call site keeps
+      `checked`/`onChange`: they take `checked`/`onCheckedChange`, and a `<label>` around one gets
+      `htmlFor` and an `id` beside its text, since the a11y rule only follows an `input`. Chromium still
+      forwards the label's click to the button, so clicking the text keeps toggling. The radius is
+      `rounded-control` like every other control: at 16px it reads rounder than the browser's own box.
+- [x] `web/src/shell/folder-picker.tsx:324` — "Show hidden". The dialog's own state, never saved.
+- [x] `extensions/notes/todos.tsx:359` — keep completion and drag. The box keeps `mt-0.75` and shows
+      its `aria-label` instead of a label; the drag attributes stay on the grip beside it.
+- [x] `extensions/git-worktree/web.tsx:233`. The tick still puts the caret in the name field beside it, and
+      the label's own look waits for [Field](#311-field-and-label-new).
+- [x] `extensions/anthropic-subscription/account-details.tsx:62`. The `disabled` while a check runs is the
+      primitive's 50%, as on `Input`; the label's own look waits for
+      [Field](#311-field-and-label-new).
 
 ### 2.4 Separator (new)
 

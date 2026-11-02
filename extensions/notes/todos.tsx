@@ -25,6 +25,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -358,14 +359,13 @@ function Row({
         >
             <div className="flex items-start gap-2 px-2 py-1">
                 {handle ?? <span className="size-4 shrink-0" />}
-                <input
-                    type="checkbox"
+                <Checkbox
                     checked={todo.done}
                     aria-label={todo.done ? "Mark as not done" : "Mark as done"}
-                    onChange={(event) => {
-                        onChange({ done: event.target.checked });
+                    onCheckedChange={(checked) => {
+                        onChange({ done: checked === true });
                     }}
-                    className="accent-accent mt-0.75 size-4 shrink-0"
+                    className="mt-0.75"
                 />
                 <Button
                     variant="ghost"
