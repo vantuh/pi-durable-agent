@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App.tsx";
 import { Toaster } from "./components/ui/sonner.tsx";
+import { TooltipProvider } from "./components/ui/tooltip.tsx";
 import { applyFlavour, currentFlavour } from "./lib/flavour.ts";
 import { registerWorker } from "./lib/register-worker.ts";
 import { followVisualViewport } from "./lib/viewport.ts";
@@ -23,7 +24,9 @@ if (!root) {
 
 createRoot(root).render(
     <StrictMode>
-        <App />
-        <Toaster />
+        <TooltipProvider>
+            <App />
+            <Toaster />
+        </TooltipProvider>
     </StrictMode>,
 );

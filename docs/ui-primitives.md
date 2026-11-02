@@ -50,12 +50,12 @@ The largest win. Every later phase uses both.
 
 ### 1.1 Button
 
-- [ ] `button.tsx`: add `size` (`default`, `sm`, `icon`, `icon-sm`), `asChild` (Radix `Slot`),
+- [x] `button.tsx`: add `size` (`default`, `sm`, `icon`, `icon-sm`), `asChild` (Radix `Slot`),
       and a `danger` variant (Stop, Delete). Keep the default `type="button"`.
 
 ### 1.2 Tooltip
 
-- [ ] Add `components/ui/tooltip.tsx`, one `TooltipProvider` at the root in `main.tsx`.
+- [x] Add `components/ui/tooltip.tsx`, one `TooltipProvider` at the root in `main.tsx`.
 - [ ] Optional content `Kbd` slot inside a tooltip, for the shortcut that triggers the action
       (see 3.10).
 
