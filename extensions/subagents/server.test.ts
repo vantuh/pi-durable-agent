@@ -71,6 +71,7 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: (session) => Promise.resolve(titles.get(session) ?? null),
         sessionName: (session) => Promise.resolve(titles.get(session) ?? null),
+        sessionOwner: () => Promise.resolve(undefined),
         setSessionTitle: (session, title) => {
             titles.set(session, title);
             return Promise.resolve();

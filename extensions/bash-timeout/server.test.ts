@@ -69,6 +69,7 @@ function hostIn(dataDir: string): Captured {
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: (session) => Promise.resolve(`Session ${String(session)}`),
         sessionName: () => Promise.resolve(null),
+        sessionOwner: () => Promise.resolve(undefined),
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,

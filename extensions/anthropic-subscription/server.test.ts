@@ -88,6 +88,7 @@ function setup() {
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
+        sessionOwner: () => Promise.resolve(undefined),
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,

@@ -738,6 +738,7 @@ async function boot(): Promise<void> {
         sessionRequest: sessionRequestOf,
         sessionTitle: (session) => sessions.title(idOf(session)),
         sessionName: (session) => sessions.name(idOf(session)),
+        sessionOwner: (session) => sessions.owner(idOf(session)),
         // The title lives in a document, so no commit carries it to the browsers: the list goes again.
         setSessionTitle: async (session, title) => {
             await sessions.setTitle(idOf(session), title);

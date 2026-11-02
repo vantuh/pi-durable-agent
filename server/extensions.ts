@@ -95,6 +95,11 @@ export type Host = {
      * first question the sidebar falls back to is not a name: it is what an unnamed session shows.
      */
     readonly sessionName: (session: number) => Promise<string | null>;
+    /**
+     * The conversation that started this one, read from the conversation record: immutable, and it does not
+     * depend on commit publication, which a child's first request can outrun.
+     */
+    readonly sessionOwner: (session: number) => Promise<number | undefined>;
     /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
     readonly setSessionTitle: (session: number, title: string) => Promise<void>;
     /**
@@ -417,6 +422,7 @@ export class Extensions {
     readonly #sessionRequest: Host["sessionRequest"];
     readonly #sessionTitle: Host["sessionTitle"];
     readonly #sessionName: Host["sessionName"];
+    readonly #sessionOwner: Host["sessionOwner"];
     readonly #setSessionTitle: Host["setSessionTitle"];
     readonly #readDoc: Host["readDoc"];
     readonly #sessionListChanged: () => void;
@@ -454,6 +460,7 @@ export class Extensions {
         sessionRequest?: Host["sessionRequest"];
         sessionTitle?: Host["sessionTitle"];
         sessionName?: Host["sessionName"];
+        sessionOwner?: Host["sessionOwner"];
         setSessionTitle?: Host["setSessionTitle"];
         readDoc?: Host["readDoc"];
         sessionListChanged?: () => void;
@@ -471,6 +478,7 @@ export class Extensions {
         this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
+        this.#sessionOwner = options.sessionOwner ?? (() => Promise.resolve(undefined));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
         this.#readDoc = options.readDoc ?? ((doc) => Promise.resolve(doc.definition.initial()));
         this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
@@ -947,6 +955,7 @@ export class Extensions {
             sessionRequest: (session) => this.#sessionRequest(session),
             sessionTitle: (session) => this.#sessionTitle(session),
             sessionName: (session) => this.#sessionName(session),
+            sessionOwner: (session) => this.#sessionOwner(session),
             setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
             readDoc: (doc, session) => this.#readDoc(doc, session),
             setSessionMark: (session, mark) => {
