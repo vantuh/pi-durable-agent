@@ -6,8 +6,16 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, type ActionCall, ActionError, type Host } from "../../server/sdk.ts";
-import type { TagsState } from "./refs.ts";
-import { addTag, readTags, removeTag, serialize, toggleTag, writeTags } from "./store.ts";
+import { type TagsState, isTagColor, TAG_COLORS } from "./refs.ts";
+import {
+    addTag,
+    readTags,
+    recolorTag,
+    removeTag,
+    serialize,
+    toggleTag,
+    writeTags,
+} from "./store.ts";
 
 export const meta = {
     title: "Tags",
@@ -24,6 +32,17 @@ function fieldOf(args: unknown, key: string): string {
     return value;
 }
 
+function colorOf(args: unknown): string {
+    const color =
+        typeof args === "object" && args !== null ? Reflect.get(args, "color") : undefined;
+
+    if (!isTagColor(color)) {
+        throw new ActionError(`args must be { color: one of ${TAG_COLORS.join(", ")} }`);
+    }
+
+    return color;
+}
+
 export default function tags(host: Host) {
     return defineExtension({ name: host.name });
 }
@@ -33,9 +52,21 @@ export const tagActions = (host: Host) => ({
     state: async (): Promise<TagsState> => await readTags(host.dataDir),
     create: async ({ args }: ActionCall): Promise<TagsState> => {
         const name = fieldOf(args, "name");
+        const color = colorOf(args);
 
         return await serialize(host.dataDir, async () => {
-            const state = addTag(await readTags(host.dataDir), name);
+            const state = addTag(await readTags(host.dataDir), name, color);
+            await writeTags(host.dataDir, state);
+
+            return state;
+        });
+    },
+    recolor: async ({ args }: ActionCall): Promise<TagsState> => {
+        const id = fieldOf(args, "id");
+        const color = colorOf(args);
+
+        return await serialize(host.dataDir, async () => {
+            const state = recolorTag(await readTags(host.dataDir), id, color);
             await writeTags(host.dataDir, state);
 
             return state;

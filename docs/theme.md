@@ -41,6 +41,12 @@ build output contains no `neutral`.
 | `accent`                    | `mauve`                       | The one interactive colour: buttons, focus ring |
 | `on-accent`                 | `crust`                       | Text on an accent fill                          |
 | `ok` `warn` `danger` `info` | `green` `yellow` `red` `blue` | State marks, counts, tool status                |
+| `tag-*`                     | eight hues, see below         | A tag's own colour, the one its owner picked    |
+
+The `tag-*` roles (`red`, `peach`, `yellow`, `green`, `teal`, `blue`, `mauve`, `pink`) carry no
+meaning of their own: an extension that lets a person colour something asks which hue and stores
+that name. `extensions/tags` is the one that does, and writes the classes out in full so Tailwind
+still finds them in the source.
 
 Text roles skip `overlay0`–`overlay2` on purpose. Measured against `canvas` they fall to 2.3–3.6 in
 Latte and Frappé, which is unreadable at 12–13px; `text`, `subtext1`, and `subtext0` measure

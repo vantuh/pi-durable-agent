@@ -52,6 +52,15 @@
     --role-ember: var(--ctp-peach);
     /* A message an agent wrote, not the person: a report, an instruction. */
     --role-agent: var(--ctp-teal);
+    /* A tag's colour: the person picks one, so these name the hue and mean nothing else. */
+    --role-tag-red: var(--ctp-red);
+    --role-tag-peach: var(--ctp-peach);
+    --role-tag-yellow: var(--ctp-yellow);
+    --role-tag-green: var(--ctp-green);
+    --role-tag-teal: var(--ctp-teal);
+    --role-tag-blue: var(--ctp-blue);
+    --role-tag-mauve: var(--ctp-mauve);
+    --role-tag-pink: var(--ctp-pink);
     --role-think-minimal: var(--ctp-teal);
     --role-think-low: var(--ctp-blue);
     --role-think-medium: var(--ctp-sapphire);
@@ -93,6 +102,14 @@
     --color-spark: var(--role-spark);
     --color-ember: var(--role-ember);
     --color-agent: var(--role-agent);
+    --color-tag-red: var(--role-tag-red);
+    --color-tag-peach: var(--role-tag-peach);
+    --color-tag-yellow: var(--role-tag-yellow);
+    --color-tag-green: var(--role-tag-green);
+    --color-tag-teal: var(--role-tag-teal);
+    --color-tag-blue: var(--role-tag-blue);
+    --color-tag-mauve: var(--role-tag-mauve);
+    --color-tag-pink: var(--role-tag-pink);
     --color-think-minimal: var(--role-think-minimal);
     --color-think-low: var(--role-think-low);
     --color-think-medium: var(--role-think-medium);

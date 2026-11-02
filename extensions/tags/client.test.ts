@@ -32,7 +32,7 @@ function refuse(at: number, message: string): void {
 }
 
 const held = (...ids: string[]): TagsState => ({
-    tags: ids.map((id) => ({ id, name: id.toUpperCase() })),
+    tags: ids.map((id) => ({ id, name: id.toUpperCase(), color: "mauve" })),
     sessions: { "7": ids },
 });
 

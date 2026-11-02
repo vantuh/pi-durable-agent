@@ -6,36 +6,40 @@ import type { SessionItemProps, WebExtension } from "@/sdk/types.ts";
 
 import { toggleTag, useTags } from "./client.ts";
 import { tagsOf } from "./refs.ts";
+import { TAG_DOT, TAG_TONE } from "./tones.ts";
 
 /** How many names a row shows before it counts the rest: a row also has a title and a time to hold. */
 const SHOWN = 1;
 
 function SessionTags({ session }: SessionItemProps) {
-    const names = tagsOf(useTags(), session.id).map((tag) => tag.name);
+    const tags = tagsOf(useTags(), session.id);
 
-    if (names.length === 0) {
+    if (tags.length === 0) {
         return null;
     }
 
-    const shown = names.slice(0, SHOWN);
+    const shown = tags.slice(0, SHOWN);
 
     return (
         <span className="flex min-w-0 shrink items-center gap-1">
-            {shown.map((name) => (
+            {shown.map((tag) => (
                 <span
-                    key={name}
-                    title={name}
-                    className="rounded-control bg-raised text-muted text-meta max-w-20 truncate px-1 py-0.5"
+                    key={tag.id}
+                    title={tag.name}
+                    className={`rounded-control text-meta max-w-20 truncate px-1 py-0.5 ${TAG_TONE[tag.color]}`}
                 >
-                    {name}
+                    {tag.name}
                 </span>
             ))}
-            {names.length === shown.length ? null : (
+            {tags.length === shown.length ? null : (
                 <span
                     className="text-faint text-meta shrink-0"
-                    title={names.slice(SHOWN).join(", ")}
+                    title={tags
+                        .slice(SHOWN)
+                        .map((tag) => tag.name)
+                        .join(", ")}
                 >
-                    +{names.length - shown.length}
+                    +{tags.length - shown.length}
                 </span>
             )}
         </span>
@@ -67,6 +71,7 @@ function TagsMenu({ session }: SessionItemProps) {
             }}
         >
             <Check className={held.has(tag.id) ? "size-4" : "size-4 opacity-0"} />
+            <span className={`size-2 shrink-0 rounded-full ${TAG_DOT[tag.color]}`} />
             <span className="truncate">{tag.name}</span>
         </DropdownMenuItem>
     ));

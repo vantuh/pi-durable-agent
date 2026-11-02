@@ -8,9 +8,11 @@ import { useEffect, useSyncExternalStore } from "react";
 import { callAction } from "../../web/src/sdk/actions.ts";
 import {
     create as createAction,
+    recolor as recolorAction,
     remove as removeAction,
     state as stateAction,
     toggle as toggleAction,
+    type TagColor,
     type TagsState,
 } from "./refs.ts";
 
@@ -139,8 +141,12 @@ async function mutate(work: () => Promise<TagsState>): Promise<void> {
     }
 }
 
-export async function createTag(name: string): Promise<void> {
-    await mutate(async () => await callAction(createAction, { name }, null));
+export async function createTag(name: string, color: TagColor): Promise<void> {
+    await mutate(async () => await callAction(createAction, { name, color }, null));
+}
+
+export async function recolorTag(id: string, color: TagColor): Promise<void> {
+    await mutate(async () => await callAction(recolorAction, { id, color }, null));
 }
 
 export async function removeTag(id: string): Promise<void> {

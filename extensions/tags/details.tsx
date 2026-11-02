@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 
-import { createTag, load, removeTag, useTags } from "./client.ts";
-import { MAX_NAME, type TagsState } from "./refs.ts";
+import { createTag, load, recolorTag, removeTag, useTags } from "./client.ts";
+import { MAX_NAME, TAG_COLORS, type TagColor, type TagsState } from "./refs.ts";
+import { TAG_DOT } from "./tones.ts";
 
 function sessionsWith(state: TagsState, tag: string): number {
     return Object.values(state.sessions).filter((held) => held.includes(tag)).length;
@@ -16,11 +17,45 @@ function messageOf(cause: unknown): string {
     return cause instanceof Error ? cause.message : "Something went wrong.";
 }
 
-/** The tags, made and dropped here; a session's own menu is where they are put on. */
+/** The hues, as the dots that pick one; the chosen one is ringed, the rest wait their turn. */
+function Swatches({
+    value,
+    onPick,
+    disabled,
+}: {
+    value: TagColor;
+    onPick: (color: TagColor) => void;
+    disabled: boolean;
+}) {
+    return (
+        <span className="flex flex-wrap items-center gap-1.5">
+            {TAG_COLORS.map((color) => (
+                <button
+                    key={color}
+                    type="button"
+                    aria-label={color}
+                    aria-pressed={color === value}
+                    title={color}
+                    disabled={disabled}
+                    onClick={() => {
+                        onPick(color);
+                    }}
+                    className={`size-4 rounded-full ${TAG_DOT[color]} ${
+                        color === value ? "ring-ink ring-2" : "opacity-50 hover:opacity-100"
+                    }`}
+                />
+            ))}
+        </span>
+    );
+}
+
+/** The tags, made, coloured and dropped here; a session's own menu is where they are put on. */
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     const active = enabled && installed;
     const state = useTags();
     const [name, setName] = useState("");
+    const [color, setColor] = useState<TagColor>("mauve");
+    const [editing, setEditing] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +96,10 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
         }
 
         void run(async () => {
-            await createTag(wanted);
+            await createTag(wanted, color);
             setName("");
+            // The next tag starts on the next hue, so a list of them is not one colour.
+            setColor(TAG_COLORS[(TAG_COLORS.indexOf(color) + 1) % TAG_COLORS.length] ?? "mauve");
         });
     };
 
@@ -73,20 +110,26 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                     {error}
                 </p>
             )}
-            <form onSubmit={add} className="flex items-center gap-2">
-                <Input
-                    value={name}
-                    onChange={(event) => {
-                        setName(event.target.value);
-                    }}
-                    aria-label="Tag name"
-                    placeholder="Tag name"
-                    maxLength={MAX_NAME}
-                    disabled={busy}
-                />
-                <Button type="submit" disabled={busy || name.trim() === ""}>
-                    Add
-                </Button>
+            <form onSubmit={add} className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                    <Input
+                        value={name}
+                        onChange={(event) => {
+                            setName(event.target.value);
+                        }}
+                        aria-label="Tag name"
+                        placeholder="Tag name"
+                        maxLength={MAX_NAME}
+                        disabled={busy}
+                    />
+                    <Button type="submit" disabled={busy || name.trim() === ""}>
+                        Add
+                    </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-faint">Colour</span>
+                    <Swatches value={color} onPick={setColor} disabled={busy} />
+                </div>
             </form>
             {state === undefined ? (
                 <p className="text-faint">Loading…</p>
@@ -98,7 +141,30 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                         const count = sessionsWith(state, tag.id);
 
                         return (
-                            <li key={tag.id} className="flex items-center gap-2 py-0.5">
+                            <li key={tag.id} className="flex min-h-6 items-center gap-2 py-0.5">
+                                {editing === tag.id ? (
+                                    <Swatches
+                                        value={tag.color}
+                                        disabled={busy}
+                                        onPick={(next) => {
+                                            void run(async () => {
+                                                await recolorTag(tag.id, next);
+                                                setEditing(null);
+                                            });
+                                        }}
+                                    />
+                                ) : (
+                                    <button
+                                        type="button"
+                                        aria-label={`Colour of ${tag.name}`}
+                                        title="Change the colour"
+                                        disabled={busy}
+                                        onClick={() => {
+                                            setEditing(tag.id);
+                                        }}
+                                        className={`size-3 shrink-0 rounded-full ${TAG_DOT[tag.color]}`}
+                                    />
+                                )}
                                 <span className="text-ink min-w-0 flex-1 truncate">{tag.name}</span>
                                 {count === 0 ? null : (
                                     <span className="text-faint shrink-0" title="Sessions with it">

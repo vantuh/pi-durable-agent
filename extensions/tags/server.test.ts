@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import type { Host } from "../../server/sdk.ts";
-import { MAX_NAME, state as stateRef, type TagsState } from "./refs.ts";
+import { FALLBACK_COLOR, MAX_NAME, state as stateRef, type TagsState } from "./refs.ts";
 import { tagActions } from "./server.ts";
 import { readTags } from "./store.ts";
 import type * as Store from "./store.ts";
@@ -59,7 +59,7 @@ async function withDir(work: (dir: string) => Promise<void>): Promise<void> {
 void test("makes a tag, tidies its name and keeps it in the file", async () => {
     await withDir(async (dir) => {
         const run = tagActions(hostOf(dir));
-        const made = asState(await run.create(call({ name: "  Deep   work " })));
+        const made = asState(await run.create(call({ name: "  Deep   work ", color: "pink" })));
 
         assert.deepEqual(
             made.tags.map((tag) => tag.name),
@@ -76,19 +76,32 @@ void test("refuses a name that is empty, too long or already taken", async () =>
     await withDir(async (dir) => {
         const run = tagActions(hostOf(dir));
 
-        await run.create(call({ name: "Deep work" }));
+        await run.create(call({ name: "Deep work", color: "mauve" }));
 
-        await assert.rejects(run.create(call({ name: "   " })), /needs a name/u);
-        await assert.rejects(run.create(call({ name: "deep WORK" })), /already a tag/u);
-        await assert.rejects(run.create(call({ name: "я".repeat(MAX_NAME + 1) })), /at most/u);
-        await assert.rejects(run.create(call({ id: "nope" })), /args must be \{ name: string \}/u);
+        await assert.rejects(run.create(call({ name: "   ", color: "mauve" })), /needs a name/u);
+        await assert.rejects(
+            run.create(call({ name: "deep WORK", color: "mauve" })),
+            /already a tag/u,
+        );
+        await assert.rejects(
+            run.create(call({ name: "я".repeat(MAX_NAME + 1), color: "mauve" })),
+            /at most/u,
+        );
+        await assert.rejects(
+            run.create(call({ id: "nope", color: "mauve" })),
+            /args must be \{ name: string \}/u,
+        );
+        await assert.rejects(
+            run.create(call({ name: "Uncoloured", color: "octarine" })),
+            /args must be \{ color: one of/u,
+        );
     });
 });
 
 void test("puts a tag on a session and takes it off again", async () => {
     await withDir(async (dir) => {
         const run = tagActions(hostOf(dir));
-        const tag = asState(await run.create(call({ name: "Deep work" }))).tags[0];
+        const tag = asState(await run.create(call({ name: "Deep work", color: "mauve" }))).tags[0];
         assert.ok(tag);
 
         const on = asState(await run.toggle(call({ tag: tag.id }, 7)));
@@ -98,15 +111,17 @@ void test("puts a tag on a session and takes it off again", async () => {
         assert.equal(off.sessions["7"], undefined);
 
         assert.equal((await readTags(dir)).sessions["7"], undefined);
-        assert.deepEqual((await readTags(dir)).tags, [{ id: tag.id, name: "Deep work" }]);
+        assert.deepEqual((await readTags(dir)).tags, [
+            { id: tag.id, name: "Deep work", color: "mauve" },
+        ]);
     });
 });
 
 void test("a dropped tag leaves every session it was on", async () => {
     await withDir(async (dir) => {
         const run = tagActions(hostOf(dir));
-        const kept = asState(await run.create(call({ name: "Kept" }))).tags[0];
-        const dropped = asState(await run.create(call({ name: "Dropped" }))).tags[1];
+        const kept = asState(await run.create(call({ name: "Kept", color: "green" }))).tags[0];
+        const dropped = asState(await run.create(call({ name: "Dropped", color: "red" }))).tags[1];
         assert.ok(kept);
         assert.ok(dropped);
 
@@ -129,7 +144,10 @@ void test("changes that arrive together all land", async () => {
     await withDir(async (dir) => {
         const run = tagActions(hostOf(dir));
 
-        await Promise.all([run.create(call({ name: "One" })), run.create(call({ name: "Two" }))]);
+        await Promise.all([
+            run.create(call({ name: "One", color: "blue" })),
+            run.create(call({ name: "Two", color: "teal" })),
+        ]);
 
         const made = await readTags(dir);
         assert.deepEqual(
@@ -158,9 +176,9 @@ void test("a reloaded module writes through the queue of the one already running
         );
 
         await Promise.all([
-            tagActions(hostOf(dir)).create(call({ name: "One" })),
+            tagActions(hostOf(dir)).create(call({ name: "One", color: "blue" })),
             reloaded.serialize(dir, async () => {
-                const state = reloaded.addTag(await reloaded.readTags(dir), "Two");
+                const state = reloaded.addTag(await reloaded.readTags(dir), "Two", "teal");
                 await reloaded.writeTags(dir, state);
 
                 return state;
@@ -171,6 +189,27 @@ void test("a reloaded module writes through the queue of the one already running
             (await readTags(dir)).tags.map((tag) => tag.name),
             ["One", "Two"],
         );
+    });
+});
+
+void test("another colour leaves the sessions the tag is on alone", async () => {
+    await withDir(async (dir) => {
+        const run = tagActions(hostOf(dir));
+        const tag = asState(await run.create(call({ name: "Deep work", color: "mauve" }))).tags[0];
+        assert.ok(tag);
+
+        await run.toggle(call({ tag: tag.id }, 7));
+
+        const recoloured = asState(await run.recolor(call({ id: tag.id, color: "peach" })));
+
+        assert.deepEqual(recoloured.tags, [{ id: tag.id, name: "Deep work", color: "peach" }]);
+        assert.deepEqual(recoloured.sessions, { "7": [tag.id] });
+
+        await assert.rejects(
+            run.recolor(call({ id: tag.id, color: "octarine" })),
+            /args must be \{ color: one of/u,
+        );
+        await assert.rejects(run.recolor(call({ id: "gone", color: "peach" })), /no such tag/u);
     });
 });
 
@@ -190,10 +229,12 @@ void test("a file naming tags that are gone, or holding junk, reads as what it d
             join(dir, "tags.json"),
             JSON.stringify({
                 tags: [
-                    { id: "a", name: "Kept" },
+                    { id: "a", name: "Kept", color: "green" },
                     { id: 5, name: "broken" },
                     { id: "b", name: "   " },
                     { id: "", name: "nameless" },
+                    { id: "c", name: "Old", color: "octarine" },
+                    { id: "d", name: "Older" },
                 ],
                 sessions: {
                     "3": ["a", "vanished", 7],
@@ -205,7 +246,11 @@ void test("a file naming tags that are gone, or holding junk, reads as what it d
         );
 
         assert.deepEqual(await readTags(dir), {
-            tags: [{ id: "a", name: "Kept" }],
+            tags: [
+                { id: "a", name: "Kept", color: "green" },
+                { id: "c", name: "Old", color: FALLBACK_COLOR },
+                { id: "d", name: "Older", color: FALLBACK_COLOR },
+            ],
             sessions: { "3": ["a"] },
         });
 

@@ -8,7 +8,14 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { ActionError, writeJsonFile } from "../../server/sdk.ts";
-import { MAX_NAME, type Tag, type TagsState } from "./refs.ts";
+import {
+    FALLBACK_COLOR,
+    isTagColor,
+    MAX_NAME,
+    TAG_COLORS,
+    type Tag,
+    type TagsState,
+} from "./refs.ts";
 
 const FILE = "tags.json";
 
@@ -63,11 +70,14 @@ function tagFrom(value: unknown): Tag | undefined {
 
     const id: unknown = Reflect.get(value, "id");
     const name: unknown = Reflect.get(value, "name");
+    const color: unknown = Reflect.get(value, "color");
 
-    // A nameless tag would draw an empty chip; its assignments go with it, through `known` below.
-    return typeof id === "string" && id !== "" && typeof name === "string" && name.trim() !== ""
-        ? { id, name }
-        : undefined;
+    if (typeof id !== "string" || id === "" || typeof name !== "string" || name.trim() === "") {
+        // A nameless tag would draw an empty chip; its assignments go with it, through `known` below.
+        return undefined;
+    }
+
+    return { id, name, color: isTagColor(color) ? color : FALLBACK_COLOR };
 }
 
 export async function readTags(dir: string): Promise<TagsState> {
@@ -130,7 +140,7 @@ export async function writeTags(dir: string, state: TagsState): Promise<void> {
     await writeJsonFile(join(dir, FILE), state);
 }
 
-export function addTag(state: TagsState, raw: string): TagsState {
+export function addTag(state: TagsState, raw: string, color: string): TagsState {
     const name = raw.trim().replace(/\s+/gu, " ");
 
     if (name === "") {
@@ -145,7 +155,27 @@ export function addTag(state: TagsState, raw: string): TagsState {
         throw new ActionError(`there is already a tag called ${name}`);
     }
 
-    return { ...state, tags: [...state.tags, { id: randomUUID(), name }] };
+    if (!isTagColor(color)) {
+        throw new ActionError(`a tag colour is one of ${TAG_COLORS.join(", ")}`);
+    }
+
+    return { ...state, tags: [...state.tags, { id: randomUUID(), name, color }] };
+}
+
+/** Another colour for a tag; the sessions it is on keep it, so this is not a remove and an add. */
+export function recolorTag(state: TagsState, id: string, color: string): TagsState {
+    if (!state.tags.some((tag) => tag.id === id)) {
+        throw new ActionError("no such tag");
+    }
+
+    if (!isTagColor(color)) {
+        throw new ActionError(`a tag colour is one of ${TAG_COLORS.join(", ")}`);
+    }
+
+    return {
+        ...state,
+        tags: state.tags.map((tag) => (tag.id === id ? { ...tag, color } : tag)),
+    };
 }
 
 /** A removed tag leaves every session it was on: an id with no name would draw an empty chip. */
