@@ -94,9 +94,20 @@ export function App() {
         setOpen: setPanelOpen,
         forget: forgetPanel,
     } = useOpenPanel(current);
-    // A panel may fill the conversation instead of the drawer; it is the panel's own choice, and it is
-    // remembered against the open panel so closing it or changing session drops it without an effect.
-    const [expandedKey, setExpandedKey] = useState<string | null>(null);
+    // A panel may fill the conversation instead of the drawer; it is the panel's own choice, dropped when
+    // the panel closes.
+    const [expanded, setExpanded] = useState<{ session: number | null; panel: string } | null>(
+        null,
+    );
+
+    // A session change starts in the drawer, even one coming back to a session that was expanded: an open
+    // panel is remembered per session, so the mode must not outlive the visit that asked for it.
+    useEffect(() => {
+        if (expanded !== null && expanded.session !== current) {
+            // oxlint-disable-next-line react/set-state-in-effect -- the session moves in the address, with no event of ours to hook
+            setExpanded(null);
+        }
+    }, [current, expanded]);
 
     useEffect(() => {
         let alive = true;
@@ -178,15 +189,21 @@ export function App() {
             ? undefined
             : pages.find((candidate) => pageKey(candidate) === route.page?.key);
     const pageOpen = openPageItem !== undefined;
-    const panelExpanded = panelOpen && expandedKey === `${String(current)}:${panelShown}`;
+    const panelExpanded =
+        panelOpen &&
+        expanded !== null &&
+        expanded.session === current &&
+        expanded.panel === panelShown;
     // Closing the panel drops the mode with it, so reopening it comes back to the drawer.
     const closePanel = useCallback(() => {
         setPanelOpen(null);
-        setExpandedKey(null);
+        setExpanded(null);
     }, [setPanelOpen]);
     const setPanelExpanded = useCallback(
         (value: boolean) => {
-            setExpandedKey(value ? `${String(current)}:${panelShown}` : null);
+            setExpanded(
+                value && panelShown !== null ? { session: current, panel: panelShown } : null,
+            );
         },
         [current, panelShown],
     );
