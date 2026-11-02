@@ -23,7 +23,10 @@ of `git-stats`: disabling either does not disable the other.
   highlighting. Each file has its own sticky header with its line counts: it pins to the top of the
   page scroll while that file is under it, and clicking it folds the file under that header. The
   fold takes 200 ms and the files below move with it rather than after it; a reduced-motion setting
-  folds at once. Files start expanded. Every file carries a mark for its kind.
+  folds at once. Files start expanded. Every file carries a mark for its kind. On a wide screen a
+  changed-files column sits beside the diff, with its folders and per-file counts: clicking a file
+  unfolds it if it was folded and scrolls the diff to it. A phone, or a change of one file, shows
+  the diff alone.
   Untracked non-ignored files are included; binary files are listed without a text diff.
 - In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
   **Side by side** for history previews. The choice is saved in this browser, applies to all
@@ -99,6 +102,7 @@ read eight at a time.
 
 The diff view is the detail page's scroller: it measures the box between the page frame and the
 bottom and mounts only the files near it, so the diff does not scroll inside another scroll box.
+The changed-files column is a sibling of that scroller, not a wrapper around it.
 The preview's file header is our own row, 36 px tall, and `itemMetrics.diffHeaderHeight` says the
 same. A header of another height leaves every file below it a little too low and a jump to a file a
 header's height off.

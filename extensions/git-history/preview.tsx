@@ -14,6 +14,7 @@ import {
     type RefObject,
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
     useSyncExternalStore,
@@ -22,9 +23,11 @@ import { flushSync } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
+import { FileTree } from "./file-tree.tsx";
 import { FileMark } from "./icons.tsx";
 import { diffStyle, subscribeDiffStyle } from "./preferences.ts";
 import type { ChangedFile, Changes } from "./refs.ts";
+import type { TreeFile } from "./tree.ts";
 
 const theme = "git-history-roles";
 // Reuse the loaded theme across Vite hot reloads.
@@ -369,6 +372,35 @@ export function PatchPreview({
             ) : null,
         [folded, toggle],
     );
+    const files: TreeFile[] = useMemo(
+        () =>
+            parsed === null
+                ? []
+                : parsed.files.map((file, index) => ({
+                      id: itemId(file, index),
+                      path: file.name,
+                      ...countsOf(file),
+                  })),
+        [parsed],
+    );
+    const pick = useCallback(
+        (file: TreeFile) => {
+            if (folded[file.id] === true) {
+                setFolded((old) => ({ ...old, [file.id]: false }));
+                // A folded item only repaints when its version moves, as it does when unfolded.
+                setVersions((old) => ({ ...old, [file.id]: (old[file.id] ?? 0) + 1 }));
+            }
+            requestAnimationFrame(() => {
+                viewRef.current?.scrollTo({
+                    type: "item",
+                    id: file.id,
+                    align: "start",
+                    behavior: "smooth",
+                });
+            });
+        },
+        [folded, viewRef],
+    );
     const pageHeader = <div className="flex flex-col gap-3 px-3 py-3">{header}</div>;
     if (parsed === null) {
         return (
@@ -406,18 +438,27 @@ export function PatchPreview({
         );
     }
     return (
-        <CodeView
-            ref={viewRef}
-            items={items}
-            options={{ ...options, diffStyle: style }}
-            renderCustomHeader={fileHeader}
-            renderCodeViewHeader={() => pageHeader}
-            renderCodeViewFooter={() =>
-                outside.length === 0 ? null : <WithoutDiff files={outside} />
-            }
-            // The diff is the page's one scroll, so CodeView measures this box as its viewport and
-            // mounts only the files and lines near it. Without a bounded height it renders them all.
-            className="block min-h-0 min-w-0 flex-1 overflow-y-auto"
-        />
+        <div className="flex min-h-0 flex-1">
+            {/* The tree is for a pointer and a wide screen; a phone reads the diff alone. */}
+            {items.length < 2 ? null : (
+                <div className="border-edge-soft hidden w-60 shrink-0 flex-col border-r md:flex">
+                    <FileTree files={files} onPick={pick} />
+                </div>
+            )}
+            <CodeView
+                ref={viewRef}
+                items={items}
+                options={{ ...options, diffStyle: style }}
+                renderCustomHeader={fileHeader}
+                renderCodeViewHeader={() => pageHeader}
+                renderCodeViewFooter={() =>
+                    outside.length === 0 ? null : <WithoutDiff files={outside} />
+                }
+                // The diff is the page's one scroll, so CodeView measures this box as its viewport
+                // and mounts only the files and lines near it. Without a bounded height it renders
+                // them all; the tree is a column beside it, not another scroller around it.
+                className="block min-h-0 min-w-0 flex-1 overflow-y-auto"
+            />
+        </div>
     );
 }
