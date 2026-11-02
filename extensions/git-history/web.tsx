@@ -24,6 +24,7 @@ import {
 
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Hint } from "@/components/ui/tooltip";
 import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -166,16 +167,16 @@ function RewordForm({
                 <span className="font-mono">{commit.short}</span> and the commits after it get new
                 ids. The files stay as they are.
             </p>
-            <label className="block">
+            <label className="block" htmlFor="reword-title">
                 <span className="text-meta text-muted">Title</span>
-                <input
+                <Input
+                    id="reword-title"
                     ref={titleRef}
                     value={subject}
                     onChange={(event) => {
                         setSubject(event.target.value);
                     }}
                     onKeyDown={submitOnEnter}
-                    className={fieldClass}
                 />
             </label>
             <label className="block">

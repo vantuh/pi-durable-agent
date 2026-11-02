@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { SettingsProps, WebExtension } from "@/sdk/types.ts";
@@ -145,11 +146,12 @@ function Notifications(_props: SettingsProps) {
                     : "Get a notification on this device when Pi finishes an answer."}
             </p>
             {on ? null : (
-                <label className="flex flex-col gap-1">
+                <label className="flex flex-col gap-1" htmlFor="push-contact">
                     <span className="text-meta text-faint">
                         Contact for the push service (email or https address)
                     </span>
-                    <input
+                    <Input
+                        id="push-contact"
                         type="text"
                         value={contact}
                         onChange={(event) => {
@@ -157,7 +159,6 @@ function Notifications(_props: SettingsProps) {
                         }}
                         placeholder="you@example.com"
                         autoComplete="email"
-                        className="rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2"
                     />
                 </label>
             )}

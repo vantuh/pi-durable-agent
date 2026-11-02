@@ -20,6 +20,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
@@ -454,7 +455,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                         }
                     }}
                 >
-                    <input
+                    <Input
                         value={address}
                         title={
                             page?.open === true
@@ -468,7 +469,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                         onBlur={() => {
                             setDraft(null);
                         }}
-                        className="rounded-control bg-sunken text-interface text-ink placeholder:text-faint w-full min-w-0 px-2.5 py-1 font-mono outline-none"
+                        className="border-transparent px-2.5 font-mono"
                     />
                 </form>
                 {PRESETS.map(({ name, hint, icon: Icon }) => (

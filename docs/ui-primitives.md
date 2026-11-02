@@ -238,15 +238,40 @@ What the review of the migration found and fixed.
 
 ### 2.1 Input (installed, bypassed)
 
-- [ ] `web/src/shell/sessions.tsx` — search (`984–1002`), rename (`1143–1162`).
-- [ ] `extensions/git-worktree/web.tsx` — `232–240` (`Input` already imported).
-- [ ] `extensions/notes/todos.tsx` — raw inputs (`Input` already imported).
-- [ ] `extensions/browser/panel.tsx` — address field (`455–469`).
-- [ ] `extensions/push/web.tsx` — `147–161`.
-- [ ] `extensions/bash-timeout/details.tsx` — `117–125`.
-- [ ] `extensions/dictation/details.tsx` — `236–244`.
-- [ ] `extensions/anthropic-subscription/account-details.tsx` — `60–71`.
-- [ ] `extensions/git-history/web.tsx` — commit form (`166–190`).
+The nine sites below are migrated. One look changed on all of them: a hand-written `py-1.5` box was
+36.5px tall, and the primitive is `h-8` (32px), the height the to-do and worktree fields already
+had. No `size` prop was added for the 4px: the field height is the primitive's, one height for every
+field in the app.
+
+- [x] `web/src/shell/sessions.tsx` — search (`984–1002`), rename (`1143–1162`). The search keeps `h-full`
+      and its `pl-7 pr-7`, the room the icon and the × need, and the rename field keeps `bg-canvas` so
+      it stays lighter than the card it sits in; both keep `text-sidebar` and `border-edge-soft`.
+      The accent focus is Input's ring now, not a border colour: one focus treatment for one field.
+- [x] `extensions/git-worktree/web.tsx` — `232–240` (`Input` already imported). The name field was
+      `Input` before this step, so only the checkbox beside it is left, for [Checkbox](#23-checkbox-new).
+- [x] `extensions/notes/todos.tsx` — raw inputs (`Input` already imported). Both fields, the add
+      form and an item's title, were `Input` before this step; the checkbox and the textarea beside
+      them stay for [Checkbox](#23-checkbox-new) and [Textarea](#22-textarea-new).
+- [x] `extensions/browser/panel.tsx` — address field (`455–469`). It stays monospace and borderless:
+      `border-transparent`, so a background with no frame is still the look, and `px-2.5` keeps the
+      text off the edge. Its `title` is the page's size and name, a readout, so it stays a `title`.
+- [x] `extensions/push/web.tsx` — `147–161`. The field's classes were `Input`'s own, so only the
+      label around it changed: `htmlFor` and an `id` on the field, because the a11y rule follows an
+      `input` element and cannot see one inside `Input`. The label's own look waits for
+      [Field](#311-field-and-label-new).
+- [x] `extensions/bash-timeout/details.tsx` — `117–125`. The `FIELD` string it shared with Dictation
+      was `Input`'s own classes, so it went; the label takes `htmlFor` and the field an `id` for the
+      a11y rule above. `type="number"`, the Enter commit, and the blur commit stay on the field.
+- [x] `extensions/dictation/details.tsx` — `236–244`. The `FIELD` string stays for the two pickers'
+      triggers, which are `DropdownMenuTrigger`s and not fields; the idle field takes `htmlFor`/`id`
+      like the one above, and stands one step shorter than the picker over it until that trigger is
+      a field too.
+- [x] `extensions/anthropic-subscription/account-details.tsx` — `60–71`. Nothing to migrate: the
+      control at that line is the "Include email and organization" checkbox, which is
+      [Checkbox](#23-checkbox-new)'s; the section has no text field.
+- [x] `extensions/git-history/web.tsx` — commit form (`166–190`). The title is `Input` and takes
+      `htmlFor`/`id`; `fieldClass` stays for the description textarea, which is
+      [Textarea](#22-textarea-new)'s. Autofocus and the Enter submit are unchanged.
 
 ### 2.2 Textarea (new)
 

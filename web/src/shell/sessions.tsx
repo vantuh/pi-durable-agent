@@ -30,6 +30,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Hint } from "@/components/ui/tooltip";
@@ -997,7 +998,7 @@ export const Sessions = memo(function Sessions({
                             className={`absolute inset-0 transition-[opacity,transform] duration-200 ${searching ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"}`}
                         >
                             <Search className="text-faint pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
-                            <input
+                            <Input
                                 ref={searchBox}
                                 type="search"
                                 value={query}
@@ -1015,7 +1016,7 @@ export const Sessions = memo(function Sessions({
                                         stopSearch();
                                     }
                                 }}
-                                className="rounded-control border-edge-soft bg-sunken text-sidebar text-ink placeholder:text-faint focus:border-accent h-full w-full border pr-7 pl-7 outline-none [&::-webkit-search-cancel-button]:hidden"
+                                className="border-edge-soft text-sidebar h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
                             />
                             <Hint label="Close search">
                                 <Button
@@ -1160,7 +1161,7 @@ export const Sessions = memo(function Sessions({
                     <label className="text-meta text-muted" htmlFor="rename-session">
                         Session name
                     </label>
-                    <input
+                    <Input
                         id="rename-session"
                         ref={(node) => {
                             node?.focus();
@@ -1178,7 +1179,7 @@ export const Sessions = memo(function Sessions({
                                 setRenaming(null);
                             }
                         }}
-                        className="rounded-control border-edge-soft bg-canvas text-sidebar text-ink focus:border-accent border px-2 py-1.5 outline-none"
+                        className="border-edge-soft bg-canvas text-sidebar"
                     />
                     <div className="flex justify-end gap-1">
                         <Button

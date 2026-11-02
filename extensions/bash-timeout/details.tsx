@@ -6,15 +6,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Input } from "@/components/ui/input.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 
 import { MAX_MINUTES, MIN_MINUTES, saveSettings, settings } from "./refs.ts";
-
-/** The same box the shell draws its own fields with. */
-const FIELD =
-    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2";
 
 function messageOf(failure: unknown): string {
     return failure instanceof Error ? failure.message : "Something went wrong.";
@@ -114,9 +111,10 @@ function Limit() {
 
     return (
         <div className="flex flex-col gap-2">
-            <label className="flex w-[30%] flex-col gap-1">
+            <label className="flex w-[30%] flex-col gap-1" htmlFor="bash-timeout-minutes">
                 <span className="text-meta text-faint">Longest run (minutes)</span>
-                <input
+                <Input
+                    id="bash-timeout-minutes"
                     type="number"
                     min={MIN_MINUTES}
                     max={MAX_MINUTES}
@@ -131,7 +129,6 @@ function Limit() {
                             commit();
                         }
                     }}
-                    className={FIELD}
                 />
             </label>
             <p className="text-meta text-muted">
