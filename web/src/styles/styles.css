@@ -304,6 +304,11 @@ body {
     animation: panel-in 200ms ease-out;
 }
 
+/* An extension's page takes the conversation's place; it fades in over it. */
+[data-slot="page-host"] {
+    animation: drop-in 150ms ease-out;
+}
+
 /* Forwards: the panel keeps the end of its exit until the frame it is dropped from. */
 [data-slot="panel-host"][data-leaving] {
     animation: panel-out 200ms ease-out forwards;
@@ -333,7 +338,8 @@ body {
     [data-slot="sheet-content"],
     [data-slot="sheet-content"][data-state="closed"],
     [data-slot="panel-host"],
-    [data-slot="panel-host"][data-leaving] {
+    [data-slot="panel-host"][data-leaving],
+    [data-slot="page-host"] {
         animation-duration: 1ms;
     }
 

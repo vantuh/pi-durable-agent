@@ -1,8 +1,8 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
  * composer controls, blocks above the composer and under the session list, status popover markers,
- * settings sections, side panels, tool icons and argument views, session menu items and new-session
- * options.
+ * settings sections, side panels, pages, tool icons and argument views, session menu items and
+ * new-session options.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -16,6 +16,7 @@ import type {
     ComposerItem,
     HeaderItem,
     NewSessionItem,
+    PageItem,
     PanelItem,
     SessionMenuItem,
     SettingsSection,
@@ -29,6 +30,7 @@ import type {
 export type FolderStatusItem = StatusItem & { folder: string };
 export type FolderSettingsSection = SettingsSection & { folder: string };
 export type FolderPanel = PanelItem & { folder: string };
+export type FolderPage = PageItem & { folder: string };
 
 export type FolderHeaderItem = HeaderItem & { folder: string };
 export type FolderComposerItem = ComposerItem & { folder: string };
@@ -108,6 +110,10 @@ function isPanel(value: unknown): value is PanelItem {
         Reflect.get(value, "icon") !== undefined &&
         typeof Reflect.get(value, "component") === "function"
     );
+}
+
+function isPage(value: unknown): value is PageItem {
+    return isPanel(value);
 }
 
 /** An icon component; lucide's are `forwardRef` objects, not functions. */
@@ -218,6 +224,7 @@ type Loaded = {
     statusRow: FolderStatusRowItem[];
     settings: FolderSettingsSection[];
     panels: FolderPanel[];
+    pages: FolderPage[];
     tools: FolderToolIcon[];
     toolViews: FolderToolView[];
     sessionMenu: FolderSessionMenuItem[];
@@ -250,6 +257,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         statusRow: [],
         settings: [],
         panels: [],
+        pages: [],
         tools: [],
         toolViews: [],
         sessionMenu: [],
@@ -267,6 +275,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "status", module, isStatusItem, loaded.status);
         collect(folder, "settings", module, isSection, loaded.settings);
         collect(folder, "panels", module, isPanel, loaded.panels);
+        collect(folder, "pages", module, isPage, loaded.pages);
         collect(folder, "tools", module, isToolIcon, loaded.tools);
         collect(folder, "toolViews", module, isToolView, loaded.toolViews);
         collect(folder, "sessionMenu", module, isSessionMenuItem, loaded.sessionMenu);
@@ -306,6 +315,7 @@ const first = refreshExtensions();
 const pickStatus = (loaded: Loaded): FolderStatusItem[] => loaded.status;
 const pickSettings = (loaded: Loaded): FolderSettingsSection[] => loaded.settings;
 const pickPanels = (loaded: Loaded): FolderPanel[] => loaded.panels;
+const pickPages = (loaded: Loaded): FolderPage[] => loaded.pages;
 
 function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
     const [items, setItems] = useState<readonly T[]>([]);
@@ -366,6 +376,11 @@ export function useSettingsSections(): readonly FolderSettingsSection[] {
 /** The side panels of every folder that is on and loaded; empty until the modules are in. */
 export function usePanels(): readonly FolderPanel[] {
     return useLoaded(pickPanels);
+}
+
+/** The pages of every folder that is on and loaded; empty until the modules are in. */
+export function usePages(): readonly FolderPage[] {
+    return useLoaded(pickPages);
 }
 
 const pickHeader = (loaded: Loaded): FolderHeaderItem[] => loaded.header;

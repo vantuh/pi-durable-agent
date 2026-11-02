@@ -88,6 +88,28 @@ export type PanelItem = {
     component: ComponentType<PanelProps>;
 };
 
+export type PageProps = {
+    /** The open conversation: a page is reached inside one, so it is never null. */
+    session: NonNullable<StatusProps["session"]>;
+    /** The page's own place from the address (`&sub=`), undefined at its root. */
+    sub: string | undefined;
+    /** Moves the page to another sub-location, adding a history step so Back returns. */
+    navigate: (sub: string | undefined) => void;
+    /** Back to the conversation. */
+    close: () => void;
+};
+
+/** A page an extension puts in place of the conversation: a header button opens it at `?page=` in the address. */
+export type PageItem = {
+    id: string;
+    title: string;
+    icon: ReactNode;
+    /** A count on the button's corner: return the number (or text), or null for none. Needs only a session. */
+    badge?: ComponentType<StatusProps>;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<PageProps>;
+};
+
 export type HeaderItem = {
     id: string;
     component: ComponentType<StatusProps>;
@@ -211,6 +233,7 @@ export type WebExtension = {
     statusRow?: StatusRowItem[];
     settings?: SettingsSection[];
     panels?: PanelItem[];
+    pages?: PageItem[];
     tools?: ToolIcon[];
     toolViews?: ToolView[];
     sessionMenu?: SessionMenuItem[];

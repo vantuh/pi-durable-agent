@@ -5,7 +5,7 @@ import { AboveComposerItems } from "./composer/above-items.tsx";
 import { Composer } from "./composer/composer.tsx";
 import { SessionMeta } from "./composer/meta.tsx";
 import { ModelMenu } from "./composer/model-menu.tsx";
-import { usePanels } from "./extensions.ts";
+import { usePages, usePanels } from "./extensions.ts";
 import {
     type Health,
     createSession,
@@ -30,6 +30,7 @@ import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { Home } from "./shell/home.tsx";
+import { PageButtons, PageHost, pageKey } from "./shell/pages.tsx";
 import { PanelButtons, PanelHost, panelKey, useOpenPanel } from "./shell/panels.tsx";
 import { Sessions } from "./shell/sessions.tsx";
 import { Settings } from "./shell/settings.tsx";
@@ -56,7 +57,8 @@ function shortName(model: string | null): string {
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
     const { sessions, setSessions, connected } = useSessionList();
-    const [current, go] = useRoute();
+    const { route, go, openPage, setPageSub, closePage } = useRoute();
+    const current = route.session;
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
@@ -64,6 +66,7 @@ export function App() {
     const [settings, setSettings] = useState(false);
     const settingsGear = useRef<HTMLButtonElement>(null);
     const panels = usePanels();
+    const pages = usePages();
 
     const { state, send, stop, loadOlder } = useConversation(current);
     const {
@@ -151,6 +154,11 @@ export function App() {
     const activeSession = loading || active === undefined ? null : knownSession;
 
     const panel = panels.find((candidate) => panelKey(candidate) === panelShown);
+    const openPageItem =
+        route.page === null
+            ? undefined
+            : pages.find((candidate) => pageKey(candidate) === route.page?.key);
+    const pageOpen = openPageItem !== undefined;
 
     const select = useCallback(
         (id: number | null) => {
@@ -262,7 +270,7 @@ export function App() {
                     onClose={closeSheet}
                 />
 
-                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]">
+                <main className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]">
                     {current === null ? (
                         <Home
                             sessions={sessions}
@@ -276,119 +284,142 @@ export function App() {
                         />
                     ) : (
                         <>
-                            <Transcript
-                                key={current}
-                                session={current}
-                                title={active?.title ?? null}
-                                entries={state.entries}
-                                live={state.live}
-                                exhausted={state.exhausted}
-                                loading={loading}
-                                onLoadOlder={loadOlder}
-                                tools={
-                                    <>
-                                        <HeaderItems session={activeSession} />
-                                        <PanelButtons
-                                            panels={panels}
+                            <div
+                                className={`flex min-h-0 flex-1 flex-col gap-2 ${pageOpen ? "invisible" : ""}`}
+                                inert={pageOpen}
+                            >
+                                <Transcript
+                                    key={current}
+                                    session={current}
+                                    title={active?.title ?? null}
+                                    entries={state.entries}
+                                    live={state.live}
+                                    exhausted={state.exhausted}
+                                    loading={loading}
+                                    onLoadOlder={loadOlder}
+                                    tools={
+                                        <>
+                                            <HeaderItems session={activeSession} />
+                                            <PageButtons
+                                                pages={pages}
+                                                session={activeSession}
+                                                open={route.page?.key ?? null}
+                                                onOpen={openPage}
+                                            />
+                                            <PanelButtons
+                                                panels={panels}
+                                                session={activeSession}
+                                                open={panelShown}
+                                                onToggle={(key) => {
+                                                    setPanelOpen(
+                                                        panelOpen && panelShown === key
+                                                            ? null
+                                                            : key,
+                                                    );
+                                                }}
+                                            />
+                                        </>
+                                    }
+                                    onSessions={() => {
+                                        setSheet(true);
+                                    }}
+                                    onOpenSession={go}
+                                    below={
+                                        <StatusItems
+                                            slot="title"
                                             session={activeSession}
-                                            open={panelShown}
-                                            onToggle={(key) => {
-                                                setPanelOpen(
-                                                    panelOpen && panelShown === key ? null : key,
-                                                );
-                                            }}
+                                            sessions={sessions}
+                                            openSession={go}
                                         />
-                                    </>
-                                }
-                                onSessions={() => {
-                                    setSheet(true);
-                                }}
-                                onOpenSession={go}
-                                below={
-                                    <StatusItems
-                                        slot="title"
-                                        session={activeSession}
-                                        sessions={sessions}
-                                        openSession={go}
-                                    />
-                                }
-                            />
+                                    }
+                                />
 
-                            <div className="relative">
-                                {menu ? (
-                                    <ModelMenu
-                                        scoped={models.scoped}
-                                        all={models.all}
-                                        current={active?.model ?? null}
-                                        level={active?.thinkingLevel ?? null}
-                                        defaultModel={models.default}
-                                        onClose={() => {
-                                            setMenu(false);
-                                        }}
-                                        onAddScoped={(choice) => {
-                                            void (async () => {
-                                                await addScopedModel(choice);
-                                                setModels(await listModels());
-                                            })();
-                                        }}
-                                        onRemoveScoped={(choice) => {
-                                            void (async () => {
-                                                await removeScopedModel(choice);
-                                                setModels(await listModels());
-                                            })();
-                                        }}
-                                        onMakeDefault={(choice, level) => {
-                                            void (async () => {
-                                                await setDefaultModel({
-                                                    provider: choice.provider,
-                                                    modelId: choice.id,
-                                                    thinkingLevel: level,
-                                                });
-                                                setModels(await listModels());
-                                            })();
-                                        }}
-                                        onPick={(choice, level) => {
-                                            void (async () => {
-                                                if (current !== null) {
-                                                    await setAgent(current, {
-                                                        model: {
-                                                            provider: choice.provider,
-                                                            modelId: choice.id,
-                                                        },
+                                <div className="relative">
+                                    {menu ? (
+                                        <ModelMenu
+                                            scoped={models.scoped}
+                                            all={models.all}
+                                            current={active?.model ?? null}
+                                            level={active?.thinkingLevel ?? null}
+                                            defaultModel={models.default}
+                                            onClose={() => {
+                                                setMenu(false);
+                                            }}
+                                            onAddScoped={(choice) => {
+                                                void (async () => {
+                                                    await addScopedModel(choice);
+                                                    setModels(await listModels());
+                                                })();
+                                            }}
+                                            onRemoveScoped={(choice) => {
+                                                void (async () => {
+                                                    await removeScopedModel(choice);
+                                                    setModels(await listModels());
+                                                })();
+                                            }}
+                                            onMakeDefault={(choice, level) => {
+                                                void (async () => {
+                                                    await setDefaultModel({
+                                                        provider: choice.provider,
+                                                        modelId: choice.id,
                                                         thinkingLevel: level,
                                                     });
-                                                }
+                                                    setModels(await listModels());
+                                                })();
+                                            }}
+                                            onPick={(choice, level) => {
+                                                void (async () => {
+                                                    if (current !== null) {
+                                                        await setAgent(current, {
+                                                            model: {
+                                                                provider: choice.provider,
+                                                                modelId: choice.id,
+                                                            },
+                                                            thinkingLevel: level,
+                                                        });
+                                                    }
 
-                                                await reload();
-                                            })();
-                                        }}
+                                                    await reload();
+                                                })();
+                                            }}
+                                        />
+                                    ) : null}
+
+                                    <Composer
+                                        key={current}
+                                        sessionId={String(current)}
+                                        session={activeSession}
+                                        busy={state.live.busy}
+                                        queued={state.live.queued ?? NO_QUEUED}
+                                        above={aboveComposer}
+                                        model={model}
+                                        level={active?.thinkingLevel ?? null}
+                                        menuOpen={menu}
+                                        onToggleMenu={toggleMenu}
+                                        onSend={send}
+                                        onStop={stopRun}
+                                        onNewSession={newSession}
                                     />
-                                ) : null}
+                                </div>
 
-                                <Composer
-                                    key={current}
-                                    sessionId={String(current)}
+                                <SessionMeta
                                     session={activeSession}
-                                    busy={state.live.busy}
-                                    queued={state.live.queued ?? NO_QUEUED}
-                                    above={aboveComposer}
-                                    model={model}
-                                    level={active?.thinkingLevel ?? null}
-                                    menuOpen={menu}
-                                    onToggleMenu={toggleMenu}
-                                    onSend={send}
-                                    onStop={stopRun}
-                                    onNewSession={newSession}
+                                    sessions={sessions}
+                                    status={state.live.status ?? NO_STATUS}
+                                    usage={usage}
+                                    openSession={go}
                                 />
                             </div>
 
-                            <SessionMeta
-                                session={activeSession}
-                                sessions={sessions}
-                                status={state.live.status ?? NO_STATUS}
-                                usage={usage}
-                                openSession={go}
-                            />
+                            {openPageItem === undefined || knownSession === null ? null : (
+                                <PageHost
+                                    page={openPageItem}
+                                    session={knownSession}
+                                    sub={route.page?.sub}
+                                    onSub={setPageSub}
+                                    onClose={closePage}
+                                />
+                            )}
                         </>
                     )}
                 </main>
