@@ -2,6 +2,8 @@ import { Gauge, LoaderCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -192,19 +194,21 @@ function Popover({
         >
             <div className="mb-2 flex items-center justify-between">
                 <span className="text-ink font-medium">Provider usage</span>
-                <button
-                    type="button"
-                    title="Refresh"
-                    aria-label="Refresh"
-                    onClick={onRefresh}
-                    className="text-muted hover:text-ink"
-                >
-                    {result.loading ? (
-                        <LoaderCircle className="size-3.5 animate-spin" />
-                    ) : (
-                        <RefreshCw className="size-3.5" />
-                    )}
-                </button>
+                <Hint label="Refresh">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Refresh"
+                        onClick={onRefresh}
+                        className="text-muted"
+                    >
+                        {result.loading ? (
+                            <LoaderCircle className="size-3.5 animate-spin" />
+                        ) : (
+                            <RefreshCw className="size-3.5" />
+                        )}
+                    </Button>
+                </Hint>
             </div>
             {result.failure === null ? null : <p className="text-danger mb-2">{result.failure}</p>}
             {result.data?.providers.length === 0 ? (
@@ -254,31 +258,33 @@ function UsageLimits({ session }: StatusProps) {
 
     return (
         <>
-            <button
-                ref={setAnchor}
-                type="button"
-                title={title}
-                aria-label={title}
-                aria-expanded={open}
-                onClick={() => {
-                    if (!open) {
-                        usage.refresh();
-                    }
+            <Hint label={title}>
+                <Button
+                    ref={setAnchor}
+                    variant="ghost"
+                    size="sm"
+                    aria-label={title}
+                    aria-expanded={open}
+                    onClick={() => {
+                        if (!open) {
+                            usage.refresh();
+                        }
 
-                    setOpen((previous) => !previous);
-                }}
-                className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono"
-            >
-                {bucket === undefined ? (
-                    <Gauge className="size-3.5" />
-                ) : (
-                    <>
-                        <span>{SHORT[bucket.label] ?? bucket.label}</span>
-                        <Bar pct={bucket.pct} className="flex h-1 w-9" />
-                        {String(Math.round(bucket.pct))}%
-                    </>
-                )}
-            </button>
+                        setOpen((previous) => !previous);
+                    }}
+                    className="text-faint hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono font-normal"
+                >
+                    {bucket === undefined ? (
+                        <Gauge className="size-3.5" />
+                    ) : (
+                        <>
+                            <span>{SHORT[bucket.label] ?? bucket.label}</span>
+                            <Bar pct={bucket.pct} className="flex h-1 w-9" />
+                            {String(Math.round(bucket.pct))}%
+                        </>
+                    )}
+                </Button>
+            </Hint>
             {open && anchor !== null ? (
                 <Popover
                     anchor={anchor}

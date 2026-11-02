@@ -2,9 +2,11 @@ import { Plug } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
@@ -209,23 +211,25 @@ function McpStatus() {
 
     return (
         <>
-            <button
-                ref={setAnchor}
-                type="button"
-                title={title}
-                aria-label={title}
-                aria-expanded={open}
-                onClick={() => {
-                    setOpen((previous) => !previous);
-                }}
-                className="hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5"
-            >
-                <Plug className={`size-3.5 ${toneOf(on)}`} />
-                <span className="text-ink">MCP</span>
-                <span className="font-mono tabular-nums">
-                    {String(on.length)}/{String(current.servers.length)}
-                </span>
-            </button>
+            <Hint label={title}>
+                <Button
+                    ref={setAnchor}
+                    variant="ghost"
+                    size="sm"
+                    aria-label={title}
+                    aria-expanded={open}
+                    onClick={() => {
+                        setOpen((previous) => !previous);
+                    }}
+                    className="hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-normal"
+                >
+                    <Plug className={`size-3.5 ${toneOf(on)}`} />
+                    <span className="text-ink">MCP</span>
+                    <span className="text-muted font-mono tabular-nums">
+                        {String(on.length)}/{String(current.servers.length)}
+                    </span>
+                </Button>
+            </Hint>
             {open && anchor !== null ? (
                 <Popover
                     anchor={anchor}

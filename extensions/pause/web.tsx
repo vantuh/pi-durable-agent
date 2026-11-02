@@ -5,6 +5,8 @@
 import { Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
@@ -59,23 +61,27 @@ function PauseControl({ session }: ComposerProps) {
         }
     };
 
+    // A held step is yellow on its own fill: ghost's ink and its raised hover would paint over both.
+    const look = paused ? "bg-warn/20 text-warn hover:bg-warn/30 hover:text-warn" : "";
+
     return (
-        <button
-            type="button"
-            onClick={() => {
-                void toggle();
-            }}
-            title={paused ? "Resume" : "Pause after this step"}
-            className={`rounded-control flex size-7 items-center justify-center ${
-                paused ? "bg-warn/20 text-warn hover:bg-warn/30" : "text-muted hover:bg-raised"
-            }`}
-        >
-            {paused ? (
-                <Play className="size-3 fill-current" />
-            ) : (
-                <Pause className="size-3 fill-current" />
-            )}
-        </button>
+        <Hint label={paused ? "Resume" : "Pause after this step"}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label={paused ? "Resume" : "Pause after this step"}
+                onClick={() => {
+                    void toggle();
+                }}
+                className={look}
+            >
+                {paused ? (
+                    <Play className="size-3 fill-current" />
+                ) : (
+                    <Pause className="size-3 fill-current" />
+                )}
+            </Button>
+        </Hint>
     );
 }
 

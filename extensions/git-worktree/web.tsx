@@ -12,6 +12,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type {
     NewSessionCollected,
@@ -113,18 +114,21 @@ function Mark({ session }: StatusProps) {
                 <FolderGit2 />
                 <span className="truncate">{worktree.name}</span>
                 {worktree.ours ? (
-                    <button
-                        type="button"
-                        title={`Remove the worktree ${worktree.name}`}
-                        aria-label={`Remove the worktree ${worktree.name}`}
-                        onClick={() => {
-                            setFailure(null);
-                            setAsking(true);
-                        }}
-                        className="hover:text-danger -mr-0.5 flex size-3.5 shrink-0 items-center justify-center"
-                    >
-                        <X className="size-3" />
-                    </button>
+                    /* The pill is 16px tall and the button inside it 14px: Button's smallest box is 24px
+                       and would stand 4px proud of the badge's border. Badge owns the pill and its ×. */
+                    <Hint label={`Remove the worktree ${worktree.name}`}>
+                        <button
+                            type="button"
+                            aria-label={`Remove the worktree ${worktree.name}`}
+                            onClick={() => {
+                                setFailure(null);
+                                setAsking(true);
+                            }}
+                            className="hover:text-danger -mr-0.5 flex size-3.5 shrink-0 items-center justify-center"
+                        >
+                            <X className="size-3" />
+                        </button>
+                    </Hint>
                 ) : null}
             </Badge>
 
@@ -169,8 +173,8 @@ function Mark({ session }: StatusProps) {
                             No
                         </Button>
                         <Button
+                            variant="danger"
                             disabled={removing}
-                            className="bg-danger text-canvas hover:bg-danger/90"
                             onClick={() => {
                                 setRemoving(true);
                                 setFailure(null);

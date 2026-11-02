@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 
 import { createTag, load, recolorTag, removeTag, renameTag, useTags } from "./client.ts";
@@ -155,17 +156,18 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         }}
                                     />
                                 ) : (
-                                    <button
-                                        type="button"
-                                        aria-label={`Colour of ${tag.name}`}
-                                        title="Change the colour"
-                                        disabled={busy}
-                                        onClick={() => {
-                                            setRenaming(null);
-                                            setEditing(tag.id);
-                                        }}
-                                        className={`size-3 shrink-0 rounded-full ${TAG_DOT[tag.color]}`}
-                                    />
+                                    <Hint label="Change the colour">
+                                        <button
+                                            type="button"
+                                            aria-label={`Colour of ${tag.name}`}
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setRenaming(null);
+                                                setEditing(tag.id);
+                                            }}
+                                            className={`size-3 shrink-0 rounded-full ${TAG_DOT[tag.color]}`}
+                                        />
+                                    </Hint>
                                 )}
                                 {renaming?.id === tag.id ? (
                                     <form
@@ -203,15 +205,16 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         >
                                             Save
                                         </Button>
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={() => {
                                                 setRenaming(null);
                                             }}
-                                            className="text-muted hover:text-ink text-meta shrink-0 px-1"
+                                            className="shrink-0 px-1 py-0"
                                         >
                                             Cancel
-                                        </button>
+                                        </Button>
                                     </form>
                                 ) : (
                                     <span className="text-ink min-w-0 flex-1 truncate">
@@ -223,33 +226,37 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         {count}
                                     </span>
                                 )}
-                                <button
-                                    type="button"
-                                    aria-label={`Rename ${tag.name}`}
-                                    title="Rename"
-                                    disabled={busy}
-                                    onClick={() => {
-                                        setEditing(null);
-                                        setRenaming({ id: tag.id, name: tag.name });
-                                    }}
-                                    className="text-muted hover:text-ink shrink-0"
-                                >
-                                    <Pencil className="size-3.5" />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label={`Delete ${tag.name}`}
-                                    title={`Delete ${tag.name}`}
-                                    disabled={busy}
-                                    onClick={() => {
-                                        void run(async () => {
-                                            await removeTag(tag.id);
-                                        });
-                                    }}
-                                    className="text-muted hover:text-danger shrink-0"
-                                >
-                                    <Trash2 className="size-3.5" />
-                                </button>
+                                <Hint label="Rename">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Rename ${tag.name}`}
+                                        disabled={busy}
+                                        onClick={() => {
+                                            setEditing(null);
+                                            setRenaming({ id: tag.id, name: tag.name });
+                                        }}
+                                        className="text-muted shrink-0"
+                                    >
+                                        <Pencil className="size-3.5" />
+                                    </Button>
+                                </Hint>
+                                <Hint label={`Delete ${tag.name}`}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Delete ${tag.name}`}
+                                        disabled={busy}
+                                        onClick={() => {
+                                            void run(async () => {
+                                                await removeTag(tag.id);
+                                            });
+                                        }}
+                                        className="text-muted hover:text-danger shrink-0"
+                                    >
+                                        <Trash2 className="size-3.5" />
+                                    </Button>
+                                </Hint>
                             </li>
                         );
                     })}

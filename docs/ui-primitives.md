@@ -138,20 +138,67 @@ Extensions:
       not-allowed cursor ghost has no tone for. The commit row keeps its square corners and its
       inset ring; `Item` still owns the row's content. Refresh keeps `disabled`, so its hint waits
       for the read to end. Pills, fields, the sliding panel, and the separators stay as they are.
-- [ ] `extensions/keep-warm/web.tsx` — `204–211`, `287–301`.
-- [ ] `extensions/mcp/web.tsx` — `212–222`.
-- [ ] `extensions/notes/todos.tsx` — `319–327`, `367–391`.
-- [ ] `extensions/pause/web.tsx` — `63–75`.
-- [ ] `extensions/push/web.tsx` — `163–185`.
-- [ ] `extensions/tags/details.tsx` — `33–48`, `158–171`, `206–249`.
-- [ ] `extensions/tags/web.tsx` — "show every tag" and chips (`117–153`).
-- [ ] `extensions/usage-limits/web.tsx` — `195–200`, `257–274`.
-- [ ] `extensions/git-worktree/web.tsx` — remove (`116–120`).
-- [ ] `extensions/anthropic-subscription/account-details.tsx` — submit (`49–61`).
-- [ ] `extensions/hotkeys/web.tsx` — prefix-state `title` (`89`) → Tooltip.
+- [x] `extensions/keep-warm/web.tsx` — `204–211`, `287–301`. The trigger keeps `font-normal` and its
+      own `hover:bg-sunken`, so ghost's raised hover fill does not stand in for it; the flame and the
+      cold grey keep their two states. The row's × is a 24px target now, taller than the 12px text
+      beside it. The popup stays for [Popover](#31-popover-new) and its rules for
+      [Separator](#24-separator-new).
+- [x] `extensions/mcp/web.tsx` — `212–222`. The count keeps `text-muted`: under ghost it would inherit the
+      trigger's ink on hover and brighten beside a label that was already ink. The `<dialog>`
+      popup stays for [Popover](#31-popover-new).
+- [x] `extensions/notes/todos.tsx` — `319–327`, `367–391`. The title keeps `px-0 py-0`, `justify-start`,
+      `text-interface`, and `font-normal`: ghost would centre it and pad the row. The grip and the
+      delete are 24px targets, and both gain ghost's raised hover; their `mt` offsets went, because
+      the offsets that centred a 16px icon only push a 24px box off its line. The drag attributes and
+      listeners stay on the element. Raw inputs, the checkbox, and the textarea stay for
+      [Input](#21-input-installed-bypassed), [Checkbox](#23-checkbox-new), and
+      [Textarea](#22-textarea-new).
+- [x] `extensions/pause/web.tsx` — `63–75`. The paused step keeps its yellow fill and its own hover,
+      because ghost's ink and raised fill would paint over it. The button gains the `aria-label` its
+      `title` was standing in for.
+- [x] `extensions/push/web.tsx` — `163–185`. The button keeps its raised fill, its ink, its
+      `hover:bg-edge-soft`, and `gap-2` on ghost; the default size is the px-3 py-1.5 it had. The
+      contact field stays for [Input](#21-input-installed-bypassed).
+- [x] `extensions/tags/details.tsx` — `33–48`, `158–171`, `206–249`. Cancel keeps `px-1 py-0`, so it stays
+      the height of the Save beside it; the pencil and the bin are 24px targets inside a 24px row, and
+      their hints wait while a change is in flight. The colour dots stay raw; see
+      [Kept custom](#kept-custom).
+- [x] `extensions/tags/web.tsx` — "show every tag" and chips (`117–153`). `clear` is a `Button` and a
+      `Hint`, keeping `px-1 py-0` so the filter row does not grow, and gaining ghost's raised fill on
+      hover. The chips keep their own markup: a
+      wash of the tag's hue is the pill, and ghost's `hover:bg-raised` would replace it on hover,
+      which is the one thing a tag chip may not lose. Their action title is a `Hint` now, and the
+      look is [Badge](#25-badge-installed-reduced-to-one-look)'s to own.
+- [x] `extensions/usage-limits/web.tsx` — `195–200`, `257–274`. The trigger keeps `text-faint`,
+      `font-normal`, and its own `hover:bg-sunken`. The refresh is a 24px target, the height of the
+      heading beside it. The `<dialog>` stays for [Popover](#31-popover-new) and the meter for
+      [Progress](#26-progress-new).
+- [x] `extensions/git-worktree/web.tsx` — remove (`116–120`). The × keeps its 14px markup, which is
+      [Kept custom](#kept-custom); its action title is a `Hint` now. The dialog's `Remove worktree`
+      is `variant="danger"` instead of a hand-painted one, and the flow itself waits for
+      [AlertDialog](#34-alertdialog-new).
+- [x] `extensions/anthropic-subscription/account-details.tsx` — submit (`49–61`). The button is ghost
+      inside its own border, with `text-ink` and `font-normal` so it reads as the outline action it
+      was; it is a `type="button"` that reads and does not submit, and the field beside it stays for
+      [Input](#21-input-installed-bypassed).
+- [x] `extensions/hotkeys/web.tsx` — prefix-state `title` (`89`) → Tooltip. Hover-only: the armed
+      prefix is a readout in the status bar, and a tab stop for it would put the reminder in the tab
+      order of every page.
 
 Done when `grep -rF '<button' web/src extensions --include=*.tsx | grep -v components/ui` lists
-only the sites in [Kept custom](#kept-custom).
+only the sites in [Kept custom](#kept-custom) and the ones a later step owns. After the last
+extension was migrated it listed 25: nine kept custom (the lightbox close, three resize handles, two
+file-tree rows, the queue text, the two tag colour dots, the worktree badge ×), and sixteen another
+step rewrites — [Item](#39-item-new) rows and the folder picker (5), [ToggleGroup](#36-togglegroup-new)
+in the appearance dialog (4), the git-stats panel (2, [Popover](#31-popover-new)), and one each for
+the [Badge](#25-badge-installed-reduced-to-one-look) chips, the [DropdownMenu](#32-dropdownmenu-installed-bypassed)
+send modes, the [Command](#33-command-installed-bypassed) slash list, the [AlertDialog](#34-alertdialog-new)
+push confirm, and the [Breadcrumb](#312-breadcrumb-new) crumbs.
+
+Five action hints are still `title=`, each in a file whose step rewrites it: the session row's
+actions and the folder picker's favourite ([Item](#39-item-new)), the appearance gear
+([ToggleGroup](#36-togglegroup-new)), the settings close ([Sheet](#35-sheet-new)), and git-stats' Push,
+whose title also says why it is disabled ([Popover](#31-popover-new), [AlertDialog](#34-alertdialog-new)).
 
 ## Phase 2: form controls, display primitives
 
@@ -439,5 +486,13 @@ Replacing these costs more than it saves. They stay hand-written and need no box
   would centre it, and `Button` brings corners, `font-medium`, and `hover:text-ink` that every row
   would then have to undo. They are list rows, and [Item](#39-item-new) is the primitive that owns
   the family.
+- **Tag colour dots** — `extensions/tags/details.tsx:33–48, 158–171`: a 16px or 12px circle filled with
+  the tag's own colour. `Button` would have to lose its size, its radius, its hover fill, and its
+  weight, and a disabled dot has to stay at 50% beside its filled neighbours. They are colour pickers,
+  not text buttons, and no other primitive owns them. Their `title` is the hue's name, not an action.
+- **Worktree badge ×** — `extensions/git-worktree/web.tsx:116–120`: a 14px hit target inside a 16px
+  pill. `Button`'s smallest box is 24px, which would stand 4px proud of the badge's border, and its
+  hover fill would paint outside it. [Badge](#25-badge-installed-reduced-to-one-look) owns the pill
+  and the × inside it.
 - **Theme preview bars** — `web/src/shell/appearance-dialog.tsx:180–184`: an illustration, not a
   meter.

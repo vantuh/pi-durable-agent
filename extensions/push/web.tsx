@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { SettingsProps, WebExtension } from "@/sdk/types.ts";
@@ -160,8 +161,7 @@ function Notifications(_props: SettingsProps) {
                     />
                 </label>
             )}
-            <button
-                type="button"
+            <Button
                 disabled={working || (!on && contact.trim() === "")}
                 onClick={() => {
                     void run(async () => {
@@ -181,11 +181,11 @@ function Notifications(_props: SettingsProps) {
                         }
                     });
                 }}
-                className="rounded-control bg-raised text-ink text-interface hover:bg-edge-soft focus-visible:ring-accent flex items-center justify-center gap-2 px-3 py-1.5 outline-none focus-visible:ring-2 disabled:opacity-50"
+                className="bg-raised text-ink hover:bg-edge-soft gap-2"
             >
                 {working ? <Spinner /> : null}
                 {on ? "Disable on this device" : "Enable on this device"}
-            </button>
+            </Button>
             {error === undefined ? null : <p className="text-meta text-danger">{error}</p>}
         </div>
     );

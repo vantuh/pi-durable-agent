@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import { runCommand } from "@/sdk/commands.ts";
 import type { WebExtension } from "@/sdk/types.ts";
@@ -84,13 +85,11 @@ function Hotkeys() {
         };
     }, []);
 
+    // A readout, not a control: it takes no tab stop, so the hint shows on hover alone.
     return label === null ? null : (
-        <span
-            title="Prefix key pressed: waiting for the next key"
-            className="text-accent font-mono"
-        >
-            {label}
-        </span>
+        <Hint label="Prefix key pressed: waiting for the next key">
+            <span className="text-accent font-mono">{label}</span>
+        </Hint>
     );
 }
 

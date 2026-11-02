@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button.tsx";
 import { callAction } from "@/sdk/actions.ts";
 
 import { account, type AccountResult } from "./account-refs.ts";
@@ -46,16 +47,17 @@ export function AccountDetails() {
         >
             <div className="flex items-center justify-between gap-3">
                 <span className="text-ink">Subscription account</span>
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={busy}
                     onClick={() => {
                         void check();
                     }}
-                    className="rounded-control border-edge-soft text-ink hover:bg-raised focus-visible:ring-accent border px-2 py-1 outline-none focus-visible:ring-2 disabled:opacity-50"
+                    className="border-edge-soft text-ink border font-normal"
                 >
                     {busy ? "Checking…" : "Check subscription"}
-                </button>
+                </Button>
             </div>
             <label className="text-muted flex items-center gap-2">
                 <input

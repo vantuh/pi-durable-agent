@@ -2,7 +2,9 @@ import { Flame, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Hint } from "@/components/ui/tooltip";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -201,17 +203,19 @@ function Panel({
                             <span className="text-faint shrink-0 text-right tabular-nums">
                                 {clock(row.nextAt)}
                             </span>
-                            <button
-                                type="button"
-                                aria-label={`Stop warming ${row.label}`}
-                                title={`Stop warming ${row.label} until you write in it again`}
-                                onClick={() => {
-                                    onStop(row.id, row.label);
-                                }}
-                                className="text-faint hover:text-ink shrink-0"
-                            >
-                                <X className="size-3" />
-                            </button>
+                            <Hint label={`Stop warming ${row.label} until you write in it again`}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Stop warming ${row.label}`}
+                                    onClick={() => {
+                                        onStop(row.id, row.label);
+                                    }}
+                                    className="text-faint shrink-0"
+                                >
+                                    <X className="size-3" />
+                                </Button>
+                            </Hint>
                         </div>
                     ))}
                 </div>
@@ -284,23 +288,25 @@ function KeepWarm({ session, openSession }: StatusItemProps) {
 
     return (
         <>
-            <button
-                ref={setAnchor}
-                type="button"
-                title={`Keep warm: ${cacheLine(warm, now).toLowerCase()}`}
-                aria-label="Keep warm"
-                aria-expanded={open}
-                onClick={() => {
-                    setNow(Date.now());
-                    setOpen((previous) => !previous);
-                }}
-                className={`hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono ${
-                    warm.on ? "text-ember" : "text-faint/60"
-                }`}
-            >
-                <Flame className="size-3.5" />
-                warm
-            </button>
+            <Hint label={`Keep warm: ${cacheLine(warm, now).toLowerCase()}`}>
+                <Button
+                    ref={setAnchor}
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Keep warm"
+                    aria-expanded={open}
+                    onClick={() => {
+                        setNow(Date.now());
+                        setOpen((previous) => !previous);
+                    }}
+                    className={`hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono font-normal ${
+                        warm.on ? "text-ember" : "text-faint/60"
+                    }`}
+                >
+                    <Flame className="size-3.5" />
+                    warm
+                </Button>
+            </Hint>
             {open && anchor !== null ? (
                 <Panel
                     warm={warm}

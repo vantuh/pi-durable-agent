@@ -1,7 +1,9 @@
 import { Check, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import { toast } from "@/lib/toast.ts";
 import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/types.ts";
 
@@ -114,39 +116,46 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                 const on = live.includes(tag.id);
 
                 return (
-                    <button
+                    <Hint
                         key={tag.id}
-                        type="button"
-                        aria-pressed={on}
-                        title={
+                        label={
                             on ? `${tag.name}: shown, click to stop` : `${tag.name}: click to show`
                         }
-                        onClick={() => {
-                            setChosen((held) =>
-                                held.includes(tag.id)
-                                    ? held.filter((each) => each !== tag.id)
-                                    : [...held, tag.id],
-                            );
-                        }}
-                        className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 hover:brightness-110 ${TAG_TONE[tag.color]}`}
                     >
-                        <span className="truncate">{tag.name}</span>
-                        {on ? <X aria-hidden className="size-2.5 shrink-0" /> : null}
-                    </button>
+                        {/* A wash of the tag's own hue is the pill: `hover:bg-raised` would replace it, so
+                            the chip waits for Badge, which owns the look. */}
+                        <button
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                                setChosen((held) =>
+                                    held.includes(tag.id)
+                                        ? held.filter((each) => each !== tag.id)
+                                        : [...held, tag.id],
+                                );
+                            }}
+                            className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 hover:brightness-110 ${TAG_TONE[tag.color]}`}
+                        >
+                            <span className="truncate">{tag.name}</span>
+                            {on ? <X aria-hidden className="size-2.5 shrink-0" /> : null}
+                        </button>
+                    </Hint>
                 );
             })}
             {live.length === 0 ? null : (
-                <button
-                    type="button"
-                    aria-label="Show every tag"
-                    title="Show every tag"
-                    onClick={() => {
-                        setChosen([]);
-                    }}
-                    className="text-muted hover:text-ink text-meta shrink-0 px-1 underline-offset-2 hover:underline"
-                >
-                    clear
-                </button>
+                <Hint label="Show every tag">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Show every tag"
+                        onClick={() => {
+                            setChosen([]);
+                        }}
+                        className="shrink-0 px-1 py-0 underline-offset-2 hover:underline"
+                    >
+                        clear
+                    </Button>
+                </Hint>
             )}
         </div>
     );

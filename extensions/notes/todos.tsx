@@ -24,6 +24,7 @@ import {
     useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast.ts";
@@ -316,16 +317,17 @@ function SortableRow(props: RowProps) {
                 transition,
             }}
             handle={
-                <button
+                <Button
                     ref={setActivatorNodeRef}
-                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Drag to reorder"
-                    className="text-faint hover:text-muted mt-0.75 shrink-0 cursor-grab touch-none"
+                    className="text-faint hover:text-muted shrink-0 cursor-grab touch-none"
                     {...attributes}
                     {...listeners}
                 >
                     <GripVertical className="size-4" />
-                </button>
+                </Button>
             }
         />
     );
@@ -364,31 +366,33 @@ function Row({
                     }}
                     className="accent-accent mt-0.75 size-4 shrink-0"
                 />
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="sm"
                     aria-expanded={expanded}
                     onClick={onExpand}
                     className={cn(
-                        "text-interface min-w-0 flex-1 text-left break-words",
+                        "text-interface min-w-0 flex-1 justify-start break-words px-0 py-0 font-normal",
                         todo.done ? "text-faint line-through" : "text-ink",
                     )}
                 >
                     {todo.title}
-                </button>
+                </Button>
                 {todo.description === "" ? null : (
                     <Text
                         aria-label="Has a description"
                         className="text-faint mt-1 size-3.5 shrink-0"
                     />
                 )}
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Delete"
                     onClick={onRemove}
-                    className="text-faint hover:text-danger mt-1 shrink-0 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                    className="text-faint hover:text-danger shrink-0 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
                 >
                     <Trash2 className="size-3.5" />
-                </button>
+                </Button>
             </div>
             {expanded ? <Details todo={todo} onChange={onChange} /> : null}
         </li>
