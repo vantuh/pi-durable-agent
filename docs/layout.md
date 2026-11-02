@@ -85,6 +85,13 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 - **Header**: the session title, the `title` slot in a small line under it (the branch badge of
   `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
+- **A panel may fill the conversation**: the right drawer becomes the same box a page takes —
+  everything but the sidebar and the status bar — while the transcript and composer stay mounted
+  behind it, hidden and inert, and the panel itself stays mounted too, so a live browser view inside
+  it is not reloaded by the move. It is a mode of the panel, not a route: the address does not carry
+  it, Escape, the panel's own button, closing the panel and switching session all return it to the
+  drawer. The button is the panel's own, drawn in its toolbar from `lg` up; below that the drawer
+  already covers the screen.
 - **A page replaces the conversation**: an extension's page fills the conversation column in place
   of the transcript and composer, with its own header row: the page's title, a close button that
   always returns to the conversation, and — only inside a sub-location — a back arrow to its parent.

@@ -94,6 +94,9 @@ export function App() {
         setOpen: setPanelOpen,
         forget: forgetPanel,
     } = useOpenPanel(current);
+    // A panel may fill the conversation instead of the drawer; it is the panel's own choice, and it is
+    // remembered against the open panel so closing it or changing session drops it without an effect.
+    const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
     useEffect(() => {
         let alive = true;
@@ -175,6 +178,18 @@ export function App() {
             ? undefined
             : pages.find((candidate) => pageKey(candidate) === route.page?.key);
     const pageOpen = openPageItem !== undefined;
+    const panelExpanded = panelOpen && expandedKey === `${String(current)}:${panelShown}`;
+    // Closing the panel drops the mode with it, so reopening it comes back to the drawer.
+    const closePanel = useCallback(() => {
+        setPanelOpen(null);
+        setExpandedKey(null);
+    }, [setPanelOpen]);
+    const setPanelExpanded = useCallback(
+        (value: boolean) => {
+            setExpandedKey(value ? `${String(current)}:${panelShown}` : null);
+        },
+        [current, panelShown],
+    );
 
     // The address may name a page no folder answers — turned off, or a typo. Once the folders are in,
     // the address is rewritten to the conversation instead of keeping a frame with nothing in it.
@@ -327,7 +342,8 @@ export function App() {
 
     return (
         <div className="bg-sunken flex h-full flex-col gap-2 p-2">
-            <div className="flex min-h-0 flex-1 items-stretch gap-2">
+            {/* Positioned: a panel that fills the conversation measures its place from this row. */}
+            <div className="relative flex min-h-0 flex-1 items-stretch gap-2">
                 <Sessions
                     sessions={sessions}
                     current={current}
@@ -344,7 +360,11 @@ export function App() {
                     onClose={closeSheet}
                 />
 
-                <main className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]">
+                <main
+                    data-slot="conversation"
+                    inert={panelExpanded}
+                    className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-[320px]"
+                >
                     {current === null ? (
                         <Home
                             sessions={sessions}
@@ -359,8 +379,8 @@ export function App() {
                     ) : (
                         <>
                             <div
-                                className={`flex min-h-0 flex-1 flex-col gap-2 ${pageOpen ? "invisible" : ""}`}
-                                inert={pageOpen}
+                                className={`flex min-h-0 flex-1 flex-col gap-2 ${pageOpen || panelExpanded ? "invisible" : ""}`}
+                                inert={pageOpen || panelExpanded}
                             >
                                 <Transcript
                                     key={current}
@@ -385,11 +405,11 @@ export function App() {
                                                 session={activeSession}
                                                 open={panelShown}
                                                 onToggle={(key) => {
-                                                    setPanelOpen(
-                                                        panelOpen && panelShown === key
-                                                            ? null
-                                                            : key,
-                                                    );
+                                                    if (panelOpen && panelShown === key) {
+                                                        closePanel();
+                                                    } else {
+                                                        setPanelOpen(key);
+                                                    }
                                                 }}
                                             />
                                         </>
@@ -505,9 +525,9 @@ export function App() {
                         panel={panel}
                         session={knownSession}
                         open={panelOpen}
-                        onClose={() => {
-                            setPanelOpen(null);
-                        }}
+                        expanded={panelExpanded}
+                        setExpanded={setPanelExpanded}
+                        onClose={closePanel}
                         onLeft={forgetPanel}
                     />
                 )}

@@ -75,7 +75,13 @@ export type SettingsSection = {
     component: ComponentType<SettingsProps>;
 };
 
-export type PanelProps = StatusProps & { onClose: () => void };
+export type PanelProps = StatusProps & {
+    onClose: () => void;
+    /** The shell has placed this panel over the conversation instead of in the drawer. */
+    expanded: boolean;
+    /** A panel that chooses to fill the conversation asks for it here; the shell does the placing. */
+    setExpanded: (value: boolean) => void;
+};
 
 /** A side panel: a button in the conversation header opens it to the right of the transcript. */
 export type PanelItem = {

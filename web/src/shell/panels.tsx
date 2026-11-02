@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import {
     type PointerEvent as ReactPointerEvent,
+    useEffect,
     useLayoutEffect,
     useReducer,
     useRef,
@@ -177,14 +178,26 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
     );
 }
 
+const DRAWER =
+    "rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]";
+// Expanded, the panel takes the conversation's place, exactly the box the page frame takes, and the same
+// fade. The drawer's width no longer applies: the row's own left offset does.
+const OVER =
+    "rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto";
+const COLUMN = "lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0";
+
 /**
  * The open panel, to the right of the conversation. Below `lg` it covers the screen, as the
- * sessions list does. The body is the extension's own; the frame and the close button are ours.
+ * sessions list does. A panel that asks for it fills the conversation instead, still the same
+ * mounted body, so a live view inside it is not thrown away by the move. The body is the
+ * extension's own; the frame and the close button are ours.
  */
 export function PanelHost({
     panel,
     session,
     open,
+    expanded,
+    setExpanded,
     onClose,
     onLeft,
 }: PanelProps & {
@@ -201,6 +214,55 @@ export function PanelHost({
     useLayoutEffect(() => {
         setWidth(savedWidth(id), null);
     }, [id]);
+
+    // Escape gives the conversation back, as it does for a dialog. A dialog of its own keeps the key:
+    // one Escape closes one thing.
+    useEffect(() => {
+        if (!expanded) {
+            return undefined;
+        }
+
+        const onKey = (event: KeyboardEvent): void => {
+            if (event.key === "Escape" && document.querySelector('[role="dialog"]') === null) {
+                setExpanded(false);
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+
+        return () => {
+            window.removeEventListener("keydown", onKey);
+        };
+    }, [expanded, setExpanded]);
+
+    // Where the conversation starts in the row: the sidebar's width is the browser's business (it resizes
+    // and collapses), so the offset is measured rather than read off a custom property.
+    useLayoutEffect(() => {
+        const aside = frame.current;
+        const row = aside?.parentElement ?? null;
+        const conversation = row?.querySelector('[data-slot="conversation"]') ?? null;
+
+        if (!expanded || aside === null || row === null || conversation === null) {
+            return undefined;
+        }
+
+        const fit = (): void => {
+            const offset =
+                conversation.getBoundingClientRect().left - row.getBoundingClientRect().left;
+
+            aside.style.setProperty("--conversation-x", `${String(Math.round(offset))}px`);
+        };
+
+        const sizes = new ResizeObserver(fit);
+
+        fit();
+        sizes.observe(row);
+        sizes.observe(conversation);
+
+        return () => {
+            sizes.disconnect();
+        };
+    }, [expanded]);
 
     // The default width as a number: the column inside the panel keeps the width the panel ends at while
     // the panel itself widens, instead of rewrapping on every frame.
@@ -239,13 +301,13 @@ export function PanelHost({
                     onLeft();
                 }
             }}
-            className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]"
+            className={expanded ? OVER : DRAWER}
         >
-            <ResizeHandle storageKey={widthKey(id)} />
+            {expanded ? null : <ResizeHandle storageKey={widthKey(id)} />}
 
             {/* Pinned to the right edge while the panel widens: it comes in like a drawer, not a squashed card. */}
             <div className="flex min-h-0 flex-1 justify-end overflow-hidden">
-                <div className="flex w-full min-w-0 flex-col lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0">
+                <div className={`flex w-full min-w-0 flex-col ${expanded ? "" : COLUMN}`}>
                     <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
                         <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
                         <button
@@ -260,7 +322,13 @@ export function PanelHost({
 
                     <div className="flex min-h-0 flex-1 flex-col">
                         <ItemBoundary name={panelKey(panel)}>
-                            <Body key={session?.id ?? "none"} session={session} onClose={onClose} />
+                            <Body
+                                key={session?.id ?? "none"}
+                                session={session}
+                                onClose={onClose}
+                                expanded={expanded}
+                                setExpanded={setExpanded}
+                            />
                         </ItemBoundary>
                     </div>
                 </div>

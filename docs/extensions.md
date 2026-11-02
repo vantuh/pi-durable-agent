@@ -192,7 +192,12 @@ data it receives, because it runs outside the page.
 
 `web.tsx` may also export `panels: [{ id, title, icon, component }]`. Each adds a button to the
 conversation header; the open panel sits to the right of the transcript (a full-screen overlay
-below `lg`). The component gets `{ session, onClose }`. `extensions/browser` is the example: its
+below `lg`). The component gets `{ session, onClose, expanded, setExpanded }`: a panel that draws its
+own control may ask to fill the conversation instead of the drawer, and the shell places it there
+(the same frame and box an extension's page takes) with the transcript and composer hidden and inert
+under it. The body stays mounted across the toggle, so a live view inside it keeps its state; Escape,
+closing the panel and changing session all return it to the drawer. The core draws no button of its
+own: a panel that does not ask never expands. `extensions/browser` is the example: its
 frames travel as base64 through an action that waits for the next one, as extensions have no
 routes of their own. A panel may add `badge`, a component that gets `StatusProps` and returns a
 number (or text) for a small count on the corner of its button, or `null` for none; the core draws
