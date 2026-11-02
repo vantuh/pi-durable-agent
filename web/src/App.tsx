@@ -101,13 +101,11 @@ export function App() {
     );
 
     // A session change starts in the drawer, even one coming back to a session that was expanded: an open
-    // panel is remembered per session, so the mode must not outlive the visit that asked for it.
-    useEffect(() => {
-        if (expanded !== null && expanded.session !== current) {
-            // oxlint-disable-next-line react/set-state-in-effect -- the session moves in the address, with no event of ours to hook
-            setExpanded(null);
-        }
-    }, [current, expanded]);
+    // panel is remembered per session, so the mode must not outlive the visit that asked for it. Adjusted
+    // during render, as React asks: the state is only ever wrong for the render that sees the change.
+    if (expanded !== null && expanded.session !== current) {
+        setExpanded(null);
+    }
 
     useEffect(() => {
         let alive = true;
