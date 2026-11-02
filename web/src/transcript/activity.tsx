@@ -97,6 +97,9 @@ const MARK_TONES = {
     stopped: "bg-raised text-faint",
 } as const;
 
+/** Once done, these wear the warn tone instead of the done one: the eye catches a call that changed a file. */
+const WARN_TOOLS = new Set(["write", "edit", "skill"]);
+
 /** What kind of core call a step is, as its mark's icon: the tone says how it went. Extensions bring their own. */
 const TOOL_ICONS: Record<string, LucideIcon> = {
     bash: Terminal,
@@ -159,7 +162,9 @@ function Mark({
                 {...(label === undefined ? {} : { "aria-label": label, role: "img" })}
                 className={cn(
                     "grid size-[19px] place-items-center rounded-full",
-                    tone === "done" && tool === "skill" ? "bg-warn/15 text-warn" : MARK_TONES[tone],
+                    tone === "done" && tool !== undefined && WARN_TOOLS.has(tool)
+                        ? "bg-warn/15 text-warn"
+                        : MARK_TONES[tone],
                 )}
             >
                 {tone === "pending" || tone === "running" ? (
