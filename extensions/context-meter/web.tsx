@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -114,33 +115,38 @@ function Popup({ data, left, bottom }: { data: Breakdown; left: number; bottom: 
             style={{ left, bottom, width: `min(${String(POPUP_WIDTH)}px, calc(100vw - 1rem))` }}
             className="fixed z-50 pb-2"
         >
-            <div className="rounded-card border-edge-soft bg-canvas text-meta text-muted flex max-h-[70vh] flex-col gap-4 overflow-y-auto border p-4 font-mono shadow-lg">
-                <div className="grid grid-cols-[5rem_1fr] gap-y-1">
-                    <span className="text-faint">model</span>
-                    <span className="text-ink">{data.model}</span>
-                    <span className="text-faint">context</span>
-                    <span className="flex items-center gap-3">
-                        <span className="text-ink">
-                            {compact(data.used)}
-                            {data.window > 0 ? ` of ${compact(data.window)}` : ""}
-                        </span>
-                        {data.window > 0 ? (
-                            <>
-                                <span className="w-32">
-                                    <Bar fill={fill} className={toneOf(fill)} />
+            <div className="rounded-card border-edge-soft bg-canvas border font-mono shadow-lg">
+                {/* The cap sits on the viewport: a card capped by max-height gives the area no height to fill. */}
+                <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>
+                    <div className="text-meta text-muted flex flex-col gap-4 p-4">
+                        <div className="grid grid-cols-[5rem_1fr] gap-y-1">
+                            <span className="text-faint">model</span>
+                            <span className="text-ink">{data.model}</span>
+                            <span className="text-faint">context</span>
+                            <span className="flex items-center gap-3">
+                                <span className="text-ink">
+                                    {compact(data.used)}
+                                    {data.window > 0 ? ` of ${compact(data.window)}` : ""}
                                 </span>
-                                <span>{percent(fill)}</span>
-                            </>
-                        ) : null}
-                    </span>
-                </div>
-                <Group title="system prompt" unit="sections" parts={data.sections} />
-                <Group title="tools" unit="tools" parts={data.tools} />
-                <p className="text-faint">
-                    {data.calibrated
-                        ? "Approximate: sizes are scaled to the model's own count of the first request."
-                        : "Approximate: 3.5 characters per token, not the model's own count."}
-                </p>
+                                {data.window > 0 ? (
+                                    <>
+                                        <span className="w-32">
+                                            <Bar fill={fill} className={toneOf(fill)} />
+                                        </span>
+                                        <span>{percent(fill)}</span>
+                                    </>
+                                ) : null}
+                            </span>
+                        </div>
+                        <Group title="system prompt" unit="sections" parts={data.sections} />
+                        <Group title="tools" unit="tools" parts={data.tools} />
+                        <p className="text-faint">
+                            {data.calibrated
+                                ? "Approximate: sizes are scaled to the model's own count of the first request."
+                                : "Approximate: 3.5 characters per token, not the model's own count."}
+                        </p>
+                    </div>
+                </ScrollArea>
             </div>
         </div>
     );
