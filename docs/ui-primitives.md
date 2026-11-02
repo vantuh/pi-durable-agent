@@ -84,8 +84,11 @@ Core:
 - [x] `web/src/ui/lightbox.tsx` — previous / next (`22–36`); keep `aria-disabled` or move to
       `disabled`. Kept `aria-disabled`: a `disabled` trigger is not focusable, so its Hint would
       never show.
-- [ ] `web/src/ui/attachments.tsx` — preview and remove actions (`64`, `90–99`, `109–117`).
-- [ ] `web/src/ui/status-fields.tsx` — field `title` (`40`) → Tooltip.
+- [x] `web/src/ui/attachments.tsx` — preview and remove actions (`64`, `90–99`, `109–117`).
+      Only their `title` hints move: the trigger and the action button belong to the Attachment
+      primitive; see [Kept custom](#kept-custom).
+- [x] `web/src/ui/status-fields.tsx` — field `title` (`40`) → Tooltip. Hover-only: the field is a
+      readout, and a tab stop would put every field of the status bar in the tab order.
 - [ ] `web/src/shell/sessions.tsx` — header and search icons (`874–897`, `914–924`, `971–1034`,
       `1045–1059`); keep pressed/expanded state and the search transition.
 - [ ] `web/src/shell/folder-picker.tsx` — crumb and navigation (`226–256`), Cancel / Open
@@ -400,7 +403,9 @@ Replacing these costs more than it saves. They stay hand-written and need no box
 - **Timeline marks** — `web/src/transcript/activity.tsx:160–178`.
 - **Queue text** — `web/src/composer/queued.tsx:90–103`: `line-clamp-2` needs `display: -webkit-box`,
   and `Button`'s `inline-flex` would override it, unfolding a long message in the card.
-- **Attachment** — `web/src/components/ui/attachment.tsx`: our own primitive, already shared.
+- **Attachment** — `web/src/components/ui/attachment.tsx`: our own primitive, already shared. Its
+  overlay trigger and its 20px action button keep their size and hover, so a call site changes only
+  their `title`, to a `Hint`.
 - **Collapsible** — `web/src/components/ui/collapsible.tsx`: the measured `data-beyond` content
   stays.
 - **Sessions-status submenu** — `web/src/shell/sessions-status.tsx:120–187`: two-tap touch

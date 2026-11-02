@@ -1,5 +1,7 @@
 import { memo } from "react";
 
+import { Hint } from "@/components/ui/tooltip";
+
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import { useStatusItems } from "../extensions.ts";
 import type { StatusProps } from "../sdk/types.ts";
@@ -35,9 +37,8 @@ const FILL_TONE = { warn: "bg-warn", danger: "bg-danger" };
 
 /** One field a server half sent. Below `sm` an `end` field is hidden, and a `center` one loses its label. */
 export function StatusField({ field }: { field: ClientStatus }) {
-    return (
+    const readout = (
         <span
-            title={field.title}
             className={`text-faint shrink-0 items-center gap-1.5 font-mono ${field.slot === "end" ? "hidden sm:flex" : "flex"}`}
         >
             {field.label === undefined ? null : (
@@ -60,4 +61,8 @@ export function StatusField({ field }: { field: ClientStatus }) {
             {field.text}
         </span>
     );
+
+    // A readout is not a control: a tab stop here would put every field of the bar in the tab order,
+    // so the hint stays on hover, which is still more than `title` gave.
+    return field.title === undefined ? readout : <Hint label={field.title}>{readout}</Hint>;
 }

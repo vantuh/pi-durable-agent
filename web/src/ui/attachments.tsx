@@ -12,6 +12,7 @@ import {
     AttachmentTrigger,
 } from "@/components/ui/attachment";
 import { Spinner } from "@/components/ui/spinner";
+import { Hint } from "@/components/ui/tooltip";
 
 /** A file in the composer: on screen at once, `path` once the server has it. */
 export type Pending = {
@@ -61,7 +62,11 @@ function Chip({
 }) {
     return (
         <Attachment state={file.state}>
-            {preview === undefined ? null : <AttachmentTrigger title="Preview" onClick={preview} />}
+            {preview === undefined ? null : (
+                <Hint label="Preview">
+                    <AttachmentTrigger aria-label={`Preview ${file.name}`} onClick={preview} />
+                </Hint>
+            )}
 
             <AttachmentMedia>
                 {file.image && src !== undefined ? (
@@ -89,14 +94,16 @@ function Chip({
 
             {onRemove === undefined ? null : (
                 <AttachmentActions>
-                    <AttachmentAction
-                        title="Remove"
-                        onClick={() => {
-                            onRemove(file.key);
-                        }}
-                    >
-                        <X className="size-3" />
-                    </AttachmentAction>
+                    <Hint label="Remove">
+                        <AttachmentAction
+                            aria-label={`Remove ${file.name}`}
+                            onClick={() => {
+                                onRemove(file.key);
+                            }}
+                        >
+                            <X className="size-3" />
+                        </AttachmentAction>
+                    </Hint>
                 </AttachmentActions>
             )}
         </Attachment>
@@ -107,7 +114,9 @@ function Chip({
 function ShotChip({ src, name, onOpen }: { src: string; name: string; onOpen: () => void }) {
     return (
         <Attachment>
-            <AttachmentTrigger title="Preview" onClick={onOpen} />
+            <Hint label="Preview">
+                <AttachmentTrigger aria-label={`Preview ${name}`} onClick={onOpen} />
+            </Hint>
 
             <AttachmentMedia>
                 <img src={src} alt="" loading="lazy" />

@@ -24,8 +24,9 @@ export function Tooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
     return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
+/** No `data-slot`: as a child trigger it would overwrite the slot of the element it wraps. */
 export function TooltipTrigger(props: ComponentProps<typeof TooltipPrimitive.Trigger>) {
-    return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
+    return <TooltipPrimitive.Trigger {...props} />;
 }
 
 export function TooltipContent({
