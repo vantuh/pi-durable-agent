@@ -1,11 +1,11 @@
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 
-import { createTag, load, recolorTag, removeTag, useTags } from "./client.ts";
+import { createTag, load, recolorTag, removeTag, renameTag, useTags } from "./client.ts";
 import { MAX_NAME, TAG_COLORS, type TagColor, type TagsState } from "./refs.ts";
 import { TAG_DOT } from "./tones.ts";
 
@@ -56,6 +56,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     const [name, setName] = useState("");
     const [color, setColor] = useState<TagColor>("mauve");
     const [editing, setEditing] = useState<string | null>(null);
+    const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -160,17 +161,81 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         title="Change the colour"
                                         disabled={busy}
                                         onClick={() => {
+                                            setRenaming(null);
                                             setEditing(tag.id);
                                         }}
                                         className={`size-3 shrink-0 rounded-full ${TAG_DOT[tag.color]}`}
                                     />
                                 )}
-                                <span className="text-ink min-w-0 flex-1 truncate">{tag.name}</span>
+                                {renaming?.id === tag.id ? (
+                                    <form
+                                        className="flex min-w-0 flex-1 items-center gap-1"
+                                        onSubmit={(event) => {
+                                            event.preventDefault();
+                                            const wanted = renaming.name;
+
+                                            void run(async () => {
+                                                await renameTag(tag.id, wanted);
+                                                setRenaming(null);
+                                            });
+                                        }}
+                                    >
+                                        <Input
+                                            value={renaming.name}
+                                            aria-label={`New name for ${tag.name}`}
+                                            maxLength={MAX_NAME}
+                                            disabled={busy}
+                                            ref={(node) => {
+                                                node?.focus();
+                                            }}
+                                            onChange={(event) => {
+                                                setRenaming({
+                                                    id: tag.id,
+                                                    name: event.target.value,
+                                                });
+                                            }}
+                                            className="h-6 py-0"
+                                        />
+                                        <Button
+                                            type="submit"
+                                            disabled={busy || renaming.name.trim() === ""}
+                                            className="text-meta px-2 py-0.5"
+                                        >
+                                            Save
+                                        </Button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setRenaming(null);
+                                            }}
+                                            className="text-muted hover:text-ink text-meta shrink-0 px-1"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </form>
+                                ) : (
+                                    <span className="text-ink min-w-0 flex-1 truncate">
+                                        {tag.name}
+                                    </span>
+                                )}
                                 {count === 0 ? null : (
                                     <span className="text-faint shrink-0" title="Sessions with it">
                                         {count}
                                     </span>
                                 )}
+                                <button
+                                    type="button"
+                                    aria-label={`Rename ${tag.name}`}
+                                    title="Rename"
+                                    disabled={busy}
+                                    onClick={() => {
+                                        setEditing(null);
+                                        setRenaming({ id: tag.id, name: tag.name });
+                                    }}
+                                    className="text-muted hover:text-ink shrink-0"
+                                >
+                                    <Pencil className="size-3.5" />
+                                </button>
                                 <button
                                     type="button"
                                     aria-label={`Delete ${tag.name}`}

@@ -140,7 +140,8 @@ export async function writeTags(dir: string, state: TagsState): Promise<void> {
     await writeJsonFile(join(dir, FILE), state);
 }
 
-export function addTag(state: TagsState, raw: string, color: string): TagsState {
+/** One line, short, and not the name of another tag: `except` is the tag being renamed. */
+function tidyName(state: TagsState, raw: string, except?: string): string {
     const name = raw.trim().replace(/\s+/gu, " ");
 
     if (name === "") {
@@ -151,15 +152,36 @@ export function addTag(state: TagsState, raw: string, color: string): TagsState 
         throw new ActionError(`a tag name is at most ${String(MAX_NAME)} characters`);
     }
 
-    if (state.tags.some((tag) => tag.name.toLowerCase() === name.toLowerCase())) {
+    const taken = state.tags.some(
+        (tag) => tag.id !== except && tag.name.toLowerCase() === name.toLowerCase(),
+    );
+
+    if (taken) {
         throw new ActionError(`there is already a tag called ${name}`);
     }
+
+    return name;
+}
+
+export function addTag(state: TagsState, raw: string, color: string): TagsState {
+    const name = tidyName(state, raw);
 
     if (!isTagColor(color)) {
         throw new ActionError(`a tag colour is one of ${TAG_COLORS.join(", ")}`);
     }
 
     return { ...state, tags: [...state.tags, { id: randomUUID(), name, color }] };
+}
+
+/** Another name for a tag. The id stays, so every session that carries it still does. */
+export function renameTag(state: TagsState, id: string, raw: string): TagsState {
+    if (!state.tags.some((tag) => tag.id === id)) {
+        throw new ActionError("no such tag");
+    }
+
+    const name = tidyName(state, raw, id);
+
+    return { ...state, tags: state.tags.map((tag) => (tag.id === id ? { ...tag, name } : tag)) };
 }
 
 /** Another colour for a tag; the sessions it is on keep it, so this is not a remove and an add. */

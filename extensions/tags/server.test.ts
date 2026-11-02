@@ -193,6 +193,43 @@ void test("a reloaded module writes through the queue of the one already running
     });
 });
 
+void test("another name keeps the tag on its sessions, and its colour", async () => {
+    await withDir(async (dir) => {
+        const run = tagActions(hostOf(dir));
+        const tag = asState(await run.create(call({ name: "Deep work", color: "peach" }))).tags[0];
+        assert.ok(tag);
+
+        await run.toggle(call({ tag: tag.id }, 7));
+
+        const renamed = asState(await run.rename(call({ id: tag.id, name: "  Focus  work " })));
+
+        assert.deepEqual(renamed.tags, [{ id: tag.id, name: "Focus work", color: "peach" }]);
+        assert.deepEqual(renamed.sessions, { "7": [tag.id] });
+        assert.deepEqual((await readTags(dir)).tags, [
+            { id: tag.id, name: "Focus work", color: "peach" },
+        ]);
+    });
+});
+
+void test("a rename refuses another tag's name, an empty one, and an unknown tag", async () => {
+    await withDir(async (dir) => {
+        const run = tagActions(hostOf(dir));
+        const deep = asState(await run.create(call({ name: "Deep work", color: "mauve" }))).tags[0];
+        assert.ok(deep);
+
+        await run.create(call({ name: "Client", color: "blue" }));
+
+        await assert.rejects(run.rename(call({ id: deep.id, name: "client" })), /already a tag/u);
+        await assert.rejects(run.rename(call({ id: deep.id, name: "  " })), /needs a name/u);
+        await assert.rejects(run.rename(call({ id: "gone", name: "Other" })), /no such tag/u);
+
+        // Its own name in another case is not a clash with itself.
+        const same = asState(await run.rename(call({ id: deep.id, name: "DEEP work" })));
+
+        assert.equal(same.tags[0]?.name, "DEEP work");
+    });
+});
+
 void test("another colour leaves the sessions the tag is on alone", async () => {
     await withDir(async (dir) => {
         const run = tagActions(hostOf(dir));

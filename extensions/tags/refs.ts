@@ -90,6 +90,13 @@ export const create = actionRef<{ name: string; color: TagColor }, TagsState>(
     stateFrom,
 );
 
+/** Gives a tag another name; the sessions it is on keep it, because its id does not change. */
+export const rename = actionRef<{ id: string; name: string }, TagsState>(
+    "tags",
+    "rename",
+    stateFrom,
+);
+
 /** Gives a tag another colour; the sessions it is on are untouched. */
 export const recolor = actionRef<{ id: string; color: TagColor }, TagsState>(
     "tags",

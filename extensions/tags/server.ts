@@ -11,6 +11,7 @@ import {
     addTag,
     readTags,
     recolorTag,
+    renameTag,
     removeTag,
     serialize,
     toggleTag,
@@ -56,6 +57,17 @@ export const tagActions = (host: Host) => ({
 
         return await serialize(host.dataDir, async () => {
             const state = addTag(await readTags(host.dataDir), name, color);
+            await writeTags(host.dataDir, state);
+
+            return state;
+        });
+    },
+    rename: async ({ args }: ActionCall): Promise<TagsState> => {
+        const id = fieldOf(args, "id");
+        const name = fieldOf(args, "name");
+
+        return await serialize(host.dataDir, async () => {
+            const state = renameTag(await readTags(host.dataDir), id, name);
             await writeTags(host.dataDir, state);
 
             return state;
