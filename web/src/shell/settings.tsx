@@ -1,6 +1,6 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, type RefObject, Suspense } from "react";
 
 import type { Props } from "./settings-content.tsx";
 
@@ -10,7 +10,12 @@ const Content = lazy(async () => ({
 }));
 
 /** A sheet from the right edge over the app: the layout under it keeps its width. */
-export function Settings({ open, onClose, ...props }: Props) {
+export function Settings({
+    open,
+    onClose,
+    returnFocusTo,
+    ...props
+}: Props & { returnFocusTo: RefObject<HTMLElement | null> }) {
     return (
         <DialogPrimitive.Root
             open={open}
@@ -28,6 +33,11 @@ export function Settings({ open, onClose, ...props }: Props) {
                 <DialogPrimitive.Content
                     data-slot="sheet-content"
                     aria-describedby={undefined}
+                    // The gear is outside this dialog, so Radix has no trigger to give focus back to.
+                    onCloseAutoFocus={(event) => {
+                        event.preventDefault();
+                        returnFocusTo.current?.focus();
+                    }}
                     className="rounded-card border-edge-soft bg-canvas fixed inset-2 z-50 flex flex-col overflow-hidden border outline-none sm:bottom-12 sm:left-auto sm:w-[360px]"
                 >
                     <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">

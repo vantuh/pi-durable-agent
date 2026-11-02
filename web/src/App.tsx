@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ClientQueued, ClientStatus } from "../../shared/protocol.ts";
 import { AboveComposerItems } from "./composer/above-items.tsx";
@@ -62,6 +62,7 @@ export function App() {
     const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
     const [sheet, setSheet] = useState(false);
     const [settings, setSettings] = useState(false);
+    const settingsGear = useRef<HTMLButtonElement>(null);
     const panels = usePanels();
 
     const { state, send, stop, loadOlder } = useConversation(current);
@@ -405,6 +406,7 @@ export function App() {
                 )}
 
                 <Settings
+                    returnFocusTo={settingsGear}
                     model={active?.model ?? ""}
                     cwd={active?.cwd ?? ""}
                     session={activeSession}
@@ -426,6 +428,7 @@ export function App() {
                 current={current}
                 onOpen={select}
                 settingsOpen={settings}
+                settingsGear={settingsGear}
                 onSettings={() => {
                     setSettings(true);
                 }}

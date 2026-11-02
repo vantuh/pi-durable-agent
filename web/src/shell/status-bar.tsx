@@ -1,5 +1,5 @@
 import { Settings } from "lucide-react";
-import { memo } from "react";
+import { memo, type RefObject } from "react";
 
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
@@ -17,6 +17,7 @@ type Props = {
     current: number | null;
     onOpen: (id: number | null) => void;
     settingsOpen: boolean;
+    settingsGear: RefObject<HTMLButtonElement | null>;
     onSettings: () => void;
 };
 
@@ -43,6 +44,7 @@ export const StatusBar = memo(function StatusBar({
     current,
     onOpen,
     settingsOpen,
+    settingsGear,
     onSettings,
 }: Props) {
     const tone = issue === null ? (busy ? "warn" : connected ? "ok" : "danger") : "danger";
@@ -91,6 +93,7 @@ export const StatusBar = memo(function StatusBar({
                     <StatusField key={field.source} field={field} />
                 ))}
                 <button
+                    ref={settingsGear}
                     type="button"
                     title="Settings"
                     aria-label="Settings"
