@@ -26,6 +26,7 @@ import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
 import { useShellCommand } from "./sdk/commands.ts";
+import { focusComposer } from "./sdk/composer.ts";
 import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
@@ -57,7 +58,7 @@ function shortName(model: string | null): string {
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
     const { sessions, setSessions, connected } = useSessionList();
-    const { route, go, openPage, setPageSub, closePage } = useRoute();
+    const { route, go, openPage, setPageSub, backPage, closePage } = useRoute();
     const current = route.session;
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
@@ -159,6 +160,56 @@ export function App() {
             ? undefined
             : pages.find((candidate) => pageKey(candidate) === route.page?.key);
     const pageOpen = openPageItem !== undefined;
+    // The page hides the conversation's controls; on the way out the keyboard goes back to the button
+    // that opened it, or to the composer when a review closed itself with a draft.
+    const opener = useRef<HTMLButtonElement | null>(null);
+    const pendingFocus = useRef<"opener" | "composer" | null>(null);
+    const hadPage = useRef(false);
+
+    useEffect(() => {
+        if (pageOpen) {
+            hadPage.current = true;
+            return;
+        }
+
+        if (!hadPage.current) {
+            return;
+        }
+
+        hadPage.current = false;
+
+        const target = pendingFocus.current;
+        const lost = document.activeElement === null || document.activeElement === document.body;
+
+        pendingFocus.current = null;
+
+        // Back out of the page leaves focus on nothing; a moved-away session keeps its own focus.
+        if (target === null && !lost) {
+            return;
+        }
+
+        if (target === "composer" || opener.current === null || !opener.current.isConnected) {
+            focusComposer();
+            return;
+        }
+
+        opener.current.focus();
+    }, [pageOpen]);
+
+    const openFrom = useCallback(
+        (key: string, element: HTMLButtonElement) => {
+            opener.current = element;
+            openPage(key);
+        },
+        [openPage],
+    );
+    const leavePage = useCallback(
+        (focus?: "composer") => {
+            pendingFocus.current = focus ?? "opener";
+            closePage();
+        },
+        [closePage],
+    );
 
     const select = useCallback(
         (id: number | null) => {
@@ -304,7 +355,7 @@ export function App() {
                                                 pages={pages}
                                                 session={activeSession}
                                                 open={route.page?.key ?? null}
-                                                onOpen={openPage}
+                                                onOpen={openFrom}
                                             />
                                             <PanelButtons
                                                 panels={panels}
@@ -413,11 +464,13 @@ export function App() {
 
                             {openPageItem === undefined || knownSession === null ? null : (
                                 <PageHost
+                                    key={pageKey(openPageItem)}
                                     page={openPageItem}
                                     session={knownSession}
                                     sub={route.page?.sub}
                                     onSub={setPageSub}
-                                    onClose={closePage}
+                                    onBack={backPage}
+                                    onClose={leavePage}
                                 />
                             )}
                         </>

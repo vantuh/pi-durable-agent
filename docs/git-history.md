@@ -13,7 +13,8 @@ of `git-stats`: disabling either does not disable the other.
 - Uncommitted changes appear above the commits. A row shows the subject and `sha · author · time`;
   the whole row is a button, and it opens the commit as a sub-page (`?page=git-history:history&sub=<sha>`,
   or `sub=working` for the working tree). The list slides out to the left as the detail slides in from
-  the right; browser Back or **← History** plays it in reverse and the list keeps its scroll position.
+  the right; browser Back or the frame's back arrow plays it in reverse and the list keeps its
+  scroll position and the keyboard on the row that was opened.
 - The detail page shows the subject, the full message, the sha, author and local date, the actions,
   a file summary and the diffs. It has one scroll for the whole page: the diff view itself is the
   scroller, so no part of a diff scrolls by itself. Only the files and lines near the viewport are
@@ -33,7 +34,7 @@ of `git-stats`: disabling either does not disable the other.
   sessions and updates open previews. Plannotator's layout is controlled inside its own UI.
 - Click **Review**. The server launches the installed `plannotator` CLI with browser opening
   disabled. Its real UI fills the page body at `<sha>/review` (or `working/review`), not a new tab;
-  **Back** returns to the commit without stopping the process.
+  the frame's back arrow returns to the commit without stopping the process.
 - Uncommitted changes use Plannotator's native Git mode, with full-file context and its normal
   Git-aware features. This is a **live** review: an agent or terminal can change the working tree
   while it is open. Plannotator controls its refresh/staleness UI. Git actions inside that UI can
@@ -67,11 +68,11 @@ Requires `plannotator` on the **server process's PATH**. Tested with 0.28.27. No
 is involved in opening Review. The read-only preview uses `@pierre/diffs`; the interactive
 review UI still comes from the installed CLI, not a bundled Plannotator package.
 
-One process per session. Leaving the history page — its back arrow, browser Back, or opening another
-session — asks the server to cancel an active review, including one still starting; the page is
-already gone when the answer comes, so a failed cancellation is not shown. **Cancel review** in the
-list toolbar or the review's own header stops it explicitly and shows the error. **Back** only hides
-the iframe; **Resume review** returns to it without stopping the process. Disabling, removing or
+One process per session. Leaving the history page — its close button, browser Back, or opening
+another session — asks the server to cancel an active review, including one still starting; the page
+is already gone when the answer comes, so a failed cancellation is not shown. **Cancel review** in
+the list toolbar or the review's own header stops it explicitly and shows the error. The back arrow
+only hides the iframe; **Resume review** returns to it without stopping the process. Disabling, removing or
 reloading the extension, or stopping the server, stops its processes. Startup times out after 45
 seconds; a running review expires after two hours.
 Session/decision tracking is ephemeral and resets on server restart. Plannotator's own drafts,

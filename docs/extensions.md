@@ -202,17 +202,25 @@ the pill and hides it when the component returns nothing. `extensions/notes` is 
 
 `web.tsx` may also export `pages: [{ id, title, icon, component, badge? }]`. Each adds a button to the
 conversation header; it opens the page in place of the conversation — the transcript and composer
-make way for a frame with a back arrow and the page's title, and the page's body fills the rest. The
-sidebar, an extension's panel and the status bar stay as they are. The transcript and composer stay
-mounted out of sight, so a draft, a scroll position and a running answer survive the visit.
+make way for a frame with the page's title and a close button; a sub-location adds a back arrow to
+its parent. The page's body fills the rest. The sidebar, an extension's panel and the status bar
+stay as they are. The transcript and composer stay mounted out of sight, so a draft, a scroll
+position and a running answer survive the visit.
 
 - **The address carries it**: `/?session=N&page=<folder>:<id>&sub=<sub>`. Opening a page adds a
   history step, so browser Back and the phone's back gesture return to the conversation. The page's
   own `navigate(sub)` adds a step the same way, so Back walks its sub-locations. Session links
   (`/?session=N`, the sidebar, Home) drop the page; a deep link opens it directly.
 - **The component** gets `PageProps`: `session` (never null — a page exists inside one session),
-  `sub` (its own place from the address, undefined at the root), `navigate(sub)` and `close()` (back
-  to the conversation).
+  `sub` (its own place from the address, undefined at the root), `navigate(sub)` and `close(focus?)`
+  (back to the conversation; `close("composer")` asks the shell to put the caret there).
+- **The frame owns the way out.** Close always returns to the conversation. The back arrow appears
+  only when the address has a sub-location, and goes to its parent — the sub without its last
+  segment, or the page root. That step uses the history entry behind it only when that entry is the
+  parent; from a deep link it replaces its own entry instead of leaving the app. The frame focuses
+  its title on entry unless the page's body claimed the keyboard (a detail's heading, a review
+  layer), and closing restores focus to the header button that opened the page, or to the composer
+  after `close("composer")`.
 - **The body does not scroll for you.** The frame fills the area and clips; the page's component
   owns its one scroll, so a page with two views keeps each view's position.
 - **A badge** works as a panel's does: a component fed `StatusProps`, returning a count or nothing.

@@ -1,7 +1,6 @@
 import type { CodeViewHandle } from "@pierre/diffs/react";
 import {
     History as HistoryIcon,
-    ArrowLeft,
     ArrowDown,
     ArrowUp,
     ChevronRight,
@@ -17,6 +16,7 @@ import {
     type ReactNode,
     type RefObject,
     Suspense,
+    useCallback,
     useEffect,
     useRef,
     useState,
@@ -401,6 +401,7 @@ function HistoryRow({
     marker,
     onOpen,
     onPrefetch,
+    rowRef,
 }: {
     target: string;
     title: string;
@@ -409,10 +410,12 @@ function HistoryRow({
     marker: "local" | "remote" | undefined;
     onOpen: (target: string) => void;
     onPrefetch: (target: string | undefined) => void;
+    rowRef: (element: HTMLButtonElement | null) => void;
 }) {
     return (
         <li className="border-edge-soft border-b">
             <button
+                ref={rowRef}
                 type="button"
                 onClick={() => {
                     onOpen(target);
@@ -462,7 +465,7 @@ function CommitDetail({
     upstream,
     reviewState,
     open,
-    onBack,
+    active,
     onReview,
     onReviewAgain,
     onRewritten,
@@ -474,7 +477,8 @@ function CommitDetail({
     upstream: string | null | undefined;
     reviewState: ReviewState | null;
     open: boolean;
-    onBack: () => void;
+    /** This detail is the layer on screen; a review on top of it makes it inactive for the keyboard. */
+    active: boolean;
     onReview: (target: string) => Promise<void>;
     onReviewAgain: (target: string) => void;
     onRewritten: () => void;
@@ -482,12 +486,29 @@ function CommitDetail({
     const [editing, setEditing] = useState(false);
     const [starting, setStarting] = useState(false);
     const view = useRef<CodeViewHandle<undefined, undefined>>(null);
+    const title = useRef<HTMLHeadingElement>(null);
+    // The header appears only once the diff is read (or cached), after the effect below has run.
+    const takeTitle = useCallback(
+        (element: HTMLHeadingElement | null) => {
+            title.current = element;
+            if (element !== null && active) {
+                element.focus();
+            }
+        },
+        [active],
+    );
     // A page opens at its top, even when the commit was read before.
     useEffect(() => {
         if (open) {
             view.current?.scrollTo({ type: "position", position: 0, behavior: "instant" });
         }
     }, [open]);
+    // Entering the detail, or coming back from its review, lands the keyboard on what it is.
+    useEffect(() => {
+        if (active) {
+            title.current?.focus();
+        }
+    }, [active]);
     const rewritable =
         commit !== undefined && !commit.remote && (upstream === null || commit.unpushed);
     const mine = reviewState !== null && subTarget(reviewState.target) === target;
@@ -502,13 +523,6 @@ function CommitDetail({
     const header = (
         <>
             <div className="flex flex-wrap items-center gap-2">
-                <button
-                    type="button"
-                    className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
-                    onClick={onBack}
-                >
-                    <ArrowLeft className="size-3" /> History
-                </button>
                 <div className="ml-auto flex flex-wrap gap-2">
                     {rewritable && commit !== undefined ? (
                         <button
@@ -548,12 +562,22 @@ function CommitDetail({
 
             {commit === undefined ? (
                 <header className="flex flex-col gap-1">
-                    <h3 className="text-interface text-ink font-medium">Uncommitted changes</h3>
+                    <h3
+                        ref={takeTitle}
+                        tabIndex={-1}
+                        className="text-interface text-ink font-medium outline-none"
+                    >
+                        Uncommitted changes
+                    </h3>
                     <p className="text-meta text-faint font-mono">the working tree</p>
                 </header>
             ) : (
                 <header className="flex flex-col gap-1.5">
-                    <h3 className="text-interface text-ink text-prose leading-snug font-medium">
+                    <h3
+                        ref={takeTitle}
+                        tabIndex={-1}
+                        className="text-interface text-ink text-prose leading-snug font-medium outline-none"
+                    >
                         {commit.subject || "(no message)"}
                     </h3>
                     {commit.body === "" ? null : (
@@ -597,29 +621,28 @@ function ReviewView({
     state,
     starting,
     issue,
-    target,
-    onBack,
     onCancel,
     onClose,
 }: {
     state: ReviewState | null;
     starting: boolean;
     issue: string | null;
-    target: string;
-    onBack: () => void;
     onCancel: () => Promise<void>;
-    onClose: () => void;
+    onClose: (focus?: "composer") => void;
 }) {
+    const panel = useRef<HTMLDivElement>(null);
+    // The CLI's frame has no accessible name of ours to land on; the layer itself takes the keyboard.
+    useEffect(() => {
+        panel.current?.focus();
+    }, []);
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <section
+            ref={panel}
+            tabIndex={-1}
+            aria-label="Plannotator review"
+            className="flex min-h-0 flex-1 flex-col outline-none"
+        >
             <div className="border-edge-soft flex items-center gap-2 border-b px-3 py-1.5">
-                <button
-                    type="button"
-                    className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink focus-visible:ring-accent flex shrink-0 items-center gap-1 px-2 py-0.5 outline-none focus-visible:ring-2"
-                    onClick={onBack}
-                >
-                    <ArrowLeft className="size-3" /> Back
-                </button>
                 <span className="text-meta text-muted">Plannotator review</span>
                 {running(state) ? (
                     <button
@@ -671,7 +694,13 @@ function ReviewView({
                             {state.message}
                         </pre>
                     ) : null}
-                    <button type="button" className={`${button} self-start`} onClick={onClose}>
+                    <button
+                        type="button"
+                        className={`${button} self-start`}
+                        onClick={() => {
+                            onClose();
+                        }}
+                    >
                         Return to conversation
                     </button>
                 </div>
@@ -680,27 +709,11 @@ function ReviewView({
                     {state.error ?? "Review failed."}
                 </p>
             ) : state?.state === "cancelled" ? (
-                <div className="text-muted text-interface flex flex-1 flex-col items-center justify-center gap-3 p-4">
-                    <p>Review was cancelled.</p>
-                    <button
-                        type="button"
-                        className={button}
-                        onClick={() => {
-                            onBack();
-                        }}
-                    >
-                        Back to {target === WORKING ? "the changes" : "the commit"}
-                    </button>
-                </div>
+                <p className="text-muted text-interface p-4">Review was cancelled.</p>
             ) : (
-                <div className="text-muted text-interface flex flex-1 flex-col items-center justify-center gap-3 p-4">
-                    <p>Review is not running.</p>
-                    <button type="button" className={button} onClick={onBack}>
-                        Back to {target === WORKING ? "the changes" : "the commit"}
-                    </button>
-                </div>
+                <p className="text-muted text-interface p-4">Review is not running.</p>
             )}
-        </div>
+        </section>
     );
 }
 
@@ -723,6 +736,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const [now, setNow] = useState(() => Date.now());
     const [state, setState] = useState<ReviewState | null>(null);
     const [starting, setStarting] = useState(false);
+    const rows = useRef(new Map<string, HTMLButtonElement>());
+    const layer = useRef(false);
     const closed = useRef<string | null>(null);
     const latestReview = useRef<ReviewState | null>(null);
     const leaving = useRef(false);
@@ -840,9 +855,22 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
         appendComposerDraft(id, state.message, `git-history:${state.id}`);
         if (closed.current !== state.id) {
             closed.current = state.id;
-            close();
+            close("composer");
         }
     }, [id, state, close]);
+
+    // The list is inert under a detail; coming back to it returns the keyboard to the row that was opened.
+    useEffect(() => {
+        if (open) {
+            layer.current = true;
+            return;
+        }
+        if (!layer.current) {
+            return;
+        }
+        layer.current = false;
+        rows.current.get(shownTarget ?? "")?.focus();
+    }, [open, shownTarget]);
 
     // The last detail is kept mounted offscreen when the list comes back, so the slide returns.
     const openCommit = (target: string): void => {
@@ -985,6 +1013,13 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                         onPrefetch={(target) => {
                                             prefetchSoon(id, target);
                                         }}
+                                        rowRef={(element) => {
+                                            if (element === null) {
+                                                rows.current.delete(WORKING);
+                                            } else {
+                                                rows.current.set(WORKING, element);
+                                            }
+                                        }}
                                     />
                                 ) : null}
                                 {data.commits.map((each) => (
@@ -1004,6 +1039,13 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                         onOpen={openCommit}
                                         onPrefetch={(target) => {
                                             prefetchSoon(id, target);
+                                        }}
+                                        rowRef={(element) => {
+                                            if (element === null) {
+                                                rows.current.delete(each.hash);
+                                            } else {
+                                                rows.current.set(each.hash, element);
+                                            }
                                         }}
                                     />
                                 ))}
@@ -1045,10 +1087,6 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         state={state}
                         starting={starting}
                         issue={issue}
-                        target={shownTarget}
-                        onBack={() => {
-                            navigate(shownTarget);
-                        }}
                         onCancel={async () => {
                             if (await stopReview()) {
                                 navigate(shownTarget);
@@ -1066,9 +1104,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         upstream={data?.upstream}
                         reviewState={state}
                         open={open}
-                        onBack={() => {
-                            navigate(undefined);
-                        }}
+                        active={place.kind === "commit"}
                         onReview={begin}
                         onReviewAgain={(target) => {
                             navigate(`${target}/review`);

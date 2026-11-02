@@ -86,11 +86,14 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. The mockup's other three
   buttons (file browser, web, subagents) arrive with their extensions and take this same row.
 - **A page replaces the conversation**: an extension's page fills the conversation column in place
-  of the transcript and composer, with its own header row — a back arrow and the page's title. The
-  sidebar, the right panel and the status bar stay. The transcript and composer stay mounted behind
-  it, so a draft, the scroll position and a running answer survive. `?page=` in the address is the
-  page and `&sub=` its own place inside it; Back returns to the conversation. The page's body does
-  not scroll by itself: the page owns its one scroll.
+  of the transcript and composer, with its own header row: the page's title, a close button that
+  always returns to the conversation, and — only inside a sub-location — a back arrow to its parent.
+  The sidebar, the right panel and the status bar stay. The transcript and composer stay mounted
+  behind it, so a draft, the scroll position and a running answer survive. `?page=` in the address is
+  the page and `&sub=` its own place inside it; Back returns to the conversation. The frame focuses
+  its title on arrival, the page's own layer takes focus when it shows a detail, and closing returns
+  focus to the button that opened it (or the composer after a review adds a draft). The page's body
+  does not scroll by itself: the page owns its one scroll.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - **What is loaded**: the event stream carries the active view, which starts at the newest
       compaction; the entries before it are asked for as the reader scrolls up. Within 240px of the

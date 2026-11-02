@@ -95,8 +95,8 @@ export type PageProps = {
     sub: string | undefined;
     /** Moves the page to another sub-location, adding a history step so Back returns. */
     navigate: (sub: string | undefined) => void;
-    /** Back to the conversation. */
-    close: () => void;
+    /** Back to the conversation. `composer` asks the shell to put the caret in the composer. */
+    close: (focus?: "composer") => void;
 };
 
 /** A page an extension puts in place of the conversation: a header button opens it at `?page=` in the address. */
