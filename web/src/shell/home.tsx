@@ -2,6 +2,7 @@ import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -108,9 +109,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
 
             <ScrollArea className="min-h-0 flex-1">
                 <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 py-4">
-                    {listed.length === 0 ? (
-                        <p className="text-meta text-faint px-2">No sessions yet</p>
-                    ) : null}
+                    {listed.length === 0 ? <Empty className="px-2">No sessions yet</Empty> : null}
                     {groups.map((group) =>
                         group.rows.length === 0 ? null : (
                             <div key={group.name}>

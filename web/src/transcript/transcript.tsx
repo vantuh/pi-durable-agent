@@ -13,6 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -674,9 +675,7 @@ export function Transcript({
                                 <output className="sr-only">Opening the session…</output>
                             </>
                         ) : (
-                            <p className="text-prose text-faint">
-                                Nothing here yet. Ask something.
-                            </p>
+                            <Empty className="text-prose">Nothing here yet. Ask something.</Empty>
                         )
                     ) : null}
                 </div>

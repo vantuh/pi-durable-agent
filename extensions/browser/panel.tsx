@@ -21,6 +21,7 @@ import {
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
@@ -402,7 +403,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
     const address = draft ?? (page === undefined || page.url === "about:blank" ? "" : page.url);
 
     if (id === null) {
-        return <p className="text-faint text-interface p-3">Open a session to use the browser.</p>;
+        return <Empty className="text-interface p-3">Open a session to use the browser.</Empty>;
     }
 
     if (page?.available === false) {
@@ -515,7 +516,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
             {page?.open === true ? (
                 <Stage id={id} shot={shot} onError={setError} />
             ) : (
-                <div className="text-faint text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
+                <Empty className="text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
                     <p>{page?.loading === true ? "Starting the browser…" : "Nothing is open."}</p>
                     <Button
                         variant="ghost"
@@ -524,7 +525,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                     >
                         Open the browser
                     </Button>
-                </div>
+                </Empty>
             )}
 
             {showConsole ? <Console id={id} count={page?.logs ?? 0} /> : null}

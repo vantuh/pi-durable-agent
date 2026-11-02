@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
@@ -160,7 +161,7 @@ function Panel({
             </div>
             {result.failure === null ? null : <Alert className="mb-2">{result.failure}</Alert>}
             {result.data?.providers.length === 0 ? (
-                <p className="text-faint">No signed-in provider reports limits.</p>
+                <Empty>No signed-in provider reports limits.</Empty>
             ) : null}
             {result.data?.providers.map((provider) => (
                 <section

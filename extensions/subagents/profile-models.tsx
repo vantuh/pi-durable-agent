@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { ModelMenu } from "@/composer/model-menu.tsx";
 import { listModels, type Models } from "@/lib/api.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -80,10 +81,10 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
 
             {rows === null ? <p className="text-faint">Loading…</p> : null}
             {rows?.length === 0 ? (
-                <p className="text-faint">
+                <Empty>
                     No profiles yet: add a Markdown file with a name, a description and a model to
                     ~/.pi/agent/agents, or to the project&apos;s .pi/agents.
-                </p>
+                </Empty>
             ) : null}
 
             <ul className={`flex flex-col ${compact ? "gap-1" : "gap-2"}`}>

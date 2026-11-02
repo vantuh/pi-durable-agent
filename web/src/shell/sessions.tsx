@@ -39,6 +39,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1224,13 +1225,17 @@ export const Sessions = memo(function Sessions({
                 <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">
                         {shown.length === 0 ? (
-                            <p className="text-meta text-faint px-2 py-3">
+                            <Empty
+                                className="px-2 py-3"
+                                // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and this is what a filter found
+                                role="status"
+                            >
                                 {archived
                                     ? "No archived sessions"
                                     : query.trim() === ""
                                       ? "No sessions"
                                       : "No sessions match"}
-                            </p>
+                            </Empty>
                         ) : null}
                         {GROUPS.map((group) => {
                             const rows = shown.filter(

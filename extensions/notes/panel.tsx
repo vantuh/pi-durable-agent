@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { callAction } from "@/sdk/actions.ts";
@@ -214,7 +215,7 @@ export function NotesPanel({ session }: PanelProps) {
     const [tab, setTab] = useState("todos");
 
     if (session === null || session.cwd === null) {
-        return <p className="text-faint text-interface p-3">This session has no folder.</p>;
+        return <Empty className="text-interface p-3">This session has no folder.</Empty>;
     }
 
     const tabs = (

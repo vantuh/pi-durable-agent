@@ -2,6 +2,7 @@ import { House } from "lucide-react";
 import { type ReactNode, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
@@ -287,7 +288,7 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
                     }}
                 />
                 {active === undefined && working.length + marked.length + unseen.length === 0 ? (
-                    <p className="text-meta text-faint px-2 py-1.5">No session is working</p>
+                    <Empty className="px-2 py-1.5">No session is working</Empty>
                 ) : null}
                 <DropdownMenuItem
                     className="text-muted mt-1 gap-2 px-2 py-1.5"

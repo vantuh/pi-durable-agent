@@ -28,6 +28,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast.ts";
@@ -249,7 +250,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
                 {items?.length === 0 ? (
-                    <p className="text-faint text-interface px-2 py-2">Nothing to do.</p>
+                    <Empty className="text-interface px-2 py-2">Nothing to do.</Empty>
                 ) : null}
 
                 <DndContext

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
@@ -99,7 +100,7 @@ function Panel({
                 </Alert>
             )}
             {servers.length === 0 && problem === undefined ? (
-                <p className="text-faint px-2 py-1.5">No servers in mcp.json.</p>
+                <Empty className="px-2 py-1.5">No servers in mcp.json.</Empty>
             ) : null}
             {/* Three rows of h-11 show; more scroll. */}
             <ScrollArea viewportProps={{ className: "max-h-33" }}>

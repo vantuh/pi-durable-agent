@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 import { langOfPath } from "@/lib/highlight.ts";
@@ -264,7 +265,7 @@ export function FilesPanel({ session }: PanelProps) {
     const [entered, setEntered] = useState(false);
 
     if (id === null || session?.cwd === null) {
-        return <p className="text-faint text-interface p-3">Open a session to browse its files.</p>;
+        return <Empty className="text-interface p-3">Open a session to browse its files.</Empty>;
     }
 
     const swap = entered

@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
@@ -133,7 +134,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
             {state === undefined ? (
                 <p className="text-faint">Loading…</p>
             ) : state.tags.length === 0 ? (
-                <p className="text-faint">No tags yet.</p>
+                <Empty>No tags yet.</Empty>
             ) : (
                 <ul className="flex flex-col">
                     {state.tags.map((tag) => {

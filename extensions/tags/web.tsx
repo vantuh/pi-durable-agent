@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import { toast } from "@/lib/toast.ts";
 import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/types.ts";
@@ -58,9 +59,7 @@ function TagsMenu({ session }: SessionItemProps) {
     const held = new Set(state?.sessions[String(session.id)] ?? []);
 
     if (tags.length === 0) {
-        return (
-            <p className="text-faint text-meta px-2 py-1.5">No tags yet. Add them in Extensions.</p>
-        );
+        return <Empty className="px-2 py-1.5">No tags yet. Add them in Extensions.</Empty>;
     }
 
     return tags.map((tag) => (

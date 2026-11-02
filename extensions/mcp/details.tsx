@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { callAction } from "@/sdk/actions.ts";
@@ -75,7 +76,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 </Alert>
             )}
             {current.servers.length === 0 && current.problem === undefined ? (
-                <p className="text-meta text-muted">No servers in mcp.json.</p>
+                <Empty className="text-muted">No servers in mcp.json.</Empty>
             ) : null}
             {current.servers.map((server) => (
                 <div key={server.name} className="flex items-center gap-3">

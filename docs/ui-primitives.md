@@ -854,11 +854,116 @@ out of its line, so all of them stay text.
 
 ### 3.8 Empty (new)
 
-- [ ] Add `components/ui/empty.tsx`.
-- [ ] `web/src/shell/home.tsx:110–112`.
-- [ ] `web/src/shell/sessions.tsx:1064–1071` — no search results.
-- [ ] `web/src/shell/sessions-status.tsx:284–286`.
-- [ ] `web/src/transcript/transcript.tsx:687–697` — empty session.
+- [x] Add `components/ui/empty.tsx`, with `web/src/shell/home.tsx` as its first caller. Four sites, four
+      muted sentences: `Empty` is the container alone, `text-meta text-faint` and the caller's own
+      padding. No `EmptyMedia`, `EmptyTitle`, `EmptyDescription` or `EmptyContent` — no state below has an
+      icon or a second line, and the one that stands beside a button (the browser's empty pane) centres
+      that button in a column the caller already writes. Not a default `role` either: an empty state is a
+      readout, and the one a search drives states `role="status"` at its site. The element is a `div`
+      where the sites were `p`: same box, and no site's CSS looks for a paragraph.
+- [x] `web/src/shell/home.tsx:111–113` — the empty sessions list. Unmoved: 12px on an 18px line, faint,
+      `px-2`, measured 105.17×18 before and after in a throwaway page, since a home with no sessions needs
+      one deleted. It is the site's whole list, so it is a block of its own rather than a `<p>` in the
+      column.
+- [x] `web/src/shell/sessions.tsx:1226–1234` — no search results: none at all, none archived, or none
+      matching the query. Unmoved: `px-2 py-3`, 12px on an 18px line, faint, measured 250×42 in the app
+      with `zzzqqq` typed and 122.78×42 in a throwaway page, before and after. It is the one site with a live role, `role="status"`: the sentence replaces the list in
+      answer to what the person is typing in the search field above it, so it is announced politely
+      rather than interrupting the caret. No other site takes a role.
+- [x] `web/src/shell/sessions-status.tsx:288–290` — the status bar's dropdown, when no session is at
+      work. Unmoved: `px-2 py-1.5`, 12px faint, measured in a throwaway page at 138.53×30 at 1280 and
+      125×48 at 390, before and after: every session at work meets a row, and a quiet afternoon is not
+      something a check can ask for. It sits inside the menu but is not a menu item: no click, no focus stop, no `menuitem` role,
+      only the sentence with the rows' own 8px side padding.
+- [x] `web/src/transcript/transcript.tsx:677–679` — the prompt an empty session shows. It keeps
+      `text-prose`: the conversation is prose at 15px, where the sidebar's own states are 12. Unmoved:
+      15px on a 22.5px line, faint, no padding, measured 227.66×22.5 before and after in a throwaway page,
+      since an empty session needs one created. It is not a live
+      region: the session was empty when it opened, so nothing replaces anything.
+
+The four above are the states the audit named. A sweep of every "nothing here" sentence in `web/src` and
+`extensions/` found the rest. Each is judged by what it fills: a sentence that stands in for a region's
+content, and that the person came to, is an `Empty`; a value inside a row, a readout column, or a box
+whose parent writes the text's family and size stays text. None of the eleven below changes its box:
+each was measured as the old `<p>` and the new `Empty` side by side in a throwaway page, at 1280 and at
+390, because the states themselves need writes to reach. The two that wrap onto several lines measure
+0.01px apart in the narrower column, which is text rounding rather than a box.
+
+- [x] `extensions/mcp/details.tsx:77–79` — `No servers in mcp.json.`, the details column's body. It keeps
+      `muted` rather than the primitive's `faint`: the sentence is a config file's answer beside the
+      `problem` Alert above it. Unmoved: 12px on an 18px line, no padding, measured 132.55×18.
+- [x] `extensions/mcp/web.tsx:101–103` — the same words at the top of the status bar's popover, which
+      is 12px inside `text-meta w-72 p-1`: `px-2 py-1.5` like the rows around it. Unmoved: measured
+      148.55×30.
+- [x] `extensions/tags/details.tsx:133–137` — `No tags yet.`, where the list of tags would be. Only the
+      empty branch moves; the `Loading…` above it stays a paragraph, since a read in flight is not a
+      region with nothing in it. Unmoved: 12px faint in the column's `text-meta`, no padding, measured
+      68.39×18.
+- [x] `extensions/tags/web.tsx:60–64` — `No tags yet. Add them in Extensions.`, the whole body of a
+      session's tag submenu, so not a menu item and not clickable: the two-tap touch activation is the
+      submenu's, and the sentence stays inert inside it. Unmoved: 12px faint, `px-2 py-1.5`, measured
+      223.8×30 at 1280 and 150.2×48 at 390.
+- [x] `extensions/notes/todos.tsx:250–254` — `Nothing to do.`, the to-dos panel's list body at 15px,
+      which it states as `text-interface`. The done section below renders nothing when it is empty, so
+      there is nothing else to place. Unmoved: `px-2 py-2`, 15px on a 22.5px line, measured 113.63×38.5.
+- [x] `extensions/notes/panel.tsx:217` — `This session has no folder.`, the notes panel's whole body.
+      Unmoved: 15px faint, `p-3`, measured 205.06×46.5 at 1280 and 161×69 at 390.
+- [x] `extensions/usage-limits/web.tsx:162–164` — `No signed-in provider reports limits.`, the popover's
+      body when the answer holds no provider. The `Loading…` under it stays a paragraph. Unmoved: 12px
+      faint in the popover's `text-meta`, no padding, measured 204.13×18.
+- [x] `extensions/subagents/profile-models.tsx:81–87` — `No profiles yet: add a Markdown file …`, the
+      settings section's body inside its own `text-meta` column, so 12px and no padding. Unmoved: two
+      lines at 1280 and six at 390 in the throwaway page's columns, 595.2×36 and 150.19×108 either way.
+- [x] `extensions/browser/panel.tsx:405`, `:518–530` — `Open a session to use the browser.` and the
+      centred `Nothing is open.` over its `Open the browser` button. The second is the only empty state
+      with an action beside it: `Empty` is its column (`flex flex-1 flex-col items-center justify-center
+      gap-2 p-4 text-center`), the sentence is still the `<p>` it was, and the button is the caller's. Its
+      `Starting the browser…` shares the box, since the same pane has nothing in it either way. Unmoved:
+      the first 263.5×46.5 at 1280 and 125×91.5 at 390, the column 178.39×93 and 135.8×138.
+- [x] `extensions/files/panel.tsx:267` — `Open a session to browse its files.`, the panel's whole body.
+      Unmoved: 15px faint, `p-3`, measured 256.7×46.5 at 1280 and 161×69 at 390.
+- [x] `extensions/git-history/web.tsx:681–686`, `:1183–1187` — `Nothing in this folder's history has that
+      id. Open the history to pick a commit.` and `No commits or uncommitted changes yet.` The second was
+      `text-muted p-4` and inherited the page's 15px; it now states `text-interface` itself. Both keep
+      `muted`, the tone they had. Unmoved: the first 548.98×46.5 at 1280 and 128.59×159 at 390, the
+      second 318.27×54.5 and 153.8×99.5. The `error` pane beside the first stays an `Alert`, and
+      `Reading Git history…` above the second stays a paragraph.
+
+What the sweep left as text, and why:
+
+- [x] The four `Turn the extension on to …` lines — `extensions/mcp/details.tsx:60`,
+      `extensions/tags/details.tsx:90`, `extensions/usage-limits/details.tsx:58`,
+      `extensions/auto-session-name/details.tsx:57`. **Stay text**: they are a switch's state, not an
+      empty list, and they read the same where the details column would be.
+- [x] `extensions/browser/panel.tsx:409–414` — `No Chromium-based browser was found on this machine.`,
+      **stays text**: it says the pane cannot work here and what to install, a prerequisite rather than a
+      region with nothing in it.
+- [x] `extensions/git-history/web.tsx:794–797` — `Review was cancelled.` and `Review is not running.`,
+      **stay text**: a process's state in the column where `Reading Git history…` also stands.
+- [x] `extensions/git-history/web.tsx:378` — `No changes.`, **stays text** for the reason
+      [Alert](#37-alert-new) gives it: a readout beside the diff's counts.
+- [x] `extensions/browser/panel.tsx:337` — `The console is empty.`, **stays text**: one line inside the
+      console's own mono log box, whose parent sets the family, the size and the `p-2`.
+- [x] `extensions/keep-warm/web.tsx:48` — `No request on the cache yet`, **stays text**: the popover's
+      third readout line, as [Alert](#37-alert-new) ruled for the ping beside it.
+- [x] `extensions/dictation/details.tsx:67` — `Nothing chosen`, **stays text**: a picker's value inside
+      its row, not a region.
+- [x] `extensions/anthropic-subscription/details.tsx:90–94` — `No requests yet`, **stays text**: a `<dd>`
+      in the key/value readout, beside `Not attempted` and the rest of the field's values.
+- [x] `extensions/anthropic-subscription/account-details.tsx:81` — `No Anthropic OAuth authorization
+      configured.`, **stays text**: the answer the Check subscription button returns, the same slot as the
+      `unavailable` Alert under it.
+- [x] `web/src/composer/model-menu-dialog.tsx:169` — `No model matches.`, **stays a `CommandEmpty`**: the
+      element is cmdk's and its look is `ui/command.tsx`'s, which already writes `text-faint text-meta`;
+      an `Empty` inside it would nest two of the same thing, and one that is already the primitive's own
+      defaults.
+- [x] `extensions/git-stats/web.tsx:74` — `No upstream configured.`, **stays text**: it is a clause in a
+      tooltip's description string, not a block.
+- [x] Five regions show nothing at all rather than a sentence: the composer's queue
+      (`web/src/composer/queued.tsx:51`), the composer's attachments (`web/src/ui/attachments.tsx:171`),
+      the subagents strip (`extensions/subagents/web.tsx:180`), the keep-warm rows
+      (`extensions/keep-warm/web.tsx:134`) and the git-history preview's empty diff
+      (`extensions/git-history/preview.tsx:444`). Nothing to place.
 
 ### 3.9 Item (new)
 
@@ -956,6 +1061,9 @@ finding is fixed in this phase, not just listed.
       `web/src/ui/`, a helper in `web/src/lib/`, or an extension's own `refs.ts`. Extensions still
       never import each other (AGENTS.md); a helper two extensions need goes to the core only if
       it is not about either of them.
+- [ ] Known repeats from Phase 3: `CommandEmpty` in `ui/command.tsx` restates `Empty`'s look; the
+      browser panel's loading sentence ("Starting the browser…") borrows `Empty` for a state that
+      is not empty.
 - [ ] Delete the copies; no re-export shims.
 
 ### 4.3 The rule, written down

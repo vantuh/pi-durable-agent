@@ -25,6 +25,7 @@ import {
 import { Alert } from "@/components/ui/alert.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Hint } from "@/components/ui/tooltip";
@@ -678,10 +679,10 @@ function CommitDetail({
         return (
             <PendingPane header={header}>
                 {failure === null ? (
-                    <p className="text-interface text-muted p-3">
+                    <Empty className="text-muted text-interface p-3">
                         Nothing in this folder's history has that id. Open the history to pick a
                         commit.
-                    </p>
+                    </Empty>
                 ) : (
                     <Alert className="text-interface rounded-none p-3">
                         {failure} Refresh the history to try again.
@@ -1181,9 +1182,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                 ))}
                             </ol>
                             {data.commits.length === 0 && data.changes === 0 ? (
-                                <p className="text-muted p-4">
+                                <Empty className="text-muted text-interface p-4">
                                     No commits or uncommitted changes yet.
-                                </p>
+                                </Empty>
                             ) : null}
                             {data.more ? (
                                 <div className="p-3">
