@@ -7,7 +7,7 @@ import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/t
 
 import { toggleTag, useTags } from "./client.ts";
 import { tagsOf } from "./refs.ts";
-import { TAG_DOT, TAG_TEXT, TAG_TONE } from "./tones.ts";
+import { TAG_DOT, TAG_TONE } from "./tones.ts";
 
 /** How many names a row shows before it counts the rest: a row also has a title and a time to hold. */
 const SHOWN = 1;
@@ -128,9 +128,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                                     : [...held, tag.id],
                             );
                         }}
-                        className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 ${
-                            on ? TAG_TONE[tag.color] : `${TAG_TEXT[tag.color]} hover:bg-raised`
-                        }`}
+                        className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 hover:brightness-110 ${TAG_TONE[tag.color]}`}
                     >
                         <span className="truncate">{tag.name}</span>
                         {on ? <X aria-hidden className="size-2.5 shrink-0" /> : null}
