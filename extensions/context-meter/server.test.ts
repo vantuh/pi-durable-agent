@@ -21,6 +21,27 @@ const asked = (id: number, text: string): EntryRecord =>
         model: [{ role: "user", content: text, timestamp: 0 }],
     });
 
+/** A system entry as the harness writes it: the tools that become available from that point. */
+const prompted = (id: number, added: readonly string[]): EntryRecord =>
+    entry({
+        id,
+        conversationId: id,
+        kind: "pi.system",
+        model: [
+            {
+                role: "system",
+                content: "",
+                timestamp: 0,
+                sections: {},
+                toolsAdded: added.map((name) => ({
+                    name,
+                    description: `what ${name} does`,
+                    parameters: { type: "object", properties: {} },
+                })),
+            },
+        ],
+    });
+
 /** An answer as generation writes it: pi-ai starts every usage at zero and fills it as the stream speaks. */
 function answered(
     id: number,
@@ -47,6 +68,14 @@ function answered(
     return entry({ id, conversationId: id, kind: "pi.assistant", model: [message] });
 }
 
+/** Which extension installed a tool: one folder with three tools, one with a single tool, and a core tool. */
+const OWNERS = new Map([
+    ["agent_spawn", "subagents"],
+    ["agent_send", "subagents"],
+    ["agent_status", "subagents"],
+    ["web_search", "web-search"],
+]);
+
 const host: Host = {
     name: "context-meter",
     cwd: "/work",
@@ -65,6 +94,7 @@ const host: Host = {
     setSessionTitle: () => Promise.resolve(),
     readDoc: (doc) => Promise.resolve(doc.definition.initial()),
     setSessionMark: () => undefined,
+    toolOwner: (tool) => OWNERS.get(tool),
     folderGroup: () => undefined,
     notifySessionChanged: () => undefined,
     notify: () => undefined,
@@ -83,6 +113,43 @@ async function breakdownOf(id: number, entries: readonly EntryRecord[]) {
 
     return breakdownRef.parse(await action({ args: undefined, session: { id, cwd: "/work" } }));
 }
+
+void test("groups the tools one extension installed into one row, where its first tool was", async () => {
+    const full = await breakdownOf(4, [
+        prompted(1, ["agent_spawn", "web_search"]),
+        prompted(2, ["agent_send", "agent_status", "bash"]),
+        asked(3, "spawn two helpers"),
+        answered(4, "claude-opus-4", "stop", {
+            input: 10_000,
+            output: 100,
+            cacheRead: 0,
+            cacheWrite: 0,
+        }),
+    ]);
+    const rows = full?.tools ?? [];
+    const group = rows.find((row) => row.name === "subagents");
+
+    assert.deepEqual(
+        rows.map((row) => row.name),
+        ["subagents", "web_search", "bash"],
+    );
+    assert.deepEqual(
+        group?.parts?.map((child) => child.name),
+        ["agent_spawn", "agent_send", "agent_status"],
+    );
+    assert.equal(group?.preview, "agent_spawn, agent_send, agent_status");
+    assert.equal(
+        group?.tokens,
+        (group?.parts ?? []).reduce((sum, child) => sum + child.tokens, 0),
+    );
+    assert.equal(rows.find((row) => row.name === "web_search")?.parts, undefined);
+    assert.equal(rows.find((row) => row.name === "bash")?.parts, undefined);
+    // The rows still hold every tool once: a group counts for its children, not on top of them.
+    assert.equal(
+        rows.reduce((sum, row) => sum + (row.parts?.length ?? 1), 0),
+        5,
+    );
+});
 
 void test("reports the last priced answer when a failed request follows it", async () => {
     const full = await breakdownOf(1, [

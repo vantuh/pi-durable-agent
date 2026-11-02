@@ -20,6 +20,7 @@ const PREVIEW = 160;
 
 const views = new Map<number, readonly EntryRecord[]>();
 let windowOf: Host["contextWindow"] = () => undefined;
+let ownerOf: Host["toolOwner"] = () => undefined;
 
 const estimate = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
 
@@ -95,6 +96,48 @@ function promptOf(entries: readonly EntryRecord[]): { sections: Part[]; tools: P
 }
 
 /**
+ * One row per extension that put two or more tools in the prompt, named after it, holding its tools;
+ * a lone tool and a tool the core installed keep a row of their own. A group sits where its first
+ * tool did.
+ */
+function groupTools(tools: readonly Part[], owner: Host["toolOwner"]): Part[] {
+    const children = new Map<string, Part[]>();
+
+    for (const tool of tools) {
+        const name = owner(tool.name);
+
+        if (name !== undefined) {
+            children.set(name, [...(children.get(name) ?? []), tool]);
+        }
+    }
+
+    const rows: Part[] = [];
+    const shown = new Set<string>();
+
+    for (const tool of tools) {
+        const name = owner(tool.name);
+        const group = name === undefined ? undefined : children.get(name);
+
+        if (name === undefined || group === undefined || group.length < 2) {
+            rows.push(tool);
+            continue;
+        }
+
+        if (!shown.has(name)) {
+            shown.add(name);
+            rows.push({
+                name,
+                preview: group.map((child) => child.name).join(", "),
+                tokens: group.reduce((sum, child) => sum + child.tokens, 0),
+                parts: group,
+            });
+        }
+    }
+
+    return rows;
+}
+
+/**
  * How many real tokens one estimated token is, for this model: the first answer's prompt size over
  * what the same prompt estimates to. Undefined when that answer came after anything but system and
  * user text (images, tool results), where the estimate has nothing honest to compare with.
@@ -143,6 +186,7 @@ function scaleOf(entries: readonly EntryRecord[]): number | undefined {
 
 export default function contextMeter(host: Host) {
     windowOf = host.contextWindow;
+    ownerOf = host.toolOwner;
     host.onDispose(() => {
         views.clear();
     });
@@ -177,7 +221,7 @@ export const actions: Record<string, Action> = {
             window: windowOf(last.provider, last.model) ?? 0,
             calibrated: scale !== undefined,
             sections: sections.map(scaled),
-            tools: tools.map(scaled),
+            tools: groupTools(tools.map(scaled), ownerOf),
         };
     },
 };
