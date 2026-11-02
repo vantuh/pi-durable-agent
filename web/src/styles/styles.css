@@ -256,6 +256,15 @@ body {
     animation: fold-close 150ms ease-out forwards;
 }
 
+/*
+ * A report several screens long crosses its distance in a few frames, and the eye reads that as a jump rather than as
+ * movement. Past a screen and a half the fold is dropped for a fade: the height is there at once, the content arrives.
+ */
+[data-slot="collapsible-content"][data-state="open"][data-beyond] {
+    grid-template-rows: 1fr;
+    animation-name: drop-in;
+}
+
 /* A menu is smaller and opened more often than a dialog: it fades faster and carries no motion. */
 [data-slot="dropdown-menu-content"] {
     animation: drop-in 120ms ease-out;
@@ -326,6 +335,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
     [data-slot="collapsible-content"],
+    [data-slot="collapsible-content"][data-state="open"][data-beyond],
     [data-slot="dropdown-menu-content"] {
         animation: none;
     }
