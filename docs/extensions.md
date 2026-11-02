@@ -268,6 +268,20 @@ truncates what it says rather than pushing the title out. `extensions/tags` draw
 there, reading the store shared with its settings form, so a tag made in the Extensions dialog shows
 on the rows at once.
 
+### Filters in the session list
+
+`web.tsx` may export `sessionFilter: [{ id, component }]`. The component is drawn in the sidebar
+between the folder scope and the new-session button, inside an error boundary, and draws the whole
+control itself, margins included; the extension that has nothing to filter by draws nothing. It gets
+`setMatch(match)`: the predicate the list keeps, or `null` for every session. Call it from an effect
+or a handler, never while rendering, and only when the answer moved — a new function re-renders the
+list and every row.
+
+The folder scope, the fuzzy search and the archive switch still apply on top, and the counts in the
+folder menu stay as they were: a filter narrows the list, it does not re-count the folders.
+`extensions/tags` draws one chip per tag there, and keeps every session that carries at least one
+chosen tag.
+
 ### Options in the new-session picker
 
 `web.tsx` may export `newSession: [{ id, component, blocked, place }]`. Each option is drawn in

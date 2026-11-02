@@ -203,6 +203,26 @@ export type StatusRowItem = {
     submenu?: ComponentType<StatusRowProps>;
 };
 
+/** What the sidebar hands a filter: the way to say which sessions the list keeps. */
+export type SessionFilterProps = {
+    /**
+     * The sessions the list keeps, or `null` for all of them. Call it from an effect or a handler,
+     * never while rendering; a new function wakes the list, so call it only when the answer moved.
+     */
+    setMatch: (match: ((session: SessionSummary) => boolean) | null) => void;
+};
+
+/**
+ * A filter an extension adds to the sidebar's list. Its component draws the whole control, with its
+ * own margins, and sits between the folder scope and the new-session button; nothing is drawn when
+ * the extension has nothing to filter by.
+ */
+export type SessionFilterItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<SessionFilterProps>;
+};
+
 /** One session, as a row's menu submenu and a row's marks both see it. */
 export type SessionItemProps = {
     session: SessionSummary;
@@ -268,6 +288,7 @@ export type WebExtension = {
     toolViews?: ToolView[];
     sessionMenu?: SessionMenuItem[];
     sessionRow?: SessionRowItem[];
+    sessionFilter?: SessionFilterItem[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

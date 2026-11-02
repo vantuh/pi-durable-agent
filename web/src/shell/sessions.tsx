@@ -23,6 +23,7 @@ import {
     useCallback,
     useEffect,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
     useSyncExternalStore,
@@ -43,7 +44,7 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu.tsx";
-import { type FolderSessionMenuItem, useSessionMenu } from "../extensions.ts";
+import { type FolderSessionMenuItem, useSessionFilters, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
 import { isNarrow, watchNarrow } from "../lib/narrow.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
@@ -52,6 +53,7 @@ import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nes
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
 import type { StatusProps } from "../sdk/types.ts";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
@@ -398,6 +400,10 @@ export const Sessions = memo(function Sessions({
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
+    // What each filter extension keeps, by id; a filter that goes away takes its entry with it.
+    const [kept, setKept] = useState<
+        Readonly<Record<string, ((session: SessionSummary) => boolean) | undefined>>
+    >({});
     // A folder picked by hand holds until "All": opening a session in a worktree does not move the list.
     const [chosenCwd, setChosenCwd] = useState<string | null>(null);
     const [scopeOpen, setScopeOpen] = useState(false);
@@ -451,6 +457,21 @@ export const Sessions = memo(function Sessions({
     const [pending, setPending] = useState(false);
     const [deleting, setDeleting] = useState<SessionSummary | null>(null);
     const menu = useSessionMenu();
+    const filters = useSessionFilters();
+    const setters = useMemo(() => {
+        const made = new Map<
+            string,
+            (match: ((session: SessionSummary) => boolean) | null) => void
+        >();
+
+        for (const { id } of filters) {
+            made.set(id, (match) => {
+                setKept((held) => ({ ...held, [id]: match ?? undefined }));
+            });
+        }
+
+        return made;
+    }, [filters]);
     const [running, setRunning] = useState<ReadonlySet<string>>(new Set());
     const runMenuItem = useCallback(
         (item: FolderSessionMenuItem, session: SessionSummary): void => {
@@ -762,8 +783,15 @@ export const Sessions = memo(function Sessions({
         );
     };
 
+    const keptBy = filters.flatMap(({ id }) => {
+        const match = kept[id];
+
+        return match === undefined ? [] : [match];
+    });
+
     const matches = (all ? newest(topLevel) : latest(scopeCwds))
         .filter((session) => session.archived === archived)
+        .filter((session) => keptBy.every((match) => match(session)))
         .flatMap((session) => {
             const match = fuzzyMatch(session.title ?? "New session", query);
 
@@ -919,6 +947,24 @@ export const Sessions = memo(function Sessions({
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
+
+                {filters.length === 0 ? null : (
+                    <div className="border-edge-soft border-b">
+                        {filters.map((item) => {
+                            const setMatch = setters.get(item.id);
+                            const Filter = item.component;
+
+                            return setMatch === undefined ? null : (
+                                <ItemBoundary
+                                    key={`${item.folder}:${item.id}`}
+                                    name={`${item.folder}:${item.id}`}
+                                >
+                                    <Filter setMatch={setMatch} />
+                                </ItemBoundary>
+                            );
+                        })}
+                    </div>
+                )}
 
                 <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
                     <div className="relative min-w-0 flex-1">

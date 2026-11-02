@@ -1,8 +1,9 @@
-import { Check, Tag } from "lucide-react";
+import { Check, Tag, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
 import { toast } from "@/lib/toast.ts";
-import type { SessionItemProps, WebExtension } from "@/sdk/types.ts";
+import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/types.ts";
 
 import { toggleTag, useTags } from "./client.ts";
 import { tagsOf } from "./refs.ts";
@@ -77,7 +78,83 @@ function TagsMenu({ session }: SessionItemProps) {
     ));
 }
 
+/**
+ * The tag filter of the sidebar's list: every session that carries at least one chosen tag. The chips
+ * are the control, so they are drawn whether or not anything is chosen, and only when tags exist.
+ */
+function TagFilter({ setMatch }: SessionFilterProps) {
+    const state = useTags();
+    const tags = state?.tags ?? [];
+    const [chosen, setChosen] = useState<readonly string[]>([]);
+    // A tag dropped in the settings stops filtering, so the list cannot be emptied by a tag that is gone.
+    const live = chosen.filter((id) => tags.some((tag) => tag.id === id));
+    const signature = live.join(" ");
+
+    useEffect(() => {
+        if (live.length === 0) {
+            setMatch(null);
+
+            return;
+        }
+
+        const wanted = new Set(live);
+
+        setMatch((session) => tagsOf(state, session.id).some((tag) => wanted.has(tag.id)));
+        // `live` and `state` are rebuilt every render; the signature is what says the answer moved.
+        // oxlint-disable-next-line react-hooks/exhaustive-deps
+    }, [signature, state, setMatch]);
+
+    if (tags.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-1 px-3 py-2">
+            {tags.map((tag) => {
+                const on = live.includes(tag.id);
+
+                return (
+                    <button
+                        key={tag.id}
+                        type="button"
+                        aria-pressed={on}
+                        title={
+                            on ? `${tag.name}: shown, click to stop` : `${tag.name}: click to show`
+                        }
+                        onClick={() => {
+                            setChosen((held) =>
+                                held.includes(tag.id)
+                                    ? held.filter((each) => each !== tag.id)
+                                    : [...held, tag.id],
+                            );
+                        }}
+                        className={`rounded-control text-meta max-w-24 truncate px-1.5 py-0.5 ${
+                            on ? TAG_TONE[tag.color] : "text-faint hover:bg-raised hover:text-muted"
+                        }`}
+                    >
+                        {tag.name}
+                    </button>
+                );
+            })}
+            {live.length === 0 ? null : (
+                <button
+                    type="button"
+                    aria-label="Show every tag"
+                    title="Show every tag"
+                    onClick={() => {
+                        setChosen([]);
+                    }}
+                    className="text-faint hover:text-ink shrink-0 px-1"
+                >
+                    <X className="size-3" />
+                </button>
+            )}
+        </div>
+    );
+}
+
 export default {
     sessionRow: [{ id: "tags", component: SessionTags }],
+    sessionFilter: [{ id: "tags", component: TagFilter }],
     sessionMenu: [{ id: "tags", label: "Tags", icon: <Tag />, submenu: TagsMenu }],
 } satisfies WebExtension;

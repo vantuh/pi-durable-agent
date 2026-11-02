@@ -18,6 +18,7 @@ import type {
     NewSessionItem,
     PageItem,
     PanelItem,
+    SessionFilterItem,
     SessionMenuItem,
     SessionRowItem,
     SettingsSection,
@@ -42,6 +43,7 @@ export type FolderToolIcon = ToolIcon & { folder: string };
 export type FolderToolView = ToolView & { folder: string };
 export type FolderSessionMenuItem = SessionMenuItem & { folder: string };
 export type FolderSessionRowItem = SessionRowItem & { folder: string };
+export type FolderSessionFilter = SessionFilterItem & { folder: string };
 export type FolderNewSessionItem = NewSessionItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end", "composer", "title"]);
@@ -173,6 +175,10 @@ function isSessionRowItem(value: unknown): value is SessionRowItem {
     return isHeaderItem(value);
 }
 
+function isSessionFilterItem(value: unknown): value is SessionFilterItem {
+    return isHeaderItem(value);
+}
+
 /** One list of a module's default export; absent is empty, a bad list throws. */
 function listOf<T>(module: unknown, key: string, check: (value: unknown) => value is T): T[] {
     const extension: unknown =
@@ -239,6 +245,7 @@ type Loaded = {
     toolViews: FolderToolView[];
     sessionMenu: FolderSessionMenuItem[];
     sessionRow: FolderSessionRowItem[];
+    sessionFilter: FolderSessionFilter[];
     newSession: FolderNewSessionItem[];
 };
 
@@ -273,6 +280,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         toolViews: [],
         sessionMenu: [],
         sessionRow: [],
+        sessionFilter: [],
         newSession: [],
     };
 
@@ -292,6 +300,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "toolViews", module, isToolView, loaded.toolViews);
         collect(folder, "sessionMenu", module, isSessionMenuItem, loaded.sessionMenu);
         collect(folder, "sessionRow", module, isSessionRowItem, loaded.sessionRow);
+        collect(folder, "sessionFilter", module, isSessionFilterItem, loaded.sessionFilter);
         collect(folder, "newSession", module, isNewSessionItem, loaded.newSession);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
@@ -500,4 +509,11 @@ const pickSessionRow = (loaded: Loaded): FolderSessionRowItem[] => loaded.sessio
 /** The marks extensions draw on every session row; empty until the modules are in. */
 export function useSessionRows(): readonly FolderSessionRowItem[] {
     return useLoaded(pickSessionRow);
+}
+
+const pickSessionFilter = (loaded: Loaded): FolderSessionFilter[] => loaded.sessionFilter;
+
+/** The filters extensions add to the sidebar's list; empty until the modules are in. */
+export function useSessionFilters(): readonly FolderSessionFilter[] {
+    return useLoaded(pickSessionFilter);
 }
