@@ -5,7 +5,7 @@ import { AboveComposerItems } from "./composer/above-items.tsx";
 import { Composer } from "./composer/composer.tsx";
 import { SessionMeta } from "./composer/meta.tsx";
 import { ModelMenu } from "./composer/model-menu.tsx";
-import { usePages, usePanels } from "./extensions.ts";
+import { useExtensionsLoaded, usePages, usePanels } from "./extensions.ts";
 import {
     type Health,
     createSession,
@@ -58,7 +58,7 @@ function shortName(model: string | null): string {
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
     const { sessions, setSessions, connected } = useSessionList();
-    const { route, go, openPage, setPageSub, backPage, closePage } = useRoute();
+    const { route, go, openPage, setPageSub, backPage, closePage, dropPage } = useRoute();
     const current = route.session;
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
@@ -68,6 +68,7 @@ export function App() {
     const settingsGear = useRef<HTMLButtonElement>(null);
     const panels = usePanels();
     const pages = usePages();
+    const extensionsLoaded = useExtensionsLoaded();
 
     const { state, send, stop, loadOlder } = useConversation(current);
     const {
@@ -160,6 +161,14 @@ export function App() {
             ? undefined
             : pages.find((candidate) => pageKey(candidate) === route.page?.key);
     const pageOpen = openPageItem !== undefined;
+
+    // The address may name a page no folder answers — turned off, or a typo. Once the folders are in,
+    // the address is rewritten to the conversation instead of keeping a frame with nothing in it.
+    useEffect(() => {
+        if (extensionsLoaded && route.page !== null && openPageItem === undefined) {
+            dropPage();
+        }
+    }, [extensionsLoaded, route.page, openPageItem, dropPage]);
     // The page hides the conversation's controls; on the way out the keyboard goes back to the button
     // that opened it, or to the composer when a review closed itself with a draft.
     const opener = useRef<HTMLButtonElement | null>(null);
@@ -462,11 +471,11 @@ export function App() {
                                 />
                             </div>
 
-                            {openPageItem === undefined || knownSession === null ? null : (
+                            {openPageItem === undefined || activeSession === null ? null : (
                                 <PageHost
                                     key={pageKey(openPageItem)}
                                     page={openPageItem}
-                                    session={knownSession}
+                                    session={activeSession}
                                     sub={route.page?.sub}
                                     onSub={setPageSub}
                                     onBack={backPage}

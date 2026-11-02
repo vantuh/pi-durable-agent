@@ -20,6 +20,8 @@ export type RouteNavigation = {
     backPage: (parent: string | undefined) => void;
     /** Back to the conversation; the page is left. */
     closePage: () => void;
+    /** Leaves a page nothing answers, in this history step rather than a new one. */
+    dropPage: () => void;
 };
 
 const sameRoute = (left: Route, right: Route): boolean =>
@@ -194,7 +196,17 @@ export function useRoute(): RouteNavigation {
         show({ session, page: null });
     }, [session, page, show]);
 
-    return { route, go, openPage, setPageSub, backPage, closePage };
+    const dropPage = useCallback(() => {
+        const now = current.current;
+
+        if (now.page === null) {
+            return;
+        }
+
+        replace({ session: now.session, page: null });
+    }, [replace]);
+
+    return { route, go, openPage, setPageSub, backPage, closePage, dropPage };
 }
 
 /** A plain click goes in the app; a modified or middle click is the browser's, so a new tab opens. */

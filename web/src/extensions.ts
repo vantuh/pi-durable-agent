@@ -312,6 +312,23 @@ export async function refreshExtensions(): Promise<void> {
 
 const first = refreshExtensions();
 
+/** Imports every folder that is on, once each: the answer every extension hook reads. */
+async function loadAll(): Promise<Loaded[]> {
+    await first;
+
+    const wanted = known ? folders.filter(({ folder }) => !disabled.has(folder)) : [];
+
+    return Promise.all(
+        wanted.map(({ folder, importModule }) => {
+            const cached = modules.get(folder) ?? loadFolder(folder, importModule);
+
+            modules.set(folder, cached);
+
+            return cached;
+        }),
+    );
+}
+
 const pickStatus = (loaded: Loaded): FolderStatusItem[] => loaded.status;
 const pickSettings = (loaded: Loaded): FolderSettingsSection[] => loaded.settings;
 const pickPanels = (loaded: Loaded): FolderPanel[] => loaded.panels;
@@ -328,20 +345,7 @@ function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
             latest += 1;
 
             const mine = latest;
-
-            await first;
-
-            // Only a folder that is on is imported, and only once.
-            const wanted = known ? folders.filter(({ folder }) => !disabled.has(folder)) : [];
-            const found = await Promise.all(
-                wanted.map(({ folder, importModule }) => {
-                    const cached = modules.get(folder) ?? loadFolder(folder, importModule);
-
-                    modules.set(folder, cached);
-
-                    return cached;
-                }),
-            );
+            const found = await loadAll();
 
             if (alive && mine === latest) {
                 setItems(found.flatMap(pick));
@@ -361,6 +365,38 @@ function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
     }, [pick]);
 
     return items;
+}
+
+/**
+ * True once every folder that is on has been imported: before that, a key the address names may be a
+ * page that is still on its way.
+ */
+export function useExtensionsLoaded(): boolean {
+    const [loaded, setLoaded] = useState(false);
+
+    useEffect(() => {
+        let alive = true;
+
+        const update = (): void => {
+            void (async () => {
+                await loadAll();
+
+                if (alive && known) {
+                    setLoaded(true);
+                }
+            })();
+        };
+
+        update();
+        listeners.add(update);
+
+        return () => {
+            alive = false;
+            listeners.delete(update);
+        };
+    }, []);
+
+    return loaded;
 }
 
 /** The status items of every folder that is on and loaded; empty until the modules are in. */
