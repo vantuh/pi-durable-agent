@@ -19,9 +19,11 @@ import {
     type Conversation,
     type ConversationId,
     createRegistry,
+    defineExtension,
     type EntryRecord,
     Harness,
     LiveDoc,
+    section,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
@@ -281,10 +283,6 @@ void describe("subagents", () => {
             ["read"],
             "only the profile's tools that exist, and no agent tools of its own",
         );
-        assert.ok(
-            agent?.extensions.every((extension) => extension.name !== "subagents"),
-            "a profile without a tools list still gets no agents of its own",
-        );
         assert.match(agent?.instructions ?? "", /^You count\.\n\n## Agent protocol/);
         assert.deepEqual(agent?.model, { provider: faux.provider.id, modelId: "profile" });
         assert.equal(agent?.thinkingLevel, "low");
@@ -506,6 +504,91 @@ void describe("subagents", () => {
             );
         });
     }
+
+    void describe("an agent's prompt", () => {
+        const systemOf = (request: TranscriptContext): string =>
+            JSON.stringify(request.messages.filter((message) => message.role === "system"));
+
+        /** The parent's and the child's system prompts, with a stand-in for the rules and skills sections. */
+        async function prompts(fields: string): Promise<{ parent: string; child: string }> {
+            registry.install(
+                defineExtension({
+                    name: "stand-in",
+                    sections: [
+                        section("rules", () => "RULES-TEXT"),
+                        section("skills", () => "ALL-SKILLS"),
+                        section("other", () => "OTHER-TEXT"),
+                    ],
+                }),
+            );
+            await mkdir(join(dir, ".agents", "skills", "alpha"), { recursive: true });
+            await writeFile(
+                join(dir, ".agents", "skills", "alpha", "SKILL.md"),
+                "---\nname: alpha\ndescription: The alpha skill\n---\n\nDo alpha.\n",
+            );
+            await writeProfile(`model: ${profileModel}\n${fields}`);
+
+            let child = "";
+            let parentPrompt = "";
+            const step = scripted(
+                (request) => {
+                    child = systemOf(request);
+
+                    return Promise.resolve(fauxAssistantMessage("Done."));
+                },
+                (said) =>
+                    said === "spawn"
+                        ? call("agent_spawn", { agent: "counter", task: "Count." })
+                        : fauxAssistantMessage("ok"),
+            );
+
+            faux.setResponses(
+                Array.from({ length: 10 }, () => (...args: Parameters<FauxResponseFactory>) => {
+                    const system = systemOf(args[0]);
+
+                    if (!system.includes("## Agent protocol")) {
+                        parentPrompt = system;
+                    }
+
+                    return step(...args);
+                }),
+            );
+            await (await parent.submit({ type: "input", content: "spawn" }, context)).wait(context);
+            await reportersDone();
+            await parent.waitForIdle(context);
+
+            return { parent: parentPrompt, child };
+        }
+
+        void it("drops the rules for system-prompt: replace and lists only the named skills", async () => {
+            const { parent: parentPrompt, child } = await prompts(
+                "system-prompt: replace\nskills: alpha, missing",
+            );
+
+            assert.match(parentPrompt, /RULES-TEXT/);
+            assert.match(parentPrompt, /ALL-SKILLS/);
+            assert.doesNotMatch(child, /RULES-TEXT/);
+            assert.doesNotMatch(child, /ALL-SKILLS/);
+            assert.match(child, /<name>alpha<\/name>/);
+            assert.match(child, /OTHER-TEXT/);
+        });
+
+        void it("lists no skills for skills: none", async () => {
+            const { child } = await prompts("skills: none");
+
+            assert.match(child, /RULES-TEXT/);
+            assert.doesNotMatch(child, /ALL-SKILLS|<available_skills>/);
+        });
+
+        void it("keeps the parent's sections without those fields, but not the profile list", async () => {
+            const { parent: parentPrompt, child } = await prompts("");
+
+            assert.match(parentPrompt, /Profiles:/);
+            assert.match(child, /RULES-TEXT/);
+            assert.match(child, /ALL-SKILLS/);
+            assert.doesNotMatch(child, /Profiles:/);
+        });
+    });
 
     void it("lets an agent inherit the parent's tools when the profile has no tools key", async () => {
         await writeFile(

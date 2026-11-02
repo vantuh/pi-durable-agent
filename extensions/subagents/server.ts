@@ -10,6 +10,7 @@ import { isAbsolute, resolve } from "node:path";
 
 import type { Context } from "@earendil-works/chord/context";
 import { type AssistantMessage, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 import {
     type AgentChange,
     AssistantEntry,
@@ -25,10 +26,17 @@ import {
     type NextTaskState,
     section,
     type ToolExecutionApi,
+    wrapSection,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 
-import { ActionError, type Action, type CommitView, type Host } from "../../server/sdk.ts";
+import {
+    ActionError,
+    type Action,
+    type CommitView,
+    type Host,
+    skillsFor,
+} from "../../server/sdk.ts";
 import { writeProfileModel } from "./profile-model.ts";
 import { type Profile, readProfiles } from "./profiles.ts";
 import type { NamedAgent, ProfileRow, Strip, StripAgent } from "./refs.ts";
@@ -63,6 +71,23 @@ const AgentsDoc = defineDoc({
     initial: (): { agents: Record<string, AgentRecord> } => ({ agents: {} }),
     checkpointWhen: () => true,
 });
+
+/**
+ * How an agent's prompt differs from its parent's, from its profile; only agents have one. `rules`
+ * false drops the rules section, `skills` lists only those skills (null: every skill).
+ */
+const ChildDoc = defineDoc({
+    kind: "subagents.child",
+    version: 1,
+    scope: "conversation",
+    history: "latest",
+    fork: "current",
+    initial: (): { rules: boolean; skills: string[] | null } => ({ rules: true, skills: null }),
+    checkpointWhen: () => true,
+});
+
+/** This extension's tools; an agent keeps the extension for its prompt wraps, not for these. */
+const OWN_TOOLS = new Set(["agent_spawn", "agent_send", "agent_stop", "agent_status"]);
 
 /** Owns an agent's conversation and ends at once: a background boundary, nothing more. */
 const Anchor = defineTask<null, { phase: "done" }, null>({
@@ -319,14 +344,15 @@ async function childAgent(
 
     const parent = await api.agent(context);
     const wanted = new Set(profile.tools);
-    const tools = parent.tools.filter((tool) => wanted.has(tool.name));
+    const own = parent.tools.filter((tool) => OWN_TOOLS.has(tool.name));
+    const tools = parent.tools.filter((tool) => wanted.has(tool.name) && !OWN_TOOLS.has(tool.name));
 
     return {
         change: {
             instructions: `${profile.instructions}\n\n${PROTOCOL}`.trim(),
             model: { provider: model.provider, modelId: model.id },
             thinkingLevel,
-            ...(profile.tools === undefined ? {} : { tools }),
+            tools: profile.tools === undefined ? { remove: own } : tools,
         },
     };
 }
@@ -625,8 +651,11 @@ export default function subagents(host: Host) {
                 await configure(tx, child.id, {
                     ...change,
                     ...(folder === undefined ? {} : { cwd: folder }),
-                    extensions: { remove: [self] },
                 });
+                const prompt = await tx.doc(ChildDoc, child.id);
+
+                prompt.rules = !profile.replacesRules;
+                prompt.skills = profile.skills ?? null;
                 state.agents[name] = {
                     conversationId: child.id,
                     agent: profile.name,
@@ -809,7 +838,15 @@ export default function subagents(host: Host) {
         tasks: [Anchor, Reporter],
         tools: [spawn, send, stop, status],
         sections: [
-            section("agents", async (input) => {
+            // Agents get no agents of their own: no tools (see `childAgent`) and no profile list.
+            section("agents", async (input, context) => {
+                if (
+                    (await input.read.snapshot(ChildDoc, input.conversationId, context)) !==
+                    undefined
+                ) {
+                    return undefined;
+                }
+
                 const profiles = await readProfiles(input.agent.cwd ?? host.cwd);
                 const list = [...profiles.values()]
                     .map((profile) => `- ${profile.name}: ${profile.description}`)
@@ -817,6 +854,40 @@ export default function subagents(host: Host) {
 
                 return `${GUIDE}\n\nProfiles:\n${list || "- none: add one to ~/.pi/agent/agents"}`;
             }),
+        ],
+        // Pi's `system-prompt: replace` and `skills`, by section key: whichever extension renders them.
+        wraps: [
+            wrapSection("rules", (rules) => ({
+                ...rules,
+                render: async (input, context) =>
+                    (await input.read.snapshot(ChildDoc, input.conversationId, context))?.rules ===
+                    false
+                        ? undefined
+                        : rules.render(input, context),
+            })),
+            wrapSection("skills", (skills) => ({
+                ...skills,
+                render: async (input, context) => {
+                    const wanted = (
+                        await input.read.snapshot(ChildDoc, input.conversationId, context)
+                    )?.skills;
+
+                    if (wanted === undefined || wanted === null) {
+                        return skills.render(input, context);
+                    }
+
+                    const names = new Set(input.agent.tools.map((tool) => tool.name));
+                    // As the skills section itself: a skill is loaded by reading its file.
+                    const reader = (["read", "bash"] as const).find((name) => names.has(name));
+                    const listed = skillsFor(input.agent.cwd ?? host.cwd).filter((skill) =>
+                        wanted.includes(skill.name),
+                    );
+
+                    return reader === undefined || listed.length === 0
+                        ? undefined
+                        : formatSkillsForPrompt(listed, reader).trim() || undefined;
+                },
+            })),
         ],
     });
 }

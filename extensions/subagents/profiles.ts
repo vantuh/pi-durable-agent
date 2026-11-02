@@ -23,6 +23,10 @@ export type Profile = {
     model?: string;
     /** Preserve invalid values so spawn reports them instead of treating them as absent. */
     thinking?: unknown;
+    /** Skill names the child lists; absent lists every skill, `none` or an empty list lists none. */
+    skills?: string[];
+    /** `system-prompt: replace`: the body takes the place of the rules section, as Pi's base prompt. */
+    replacesRules: boolean;
     instructions: string;
 };
 
@@ -73,6 +77,13 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
             const model = text(frontmatter["model"]);
             const rawThinking = frontmatter["thinking"];
             const thinking = typeof rawThinking === "string" ? rawThinking.trim() : rawThinking;
+            const rawSkills = frontmatter["skills"];
+            const skills =
+                rawSkills === undefined
+                    ? undefined
+                    : text(rawSkills) === "none"
+                      ? []
+                      : names(rawSkills);
 
             into.set(name, {
                 name,
@@ -86,6 +97,8 @@ async function readFolder(folder: string, into: Map<string, Profile>): Promise<v
                       : { invalidTools: rawTools }),
                 ...(model === undefined ? {} : { model }),
                 ...(thinking === undefined ? {} : { thinking }),
+                ...(skills === undefined ? {} : { skills }),
+                replacesRules: text(frontmatter["system-prompt"]) === "replace",
             });
         } catch {
             // A file that does not parse is not a profile; the others still are.

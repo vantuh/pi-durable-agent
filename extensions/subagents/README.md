@@ -136,17 +136,19 @@ skipped; they do not prevent other profiles from loading.
 
 ### Frontmatter
 
-| Field         | Required      | Current meaning                                                                                         |
-| ------------- | ------------- | ------------------------------------------------------------------------------------------------------- |
-| `name`        | Yes           | Non-empty string used to select the profile and stored with the agent.                                  |
-| `description` | Yes           | Non-empty string shown with the name in the orchestrator's profile list.                                |
-| `tools`       | No            | Comma-separated names or a YAML list; an allowlist intersected with the parent's tools.                 |
-| `model`       | Yes, at spawn | Exact `provider/modelId`; must be available and authenticated.                                          |
-| `thinking`    | No            | Supported string level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`; omitted means `off`. |
+| Field           | Required      | Current meaning                                                                                         |
+| --------------- | ------------- | ------------------------------------------------------------------------------------------------------- |
+| `name`          | Yes           | Non-empty string used to select the profile and stored with the agent.                                  |
+| `description`   | Yes           | Non-empty string shown with the name in the orchestrator's profile list.                                |
+| `tools`         | No            | Comma-separated names or a YAML list; an allowlist intersected with the parent's tools.                 |
+| `model`         | Yes, at spawn | Exact `provider/modelId`; must be available and authenticated.                                          |
+| `thinking`      | No            | Supported string level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`; omitted means `off`. |
+| `skills`        | No            | `none` or an empty list lists no skills; names list only those skills; omitted lists every skill.       |
+| `system-prompt` | No            | `replace` drops the `rules` section, as Pi's base prompt; anything else keeps it.                       |
 
 The Markdown body becomes the child's instructions followed by the extension's agent protocol.
-Unknown frontmatter fields are ignored. In particular, `skills` does not select skills, and
-`system-prompt: replace` does not replace the system prompt.
+Unknown frontmatter fields are ignored. As in Pi, `system-prompt: replace` replaces only the base
+rules: project instructions stay, and `skills` decides the skills listing.
 
 The tool list can also be written as:
 
@@ -219,9 +221,10 @@ relevant paths, constraints, expected output, and whether edits are permitted. I
 run for an implementation task. A follow-up through `agent_send` keeps the child's own context.
 
 Other installed prompt sections still apply: project instructions and, when the tools permit
-reading them, skills. The profile body does not replace those sections. The `subagents` extension
-itself is removed from the child by name, so the child has neither these four tools nor the
-orchestrator's `agents` prompt section. Recursive delegation is not supported.
+reading them, the skills its `skills` field allows. The profile body replaces only `rules`, and only
+with `system-prompt: replace`. The `subagents` extension stays selected in the child for its `rules`
+and `skills` wraps, but the child gets none of these four tools and an empty `agents` section: its
+`subagents.child` document marks it. Recursive delegation is not supported.
 
 **This is not a sandbox.** A child uses the same machine permissions as the parent, and the same
 working directory unless `agent_spawn` is given `cwd`, an absolute folder such as a worktree, in
