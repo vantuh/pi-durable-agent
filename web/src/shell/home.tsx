@@ -7,7 +7,7 @@ import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions } from "../lib/session-nesting.ts";
 import { MINUTE } from "../lib/time.ts";
-import { SessionRowContent } from "./session-parts.tsx";
+import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
     sessions: SessionSummary[];
@@ -44,7 +44,11 @@ function Row({
             }}
             className="rounded-control hover:bg-raised/50 flex items-center gap-3 px-2 py-2"
         >
-            <SessionRowContent session={session} now={now} />
+            <SessionRowContent
+                session={session}
+                now={now}
+                trailing={<SessionMarks session={session} />}
+            />
         </a>
     );
 }

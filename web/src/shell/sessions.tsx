@@ -52,7 +52,7 @@ import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nes
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
 import type { StatusProps } from "../sdk/types.ts";
-import { folderName, StateMark } from "./session-parts.tsx";
+import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
 /** An item's label and icon, which a folder may read off the row: pause turns into resume. */
@@ -294,6 +294,7 @@ const SessionRow = memo(function SessionRow({
                         </span>
                     ))}
                 </span>
+                <SessionMarks session={session} />
                 <span
                     className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
                 >
@@ -317,18 +318,36 @@ const SessionRow = memo(function SessionRow({
                         event.preventDefault();
                     }}
                 >
-                    {menu.map((item) => (
-                        <DropdownMenuItem
-                            key={item.id}
-                            disabled={running.has(runKey(item, session))}
-                            onSelect={() => {
-                                onRunItem(item, session);
-                            }}
-                        >
-                            {iconOf(item.icon, session)}
-                            {labelOf(item, session)}
-                        </DropdownMenuItem>
-                    ))}
+                    {menu.map((item) => {
+                        const { submenu: Submenu } = item;
+
+                        if (Submenu === undefined) {
+                            return (
+                                <DropdownMenuItem
+                                    key={item.id}
+                                    disabled={running.has(runKey(item, session))}
+                                    onSelect={() => {
+                                        onRunItem(item, session);
+                                    }}
+                                >
+                                    {iconOf(item.icon, session)}
+                                    {labelOf(item, session)}
+                                </DropdownMenuItem>
+                            );
+                        }
+
+                        return (
+                            <DropdownMenuSub key={item.id}>
+                                <DropdownMenuSubTrigger>
+                                    {iconOf(item.icon, session)}
+                                    {labelOf(item, session)}
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    <Submenu session={session} />
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                        );
+                    })}
                     {menu.length === 0 ? null : <DropdownMenuSeparator />}
                     <DropdownMenuItem
                         onSelect={() => {
@@ -435,6 +454,11 @@ export const Sessions = memo(function Sessions({
     const [running, setRunning] = useState<ReadonlySet<string>>(new Set());
     const runMenuItem = useCallback(
         (item: FolderSessionMenuItem, session: SessionSummary): void => {
+            const run = item.run;
+            if (run === undefined) {
+                return;
+            }
+
             const key = runKey(item, session);
             const markRunning = (on: boolean): void => {
                 setRunning((keys) => {
@@ -450,7 +474,7 @@ export const Sessions = memo(function Sessions({
             };
 
             markRunning(true);
-            toast.promise(item.run(session.id), {
+            toast.promise(run(session.id), {
                 loading: busyLabel(`${labelOf(item, session)}…`),
                 error: (error: unknown) =>
                     error instanceof Error ? error.message : "Could not finish the action.",

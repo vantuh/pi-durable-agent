@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { ago, DAY, MINUTE } from "@/lib/time.ts";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
+import { useSessionRows } from "../extensions.ts";
+import { ItemBoundary } from "../ui/item-boundary.tsx";
 
 export { ago, DAY, MINUTE };
 
@@ -48,6 +50,17 @@ export function StateMark({ session, working = 0 }: { session: SessionSummary; w
             }`}
         />
     );
+}
+
+/** The marks extensions draw on a session row, between the title and the time; nothing when none does. */
+export function SessionMarks({ session }: { session: SessionSummary }) {
+    const marks = useSessionRows();
+
+    return marks.map(({ folder, id, component: Mark }) => (
+        <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+            <Mark session={session} />
+        </ItemBoundary>
+    ));
 }
 
 /**

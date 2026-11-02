@@ -203,14 +203,38 @@ export type StatusRowItem = {
     submenu?: ComponentType<StatusRowProps>;
 };
 
+/** One session, as a row's menu submenu and a row's marks both see it. */
+export type SessionItemProps = {
+    session: SessionSummary;
+};
+
 /** One item an extension adds to a session row's menu, above the core's own. */
 export type SessionMenuItem = {
     id: string;
     /** A fixed label, or one read off the row: a command that turns into its own undo. */
     label: string | ((session: SessionSummary) => string);
     icon?: ReactNode | ((session: SessionSummary) => ReactNode);
-    /** Runs for one session; its label stands in a toast while it runs, and the failure's message after. */
-    run: (session: number) => Promise<void>;
+    /**
+     * Runs for one session; its label stands in a toast while it runs, and the failure's message after.
+     * Left out by an item that only opens `submenu`.
+     */
+    run?: (session: number) => Promise<void>;
+    /**
+     * A submenu this item opens instead of running: the core renders a Radix submenu around the
+     * component, so it supplies rows (`DropdownMenuItem`) and nothing else. A row that calls
+     * `preventDefault()` in its `onSelect` keeps the submenu open. Mounted only while it is open.
+     */
+    submenu?: ComponentType<SessionItemProps>;
+};
+
+/**
+ * A mark an extension draws on a session row, between the title and the time. It is part of the row:
+ * no box, border or background of its own, and small enough that the row keeps its height.
+ */
+export type SessionRowItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<SessionItemProps>;
 };
 
 /** The mark of a tool the extension registers, on that tool's steps in the transcript. */
@@ -243,6 +267,7 @@ export type WebExtension = {
     tools?: ToolIcon[];
     toolViews?: ToolView[];
     sessionMenu?: SessionMenuItem[];
+    sessionRow?: SessionRowItem[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

@@ -247,11 +247,26 @@ below is unchanged. `extensions/codemode` shows its `code` argument as highlight
 
 ### Session menu items
 
-`web.tsx` may export `sessionMenu: [{ id, label, icon, run }]`. Each item sits at the top of a
-session row's menu, above Rename, Archive and Delete, with a separator. `run(sessionId)` is the
+`web.tsx` may export `sessionMenu: [{ id, label, icon, run, submenu? }]`. Each item sits at the top
+of a session row's menu, above Rename, Archive and Delete, with a separator. `run(sessionId)` is the
 whole behaviour: the item's label is the toast while it runs, a rejection becomes a toast with its
 message, and the list is re-read afterwards, so an item that names the session shows the new name
 by itself. `extensions/auto-session-name` is the example.
+
+`submenu` takes the place of `run`: the core wraps the component in a Radix `DropdownMenuSub`, so
+the extension supplies rows (`DropdownMenuItem` from `@/components/ui/dropdown-menu`) and nothing
+else, and gets `session`. A row whose `onSelect` calls `preventDefault()` keeps the submenu open, so
+one visit can set several things; the submenu is mounted only while it is open. `extensions/tags`
+puts its tags on and off this way.
+
+### Marks on session rows
+
+`web.tsx` may export `sessionRow: [{ id, component }]`. The component draws inside a session row's
+link, between the title and the time, in the sidebar's list and on the home page, wrapped in an error
+boundary and given `session`. It is part of the row: no box, border or background of its own, and it
+truncates what it says rather than pushing the title out. `extensions/tags` draws its tag chips
+there, reading the store shared with its settings form, so a tag made in the Extensions dialog shows
+on the rows at once.
 
 ### Options in the new-session picker
 

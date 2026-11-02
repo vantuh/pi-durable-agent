@@ -19,6 +19,7 @@ import type {
     PageItem,
     PanelItem,
     SessionMenuItem,
+    SessionRowItem,
     SettingsSection,
     SidebarBottomItem,
     StatusItem,
@@ -40,6 +41,7 @@ export type FolderStatusRowItem = StatusRowItem & { folder: string };
 export type FolderToolIcon = ToolIcon & { folder: string };
 export type FolderToolView = ToolView & { folder: string };
 export type FolderSessionMenuItem = SessionMenuItem & { folder: string };
+export type FolderSessionRowItem = SessionRowItem & { folder: string };
 export type FolderNewSessionItem = NewSessionItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end", "composer", "title"]);
@@ -155,12 +157,20 @@ function isSessionMenuItem(value: unknown): value is SessionMenuItem {
     }
 
     const label: unknown = Reflect.get(value, "label");
+    const run: unknown = Reflect.get(value, "run");
+    const submenu: unknown = Reflect.get(value, "submenu");
 
     return (
         typeof Reflect.get(value, "id") === "string" &&
         (typeof label === "string" || typeof label === "function") &&
-        typeof Reflect.get(value, "run") === "function"
+        // An item runs, opens a submenu, or both; one that does neither has nothing to do.
+        (typeof run === "function" || typeof submenu === "function") &&
+        (submenu === undefined || typeof submenu === "function")
     );
+}
+
+function isSessionRowItem(value: unknown): value is SessionRowItem {
+    return isHeaderItem(value);
 }
 
 /** One list of a module's default export; absent is empty, a bad list throws. */
@@ -228,6 +238,7 @@ type Loaded = {
     tools: FolderToolIcon[];
     toolViews: FolderToolView[];
     sessionMenu: FolderSessionMenuItem[];
+    sessionRow: FolderSessionRowItem[];
     newSession: FolderNewSessionItem[];
 };
 
@@ -261,6 +272,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         tools: [],
         toolViews: [],
         sessionMenu: [],
+        sessionRow: [],
         newSession: [],
     };
 
@@ -279,6 +291,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "tools", module, isToolIcon, loaded.tools);
         collect(folder, "toolViews", module, isToolView, loaded.toolViews);
         collect(folder, "sessionMenu", module, isSessionMenuItem, loaded.sessionMenu);
+        collect(folder, "sessionRow", module, isSessionRowItem, loaded.sessionRow);
         collect(folder, "newSession", module, isNewSessionItem, loaded.newSession);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
@@ -480,4 +493,11 @@ const pickSessionMenu = (loaded: Loaded): FolderSessionMenuItem[] => loaded.sess
 /** The items extensions add to every session row's menu; empty until the modules are in. */
 export function useSessionMenu(): readonly FolderSessionMenuItem[] {
     return useLoaded(pickSessionMenu);
+}
+
+const pickSessionRow = (loaded: Loaded): FolderSessionRowItem[] => loaded.sessionRow;
+
+/** The marks extensions draw on every session row; empty until the modules are in. */
+export function useSessionRows(): readonly FolderSessionRowItem[] {
+    return useLoaded(pickSessionRow);
 }
