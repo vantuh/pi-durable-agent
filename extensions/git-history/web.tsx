@@ -52,6 +52,9 @@ const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPre
 /** Uncommitted changes travel as `worktree` to the server and as `working` in the address: a commit
  * hash is hex, so it can never be mistaken for the working tree. */
 const WORKING = "working";
+
+/** Reviews whose feedback the composer has taken: reopening the page must not append or close again. */
+const reported = new Set<string>();
 const HASH = /^[0-9a-f]{4,64}$/i;
 
 const button =
@@ -738,9 +741,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const [starting, setStarting] = useState(false);
     const rows = useRef(new Map<string, HTMLButtonElement>());
     const layer = useRef(false);
-    const closed = useRef<string | null>(null);
     const latestReview = useRef<ReviewState | null>(null);
     const leaving = useRef(false);
+    const address = useRef(sub);
 
     // The list says how long ago each commit landed, so the clock it counts from ticks while open.
     useEffect(() => {
@@ -813,6 +816,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 const found = await callAction(review, undefined, id);
                 if (alive) {
                     setState(found);
+                } else if (found !== null && running(found)) {
+                    // The answer arrived after the page left: nobody would see this review, so stop it.
+                    void callAction(cancel, { id: found.id }, id).catch(() => undefined);
                 }
             } catch (error) {
                 if (alive) {
@@ -831,6 +837,10 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             clearTimeout(timer);
         };
     }, [id]);
+
+    useEffect(() => {
+        address.current = sub;
+    }, [sub]);
 
     // Leaving the page ends a review still running, as closing the old dialog did.
     useEffect(() => {
@@ -852,11 +862,15 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
         if (state?.state !== "done" || state.decision === "dismissed" || !state.message?.trim()) {
             return;
         }
-        appendComposerDraft(id, state.message, `git-history:${state.id}`);
-        if (closed.current !== state.id) {
-            closed.current = state.id;
-            close("composer");
+        const key = `${String(id)}:${state.id}`;
+
+        if (reported.has(key)) {
+            return;
         }
+
+        reported.add(key);
+        appendComposerDraft(id, state.message, `git-history:${state.id}`);
+        close("composer");
     }, [id, state, close]);
 
     // The list is inert under a detail; coming back to it returns the keyboard to the row that was opened.
@@ -1088,7 +1102,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         starting={starting}
                         issue={issue}
                         onCancel={async () => {
-                            if (await stopReview()) {
+                            if ((await stopReview()) && address.current === sub) {
                                 navigate(shownTarget);
                             }
                         }}
@@ -1113,7 +1127,11 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                             setLoading(true);
                             forgetPatches();
                             setRefresh((value) => value + 1);
-                            navigate(undefined);
+
+                            // The reword outlives the form: leaving the commit meanwhile must not move the page.
+                            if (!leaving.current && address.current === sub) {
+                                navigate(undefined);
+                            }
                         }}
                     />
                 )}
