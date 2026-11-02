@@ -1,7 +1,15 @@
-import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Command, CommandItem, CommandList } from "@/components/ui/command";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -203,7 +211,6 @@ export const Composer = memo(function Composer({
     // Position in history while browsing with the arrows (null: not browsing) and the draft to come back to.
     const browse = useRef<{ at: number; draft: string } | null>(null);
     const [mode, setMode] = useState<SendMode>("steer");
-    const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
     const field = useRef<HTMLTextAreaElement>(null);
     // App keys the composer by session, so this runs on every session switch.
@@ -305,10 +312,6 @@ export const Composer = memo(function Composer({
     // An Interrupt is for the run it was chosen in; the next run starts on Steer again.
     if (!busy && mode === "interrupt") {
         setMode("steer");
-    }
-
-    if (!busy && modesOpen) {
-        setModesOpen(false);
     }
 
     const how = MODES.find((option) => option.mode === mode);
@@ -511,12 +514,23 @@ export const Composer = memo(function Composer({
                 }}
             >
                 {matches.length === 0 ? null : (
-                    <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 flex max-h-64 flex-col overflow-y-auto border p-1 shadow-lg">
-                        {matches.map((candidate, index) => (
-                            <li key={candidate.insert}>
-                                <button
-                                    type="button"
-                                    aria-current={index === marked}
+                    <Command
+                        label="Completions"
+                        shouldFilter={false}
+                        // A hover paints a row and nothing else: the mark moves on an arrow key or a click.
+                        disablePointerSelection
+                        value={matches[Math.min(marked, matches.length - 1)]?.insert ?? ""}
+                        // Keep focus in the textarea, the popup's own box included.
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                        }}
+                        className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border shadow-lg"
+                    >
+                        <CommandList label="Completions" className="min-h-0 overflow-y-auto p-1">
+                            {matches.map((candidate, index) => (
+                                <CommandItem
+                                    key={candidate.insert}
+                                    value={candidate.insert}
                                     // Arrow keys move the mark past the visible part of the list: follow it.
                                     ref={
                                         index === marked
@@ -525,27 +539,21 @@ export const Composer = memo(function Composer({
                                               }
                                             : undefined
                                     }
-                                    // Keep focus in the textarea.
-                                    onMouseDown={(event) => {
-                                        event.preventDefault();
-                                    }}
-                                    onClick={() => {
+                                    onSelect={() => {
                                         pick(candidate);
                                     }}
-                                    className={`rounded-control hover:bg-raised flex w-full min-w-0 items-baseline gap-2 px-2 py-1.5 text-left ${
-                                        index === marked ? "bg-raised" : ""
-                                    }`}
+                                    className="text-meta hover:bg-raised items-baseline px-3 py-2"
                                 >
-                                    <span className="text-interface text-ink shrink-0 font-mono">
+                                    <span className="text-ink shrink-0 font-mono">
                                         {candidate.label}
                                     </span>
-                                    <span className="text-meta text-faint min-w-0 truncate">
+                                    <span className="text-faint min-w-0 truncate text-[11px]">
                                         {candidate.description}
                                     </span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                                </CommandItem>
+                            ))}
+                        </CommandList>
+                    </Command>
                 )}
 
                 <Attachments
@@ -765,44 +773,7 @@ export const Composer = memo(function Composer({
                                 </Button>
                             </Hint>
                         ) : null}
-                        <div
-                            className="relative flex items-center"
-                            onBlur={(event) => {
-                                if (!event.currentTarget.contains(event.relatedTarget)) {
-                                    setModesOpen(false);
-                                }
-                            }}
-                        >
-                            {modesOpen ? (
-                                <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full mb-1.5 flex w-64 flex-col border p-1 shadow-lg">
-                                    {MODES.map((option) => (
-                                        <li key={option.mode}>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setMode(option.mode);
-                                                    setModesOpen(false);
-                                                }}
-                                                className="rounded-control hover:bg-raised flex w-full items-start gap-2 px-2 py-1.5 text-left"
-                                            >
-                                                <Check
-                                                    className={`text-accent mt-0.5 size-3.5 shrink-0 ${
-                                                        option.mode === mode ? "" : "invisible"
-                                                    }`}
-                                                />
-                                                <span className="flex flex-col">
-                                                    <span className="text-interface text-ink">
-                                                        {option.label}
-                                                    </span>
-                                                    <span className="text-meta text-faint">
-                                                        {option.hint}
-                                                    </span>
-                                                </span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : null}
+                        <div className="flex items-center">
                             <Hint label={busy ? (how?.label ?? "Send") : "Send"}>
                                 <Button
                                     size={busy ? "default" : "icon"}
@@ -824,20 +795,59 @@ export const Composer = memo(function Composer({
                                 </Button>
                             </Hint>
                             {busy ? (
-                                <Hint label="How to send">
-                                    <Button
-                                        size="icon"
-                                        aria-label="How to send"
-                                        aria-haspopup="menu"
-                                        aria-expanded={modesOpen}
-                                        onClick={() => {
-                                            setModesOpen((open) => !open);
+                                <DropdownMenu>
+                                    <Hint label="How to send">
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                size="icon"
+                                                aria-label="How to send"
+                                                className="rounded-r-control border-on-accent/30 w-6 rounded-l-none border-l"
+                                            >
+                                                <ChevronDown className="size-3.5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                    </Hint>
+                                    <DropdownMenuContent
+                                        side="top"
+                                        align="end"
+                                        sideOffset={6}
+                                        className="w-64"
+                                        // The mode belongs to the message being typed: the caret goes back where it was.
+                                        onCloseAutoFocus={(event) => {
+                                            event.preventDefault();
+                                            field.current?.focus({ preventScroll: true });
                                         }}
-                                        className="rounded-r-control border-on-accent/30 w-6 rounded-l-none border-l"
                                     >
-                                        <ChevronDown className="size-3.5" />
-                                    </Button>
-                                </Hint>
+                                        <DropdownMenuRadioGroup
+                                            value={mode}
+                                            onValueChange={(value) => {
+                                                const chosen = MODES.find(
+                                                    (option) => option.mode === value,
+                                                );
+
+                                                if (chosen !== undefined) {
+                                                    setMode(chosen.mode);
+                                                }
+                                            }}
+                                        >
+                                            {MODES.map((option) => (
+                                                <DropdownMenuRadioItem
+                                                    key={option.mode}
+                                                    value={option.mode}
+                                                >
+                                                    <span className="flex flex-col">
+                                                        <span className="text-interface text-ink">
+                                                            {option.label}
+                                                        </span>
+                                                        <span className="text-meta text-faint">
+                                                            {option.hint}
+                                                        </span>
+                                                    </span>
+                                                </DropdownMenuRadioItem>
+                                            ))}
+                                        </DropdownMenuRadioGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             ) : null}
                         </div>
                     </div>

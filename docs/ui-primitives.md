@@ -533,16 +533,52 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 ### 3.2 DropdownMenu (installed, bypassed)
 
-- [ ] `dropdown-menu.tsx`: export `CheckboxItem`, `RadioGroup`/`RadioItem`, `Label`,
-      `Separator`, `Shortcut` when a caller needs them.
-- [ ] `web/src/composer/composer.tsx:762–830` — send-mode menu as `RadioGroup`; arrow keys and
-      typeahead replace the custom focus/blur dismissal.
+- [x] `dropdown-menu.tsx`: export `CheckboxItem`, `RadioGroup`/`RadioItem`, `Label`,
+      `Separator`, `Shortcut` when a caller needs them. Added `RadioGroup` and `RadioItem`, the one
+      choice the send modes need: the chosen mark (`Check`, `text-accent`) sits in a `pl-9` gutter of
+      its own, so a label with a description under it keeps the item's whole width. `Separator` was
+      already exported and already had its caller (`sessions.tsx`). No caller wants `CheckboxItem`,
+      `Label`, or `Shortcut`, so none was added.
+- [x] `web/src/composer/composer.tsx:762–830` — send-mode menu as `RadioGroup`; arrow keys and
+      typeahead replace the custom focus/blur dismissal. The split chevron is the
+      `DropdownMenuTrigger`, inside its `Hint`; Radix owns `aria-haspopup` and `aria-expanded` now, so
+      the hand-written pair went. Each item keeps its label and its description, the menu keeps `w-64`,
+      and it opens above the trigger (`side="top"`, `align="end"`) inside the viewport at 390×844.
+      Picking a mode still only selects it. Gone: the `<ul>`, the wrapper's `onBlur`, and
+      `modesOpen` — the menu is unmounted with the trigger when the run ends, which is what the
+      `!busy && modesOpen` reset did. New: Escape and an outside click close it, arrows and typeahead
+      move the mark, and `onCloseAutoFocus` puts the caret back in the textarea, where the old menu
+      left focus on the body.
 
 ### 3.3 Command (installed, bypassed)
 
-- [ ] `web/src/composer/composer.tsx:511–545` — slash-command completion. Focus must stay in the
-      textarea: drive cmdk's selected value from the textarea's arrow keys instead of moving
-      focus. If cmdk cannot do that without a second focus owner, this site moves to Kept custom.
+- [x] `web/src/composer/composer.tsx:516–556` — slash-command completion, and the `@`-mention list
+      beside it. Focus stays in the textarea, so the site could take the primitive: `Command` with
+      `shouldFilter={false}` (the candidates arrive already ranked by `fuzzyScore`) and a controlled
+      `value`, which the textarea's arrow keys move. cmdk's own key handler only sees keys bubbling
+      from inside its subtree, and a controlled value never moves focus, because cmdk moves it only
+      when the active element is its input or its root — neither is ever focused. The hand-written
+      marking went with the `ul`/`button`: `CommandList` is the `listbox`, each `CommandItem` an
+      `option` carrying `aria-selected` where `aria-current` was, `disablePointerSelection` keeps a
+      hover a hover, and the `onMouseDown` guard that keeps the caret in the textarea stays — now on
+      the root too, so the popup's own 4px padding cannot take focus either.
+      Not gained: `aria-activedescendant` on the textarea. The only id cmdk exposes for an option is
+      the store's `selectedItemId`, written inside `setState("value")`, and a controlled `value`
+      bypasses it (`if (R !== void 0) { n.current.value = e; E.emit() }`, `cmdk/dist/index.mjs:1`), so
+      `useCommandState` reads `undefined`; the list's and the options' ids are generated anyway, and
+      `id: b.listId` / `id: n` overwrite whatever a caller passes. Reaching them would mean querying
+      cmdk's own markup, so the textarea stays a plain textarea rather than a half-built combobox.
+      The scroll into view stays hand-written for the same reason: cmdk's scroll slot runs only on its
+      own value changes (`v(5, ne)` inside `setState`), so an outside driver would leave the mark
+      below the fold. Measured unmoved: the popup 990×256 at 1280×800 and 372×256 at 390×844, a row
+      965×34.5, the mark following the arrows into view at both sizes. The frame carries `max-h-64`
+      and `overflow-hidden` and the list scrolls inside it, because the border moved from the
+      scrolling element to the frame and the 256px cap had to stay on the frame to keep the height.
+      Look: a 15px mono name in a 34.5px row was larger than every other menu's, which is `text-meta`
+      in `px-3 py-2`. The row takes the family's sizes — a 12px mono name, an 11px faint description,
+      `px-3 py-2` — and measures 34px, 12px, 12/8/8 padding, exactly what a `DropdownMenuItem` in the
+      sidebar's row menu measures. The frame and the `max-h-64` cap are unmoved, so 7.5 rows show
+      instead of 7.4.
 
 ### 3.4 AlertDialog (new)
 
