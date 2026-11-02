@@ -24,6 +24,7 @@ import {
     useState,
 } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -243,7 +244,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
             </form>
 
             {error === null ? null : (
-                <p className="text-danger text-interface px-3 py-1">{error}</p>
+                <Alert className="text-interface rounded-none px-3 py-1">{error}</Alert>
             )}
 
             <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">

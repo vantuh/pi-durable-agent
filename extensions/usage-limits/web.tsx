@@ -1,6 +1,7 @@
 import { Gauge, LoaderCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
@@ -157,7 +158,7 @@ function Panel({
                     </Button>
                 </Hint>
             </div>
-            {result.failure === null ? null : <p className="text-danger mb-2">{result.failure}</p>}
+            {result.failure === null ? null : <Alert className="mb-2">{result.failure}</Alert>}
             {result.data?.providers.length === 0 ? (
                 <p className="text-faint">No signed-in provider reports limits.</p>
             ) : null}
@@ -167,9 +168,7 @@ function Panel({
                     className={`border-edge-soft mb-3 rounded-lg border p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
                 >
                     <h4 className="text-ink mb-1.5 font-medium">{provider.name}</h4>
-                    {provider.error === undefined ? null : (
-                        <p className="text-danger">{provider.error}</p>
-                    )}
+                    {provider.error === undefined ? null : <Alert>{provider.error}</Alert>}
                     {provider.buckets.map((bucket) => (
                         <Row key={bucket.label} bucket={bucket} now={result.data?.at ?? 0} />
                     ))}

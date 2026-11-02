@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
@@ -102,11 +103,7 @@ function Limit() {
     };
 
     if (current === undefined) {
-        return error === undefined ? (
-            <Spinner className="text-faint" />
-        ) : (
-            <p className="text-meta text-danger">{error}</p>
-        );
+        return error === undefined ? <Spinner className="text-faint" /> : <Alert>{error}</Alert>;
     }
 
     return (
@@ -135,7 +132,7 @@ function Limit() {
                 Every bash command stops after this long, {MIN_MINUTES} to {MAX_MINUTES} minutes. A
                 command that asks for less keeps its own timeout.
             </p>
-            {error === undefined ? null : <p className="text-meta text-danger">{error}</p>}
+            {error === undefined ? null : <Alert>{error}</Alert>}
         </div>
     );
 }

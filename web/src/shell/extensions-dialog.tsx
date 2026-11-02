@@ -1,6 +1,7 @@
 import { ArrowLeft, ChevronRight, Puzzle } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -114,11 +115,11 @@ function ExtensionList() {
         return (
             <>
                 {header}
-                <p
-                    className={`text-meta animate-drop-in p-3 ${loadError === undefined ? "text-faint" : "text-danger"}`}
-                >
-                    {loadError ?? "Loading…"}
-                </p>
+                {loadError === undefined ? (
+                    <p className="text-meta text-faint animate-drop-in p-3">Loading…</p>
+                ) : (
+                    <Alert className="animate-drop-in rounded-none p-3">{loadError}</Alert>
+                )}
             </>
         );
     }
@@ -141,11 +142,7 @@ function ExtensionList() {
                                 }}
                             />
                         </div>
-                        {problem === undefined ? null : (
-                            <span role="alert" className="text-meta text-danger break-words">
-                                {problem}
-                            </span>
-                        )}
+                        {problem === undefined ? null : <Alert>{problem}</Alert>}
                         <Separator />
                         <div>
                             <ExtensionDetails
@@ -198,13 +195,7 @@ function ExtensionList() {
                                             </span>
                                         )}
                                         {problem === undefined ? null : (
-                                            <span
-                                                id={`${row.name}-problem`}
-                                                role="alert"
-                                                className="text-meta text-danger break-words"
-                                            >
-                                                {problem}
-                                            </span>
+                                            <Alert id={`${row.name}-problem`}>{problem}</Alert>
                                         )}
                                     </div>
                                     <Switch

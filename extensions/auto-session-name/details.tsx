@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
@@ -58,11 +59,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
 
     return (
         <div className="text-meta flex flex-col gap-2">
-            {error === null ? null : (
-                <p role="alert" className="text-danger break-words">
-                    {error}
-                </p>
-            )}
+            {error === null ? null : <Alert>{error}</Alert>}
             <div className="flex items-center gap-2">
                 <span id="auto-name-after-run" className="text-ink">
                     Name a session when its run ends

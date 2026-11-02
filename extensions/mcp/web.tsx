@@ -1,6 +1,7 @@
 import { Plug } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
@@ -88,7 +89,15 @@ function Panel({
 }) {
     return (
         <PopoverContent side="top" aria-label="MCP servers" className="text-meta w-72 p-1">
-            {problem === undefined ? null : <p className="text-danger px-2 py-1.5">{problem}</p>}
+            {problem === undefined ? null : (
+                <Alert
+                    className="px-2 py-1.5"
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a config file's problem is not one
+                    role="status"
+                >
+                    {problem}
+                </Alert>
+            )}
             {servers.length === 0 && problem === undefined ? (
                 <p className="text-faint px-2 py-1.5">No servers in mcp.json.</p>
             ) : null}

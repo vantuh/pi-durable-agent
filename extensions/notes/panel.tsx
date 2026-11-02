@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -263,7 +264,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
             )}
 
             {note.state === "error" && note.error !== null ? (
-                <p className="text-danger text-interface px-3 py-2">{note.error}</p>
+                <Alert className="text-interface rounded-none">{note.error}</Alert>
             ) : null}
 
             <Textarea

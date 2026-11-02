@@ -9,6 +9,7 @@ import {
     useRef,
 } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -235,17 +236,17 @@ function ErrorNotice({ text }: { text: string }) {
     const { title, detail, requestId } = readProviderError(text);
 
     return (
-        <div className="bg-danger/10 text-meta flex items-start gap-2 rounded-lg px-3 py-2">
-            <CircleAlert className="text-danger mt-0.5 size-3.5 shrink-0" />
+        <Alert>
+            <CircleAlert />
             <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-danger break-words">{title}</span>
+                <span>{title}</span>
                 {detail === undefined && requestId === undefined ? null : (
                     <span className="text-faint font-mono break-all">
                         {[detail, requestId].filter((part) => part !== undefined).join(" · ")}
                     </span>
                 )}
             </div>
-        </div>
+        </Alert>
     );
 }
 
@@ -286,7 +287,7 @@ function CompactionFailedMark({ error }: { error: string }) {
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>
-                <p className="text-meta text-danger text-center break-words">{error}</p>
+                <Alert className="justify-center text-center">{error}</Alert>
             </CollapsibleContent>
         </Collapsible>
     );

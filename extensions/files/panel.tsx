@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
@@ -167,7 +168,9 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
                     </Button>
                 </Hint>
             </div>
-            {error === null ? null : <p className="text-danger text-interface p-3">{error}</p>}
+            {error === null ? null : (
+                <Alert className="text-interface rounded-none p-3">{error}</Alert>
+            )}
             <ScrollArea className="min-h-0 flex-1">
                 <div className="text-interface p-1 font-mono">{rows("", 0)}</div>
             </ScrollArea>
@@ -222,7 +225,7 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
             <ScrollArea className="min-h-0 flex-1">
                 <div className="p-3">
                     {error !== null ? (
-                        <p className="text-danger text-interface">{error}</p>
+                        <Alert className="text-interface">{error}</Alert>
                     ) : file === undefined ? (
                         <p className="text-faint text-interface">Loading…</p>
                     ) : file.kind === "text" ? (

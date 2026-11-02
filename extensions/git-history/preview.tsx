@@ -21,6 +21,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -424,9 +425,7 @@ export function PatchPreview({
     if (parsed.error !== null) {
         return (
             <PendingPane header={header}>
-                <p role="alert" className="text-danger text-meta px-3 py-2">
-                    Could not render this diff: {parsed.error}
-                </p>
+                <Alert className="rounded-none">Could not render this diff: {parsed.error}</Alert>
             </PendingPane>
         );
     }

@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, GitCompareArrows, LoaderCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -163,14 +164,13 @@ function GitBadge({ session }: StatusProps) {
                 className="text-interface w-64 p-3"
             >
                 <div className="flex items-start justify-between gap-2">
-                    {/* The error waits for `Alert` (3.7); the role keeps it announced until then. */}
-                    <p
-                        role={issue === null ? undefined : "alert"}
-                        className={issue === null ? "text-ink" : "text-danger"}
-                    >
-                        {issue ??
-                            `Push ${String(value.ahead)} commit(s) to ${value.upstream ?? "upstream"}?`}
-                    </p>
+                    {issue === null ? (
+                        <p className="text-ink">
+                            {`Push ${String(value.ahead)} commit(s) to ${value.upstream ?? "upstream"}?`}
+                        </p>
+                    ) : (
+                        <Alert>{issue}</Alert>
+                    )}
                     <Button
                         variant="ghost"
                         size="icon"

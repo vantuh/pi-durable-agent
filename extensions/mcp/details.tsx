@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { callAction } from "@/sdk/actions.ts";
@@ -60,17 +61,18 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     }
 
     if (current === undefined) {
-        return error === undefined ? (
-            <Spinner className="text-faint" />
-        ) : (
-            <p className="text-meta text-danger">{error}</p>
-        );
+        return error === undefined ? <Spinner className="text-faint" /> : <Alert>{error}</Alert>;
     }
 
     return (
         <div className="flex flex-col gap-2">
             {current.problem === undefined ? null : (
-                <p className="text-meta text-danger">{current.problem}</p>
+                <Alert
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a config file's problem is not one
+                    role="status"
+                >
+                    {current.problem}
+                </Alert>
             )}
             {current.servers.length === 0 && current.problem === undefined ? (
                 <p className="text-meta text-muted">No servers in mcp.json.</p>
@@ -105,7 +107,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                     />
                 </div>
             ))}
-            {error === undefined ? null : <p className="text-meta text-danger">{error}</p>}
+            {error === undefined ? null : <Alert>{error}</Alert>}
         </div>
     );
 }

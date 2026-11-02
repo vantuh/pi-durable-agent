@@ -1,6 +1,7 @@
 import { CircleAlert, FolderGit2, FolderX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -157,10 +158,10 @@ function Mark({ session }: StatusProps) {
                     </AlertDialogHeader>
 
                     {failure === null ? null : (
-                        <div className="bg-danger/10 text-meta mx-3 mb-1 flex items-start gap-2 rounded-lg px-3 py-2">
-                            <CircleAlert className="text-danger mt-0.5 size-3.5 shrink-0" />
-                            <span className="text-danger min-w-0 break-words">{failure}</span>
-                        </div>
+                        <Alert className="mx-3 mb-1">
+                            <CircleAlert />
+                            <span className="min-w-0">{failure}</span>
+                        </Alert>
                     )}
 
                     <AlertDialogFooter>
@@ -255,11 +256,7 @@ function Worktree({ use, refused }: NewSessionProps) {
                 />
             </div>
 
-            {failed ? (
-                <p id="worktree-refused" className="text-meta text-danger">
-                    {refused}
-                </p>
-            ) : null}
+            {failed ? <Alert id="worktree-refused">{refused}</Alert> : null}
         </div>
     );
 }

@@ -22,6 +22,7 @@ import {
     useState,
 } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -189,11 +190,7 @@ function RewordForm({
                     onKeyDown={submitOnEnter}
                 />
             </label>
-            {error !== null ? (
-                <p role="alert" className="text-danger text-meta">
-                    {error}
-                </p>
-            ) : null}
+            {error !== null ? <Alert>{error}</Alert> : null}
             <div className="flex gap-2">
                 <Button variant="ghost" className={button} disabled={saving} onClick={onClose}>
                     Cancel
@@ -347,9 +344,7 @@ function ChangesView({
     if (error !== null) {
         return (
             <PendingPane header={header}>
-                <p role="alert" className="text-danger p-3">
-                    {error}
-                </p>
+                <Alert className="text-interface rounded-none p-3">{error}</Alert>
             </PendingPane>
         );
     }
@@ -682,14 +677,16 @@ function CommitDetail({
 
         return (
             <PendingPane header={header}>
-                <p
-                    role={failure === null ? undefined : "alert"}
-                    className={`text-interface p-3 ${failure === null ? "text-muted" : "text-danger"}`}
-                >
-                    {failure === null
-                        ? "Nothing in this folder's history has that id. Open the history to pick a commit."
-                        : `${failure} Refresh the history to try again.`}
-                </p>
+                {failure === null ? (
+                    <p className="text-interface text-muted p-3">
+                        Nothing in this folder's history has that id. Open the history to pick a
+                        commit.
+                    </p>
+                ) : (
+                    <Alert className="text-interface rounded-none p-3">
+                        {failure} Refresh the history to try again.
+                    </Alert>
+                )}
             </PendingPane>
         );
     }
@@ -747,12 +744,9 @@ function ReviewView({
             </div>
 
             {issue !== null ? (
-                <p
-                    role="alert"
-                    className="text-danger text-interface border-edge-soft border-b px-3 py-2"
-                >
+                <Alert className="text-interface border-edge-soft rounded-none border-b">
                     {issue}
-                </p>
+                </Alert>
             ) : null}
 
             {starting || state?.state === "starting" ? (
@@ -794,9 +788,9 @@ function ReviewView({
                     </Button>
                 </div>
             ) : state?.state === "failed" ? (
-                <p role="alert" className="text-danger text-interface p-4">
+                <Alert className="text-interface rounded-none p-4">
                     {state.error ?? "Review failed."}
-                </p>
+                </Alert>
             ) : state?.state === "cancelled" ? (
                 <p className="text-muted text-interface p-4">Review was cancelled.</p>
             ) : (
@@ -1128,12 +1122,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 {toolbar}
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     {issue !== null ? (
-                        <p
-                            role="alert"
-                            className="text-danger text-interface border-edge-soft border-b px-3 py-2"
-                        >
+                        <Alert className="text-interface border-edge-soft rounded-none border-b">
                             {issue}
-                        </p>
+                        </Alert>
                     ) : null}
                     {data === null && loading ? (
                         <p className="text-muted p-4">Reading Git history…</p>

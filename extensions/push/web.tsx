@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
@@ -188,7 +189,7 @@ function Notifications(_props: SettingsProps) {
                 {working ? <Spinner /> : null}
                 {on ? "Disable on this device" : "Enable on this device"}
             </Button>
-            {error === undefined ? null : <p className="text-meta text-danger">{error}</p>}
+            {error === undefined ? null : <Alert>{error}</Alert>}
         </div>
     );
 }

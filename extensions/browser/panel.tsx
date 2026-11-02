@@ -19,6 +19,7 @@ import {
     useState,
 } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -508,7 +509,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
             </div>
 
             {problem === null ? null : (
-                <p className="text-meta text-danger px-3 py-1.5">{problem}</p>
+                <Alert className="rounded-none px-3 py-1.5">{problem}</Alert>
             )}
 
             {page?.open === true ? (

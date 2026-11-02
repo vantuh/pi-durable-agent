@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Checkbox } from "@/components/ui/checkbox.tsx";
 import { callAction } from "@/sdk/actions.ts";
@@ -75,18 +76,18 @@ export function AccountDetails() {
                 />
                 Include email and organization
             </label>
-            {error ? (
-                <p role="alert" className="text-danger">
-                    Could not check the account. Please try again.
-                </p>
-            ) : null}
+            {error ? <Alert>Could not check the account. Please try again.</Alert> : null}
             {result?.kind === "not-oauth" ? (
                 <p className="text-muted">No Anthropic OAuth authorization configured.</p>
             ) : null}
             {result?.kind === "unavailable" ? (
-                <p role="alert" className="text-warn">
+                <Alert
+                    tone="warn"
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a provider's state is not one
+                    role="status"
+                >
                     Account unavailable: {result.reason}
-                </p>
+                </Alert>
             ) : null}
             {profile === null ? null : (
                 <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">

@@ -1,6 +1,7 @@
 import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -288,9 +289,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     <ScrollArea className="rounded-control border-edge-soft min-h-0 flex-1 border">
                         <div className="p-1">
                             {error ? (
-                                <p className="text-danger text-meta p-2">
-                                    Cannot read that folder.
-                                </p>
+                                <Alert>Cannot read that folder.</Alert>
                             ) : (
                                 (page?.dirs ?? []).map((dir) => (
                                     <button

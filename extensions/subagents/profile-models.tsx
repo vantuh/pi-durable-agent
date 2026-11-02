@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ModelMenu } from "@/composer/model-menu.tsx";
 import { listModels, type Models } from "@/lib/api.ts";
@@ -75,11 +76,7 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
 
     return (
         <div className="text-meta flex flex-col gap-2">
-            {error === null ? null : (
-                <p role="alert" className="text-danger break-words">
-                    {error}
-                </p>
-            )}
+            {error === null ? null : <Alert>{error}</Alert>}
 
             {rows === null ? <p className="text-faint">Loading…</p> : null}
             {rows?.length === 0 ? (

@@ -25,7 +25,8 @@ async function renderProgress(value: number): Promise<string> {
         return renderToStaticMarkup(createElement(Progress, { value, "aria-label": "x" }));
     } finally {
         await server.close();
-        await rm(cacheDir, { recursive: true, force: true });
+        // Vite can still be writing its dependency cache as it closes, so the first removal may race it.
+        await rm(cacheDir, { recursive: true, force: true, maxRetries: 5 });
     }
 }
 

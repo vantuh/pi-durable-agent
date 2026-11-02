@@ -684,16 +684,173 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 `role="alert"` so the error is announced.
 
-- [ ] Add `components/ui/alert.tsx` with `warn` and `danger` tones.
-- [ ] `web/src/transcript/transcript.tsx:236–246` — provider error.
-- [ ] `extensions/anthropic-subscription/account-details.tsx:74–82`.
-- [ ] `extensions/anthropic-subscription/details.tsx:50`, `113`.
-- [ ] `extensions/auto-session-name/details.tsx:62`.
-- [ ] `extensions/subagents/profile-models.tsx:79`.
-- [ ] `extensions/tags/details.tsx:110`.
-- [ ] `extensions/usage-limits/details.tsx:63`.
-- [ ] `extensions/git-stats/web.tsx` — the push panel's error state, left inside the popover by
-      [Popover](#31-popover-new).
+Each site below is judged for its role: a failure the person caused or must act on keeps
+`role="alert"`, and a passive note becomes `role="status"` so it does not interrupt what is being
+read. Its geometry follows what it covers: a block inside content takes the primitive's padding and
+its 6px radius, and one that is a pane's whole body or a full-bleed strip between two rules keeps
+square corners (`rounded-none`) and the caller's own padding, so no edge a border delimits moves.
+
+- [x] Add `components/ui/alert.tsx` with `warn` and `danger` tones, the two the call sites were
+      already choosing between. A tone is a wash and its text colour, with no frame: `bg-danger/10` over
+      `text-danger`, `bg-warn/10` over `text-warn`, which is what the two blocks that already existed
+      wore. `rounded-control` replaces their `rounded-lg` (8px → 6px), the theme's one radius for a block
+      that is not a card, and `px-3 py-2`, `gap-2` and `text-meta` are theirs too. A leading `<svg>` is
+      14px and takes the tone's colour, so a caller writes the icon and nothing else. `role="alert"` is
+      the default and `role="status"` the stated override. No `AlertTitle` / `AlertDescription`: the one
+      site with a title over a detail is a column of two spans the caller keeps.
+- [x] `web/src/transcript/transcript.tsx:235–251` — provider error. This block was the reference
+      look and keeps it: the icon, its 2px offset and its colour are the primitive's now, and the 6px
+      radius is the only change. It gains the `role="alert"` it never had — a provider failure the person
+      is waiting on is announced when it lands. The title inherits the tone's red and the detail keeps its
+      faint mono.
+- [x] `extensions/anthropic-subscription/account-details.tsx:79–88` — the check's failure and the
+      account state it can return. The failure keeps `role="alert"`: the person pressed the button
+      and it did not work. The `unavailable` result is `role="status"`: the click worked, and what
+      it found is a provider's state rather than an error of the screen, so it need not interrupt.
+      Both gain the wash, and the warn one the tone's yellow.
+- [x] `extensions/anthropic-subscription/details.tsx:49`, `109–116` — the poll's failure, and the
+      version hint it can carry. The failure stays `role="alert"`: the person opened these details
+      for diagnostics and none came. The hint is `role="status"`: a provider's version warning is
+      read when looked at, and interrupting a sentence already being read for it would not help.
+- [x] `extensions/auto-session-name/details.tsx:59–63` — the switch's failure, `role="alert"`: the
+      person flipped it, the save did not happen, and the switch already moved back.
+- [x] `extensions/subagents/profile-models.tsx:77–81` — a profile's failure, `role="alert"`: a save,
+      a removal or a model list the person asked for came back empty.
+- [x] `extensions/tags/details.tsx:109–113` — a tag's failure, `role="alert"`: adding, renaming,
+      recolouring or removing one is the person's own click.
+- [x] `extensions/usage-limits/details.tsx:61–65` — a provider's switch failing, `role="alert"`: one
+      click, one save, and the switch went back.
+- [x] `extensions/git-stats/web.tsx:165–176` — the push panel's error state, left inside the popover
+      by [Popover](#31-popover-new). It is `role="alert"` (the default): the person pressed Push and
+      it failed, which is the most urgent thing a 256px panel can say. The prompt it swaps with keeps
+      its own `<p>`, since it is a question and not a notice. The error is 12px now where the popover's
+      body is 15, the primitive's `text-meta`, and it wears the wash where it was red text.
+- [x] `extensions/git-worktree/web.tsx:160–165` — the removal's failure inside the AlertDialog, which
+      [AlertDialog](#34-alertdialog-new) left as a hand-written block (the same markup the transcript's
+      was). `role="alert"` (the default) is the one role it wants and never had: the person confirmed
+      a destructive answer and it did not happen, and the card stays open to say so. Its `mx-3 mb-1`
+      stays with the caller, since it is the dialog's padding; the rest is the primitive's, with the
+      8px radius becoming the theme's 6.
+- [x] `web/src/shell/extensions-dialog.tsx:142–146`, `195–197` — the selected extension's problem
+      over its details, and a list row's problem under its description. Both are `role="alert"`: a
+      folder that failed to load, or a switch the person just flipped that did not save. The row keeps
+      the id its switch points at in `aria-describedby`; the element carrying it is a `div` now, which
+      `aria-describedby` reads the same. Measured on a throwaway page: the details block is exactly as
+      wide as the line it replaces and 34px tall where that line was 18, the wash and the 6px radius
+      being the whole of it; the row grows 83.5 → 103.5px, and its message sits 12px right of the
+      description above it — the price of one look for one message, since the same text is an Alert a
+      click away.
+- [x] `web/src/shell/extension-details.tsx:46–48` — the boundary's fallback when a details module
+      fails to load, `role="alert"` (the default): a panel that threw while rendering is a failure, not
+      a note. It sits where the details would, so the primitive's own padding and radius are the block
+      that stands in for a section.
+- [x] `extensions/git-history/web.tsx:193`, `345–348`, `787–792` — the reword form's failure, a
+      pane's read failure and the review's own failure. All three are `role="alert"` (the default): a
+      save, a read or a review the person asked for came back with nothing. The reword error takes the
+      primitive whole, inside the form's own column: 1183×18 of bare 12px text becomes a 1183×34 block
+      with the tone's wash and its 6px radius, the only site of the three whose box grew. The other two
+      are a pane's whole body, so they keep the pane's edges and padding — `rounded-none` with `p-3` and
+      `p-4` — and their 15px text: measured in a full-width column, 1207×46.5 and 1207×54.5 before and
+      after, unmoved, with only the wash added.
+- [x] `extensions/git-history/web.tsx:743–748`, `1121–1126`, `extensions/git-history/preview.tsx:428–430`
+      — the two issue banners and the diff preview's parse failure, all `role="alert"`. The banners are
+      full-bleed strips that rule off a toolbar, so they keep square corners (`rounded-none`), their own
+      `px-3 py-2`, their 15px text and their `border-b` edge: measured in the same column, 1207×39.5 with
+      a 1px `edge-soft` rule before and after, the wash in place of the bare red words. The preview's
+      failure is a pane body like the two above — `rounded-none` and the primitive's padding, which was
+      already the 12px it carries.
+
+These are the error lines that had no live role at all, so the first pass over `role="alert"` never
+saw them. The rule is the one above: a block that says something failed becomes an `Alert`, and a
+line that is a row's detail or a status line that only turns red may stay text with its reason.
+
+- [x] `web/src/shell/extensions-dialog.tsx:114–122` — the list's own read. It was one line that was
+      faint while loading and red when the read failed; it is two now. The failure is `role="alert"`:
+      the person opened Extensions and nothing came, in a dialog that has no other body. It keeps the
+      line's `animate-drop-in` and `p-3` and takes `rounded-none`, as a pane's whole body does; the
+      loading line stays a faint paragraph, since "Loading…" is not a notice.
+- [x] `web/src/shell/folder-picker.tsx:290–294` — "Cannot read that folder." in place of the folder
+      list, and `role="alert"`: the person opened a folder and it could not be read, so the list they
+      came for is empty. It is the whole body of a framed, scrolling region — a `border` and
+      `rounded-control` box that holds rows at `p-1` — so it keeps the primitive's padding and radius
+      inside that 4px and gains the wash where it was red text: measured 1238×34 either way, the padding
+      going from 8px all round to `8px 12px` and the 6px radius in place of a square corner.
+- [x] `web/src/transcript/transcript.tsx:289–291` — the reason under a "compaction failed" mark,
+      `role="alert"` (the default): the person asked for a compaction and it was refused. It keeps the
+      mark's centring, which the primitive's flex row would otherwise lose — the text node is an
+      anonymous item sized to its content, so `justify-center` places it and `text-center` centres the
+      second line when it wraps. Measured at 390: 332×36 of centred text becomes a 332×52 block at 6px
+      with the same centred lines, and unmoved above it the `danger` badge that already names the
+      failure.
+- [x] `extensions/mcp/details.tsx:64`, `68–75`, `110` — the first read's failure, a problem in
+      `mcp.json`, and a switch whose save failed. The two failures are `role="alert"`: they are a
+      click's answer. The config problem is `role="status"`: it is what the file says, found on mount
+      rather than caused there, so it is announced when there is room rather than over what is being
+      read. All three take the primitive whole — they are blocks in the details column at 12px, and the
+      wash replaces red text of the same size, the bare lines growing from 18px to 34.
+- [x] `extensions/mcp/web.tsx:90–99` — the same `mcp.json` problem at the top of the status bar's
+      popover, so `role="status"` for the same reason. The popover is `w-72 p-1` with rows at `px-2`,
+      so the Alert keeps `px-2 py-1.5`: measured, the wash sits where the red words did, 12px from the
+      popover's edge like every row's text, at the rows' own 6px radius.
+- [x] `extensions/push/web.tsx:192` — the error under "Enable on this device", `role="alert"`: the
+      button is the whole section, and the same line also carries the state read that runs on mount. The
+      block takes the primitive whole; it is the section's body at 12px, so the wash replaces red words
+      of the same size, and the 18px line becomes a 34px block.
+- [x] `extensions/bash-timeout/details.tsx:105–106`, `135` — the first read's failure and a save's,
+      which are the same `error`: `role="alert"` for both, since one is the panel that would not open and
+      the other is the number the person typed coming back unchanged. The first replaces the panel's
+      whole body; the second sits under the field, where the primitive's own padding and radius are the
+      block that was red text.
+- [x] `extensions/browser/panel.tsx:510–512` — the strip under the browser's toolbar, `role="alert"`:
+      its `error` is an operation the person started that failed, and `page.problem` arrives with it. It is
+      a full-bleed strip between the toolbar's `border-b` and the stage, so it keeps square corners
+      (`rounded-none`) and its own `px-3 py-1.5`: measured 1248×30 with `6px 12px` of padding before and
+      after, unmoved.
+- [x] `extensions/git-history/web.tsx:675–691` — a pane that has no such commit, or whose read failed. It
+      was one paragraph that turned red and took `role="alert"` when it was a failure; it is two now. The
+      "not here" note stays a muted `<p>` with no live role, because it is a note about a place, not an
+      error. The failure is `role="alert"` and keeps the pane body's geometry — `rounded-none`, `p-3`,
+      `text-interface` — so at the same measured 1207×46.5 only the wash is new.
+
+A full sweep of `text-danger` and `text-warn` across `web/src` and `extensions/` — the first list was
+cut short by a `head` — found these too.
+
+- [x] `extensions/git-worktree/web.tsx:259` — the New session dialog's refusal, under the worktree
+      name, `role="alert"`: the person asked for a worktree and the session was not made. It keeps the
+      id the name field points at in `aria-describedby`, which reads a `div` the same, and takes the
+      primitive whole — it is a line under the field, 18px of red text becoming a 34px block.
+- [x] `extensions/notes/todos.tsx:247` — a to-do item's failure, between the add form and the list,
+      `role="alert"`: adding, ticking or removing one is the person's own click. It is a full-bleed strip
+      of the panel, so it keeps square corners and its `px-3 py-1`, and its 15px text.
+- [x] `extensions/notes/panel.tsx:267` — a note's failure, under its tabs, `role="alert"`: the note's
+      read or write did not answer. It is a full-bleed strip of the panel with the primitive's own
+      `px-3 py-2`, so only the corners change, to square, and the 15px text stays.
+- [x] `extensions/files/panel.tsx:172`, `228` — the tree's read failure, and the viewer's, both
+      `role="alert"`: a read the person asked for by opening the panel or a file. The tree's is a
+      full-bleed strip under its header, so it keeps square corners and its `p-3`; the viewer's sits
+      inside the scrolled `p-3` with its own line, so it takes the primitive whole.
+- [x] `extensions/usage-limits/web.tsx:161`, `171` — a refresh's failure, and one provider's error
+      inside its own card, both `role="alert"`: they are what the refresh the person pressed came back
+      with. The first keeps its `mb-2` and takes the primitive whole; the second sits in a provider's
+      `rounded-lg border p-2`, so it takes the primitive whole too, at 12px in a popover that is 12px.
+- [x] `extensions/keep-warm/web.tsx:123` — "Last ping …", which turns red when the ping failed.
+      **Stays text**: it is the third line of the popover's own readout column — when the last request
+      went out, when the next will, and what the last one cost — so the failure is the same line with its
+      error appended, not a block of its own, and a wash around 12px of a three-line readout would read
+      as a different kind of thing than the two lines above it.
+- [x] `extensions/git-history/web.tsx:373–378` — the caveat under a diff's counts when the preview is
+      cut short. **Stays text**, `text-warn` on a 15px note: it is a readout of the preview's own limit
+      rather than a failure, it sits in the diff's header column beside the counts and "No changes.",
+      and a wash there would frame one line of a header whose other lines are plain body text. It keeps
+      no live role for the same reason — nothing failed.
+
+The rest of what a tone colours is a mark, not a block: a diff's `−` count (`web/src/ui/diff.tsx:276`,
+`extensions/git-history/preview.tsx:238`, `extensions/git-history/web.tsx:368`,
+`extensions/git-stats/web.tsx:120`), git-stats' ahead/behind pair (`:123`), the browser's error count in
+its toolbar (`extensions/browser/panel.tsx:507`), a status bar field's label
+(`web/src/shell/status-bar.tsx:62`), and a server row's own detail line
+(`extensions/mcp/details.tsx:88`). Each is one value inside a row or a readout that a frame would pull
+out of its line, so all of them stay text.
 
 ### 3.8 Empty (new)
 
