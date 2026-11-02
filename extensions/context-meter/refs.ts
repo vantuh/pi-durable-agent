@@ -1,6 +1,7 @@
 import { actionRef } from "../../shared/extension-api.ts";
 
-export type Part = { name: string; preview: string; tokens: number };
+/** One row of the breakdown; `parts` holds the tools an extension put in the prompt, when it put two or more. */
+export type Part = { name: string; preview: string; tokens: number; parts?: Part[] };
 
 export type Breakdown = {
     model: string;
@@ -13,12 +14,17 @@ export type Breakdown = {
 };
 
 function isPart(value: unknown): value is Part {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const parts: unknown = Reflect.get(value, "parts");
+
     return (
-        typeof value === "object" &&
-        value !== null &&
         typeof Reflect.get(value, "name") === "string" &&
         typeof Reflect.get(value, "preview") === "string" &&
-        typeof Reflect.get(value, "tokens") === "number"
+        typeof Reflect.get(value, "tokens") === "number" &&
+        (parts === undefined || (Array.isArray(parts) && parts.every(isPart)))
     );
 }
 

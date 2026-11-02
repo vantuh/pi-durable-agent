@@ -1,5 +1,8 @@
+import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -9,6 +12,8 @@ const WARN_ABOVE = 0.7;
 const DANGER_ABOVE = 0.9;
 const POPUP_WIDTH = 640;
 const GAP = 8;
+const ROW =
+    "grid grid-cols-[minmax(0,9rem)_1fr_4rem_3rem] items-center gap-3 text-left max-sm:grid-cols-[minmax(0,1fr)_4rem_3rem]";
 
 /** 119, 2.7k, 18k: one decimal below 10k. */
 function compact(count: number): string {
@@ -35,28 +40,68 @@ function Bar({ fill, className }: { fill: number; className: string }) {
     );
 }
 
+/** The cells of one row: what it holds, how much it weighs, and its share of the biggest row. */
+function Cells({ part, biggest, fold }: { part: Part; biggest: number; fold?: boolean }) {
+    return (
+        <>
+            {fold === true ? (
+                <span className="text-ink flex min-w-0 items-center gap-1.5">
+                    <ChevronRight className="text-faint size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
+                    <span className="truncate">{part.name}</span>
+                </span>
+            ) : (
+                <span className="text-ink truncate">{part.name}</span>
+            )}
+            <span className="text-faint truncate max-sm:hidden">{part.preview}</span>
+            <Bar fill={part.tokens / biggest} className="bg-accent" />
+            <span className="text-muted text-right">{compact(part.tokens)}</span>
+        </>
+    );
+}
+
+/** A part an extension installed two or more of its tools into folds open into them. */
+function Row({ part, biggest }: { part: Part; biggest: number }) {
+    const children = part.parts;
+
+    if (children === undefined) {
+        return (
+            <div className={ROW}>
+                <Cells part={part} biggest={biggest} />
+            </div>
+        );
+    }
+
+    return (
+        <Collapsible className="group/fold flex flex-col gap-1">
+            <CollapsibleTrigger className={`${ROW} hover:bg-raised/50`}>
+                <Cells part={part} biggest={biggest} fold />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="flex flex-col gap-1 pl-4">
+                {children.map((child) => (
+                    <div key={child.name} className={ROW}>
+                        <Cells part={child} biggest={biggest} />
+                    </div>
+                ))}
+            </CollapsibleContent>
+        </Collapsible>
+    );
+}
+
 function Group({ title, unit, parts }: { title: string; unit: string; parts: Part[] }) {
     const total = parts.reduce((sum, part) => sum + part.tokens, 0);
     const biggest = Math.max(1, ...parts.map((part) => part.tokens));
+    const count = parts.reduce((sum, part) => sum + (part.parts?.length ?? 1), 0);
 
     return (
         <section className="flex flex-col gap-1">
             <h3 className="text-faint flex items-baseline gap-2 uppercase">
                 <span className="bg-accent size-2.5 self-center rounded-sm" />
                 {title}
-                <span className="normal-case">{`${String(parts.length)} ${unit}`}</span>
+                <span className="normal-case">{`${String(count)} ${unit}`}</span>
                 <span className="text-ink ml-auto">{compact(total)}</span>
             </h3>
             {parts.map((part) => (
-                <div
-                    key={part.name}
-                    className="grid grid-cols-[minmax(0,9rem)_1fr_4rem_3rem] items-center gap-3 max-sm:grid-cols-[minmax(0,1fr)_4rem_3rem]"
-                >
-                    <span className="text-ink truncate">{part.name}</span>
-                    <span className="text-faint truncate max-sm:hidden">{part.preview}</span>
-                    <Bar fill={part.tokens / biggest} className="bg-accent" />
-                    <span className="text-muted text-right">{compact(part.tokens)}</span>
-                </div>
+                <Row key={part.name} part={part} biggest={biggest} />
             ))}
         </section>
     );
@@ -70,33 +115,38 @@ function Popup({ data, left, bottom }: { data: Breakdown; left: number; bottom: 
             style={{ left, bottom, width: `min(${String(POPUP_WIDTH)}px, calc(100vw - 1rem))` }}
             className="fixed z-50 pb-2"
         >
-            <div className="rounded-card border-edge-soft bg-canvas text-meta text-muted flex max-h-[70vh] flex-col gap-4 overflow-y-auto border p-4 font-mono shadow-lg">
-                <div className="grid grid-cols-[5rem_1fr] gap-y-1">
-                    <span className="text-faint">model</span>
-                    <span className="text-ink">{data.model}</span>
-                    <span className="text-faint">context</span>
-                    <span className="flex items-center gap-3">
-                        <span className="text-ink">
-                            {compact(data.used)}
-                            {data.window > 0 ? ` of ${compact(data.window)}` : ""}
-                        </span>
-                        {data.window > 0 ? (
-                            <>
-                                <span className="w-32">
-                                    <Bar fill={fill} className={toneOf(fill)} />
+            <div className="rounded-card border-edge-soft bg-canvas border font-mono shadow-lg">
+                {/* The cap sits on the viewport: a card capped by max-height gives the area no height to fill. */}
+                <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>
+                    <div className="text-meta text-muted flex flex-col gap-4 p-4">
+                        <div className="grid grid-cols-[5rem_1fr] gap-y-1">
+                            <span className="text-faint">model</span>
+                            <span className="text-ink">{data.model}</span>
+                            <span className="text-faint">context</span>
+                            <span className="flex items-center gap-3">
+                                <span className="text-ink">
+                                    {compact(data.used)}
+                                    {data.window > 0 ? ` of ${compact(data.window)}` : ""}
                                 </span>
-                                <span>{percent(fill)}</span>
-                            </>
-                        ) : null}
-                    </span>
-                </div>
-                <Group title="system prompt" unit="sections" parts={data.sections} />
-                <Group title="tools" unit="tools" parts={data.tools} />
-                <p className="text-faint">
-                    {data.calibrated
-                        ? "Approximate: sizes are scaled to the model's own count of the first request."
-                        : "Approximate: 3.5 characters per token, not the model's own count."}
-                </p>
+                                {data.window > 0 ? (
+                                    <>
+                                        <span className="w-32">
+                                            <Bar fill={fill} className={toneOf(fill)} />
+                                        </span>
+                                        <span>{percent(fill)}</span>
+                                    </>
+                                ) : null}
+                            </span>
+                        </div>
+                        <Group title="system prompt" unit="sections" parts={data.sections} />
+                        <Group title="tools" unit="tools" parts={data.tools} />
+                        <p className="text-faint">
+                            {data.calibrated
+                                ? "Approximate: sizes are scaled to the model's own count of the first request."
+                                : "Approximate: 3.5 characters per token, not the model's own count."}
+                        </p>
+                    </div>
+                </ScrollArea>
             </div>
         </div>
     );

@@ -26,6 +26,7 @@ function hostOf(dataDir: string): Host {
         wrapModelFetch: () => undefined,
         resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => undefined,
+        toolOwner: () => undefined,
         sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),

@@ -76,6 +76,8 @@ export type Host = {
     readonly resolveModelAuth: ResolveModelAuth;
     /** The context window of a model in the catalog, in tokens. */
     readonly contextWindow: (provider: string, modelId: string) => number | undefined;
+    /** The installed extension whose tools include `tool`; undefined for core tools and unknown names. */
+    readonly toolOwner: (tool: string) => string | undefined;
     /**
      * What one conversation would send next and one request on top of it, for keeping its provider
      * cache warm without adding to its transcript. Undefined for a session the server does not know.
@@ -947,6 +949,15 @@ export class Extensions {
             },
             resolveModelAuth: this.#resolveModelAuth,
             contextWindow: this.#contextWindow,
+            toolOwner: (tool) => {
+                for (const [name, extension] of this.#installed) {
+                    if (extension.tools?.some((registered) => registered.name === tool)) {
+                        return name;
+                    }
+                }
+
+                return undefined;
+            },
             sessionRequest: (session) => this.#sessionRequest(session),
             sessionTitle: (session) => this.#sessionTitle(session),
             sessionName: (session) => this.#sessionName(session),

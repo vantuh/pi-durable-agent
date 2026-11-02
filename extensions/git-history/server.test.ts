@@ -29,6 +29,7 @@ const host: Host = {
     setSessionTitle: () => Promise.resolve(),
     readDoc: (doc) => Promise.resolve(doc.definition.initial()),
     setSessionMark: () => undefined,
+    toolOwner: () => undefined,
     folderGroup: () => undefined,
     notifySessionChanged: () => undefined,
     notify: () => undefined,

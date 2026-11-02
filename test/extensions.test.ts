@@ -12,6 +12,7 @@ import { ActionError, ActionNotFound, Extensions, parseActionBody } from "../ser
 import type { ExtensionNotice } from "../shared/protocol.ts";
 
 const CALLS = "__extensionTestCalls";
+const OWNER = "__extensionTestToolOwner";
 const GATE = "__extensionTestGate";
 const ACTION_GATE = "__extensionTestActionGate";
 const DISPOSE_GATE = "__extensionTestDisposeGate";
@@ -24,6 +25,15 @@ function calls(): string[] {
     }
 
     return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+/** What the `beta` folder's `toolOwner` answers now, for whatever the loader has installed at that moment. */
+function ownerOf(tool: string): unknown {
+    const lookup: unknown = Reflect.get(globalThis, OWNER);
+
+    assert.ok(lookup instanceof Function);
+
+    return Reflect.apply(lookup, undefined, [tool]);
 }
 
 /** A server.ts that registers one disposer per entry of `tags`, each recording `tag`. */
@@ -1326,5 +1336,23 @@ export const actions = { tag: () => "${tag}" };`;
 
         assert.deepEqual(extensions.failed, []);
         assert.deepEqual(extensions.names, ["alpha", "beta"]);
+    });
+
+    void it("says which installed extension installed a tool, and nothing for a core or unknown one", async () => {
+        registry.install(CodingTools);
+        await write("alpha", providing({ tools: ["alpha-tool", "alpha-second"] }));
+        await write(
+            "beta",
+            `export default function (host) {
+                globalThis.${OWNER} = (tool) => host.toolOwner(tool);
+                return { name: host.name };
+            }`,
+        );
+        await extensions.load();
+
+        assert.equal(ownerOf("alpha-tool"), "alpha");
+        assert.equal(ownerOf("alpha-second"), "alpha");
+        assert.equal(ownerOf("bash"), undefined);
+        assert.equal(ownerOf("nobody-tool"), undefined);
     });
 });
