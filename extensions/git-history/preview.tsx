@@ -293,6 +293,8 @@ export function PatchPreview({
     }, [data.patch]);
     // An item mid-fold is not listening: a second click would animate from a height nobody shows.
     const folding = useRef(new Set<string>());
+    // The way to stop the fold a file is in, so a pick in the tree can take that file as it is.
+    const settling = useRef(new Map<string, () => void>());
     const toggle = useCallback(
         (id: string, element?: HTMLElement) => {
             const fold = element === undefined ? undefined : foldOf(element);
@@ -344,7 +346,9 @@ export function PatchPreview({
                 });
                 fold.box.style.overflow = "";
                 folding.current.delete(id);
+                settling.current.delete(id);
             };
+            settling.current.set(id, settle);
             const [box] = animations;
             box.onfinish = (): void => {
                 if (!opening) {
@@ -385,6 +389,12 @@ export function PatchPreview({
     );
     const pick = useCallback(
         (file: TreeFile) => {
+            // A pick in the tree is the person's last word on that file: a fold still running would
+            // otherwise finish on top of it and fold the diff away just after it was scrolled to.
+            const stop = settling.current.get(file.id);
+            if (stop !== undefined) {
+                stop();
+            }
             if (folded[file.id] === true) {
                 setFolded((old) => ({ ...old, [file.id]: false }));
                 // A folded item only repaints when its version moves, as it does when unfolded.
