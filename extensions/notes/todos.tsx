@@ -372,7 +372,7 @@ function Row({
                     aria-expanded={expanded}
                     onClick={onExpand}
                     className={cn(
-                        "text-interface min-w-0 flex-1 justify-start break-words px-0 py-0 font-normal",
+                        "text-interface min-w-0 flex-1 justify-start break-words px-0 py-0 text-left",
                         todo.done ? "text-faint line-through" : "text-ink",
                     )}
                 >

@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, GitCompareArrows, LoaderCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -142,17 +143,18 @@ function GitBadge({ session }: StatusProps) {
                             {issue ??
                                 `Push ${String(value.ahead)} commit(s) to ${value.upstream ?? "upstream"}?`}
                         </p>
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             aria-label="Close Git message"
-                            className="text-muted shrink-0"
+                            className="size-4 shrink-0 p-0 hover:bg-transparent"
                             onClick={() => {
                                 setConfirm(false);
                                 setIssue(null);
                             }}
                         >
                             <X className="size-4" />
-                        </button>
+                        </Button>
                     </div>
                     {confirm ? (
                         <button

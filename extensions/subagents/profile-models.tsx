@@ -113,8 +113,8 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                                     variant="ghost"
                                     className={
                                         compact
-                                            ? "text-meta h-6 px-1.5 py-0"
-                                            : "text-meta px-2 py-1"
+                                            ? "text-meta h-6 px-1.5 py-0 font-medium"
+                                            : "text-meta px-2 py-1 font-medium"
                                     }
                                     disabled={saving}
                                     onClick={() => {

@@ -31,6 +31,9 @@ description when they drift. Tick a box when its commit lands.
   behaviour, the site stays custom and moves to [Kept custom](#kept-custom).
 - **Commit per step**, `refactor(ui): …` or `feat(ui): …`; a new dependency names its reason in the
   message.
+- **State on a shared trigger is `aria-expanded`.** Under `Hint`, a menu, dialog, or collapsible
+  trigger's `data-state` belongs to the tooltip; style or read the open state through
+  `aria-expanded` instead.
 - **Check per step:** `pnpm check` and `pnpm test` pass; the touched screens are opened in the
   browser at desktop and mobile width, with keyboard-only navigation tried once.
 
@@ -71,8 +74,9 @@ Core:
       soft danger on `ghost`, not the solid `danger`), send (`800`, keep the busy label and split layout), send-mode trigger (`818`).
 - [x] `web/src/composer/model-menu-dialog.tsx` — add/remove scoped model (`201`, `217`),
       "Make default" (`241`).
-- [x] `web/src/composer/queued.tsx` — edit, remove (`87–136`). The queue text at `89–103`
-      stays custom; see [Kept custom](#kept-custom).
+- [x] `web/src/composer/queued.tsx` — edit, remove, and the text disclosure (`87–136`). The
+      disclosure is ghost with `p-0`, no hover fill, and `block` / `line-clamp-2` for its two states;
+      `line-clamp-2` and `block` both drop ghost's `inline-flex`, so the clamp still holds.
 - [x] `web/src/transcript/agent-message.tsx` — open-agent icon link (`37`, `asChild` over the
       link).
 - [x] `web/src/transcript/selection-quote.tsx` — floating quote action (`94`).
@@ -127,8 +131,8 @@ Extensions:
       guard that keeps focus in the textarea stays on the button.
 - [x] `extensions/files/panel.tsx` — reload, back (`153–161`, `203–207`). The row itself (`106–115`)
       waits for [Item](#39-item-new): it is one button that the whole row is, indented by padding.
-- [x] `extensions/git-history/file-tree.tsx` — rows (`60–84`). Kept hand-written; see
-      [Kept custom](#kept-custom).
+- [x] `extensions/git-history/file-tree.tsx` — rows (`60–84`). They stay raw: the row is the
+      indent, and [Item](#39-item-new) owns the family.
 - [x] `extensions/git-history/preview.tsx` — actions (`194–200`). The header keeps `h-9`, `bg-panel`,
       its top border, and its square corners: it is measured as 36px by the diff view.
       Its `WithoutDiff` rows stay for [Item](#39-item-new).
@@ -156,8 +160,8 @@ Extensions:
 - [x] `extensions/pause/web.tsx` — `63–75`. The paused step keeps its yellow fill and its own hover,
       because ghost's ink and raised fill would paint over it. The button gains the `aria-label` its
       `title` was standing in for.
-- [x] `extensions/push/web.tsx` — `163–185`. The button keeps its raised fill, its ink, its
-      `hover:bg-edge-soft`, and `gap-2` on ghost; the default size is the px-3 py-1.5 it had. The
+- [x] `extensions/push/web.tsx` — `163–185`. The button is ghost, keeping its raised fill, its
+      ink, its `hover:bg-edge-soft`, and `gap-2`; the label is regular like every ghost button. The
       contact field stays for [Input](#21-input-installed-bypassed).
 - [x] `extensions/tags/details.tsx` — `33–48`, `158–171`, `206–249`. Cancel keeps `px-1 py-0`, so it stays
       the height of the Save beside it; the pencil and the bin are 24px targets inside a 24px row, and
@@ -173,10 +177,10 @@ Extensions:
       `font-normal`, and its own `hover:bg-sunken`. The refresh is a 24px target, the height of the
       heading beside it. The `<dialog>` stays for [Popover](#31-popover-new) and the meter for
       [Progress](#26-progress-new).
-- [x] `extensions/git-worktree/web.tsx` — remove (`116–120`). The × keeps its 14px markup, which is
-      [Kept custom](#kept-custom); its action title is a `Hint` now. The dialog's `Remove worktree`
-      is `variant="danger"` instead of a hand-painted one, and the flow itself waits for
-      [AlertDialog](#34-alertdialog-new).
+- [x] `extensions/git-worktree/web.tsx` — remove (`116–120`). The × is ghost in the icon's own 14px
+      box with the hover fill off, so nothing paints outside the 16px pill; its action title is a
+      `Hint` now. The dialog's `Remove worktree` is `variant="danger"` instead of a hand-painted one,
+      and the flow itself waits for [AlertDialog](#34-alertdialog-new).
 - [x] `extensions/anthropic-subscription/account-details.tsx` — submit (`49–61`). The button is ghost
       inside its own border, with `text-ink` and `font-normal` so it reads as the outline action it
       was; it is a `type="button"` that reads and does not submit, and the field beside it stays for
@@ -186,19 +190,49 @@ Extensions:
       order of every page.
 
 Done when `grep -rF '<button' web/src extensions --include=*.tsx | grep -v components/ui` lists
-only the sites in [Kept custom](#kept-custom) and the ones a later step owns. After the last
-extension was migrated it listed 25: nine kept custom (the lightbox close, three resize handles, two
-file-tree rows, the queue text, the two tag colour dots, the worktree badge ×), and sixteen another
-step rewrites — [Item](#39-item-new) rows and the folder picker (5), [ToggleGroup](#36-togglegroup-new)
-in the appearance dialog (4), the git-stats panel (2, [Popover](#31-popover-new)), and one each for
-the [Badge](#25-badge-installed-reduced-to-one-look) chips, the [DropdownMenu](#32-dropdownmenu-installed-bypassed)
-send modes, the [Command](#33-command-installed-bypassed) slash list, the [AlertDialog](#34-alertdialog-new)
-push confirm, and the [Breadcrumb](#312-breadcrumb-new) crumbs.
+only the sites in [Kept custom](#kept-custom) and the ones a later step owns. After the Phase 1
+review it lists 19: five kept custom (the lightbox close, the two resize handles, the two tag colour
+dots), and fourteen another step rewrites — [Item](#39-item-new) rows and the folder picker (5, the
+two file-tree rows among them), [ToggleGroup](#36-togglegroup-new) in the appearance dialog (3), the
+git-stats panel (2, [Popover](#31-popover-new) and [AlertDialog](#34-alertdialog-new)), and one each
+for the [Badge](#25-badge-installed-reduced-to-one-look) chip, the
+[DropdownMenu](#32-dropdownmenu-installed-bypassed) send modes, the
+[Command](#33-command-installed-bypassed) slash list, and the [Breadcrumb](#312-breadcrumb-new)
+crumbs. The third resize handle is a `div role="separator"`, not a button.
 
-Five action hints are still `title=`, each in a file whose step rewrites it: the session row's
-actions and the folder picker's favourite ([Item](#39-item-new)), the appearance gear
-([ToggleGroup](#36-togglegroup-new)), the settings close ([Sheet](#35-sheet-new)), and git-stats' Push,
-whose title also says why it is disabled ([Popover](#31-popover-new), [AlertDialog](#34-alertdialog-new)).
+One action hint is still `title=`: git-stats' Push, whose title also says why it is disabled
+([Popover](#31-popover-new), [AlertDialog](#34-alertdialog-new)). The rest of the `title=` left in the
+app is a readout, not an action, and stays — listed under [Kept custom](#kept-custom).
+
+### 1.4 The Phase 1 review
+
+What the review of the migration found and fixed.
+
+- [x] Left-aligned labels: ghost's `inline-flex` centring had replaced the `text-left` the raw
+      buttons had on the diff file header, the history row metadata, and a to-do title.
+- [x] Weight: the base says `font-normal`, and `primary` / `danger` add `font-medium`. The four ghost
+      callers that were medium before the change say `font-medium` themselves; every other ghost
+      button's `font-normal` went, since ghost now carries it.
+- [x] `extensions/push/web.tsx` — the device switch is `variant="ghost"` instead of a hand-painted
+      primary.
+- [x] Classes a variant or a size already set: gap, colour, font size, and hover fill dropped where
+      ghost or the default size supplies the same.
+- [x] `web/src/shell/appearance-dialog.tsx` — the palette gear (`30–43`) is a ghost `Button` and a
+      `Hint`; the three choice groups stay for [ToggleGroup](#36-togglegroup-new).
+- [x] `web/src/shell/sessions.tsx` — a row's actions trigger (`310`) is ghost `size="icon"` with the
+      panel fill as its hover, a `Hint`, and its `aria-label` kept. The rows stay for
+      [Item](#39-item-new).
+- [x] `web/src/shell/folder-picker.tsx` — the favourite star (`389`) is ghost in its own 16px box,
+      with the hint the `title` gave. Rows and crumbs stay for [Item](#39-item-new) and
+      [Breadcrumb](#312-breadcrumb-new).
+- [x] `extensions/git-stats/web.tsx` — the push panel's close (`145`) is a `Button` in its 16px box.
+      The trigger and the confirm stay for [Popover](#31-popover-new) and
+      [AlertDialog](#34-alertdialog-new).
+- [x] `web/src/components/ui/dialog.tsx` and `web/src/shell/settings.tsx` — the dialog and the sheet
+      close are ghost `Button`s with a `Hint`; the sheet keeps its explicit return-focus target.
+- [x] `web/src/styles/styles.css` — a row's actions are shown by `[aria-expanded="true"]`, not
+      `[data-state="open"]`: the `Hint` around the trigger puts the tooltip's own `data-state` on
+      that element, and the menu's is lost.
 
 ## Phase 2: form controls, display primitives
 
@@ -269,6 +303,8 @@ border.
 - [ ] `extensions/git-branch/web.tsx:56` — drop the `BADGE` class override for a tone.
 - [ ] `extensions/git-stats/web.tsx:89–101`.
 - [ ] `extensions/subagents/web.tsx:112–126`.
+- [ ] The agent chip that is a link (`extensions/subagents/web.tsx:102`) takes `asChild` over its
+      `a`, so the link keeps Cmd-click while the badge gives the look.
 - [ ] `extensions/tags/web.tsx:24–41`, `117–136`; `extensions/tags/details.tsx:33–48`,
       `158–171` — tag colour stays a theme role per tag.
 - [ ] `extensions/context-meter/web.tsx:98–99` — status dot keeps its text alternative.
@@ -324,7 +360,7 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 - [ ] Add `components/ui/sheet.tsx` on top of the dialog primitive.
 - [ ] `web/src/shell/settings.tsx:20–60` — direct Radix Dialog → Sheet; keep the explicit
-      return-focus target.
+      return-focus target. The header's close is a `Button` already.
 - [ ] `extensions/git-history/web.tsx:1210–1283` — sliding panel.
 - [ ] Decide after the two above: `web/src/shell/panels.tsx:181–187, 293–321` and
       `web/src/shell/sessions.tsx:840–846` on narrow screens only. Wide screens keep the
@@ -334,7 +370,7 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 - [ ] Add `components/ui/toggle-group.tsx`.
 - [ ] `web/src/shell/appearance-dialog.tsx` — flavour (`65–83`), sidebar width (`110–123`),
-      layout (`143–155`); the icon button at `30–43` → `Button`.
+      layout (`143–155`). The palette gear above them is a `Button` already.
 
 ### 3.7 Alert (new)
 
@@ -365,7 +401,14 @@ One row: media, title, description, actions. Links stay links through `asChild`.
 - [ ] Session rows: `web/src/shell/sessions.tsx:1093–1115` (`SessionRow`),
       `web/src/shell/home.tsx:36–52, 119–125`, `web/src/shell/sessions-status.tsx:69–106` (keep
       the two-tap touch submenu).
-- [ ] Folder rows: `web/src/shell/folder-picker.tsx:289–303, 364–394` (keep double-click).
+- [ ] Folder rows: `web/src/shell/folder-picker.tsx:289–303, 364–394` (keep double-click). The
+      star beside a favourite is a `Button` already.
+- [ ] File tree rows: `extensions/git-history/file-tree.tsx:60–101`. The row is the indent
+      (`paddingLeft` from the depth), and the folder row's name is not `flex-1`.
+- [ ] Every row that is a link takes `asChild` over the `a` and keeps its plain-click guard, so
+      Cmd-click and open-in-new-tab still work: the session row's link
+      (`web/src/shell/sessions.tsx:277`), a home row's link (`web/src/shell/home.tsx:38`), and the
+      subagent links (`extensions/subagents/web.tsx:102`, `:159`, `:273`).
 - [ ] Queue rows: `web/src/composer/queued.tsx:53–136`.
 - [ ] Settings rows: `web/src/shell/settings-content.tsx:133–139`.
 - [ ] Extension rows: `extensions/files/panel.tsx:104–115`,
@@ -463,17 +506,23 @@ What a migrated site gains, so a review can check it was not lost on the way.
 
 ## Kept custom
 
-Replacing these costs more than it saves. They stay hand-written and need no box.
+Replacing these costs more than it saves: each one is a choice of cost against benefit, not a gap
+in `Button`. The list closes with the `title=` readouts that are not actions and stay.
 
-- **Resize handles** — `web/src/shell/panels.tsx:121–178`, `web/src/shell/sessions.tsx:194–214`,
-  `web/src/shell/sidebar-bottom.tsx:127–151`: persisted size, keyboard steps, double-click reset,
-  live limits. shadcn `Resizable` would add `react-resizable-panels` and a layout rewrite.
-- **Drop overlay** — `web/src/composer/drop-overlay.tsx`: a non-modal drag cue, no primitive fits.
-- **Lightbox close target** — `web/src/ui/lightbox.tsx:101–108`: click-on-empty-space close next
-  to zoom and pan; the viewer itself already is a `Dialog`.
+- **Resize handles** — two handle buttons and one focusable separator `div`:
+  `web/src/shell/panels.tsx:121–178`, `web/src/shell/sessions.tsx:194–214`,
+  `web/src/shell/sidebar-bottom.tsx:127–151` (that last one is the `div role="separator"`). A handle
+  is a 8px strip with no text, whose pointer capture, keyboard steps, double-click reset, and
+  persisted width are the whole of it: a `Button` would buy a focus ring and a hover fill these
+  already paint, at the price of fighting its size and its centring. shadcn `Resizable` would cost a
+  new dependency and a layout rewrite.
+- **Drop overlay** — `web/src/composer/drop-overlay.tsx`: a non-modal drag cue. No primitive fits,
+  and a `Button` is a control, not a cue.
+- **Lightbox close target** — `web/src/ui/lightbox.tsx:101–108`: a full-screen click target for
+  closing next to zoom and pan. It is deliberately not a `Button`: the hit area is the whole
+  viewport, and a box with a hover fill would read as an action in the middle of the picture. The
+  viewer itself already is a `Dialog`, so Escape and focus return are the primitive's.
 - **Timeline marks** — `web/src/transcript/activity.tsx:160–178`.
-- **Queue text** — `web/src/composer/queued.tsx:90–103`: `line-clamp-2` needs `display: -webkit-box`,
-  and `Button`'s `inline-flex` would override it, unfolding a long message in the card.
 - **Attachment** — `web/src/components/ui/attachment.tsx`: our own primitive, already shared. Its
   overlay trigger and its 20px action button keep their size and hover, so a call site changes only
   their `title`, to a `Hint`.
@@ -481,18 +530,32 @@ Replacing these costs more than it saves. They stay hand-written and need no box
   stays.
 - **Sessions-status submenu** — `web/src/shell/sessions-status.tsx:120–187`: two-tap touch
   activation and inline narrow submenu are deliberate.
-- **File tree rows** — `extensions/git-history/file-tree.tsx:60–101`: the row is the indent
-  (`paddingLeft` computed from the depth), the folder row's name is not `flex-1` so `justify-center`
-  would centre it, and `Button` brings corners, `font-medium`, and `hover:text-ink` that every row
-  would then have to undo. They are list rows, and [Item](#39-item-new) is the primitive that owns
-  the family.
-- **Tag colour dots** — `extensions/tags/details.tsx:33–48, 158–171`: a 16px or 12px circle filled with
-  the tag's own colour. `Button` would have to lose its size, its radius, its hover fill, and its
-  weight, and a disabled dot has to stay at 50% beside its filled neighbours. They are colour pickers,
-  not text buttons, and no other primitive owns them. Their `title` is the hue's name, not an action.
-- **Worktree badge ×** — `extensions/git-worktree/web.tsx:116–120`: a 14px hit target inside a 16px
-  pill. `Button`'s smallest box is 24px, which would stand 4px proud of the badge's border, and its
-  hover fill would paint outside it. [Badge](#25-badge-installed-reduced-to-one-look) owns the pill
-  and the × inside it.
+- **Tag colour dots** — `extensions/tags/details.tsx:33–48, 158–171`: a 16px or 12px circle filled
+  with the tag's own colour, a colour picker rather than a text button. A `Button` would give it back
+  every look the dot does not want (size, radius, hover fill, weight) and still leave the disabled
+  dot to stay at 50% beside its filled neighbours. Their `title` is the hue's name, not an action.
 - **Theme preview bars** — `web/src/shell/appearance-dialog.tsx:180–184`: an illustration, not a
   meter.
+
+### `title=` that stays
+
+The rest of the `title=` left in the app is a readout, not an action: it either shows text the
+layout truncates or a detail the row has no room for. None of them is worth a tab stop, and the
+ones that belong to a later primitive go with it.
+
+- Shown because the text is cut off, no owner: a file name or path
+  (`web/src/ui/attachments.tsx:85`, `:126`, `extensions/git-history/file-tree.tsx:80`), a folder
+  path (`web/src/shell/sessions.tsx:691`, `:711`, `:748`, `web/src/shell/home.tsx:40`), a commit
+  subject (`extensions/git-history/web.tsx:1172`), a tag name and the tags it hides
+  (`extensions/tags/web.tsx:31`, `:40`), a file size (`extensions/files/panel.tsx:233`).
+- A detail a row shows on hover, no owner: the exact commit time
+  (`extensions/git-history/web.tsx:469`, `:609`), a note's error (`extensions/notes/panel.tsx:242`),
+  a tag's session count (`extensions/tags/details.tsx:225`), the page behind the browser's address
+  (`extensions/browser/panel.tsx:459`).
+- A pill or a chip that [Badge](#25-badge-installed-reduced-to-one-look) rewrites:
+  `extensions/git-branch/web.tsx:56`, `extensions/git-worktree/web.tsx:95`, `:107`,
+  `extensions/git-stats/web.tsx:93`, `extensions/git-history/web.tsx:1063`, `:1073`, `:1151`,
+  `extensions/tags/details.tsx:39`, and the agent chip at `extensions/subagents/web.tsx:104`, which
+  [Item](#39-item-new) takes with its row (`:276`).
+- The three resize handles' `title="Drag to resize, double-click to reset"`, which explains the
+  control and stays with it.

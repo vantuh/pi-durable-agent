@@ -306,16 +306,18 @@ const SessionRow = memo(function SessionRow({
                 </span>
             </a>
             <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={`Actions for ${session.title ?? "New session"}`}
-                        title="Session actions"
-                        className="session-actions rounded-control text-muted hover:bg-panel hover:text-ink absolute right-1 flex size-7 items-center justify-center lg:group-data-[collapsed]/side:hidden"
-                    >
-                        <MoreHorizontal className="size-4" />
-                    </button>
-                </DropdownMenuTrigger>
+                <Hint label="Session actions">
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Actions for ${session.title ?? "New session"}`}
+                            className="session-actions hover:bg-panel absolute right-1 lg:group-data-[collapsed]/side:hidden"
+                        >
+                            <MoreHorizontal className="size-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                </Hint>
                 <DropdownMenuContent
                     align="end"
                     onCloseAutoFocus={(event) => {
@@ -927,7 +929,7 @@ export const Sessions = memo(function Sessions({
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="ghost"
-                                className="w-full justify-start rounded-none px-3 py-2 font-normal"
+                                className="w-full justify-start rounded-none px-3 py-2"
                             >
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
@@ -986,7 +988,7 @@ export const Sessions = memo(function Sessions({
                             variant="ghost"
                             onClick={onNew}
                             tabIndex={searching ? -1 : undefined}
-                            className={`border-edge bg-sunken text-ink w-full gap-2 border py-2.5 font-normal transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
+                            className={`border-edge bg-sunken text-ink w-full gap-2 border py-2.5 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
                         >
                             <Plus className="size-4" />
                             <span className="text-sidebar">New session</span>
@@ -1182,7 +1184,6 @@ export const Sessions = memo(function Sessions({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="font-normal"
                             onClick={() => {
                                 setRenaming(null);
                             }}
@@ -1211,7 +1212,6 @@ export const Sessions = memo(function Sessions({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="font-normal"
                             ref={(node) => {
                                 node?.focus();
                             }}

@@ -87,20 +87,20 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                                       <QuoteCard key={quote} text={quote} />
                                   ))}
                             {body === "" ? null : (
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="ghost"
                                     // The queue is a draft waiting for a boundary: reading it is the one thing a tap does.
                                     onClick={() => {
                                         setOpen((current) =>
                                             current === item.id ? null : item.id,
                                         );
                                     }}
-                                    className={`text-prose text-ink mt-0.5 text-left break-words whitespace-pre-wrap ${
-                                        open === item.id ? "" : "line-clamp-2"
+                                    className={`text-prose text-ink mt-0.5 p-0 text-left break-words whitespace-pre-wrap hover:bg-transparent ${
+                                        open === item.id ? "block" : "line-clamp-2"
                                     }`}
                                 >
                                     {body}
-                                </button>
+                                </Button>
                             )}
                             {item.files === undefined ? null : (
                                 <span className="text-meta text-faint mt-1 flex min-w-0 items-center gap-1">

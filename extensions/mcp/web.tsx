@@ -221,7 +221,7 @@ function McpStatus() {
                     onClick={() => {
                         setOpen((previous) => !previous);
                     }}
-                    className="hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-normal"
+                    className="hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5"
                 >
                     <Plug className={`size-3.5 ${toneOf(on)}`} />
                     <span className="text-ink">MCP</span>

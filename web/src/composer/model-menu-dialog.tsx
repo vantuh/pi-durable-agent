@@ -253,7 +253,7 @@ export function ModelMenu({
                                             onMakeDefault(picked, thinkingLevel);
                                         }
                                     }}
-                                    className="text-accent hover:text-accent disabled:text-faint py-0.5 font-normal disabled:opacity-100 disabled:hover:bg-transparent"
+                                    className="text-accent hover:text-accent disabled:text-faint py-0.5 disabled:opacity-100 disabled:hover:bg-transparent"
                                 >
                                     {isDefault ? "Default for new sessions" : "Make default"}
                                 </Button>
@@ -282,7 +282,7 @@ export function ModelMenu({
                 </div>
 
                 <DialogFooter className="border-edge-soft border-t">
-                    <Button variant="ghost" onClick={onClose}>
+                    <Button variant="ghost" className="font-medium" onClick={onClose}>
                         Cancel
                     </Button>
                     <Button

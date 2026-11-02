@@ -250,7 +250,7 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="hover:bg-sunken aria-expanded:bg-sunken -mx-1.5 shrink-0 px-1.5 py-0.5 font-normal"
+                        className="hover:bg-sunken aria-expanded:bg-sunken -mx-1.5 shrink-0 px-1.5 py-0.5"
                     >
                         {children}
                         {working.length === 0 ? null : (

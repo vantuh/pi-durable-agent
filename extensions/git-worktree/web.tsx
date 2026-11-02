@@ -114,20 +114,21 @@ function Mark({ session }: StatusProps) {
                 <FolderGit2 />
                 <span className="truncate">{worktree.name}</span>
                 {worktree.ours ? (
-                    /* The pill is 16px tall and the button inside it 14px: Button's smallest box is 24px
-                       and would stand 4px proud of the badge's border. Badge owns the pill and its ×. */
+                    /* The pill is 16px tall: the × keeps the icon's own 14px box, and the fill stays
+                       off, so nothing paints outside the badge. Badge owns the pill. */
                     <Hint label={`Remove the worktree ${worktree.name}`}>
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             aria-label={`Remove the worktree ${worktree.name}`}
                             onClick={() => {
                                 setFailure(null);
                                 setAsking(true);
                             }}
-                            className="hover:text-danger -mr-0.5 flex size-3.5 shrink-0 items-center justify-center"
+                            className="hover:text-danger -mr-0.5 size-3.5 shrink-0 p-0 hover:bg-transparent"
                         >
                             <X className="size-3" />
-                        </button>
+                        </Button>
                     </Hint>
                 ) : null}
             </Badge>
@@ -165,6 +166,7 @@ function Mark({ session }: StatusProps) {
                         <Button
                             variant="ghost"
                             disabled={removing}
+                            className="font-medium"
                             onClick={() => {
                                 setAsking(false);
                                 setFailure(null);

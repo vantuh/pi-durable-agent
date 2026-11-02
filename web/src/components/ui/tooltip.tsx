@@ -24,9 +24,26 @@ export function Tooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
     return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
-/** No `data-slot`: as a child trigger it would overwrite the slot of the element it wraps. */
-export function TooltipTrigger(props: ComponentProps<typeof TooltipPrimitive.Trigger>) {
-    return <TooltipPrimitive.Trigger {...props} />;
+/**
+ * No `data-slot`: as a child trigger it would overwrite the slot of the element it wraps.
+ * Focus opens the tooltip only when it is keyboard focus: a dialog's autofocus, or focus returned
+ * to a trigger after a click, would otherwise pop a hint nobody asked for.
+ */
+export function TooltipTrigger({
+    onFocus,
+    ...props
+}: ComponentProps<typeof TooltipPrimitive.Trigger>) {
+    return (
+        <TooltipPrimitive.Trigger
+            onFocus={(event) => {
+                onFocus?.(event);
+                if (!event.currentTarget.matches(":focus-visible")) {
+                    event.preventDefault();
+                }
+            }}
+            {...props}
+        />
+    );
 }
 
 export function TooltipContent({

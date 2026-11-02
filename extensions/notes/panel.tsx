@@ -253,7 +253,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
                 <div className="border-edge-soft text-interface flex flex-col gap-2 border-b px-3 py-2">
                     <p className="text-ink">This note changed on another device or tab.</p>
                     <div className="flex gap-2">
-                        <Button variant="ghost" onClick={note.loadNewer}>
+                        <Button variant="ghost" className="font-medium" onClick={note.loadNewer}>
                             Load newer
                         </Button>
                         <Button onClick={note.overwrite}>Overwrite with mine</Button>

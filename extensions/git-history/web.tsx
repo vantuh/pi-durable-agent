@@ -62,7 +62,7 @@ const HASH = /^[0-9a-f]{4,64}$/i;
 
 /** The page's outline action: ghost's hover fill inside a border, with the ink the page's text has. */
 const button =
-    "border-edge text-interface text-ink border px-2.5 py-1.5 font-normal disabled:opacity-40 disabled:cursor-not-allowed";
+    "border-edge text-ink border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 // A commit row counts from now; this is the same instant spelled out in the reader's own zone.
 const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
@@ -450,7 +450,7 @@ function HistoryRow({
                 onFocus={() => {
                     onPrefetch(target === WORKING ? undefined : target);
                 }}
-                className="w-full min-w-0 justify-start gap-2 rounded-none px-3 py-2 font-normal focus-visible:ring-inset"
+                className="w-full min-w-0 justify-start gap-2 rounded-none px-3 py-2 text-left focus-visible:ring-inset"
             >
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">

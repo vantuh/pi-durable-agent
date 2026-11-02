@@ -99,7 +99,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                     <h1 className="text-interface text-ink truncate font-medium">Home</h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={onNew} className="font-normal">
+                    <Button variant="ghost" size="sm" onClick={onNew}>
                         <Plus className="size-3.5" />
                         New session
                     </Button>

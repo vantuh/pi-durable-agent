@@ -4,9 +4,9 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 const VARIANTS = {
-    primary: "bg-accent text-on-accent hover:bg-accent/90",
+    primary: "bg-accent text-on-accent hover:bg-accent/90 font-medium",
     ghost: "text-muted hover:bg-raised hover:text-ink",
-    danger: "bg-danger text-canvas hover:bg-danger/90",
+    danger: "bg-danger text-canvas hover:bg-danger/90 font-medium",
 };
 
 /** The squares are the ones the hand-written icon buttons already use: 28px in a footer or a toolbar, 24px inside a row. */
@@ -33,7 +33,8 @@ export function Button({
     ...props
 }: ButtonProps) {
     const classes = cn(
-        "rounded-control focus-visible:ring-accent inline-flex items-center justify-center gap-1.5 font-medium outline-none focus-visible:ring-2 disabled:opacity-50",
+        // The weight is stated, not inherited: a ghost button sits inside text of every weight.
+        "rounded-control focus-visible:ring-accent inline-flex items-center justify-center gap-1.5 font-normal outline-none focus-visible:ring-2 disabled:opacity-50",
         VARIANTS[variant],
         SIZES[size],
         className,

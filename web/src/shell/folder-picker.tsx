@@ -338,7 +338,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         <div className="flex shrink-0 items-center gap-2">
                             <Button
                                 variant="ghost"
-                                className="bg-raised text-ink font-normal"
+                                className="bg-raised text-ink"
                                 onClick={() => {
                                     leave(onClose);
                                 }}
@@ -386,9 +386,16 @@ function Row({
             {onIcon === undefined ? (
                 icon
             ) : (
-                <button type="button" onClick={onIcon} title="Favourite" className="hover:text-ink">
-                    {icon}
-                </button>
+                <Hint label="Favourite">
+                    <Button
+                        variant="ghost"
+                        aria-label="Favourite"
+                        onClick={onIcon}
+                        className="size-4 shrink-0 p-0 hover:bg-transparent"
+                    >
+                        {icon}
+                    </Button>
+                </Hint>
             )}
             <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left">
                 <span className="block truncate">{label}</span>

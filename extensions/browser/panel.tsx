@@ -518,7 +518,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                     <Button
                         variant="ghost"
                         onClick={() => void run({ op: "open" })}
-                        className="bg-raised text-ink py-1 font-normal"
+                        className="bg-raised text-ink py-1"
                     >
                         Open the browser
                     </Button>

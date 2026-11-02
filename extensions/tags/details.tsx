@@ -236,7 +236,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                             setEditing(null);
                                             setRenaming({ id: tag.id, name: tag.name });
                                         }}
-                                        className="text-muted shrink-0"
+                                        className="shrink-0"
                                     >
                                         <Pencil className="size-3.5" />
                                     </Button>
@@ -252,7 +252,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                                 await removeTag(tag.id);
                                             });
                                         }}
-                                        className="text-muted hover:text-danger shrink-0"
+                                        className="hover:text-danger shrink-0"
                                     >
                                         <Trash2 className="size-3.5" />
                                     </Button>

@@ -2,6 +2,9 @@ import { X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { lazy, type RefObject, Suspense } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { Props } from "./settings-content.tsx";
 
 // The contents (and the dialogs behind their buttons) are fetched at the first open, not at boot.
@@ -44,13 +47,13 @@ export function Settings({
                         <DialogPrimitive.Title className="text-interface text-ink font-medium">
                             Settings
                         </DialogPrimitive.Title>
-                        <DialogPrimitive.Close
-                            title="Close"
-                            aria-label="Close"
-                            className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-6 items-center justify-center outline-none focus-visible:ring-2"
-                        >
-                            <X className="size-4" />
-                        </DialogPrimitive.Close>
+                        <Hint label="Close">
+                            <DialogPrimitive.Close asChild>
+                                <Button variant="ghost" size="icon-sm" aria-label="Close">
+                                    <X className="size-4" />
+                                </Button>
+                            </DialogPrimitive.Close>
+                        </Hint>
                     </header>
                     <Suspense fallback={null}>
                         <Content {...props} />

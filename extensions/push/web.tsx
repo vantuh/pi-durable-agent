@@ -162,6 +162,7 @@ function Notifications(_props: SettingsProps) {
                 </label>
             )}
             <Button
+                variant="ghost"
                 disabled={working || (!on && contact.trim() === "")}
                 onClick={() => {
                     void run(async () => {

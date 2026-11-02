@@ -35,7 +35,7 @@ const SHELL_SHOWN = `document.querySelector("textarea") !== null`;
 const PICKER_SHOWN = `document.title !== "" && document.body.innerText.includes("pick a folder")`;
 /** Presses the star of the last row that has one: the Recent folder, when there is one. */
 const STAR = `(() => {
-    const stars = [...document.querySelectorAll('button[title="Favourite"]')];
+    const stars = [...document.querySelectorAll('button[aria-label="Favourite"]')];
     const star = stars.at(-1);
 
     if (star === undefined) {

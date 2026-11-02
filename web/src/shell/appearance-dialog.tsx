@@ -1,6 +1,7 @@
 import { Palette } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -10,6 +11,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { DiffLayout } from "../lib/diff-layout.ts";
 import { DIFF_LAYOUTS, applyDiffLayout, currentDiffLayout } from "../lib/diff-layout.ts";
@@ -26,16 +28,13 @@ export function AppearanceButton() {
 
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <button
-                    type="button"
-                    title="Appearance: theme"
-                    aria-label="Appearance: theme"
-                    className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2"
-                >
-                    <Palette className="size-4" />
-                </button>
-            </DialogTrigger>
+            <Hint label="Appearance: theme">
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Appearance: theme">
+                        <Palette className="size-4" />
+                    </Button>
+                </DialogTrigger>
+            </Hint>
             <DialogContent
                 ref={content}
                 onOpenAutoFocus={(event) => {

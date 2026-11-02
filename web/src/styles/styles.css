@@ -490,12 +490,12 @@ body {
     }
     .session-row:hover .session-actions,
     .session-row:focus-within .session-actions,
-    .session-actions[data-state="open"] {
+    .session-actions[aria-expanded="true"] {
         opacity: 1;
     }
     .session-row:hover .session-time,
     .session-row:focus-within .session-time,
-    .session-row:has(.session-actions[data-state="open"]) .session-time {
+    .session-row:has(.session-actions[aria-expanded="true"]) .session-time {
         visibility: hidden;
     }
 }

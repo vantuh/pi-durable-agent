@@ -227,7 +227,7 @@ function Context({ session }: StatusProps) {
                 }}
                 onClick={open}
                 aria-expanded={at !== null}
-                className="text-faint hover:bg-sunken aria-expanded:bg-sunken px-1.5 py-0.5 font-mono font-normal"
+                className="text-faint hover:bg-sunken aria-expanded:bg-sunken px-1.5 py-0.5 font-mono"
             >
                 <span>context</span>
                 <span className="w-9">

@@ -54,7 +54,7 @@ export function AccountDetails() {
                     onClick={() => {
                         void check();
                     }}
-                    className="border-edge-soft text-ink border font-normal"
+                    className="border-edge-soft text-ink border"
                 >
                     {busy ? "Checking…" : "Check subscription"}
                 </Button>

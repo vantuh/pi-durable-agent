@@ -299,7 +299,7 @@ function KeepWarm({ session, openSession }: StatusItemProps) {
                         setNow(Date.now());
                         setOpen((previous) => !previous);
                     }}
-                    className={`hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono font-normal ${
+                    className={`hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono ${
                         warm.on ? "text-ember" : "text-faint/60"
                     }`}
                 >

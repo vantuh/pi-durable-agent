@@ -117,7 +117,7 @@ export function SelectionQuote({ onQuote }: Props) {
                     top: picked.top,
                     transform: `translate(0, ${picked.below ? "0" : "-100%"})`,
                 }}
-                className="border-edge bg-panel text-ink fixed z-30 gap-1.5 border px-2 py-1 font-normal shadow-lg"
+                className="border-edge bg-panel text-ink fixed z-30 border px-2 py-1 shadow-lg"
             >
                 <Quote className="text-accent size-3.5" />
                 Quote

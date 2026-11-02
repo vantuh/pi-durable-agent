@@ -195,13 +195,7 @@ function Popover({
             <div className="mb-2 flex items-center justify-between">
                 <span className="text-ink font-medium">Provider usage</span>
                 <Hint label="Refresh">
-                    <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Refresh"
-                        onClick={onRefresh}
-                        className="text-muted"
-                    >
+                    <Button variant="ghost" size="icon-sm" aria-label="Refresh" onClick={onRefresh}>
                         {result.loading ? (
                             <LoaderCircle className="size-3.5 animate-spin" />
                         ) : (
@@ -272,7 +266,7 @@ function UsageLimits({ session }: StatusProps) {
 
                         setOpen((previous) => !previous);
                     }}
-                    className="text-faint hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono font-normal"
+                    className="text-faint hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono"
                 >
                     {bucket === undefined ? (
                         <Gauge className="size-3.5" />

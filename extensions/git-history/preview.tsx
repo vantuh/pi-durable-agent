@@ -199,7 +199,7 @@ function FileHeader({
             onClick={(event) => {
                 onToggle(event.currentTarget);
             }}
-            className="bg-panel border-edge-soft text-muted hover:bg-raised hover:text-muted h-9 w-full gap-2 rounded-none border-t px-3 font-mono font-normal"
+            className="bg-panel border-edge-soft hover:text-muted h-9 w-full gap-2 rounded-none border-t px-3 text-left font-mono"
         >
             <ChevronRight
                 className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
