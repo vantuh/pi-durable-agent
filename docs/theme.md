@@ -105,7 +105,7 @@ In `styles.css`, next to the roles, so no component invents its own:
   chip's cap — stays a number in that component, with the reason beside it;
 - text sizes, one name per job, smallest first: `--text-meta: 12px` (metadata, and an annotation
   inside a dense row — a duration, a file's size, a chip's model name or folder), `--text-code:
-  12.5px` (monospace lines: code blocks, diffs, tool names and their arguments), `--text-ui: 14px`
+  12px` (monospace lines: code blocks, diffs, tool names and their arguments), `--text-ui: 14px`
   (the chrome: session titles, the sidebar heading, list items, tool group headings),
   `--text-interface: 15px` (the body, the conversation's prose, and the chrome that matches it),
   `--text-subheading: 16px` (a Markdown
