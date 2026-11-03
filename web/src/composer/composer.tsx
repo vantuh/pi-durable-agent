@@ -744,7 +744,7 @@ export const Composer = memo(function Composer({
                         className={`min-w-0 rounded-full px-2 py-1 ${menuOpen ? "bg-raised text-ink" : ""}`}
                     >
                         <Sparkles className="text-accent size-3.5" />
-                        <span className="max-w-[12rem] min-w-0 truncate font-mono">{model}</span>
+                        <span className="max-w-48 min-w-0 truncate font-mono">{model}</span>
                         {level === null ? null : (
                             <span className={`shrink-0 ${thinkingText(level)}`}>{level}</span>
                         )}

@@ -11,6 +11,7 @@ import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions } from "../lib/session-nesting.ts";
 import { MINUTE } from "../lib/time.ts";
+import { PANE, PaneHeader } from "../ui/pane.tsx";
 import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
@@ -85,8 +86,8 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
     ];
 
     return (
-        <section className="rounded-card border-edge-soft bg-canvas flex min-h-0 flex-1 flex-col border">
-            <header className="border-edge-soft flex items-center justify-between gap-3 border-b px-3 py-2.5">
+        <section className={`${PANE} bg-canvas flex min-h-0 flex-1 flex-col`}>
+            <PaneHeader className="gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                     <Hint label="Sessions">
                         <Button
@@ -107,7 +108,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                         New session
                     </Button>
                 </div>
-            </header>
+            </PaneHeader>
 
             <ScrollArea className="min-h-0 flex-1">
                 <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 py-4">

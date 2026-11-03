@@ -28,6 +28,7 @@ import { cn } from "../lib/utils.ts";
 import { addComposerQuote, focusComposer } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
+import { PANE } from "../ui/pane.tsx";
 import { QuoteCard } from "../ui/quote.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { AgentMessage } from "./agent-message.tsx";
@@ -330,7 +331,7 @@ function CompactionMark({ summary }: { summary?: string }) {
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>
-                <div className="rounded-card border-edge-soft bg-panel border px-3 py-2.5">
+                <div className={`${PANE} bg-panel px-3 py-2.5`}>
                     <Markdown text={summary} />
                 </div>
             </CollapsibleContent>
@@ -555,7 +556,7 @@ export function Transcript({
     }, []);
 
     return (
-        <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
+        <section className={`${PANE} bg-canvas flex min-h-0 flex-1 flex-col`}>
             <header className="border-edge-soft min-h-header flex items-center justify-between gap-3 border-b px-3 py-0.5">
                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                     <Hint label="Sessions">

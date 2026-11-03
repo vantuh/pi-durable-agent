@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { classOf, tokensOf } from "../lib/highlight.ts";
 import { splitStable } from "../lib/markdown-split.ts";
+import { PANE } from "./pane.tsx";
 
 type Highlighted = { code: string; lines: ThemedToken[][] };
 
@@ -87,7 +88,7 @@ export function CodeBlock({ code, lang, title }: { code: string; lang: string; t
     const fresh = shown !== undefined && code.startsWith(shown.code) ? shown : undefined;
 
     return (
-        <div className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border">
+        <div className={`${PANE} bg-sunken min-w-0 overflow-hidden`}>
             <div className="border-edge-soft text-meta text-faint flex h-8 items-center justify-between border-b pr-1.5 pl-3 font-mono">
                 <span className="truncate">{title ?? (lang === "" ? "text" : lang)}</span>
                 <Hint label={copied ? "Copied" : "Copy"}>
@@ -160,8 +161,9 @@ function langOf(className: unknown): string {
     return found === undefined ? "" : found.slice("language-".length);
 }
 
+// A link in prose is a mark, not a control: the theme's smallest radius, and the ring around it.
 const LINK_CLASS =
-    "text-info decoration-info/40 hover:decoration-info underline underline-offset-2";
+    "text-info decoration-info/40 focus-visible:ring-accent rounded-mark underline underline-offset-2 outline-none hover:decoration-info focus-visible:ring-2";
 
 const COMPONENTS: Components = {
     pre({ node }) {

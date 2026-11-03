@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn } from "@/ui/details.tsx";
 
 import { AccountDetails } from "./account-details.tsx";
 import { DEFAULT_VERSION, type Diagnostics, diagnostics, outcomes } from "./refs.ts";
@@ -44,7 +45,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     }, [active]);
 
     return (
-        <div className="text-meta flex flex-col gap-2">
+        <DetailsColumn>
             {active ? (
                 <>
                     {error === null ? null : <Alert>{error}</Alert>}
@@ -143,6 +144,6 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
             <p className="text-faint">
                 Shaping does not confirm that a request was charged to subscription limits.
             </p>
-        </div>
+        </DetailsColumn>
     );
 }

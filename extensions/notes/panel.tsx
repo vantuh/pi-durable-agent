@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import { type Note, read, write } from "./refs.ts";
 import { flushed, trackFlush } from "./store.ts";
@@ -239,7 +240,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="border-edge-soft text-meta flex items-center justify-between gap-2 border-b px-3 py-1.5">
+            <Toolbar className="text-meta justify-between">
                 {tabs}
                 <span
                     title={note.error ?? undefined}
@@ -251,7 +252,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
                 >
                     {LABEL[note.state]}
                 </span>
-            </div>
+            </Toolbar>
             {note.other === null ? null : (
                 <div className="border-edge-soft text-interface flex flex-col gap-2 border-b px-3 py-2">
                     <p className="text-ink">This note changed on another device or tab.</p>

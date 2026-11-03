@@ -15,6 +15,7 @@ import {
     piecesOf,
 } from "../lib/diff.ts";
 import { classOf, tokensOf } from "../lib/highlight.ts";
+import { PANE } from "./pane.tsx";
 
 const ROW = {
     add: "bg-ok/10",
@@ -294,10 +295,7 @@ export function DiffCard({ diff, path, lang }: { diff: string; path?: string; la
     ).length;
 
     return (
-        <div
-            ref={root}
-            className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border"
-        >
+        <div ref={root} className={`${PANE} bg-sunken min-w-0 overflow-hidden`}>
             {path === undefined ? null : (
                 <div className="border-edge-soft text-meta text-muted flex h-8 items-center gap-3 border-b px-3 font-mono">
                     <span className="min-w-0 flex-1 truncate">{path}</span>

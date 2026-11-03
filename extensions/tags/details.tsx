@@ -7,6 +7,8 @@ import { Empty } from "@/components/ui/empty.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
+import { Loading } from "@/ui/loading.tsx";
 
 import { createTag, load, recolorTag, removeTag, renameTag, useTags } from "./client.ts";
 import { MAX_NAME, TAG_COLORS, type TagColor, type TagsState } from "./refs.ts";
@@ -43,8 +45,13 @@ function Swatches({
                     onClick={() => {
                         onPick(color);
                     }}
-                    className={`size-4 rounded-full ${TAG_DOT[color]} ${
-                        color === value ? "ring-ink ring-2" : "opacity-50 hover:opacity-100"
+                    // The ring sits 2px out over a `canvas` offset — the hue is the fill, so a ring
+                    // flush with it would read as part of the colour — and the chosen dot's mark is an
+                    // inner ring, so focus and choice show at once.
+                    className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-4 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[color]} ${
+                        color === value
+                            ? "inset-ring-ink inset-ring-2"
+                            : "opacity-50 hover:opacity-100"
                     }`}
                 />
             ))}
@@ -88,7 +95,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     };
 
     if (!active) {
-        return <p className="text-faint text-meta">Turn the extension on to tag sessions.</p>;
+        return <DetailsNote>Turn the extension on to tag sessions.</DetailsNote>;
     }
 
     const add = (event: FormEvent): void => {
@@ -108,7 +115,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     };
 
     return (
-        <div className="text-meta flex flex-col gap-2">
+        <DetailsColumn>
             {error === null ? null : <Alert>{error}</Alert>}
             <form onSubmit={add} className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
@@ -132,7 +139,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 </div>
             </form>
             {state === undefined ? (
-                <p className="text-faint">Loading…</p>
+                <Loading />
             ) : state.tags.length === 0 ? (
                 <Empty>No tags yet.</Empty>
             ) : (
@@ -163,7 +170,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                                 setRenaming(null);
                                                 setEditing(tag.id);
                                             }}
-                                            className={`size-3 shrink-0 rounded-full ${TAG_DOT[tag.color]}`}
+                                            className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-3 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[tag.color]}`}
                                         />
                                     </Hint>
                                 )}
@@ -264,6 +271,6 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 Tags live on the server, so every device sees them. Deleting one takes it off every
                 session that had it. A session's menu puts them on.
             </p>
-        </div>
+        </DetailsColumn>
     );
 }

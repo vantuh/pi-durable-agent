@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 
+import { PANE } from "./pane.tsx";
+
 type Props = {
     text: string;
     /** The composer takes a quote back; in a message it is what was sent. */
@@ -16,7 +18,7 @@ type Props = {
  */
 export function QuoteCard({ text, onRemove }: Props) {
     return (
-        <div className="rounded-card border-edge-soft bg-panel flex min-w-0 items-start gap-2 border py-1.5 pr-1 pl-2">
+        <div className={`${PANE} bg-panel flex min-w-0 items-start gap-2 py-1.5 pr-1 pl-2`}>
             <Quote aria-hidden className="text-faint mt-0.5 size-3.5 shrink-0" />
             <ScrollArea
                 className="min-w-0 flex-1"

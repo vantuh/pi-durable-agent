@@ -7,6 +7,7 @@ import { Hint } from "@/components/ui/tooltip";
 import type { ClientAuthor } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { Markdown } from "../ui/markdown.tsx";
+import { PANE } from "../ui/pane.tsx";
 
 type Props = {
     text: string;
@@ -24,7 +25,7 @@ export function AgentMessage({ text, author, onOpenSession }: Props) {
     const { session } = author;
 
     return (
-        <Collapsible className="group/agent rounded-card border-edge-soft bg-panel relative overflow-hidden border">
+        <Collapsible className={`group/agent ${PANE} bg-panel relative overflow-hidden`}>
             <span aria-hidden className="bg-agent w-stripe absolute inset-y-0 left-0" />
             <div className="text-meta flex items-center gap-1 py-1.5 pr-1.5 pl-3">
                 <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1.5 text-left">

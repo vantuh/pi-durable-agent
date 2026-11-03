@@ -36,6 +36,7 @@ import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { PageProps, WebExtension } from "@/sdk/types.ts";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import {
     UNTRACKED_FILE_CAP,
@@ -742,7 +743,7 @@ function ReviewView({
             aria-label="Plannotator review"
             className="flex min-h-0 flex-1 flex-col outline-none"
         >
-            <div className="border-edge-soft flex items-center gap-2 border-b px-3 py-1.5">
+            <Toolbar>
                 <span className="text-meta text-muted">Plannotator review</span>
                 {running(state) ? (
                     <Button
@@ -755,7 +756,7 @@ function ReviewView({
                         Cancel review
                     </Button>
                 ) : null}
-            </div>
+            </Toolbar>
 
             {issue !== null ? (
                 <Alert className="text-interface border-edge-soft rounded-none border-b">
@@ -1064,7 +1065,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             : data?.commits.find((candidate) => candidate.hash === shownTarget);
     const detail = shownTarget === undefined ? undefined : detailOf(shownTarget, listed, looked);
     const toolbar = (
-        <div className="border-edge-soft flex min-h-9 flex-wrap items-center gap-2 border-b px-3 py-1.5">
+        <Toolbar className="min-h-9 flex-wrap">
             {/* 36px is the step the row already measured: a 16px pill in py-1.5 beside the 24px actions is 37 with its
                 border, so the 35px floor this was had never bound. */}
             {data?.branch ? (
@@ -1125,7 +1126,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                     </Button>
                 </Hint>
             </div>
-        </div>
+        </Toolbar>
     );
 
     return (

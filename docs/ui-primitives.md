@@ -1396,7 +1396,11 @@ finding is fixed in this phase, not just listed.
           collapsed rail's `w-[38px]` (6 + a 24px row + 6, plus the card's two 1px borders), and the
           timeline's five — `size-[19px]`, `pl-[13px]`, `ml-[42px]`, `left-[22px]`, `min-h-[34px]` —
           which are one drawing: the 13px indent puts the 19px mark's centre on the 1px rule at
-          22.5px, and a step's body starts where its label does (13 + 19 + 10).
+          22.5px, and a step's body starts where its label does (13 + 19 + 10). Three more of the
+          scale turned up in the review of this phase: the attachment title's `max-w-[10rem]`, the
+          composer's model name at `max-w-[12rem]` and the conversation's `lg:min-w-[320px]` are
+          `max-w-40`, `max-w-48` and `lg:min-w-80` — 160, 192 and 320px either way, and the three
+          sites measure the same.
     - [x] **Stays, with a one-line reason each**: viewport and container calculations (`calc`, `min`,
           `dvh`, `vh`, `svh`, `%`, CSS variables set by script or Radix), `lh` heights tied to the
           text, `transition-[…]` property lists, grid templates, and arbitrary selectors. Read one by
@@ -1411,7 +1415,31 @@ finding is fixed in this phase, not just listed.
           outline, and the subagents chip only a border colour: all four draw the theme's ring now,
           and two more gaps the grep found were fixed with them — a `TabsTrigger` drew no focus at
           all, and `CommandInput` had a border and nothing else. `extensions/notes/panel.tsx` still
-          drops the ring on purpose (3.11).
+          drops the ring on purpose (3.11). Five more gaps turned up in the review of this phase,
+          each an `outline-none` with nothing in its place: the browser panel's stage — the
+          `div tabIndex={0} role="textbox"` that forwards keys to the remote page — takes the ring
+          `ring-inset`, since it fills its pane; the tag-colour buttons in
+          `extensions/tags/details.tsx` — the eight swatches and each tag's own dot — take it 2px
+          out over a `canvas` offset, so the ring never reads as part of the hue it surrounds and
+          a 12px dot still shows one; and the two text links, `ui/markdown.tsx`'s `LINK_CLASS` and
+          `keep-warm/web.tsx`'s warming sessions, take it at `rounded-mark` and `rounded-control`,
+          the radius each sits in, with their underline and hover left as they were. The swatches'
+          chosen mark moved with them: it was an outer 2px ink ring, which the focus ring's own
+          variable would have repainted while it was focused, so a chosen dot wears
+          `inset-ring-2` in ink inside its edge — the flavour cards' rule — and a chosen, focused
+          dot reads as chosen and focused at once. Measured at 1280×800 with Tab: a 16px swatch at
+          `362.39,293.5` paints a 2px `rgb(30, 30, 46)` offset and a 2px `rgb(203, 166, 247)` ring
+          round it, 24px across; the chosen swatch at `494.39,293.5` adds its 2px ink inset ring
+          beside the same two; a 12px row dot at `317,326.5` paints the same 2px offset and 2px
+          ring, 20px across; the stage's class string draws
+          `rgb(203, 166, 247) 0 0 0 2px inset`, and both link shapes draw the 2px accent ring, at
+          radius 2 and 6, with `outline: none` on all of them. The stage and the two links were
+          measured by mounting their class strings in a throwaway row: the first needs a Chromium
+          the read-only check may not start, and no answer of this session carries either link.
+          The sweep that found the five leaves the rest ringed by its primitive: every raw `<a>`,
+          `<button>` and `tabIndex={0}` left in `web/src` and `extensions/` is these five, a
+          `Button`, an `Item`, a `Badge` or a `BreadcrumbLink` wearing the ring, or one of the
+          exceptions below.
 - [x] One focus treatment: every focusable primitive draws the theme's ring — `outline-none` and
       `focus-visible:ring-2 focus-visible:ring-accent` — and `ToggleGroupItem` draws it, so all three
       of the appearance dialog's groups do. The flavour cards keep the chosen state apart from it: a
@@ -1445,42 +1473,174 @@ finding is fixed in this phase, not just listed.
 - [x] Audit for repetition across `web/src` and `extensions/`: the same class string or class
       fragment in several files, the same small function (formatting a time, a path, a percentage,
       a count; picking a tone; building a class), the same wrapper component written twice.
-- [ ] Move each repeat to the place that owns it: a primitive's variant or size, a component in
+- [x] Move each repeat to the place that owns it: a primitive's variant or size, a component in
       `web/src/ui/`, a helper in `web/src/lib/`, or an extension's own `refs.ts`. Extensions still
       never import each other (AGENTS.md); a helper two extensions need goes to the core only if
-      it is not about either of them.
-- [ ] Known repeats from Phase 3: `CommandEmpty` in `ui/command.tsx` restates `Empty`'s look; the
-      browser panel's loading sentence ("Starting the browser…") borrows `Empty` for a state that
-      is not empty.
-- [ ] The box frame, counted by [3.14](#314-card-only-where-it-fits): `rounded-card` + `1px edge-soft` + `border` in twelve class strings — seven panes over `bg-canvas` (`shell/sessions.tsx:991`,
+      it is not about either of them. Done, and each landing place is argued in its own bullet: the
+      frame, the header row and the toolbar row are `PANE`, `PaneHeader` and `Toolbar` in
+      `web/src/ui/pane.tsx`; the details column and the off-state note are `DetailsColumn` and
+      `DetailsNote` in `web/src/ui/details.tsx`; the line a region shows while it waits is `Loading`
+      and the line it shows instead of content is `EMPTY`/`Empty`; the popup's two frames are
+      `PopoverContent`'s `size`. Everything else Phase 3 found went into the primitive that already
+      owned the look — a variant, a tone, a size — rather than into a second component, which is why
+      the core's `web/src/ui/` gained three files in this phase and not twelve: `pane.tsx`,
+      `details.tsx`, `loading.tsx`. No helper moved to `web/src/lib/`: the repeats that were left
+      are two extensions' own words, and a helper two extensions share has not turned up.
+- [x] Known repeats from Phase 3: `CommandEmpty` in `ui/command.tsx` restated `Empty`'s look, and the
+      browser panel's loading sentence ("Starting the browser…") borrowed `Empty` for a state that is
+      not empty.
+    - [x] `CommandEmpty`. `empty.tsx` exports its look as `EMPTY` (`text-meta text-faint`), which `Empty`
+          itself wears, and cmdk's own empty element takes it plus the list's `p-2`. cmdk still draws and
+          hides that element itself — no wrapper, no `asChild`, no change to what its store sees. The
+          element reads `text-meta text-faint p-2` instead of `text-faint text-meta p-2`: the same two
+          classes, and measured the same at 1280×800 — 562×34 at (359, 217), 12px in `rgb(166, 173, 200)`,
+          8px of padding, an 18px line box. Its one caller is the model menu, with a query that matches
+          nothing.
+    - [x] The browser panel's loading sentence. Six regions said their loading line themselves — five
+          `Loading…` in `text-faint` and the browser panel's `Starting the browser…` — so `web/src/ui/`
+          has `Loading` now: a `<p>` in `text-faint`, the words defaulting to `Loading…` and the size and
+          room the caller's. The browser panel keeps its own words and drops the `Empty` it borrowed:
+          loading is its own branch, an `Empty`-less column with the sentence centred, and the empty
+          state keeps the action. **The one look that changed, on purpose:** while the browser starts, the
+          panel no longer shows the “Open the browser” button under the sentence, because the toolbar's
+          Stop is the action then and there is nothing to open; the sentence sits 19.25px lower, at the
+          centre of the panel (648px tall from y=103: the line at y=415.75, 22.5px tall, where with the
+          button the group was centred and the line fell at 396.5). Everything else was measured the
+          same: the empty state's box 581×648 at (690, 103) and its line 111.9×22.5 at (924.5, 396.5); a
+          throwaway page mounted `Loading` in its four call shapes and measured 15px in
+          `rgb(166, 173, 200)` with `text-interface` and with nothing, 12px with `text-meta` and 12px of
+          padding, so `cn` keeps both a size and the colour. `extensions/notes/panel.tsx`'s `Loading…`
+          stays a string: it is a saved/unsaved readout's state name, not a line standing in for
+          content. A seventh copy turned up in the review of this phase:
+          `shell/extension-details.tsx`'s `Suspense` fallback spelled the line out as a
+          `<p className="text-faint text-meta">`, and reads
+          `<Loading className="text-meta">Loading details…</Loading>` now — the same 12px line in
+          `rgb(166, 173, 200)` with an 18px line box, measured against the pair of classes it
+          replaced.
+- [x] The box frame, counted by [3.14](#314-card-only-where-it-fits): `rounded-card` + `1px edge-soft` + `border` in twelve class strings — seven panes over `bg-canvas` (`shell/sessions.tsx:991`,
       `shell/panels.tsx:191`, `:195`, `shell/pages.tsx:111`, `shell/home.tsx:88`,
       `transcript/transcript.tsx:558`, `shell/status-bar.tsx:58`), three boxes over `bg-panel`
       (`transcript/transcript.tsx:333`, `transcript/agent-message.tsx:27`, `ui/quote.tsx:19`), two
       code surfaces over `bg-sunken` (`ui/markdown.tsx:90`, `ui/diff.tsx:299`) — and two frames with no
-      fill (`transcript/activity.tsx:392`, `extensions/subagents/profile-models.tsx:95`). The pane
-      header `flex items-center justify-between … border-b px-3 py-2.5` repeats in two
-      (`shell/home.tsx:89`, `shell/panels.tsx:320`). `Card` does not fit here, so the audit settles the
-      repeat instead: one pane primitive for the seven regions if their three header shapes can be
-      one, or the frame left to the theme's three names, and the pane header's two copies folded into
-      one. `transcript/transcript.tsx:558` also states `rounded-card` twice in one string, which the
-      fold must not copy.
-- [ ] The pane header's third copy: `shell/settings.tsx:39` has the same shape as `shell/home.tsx:89`
-      and `shell/panels.tsx:323`.
-- [ ] Extension details: the wrapper `text-meta flex flex-col gap-2` in seven `details.tsx`
+      fill (`transcript/activity.tsx:392`, `extensions/subagents/profile-models.tsx:95`). Settled in
+      `web/src/ui/pane.tsx`: **`PANE`** is the frame — `rounded-card border-edge-soft border` and no
+      fill, because the fill is the box's own job — and **`PaneHeader`** is the row, `flex items-center
+      justify-between border-b px-3 py-2.5` in a `<header>`. Both are a class rather than a `Pane`
+      component: the frame's seven hosts are two `aside`s, three `section`s and a `footer`, and two of
+      them are class strings picked by state (`DRAWER`/`OVER`), so a component would need `asChild` or
+      an `as` prop plus `className` plumbing to say what the constant says; the row has no behaviour at
+      all. Every one of the fourteen says `PANE` with its own fill now, and a fifteenth turned up by
+      grepping `rounded-card` beside the border: the Markdown table's scroll box
+      (`components/ui/table.tsx:13`), the same frame with no fill, which took it too. One copy was left in
+      an extension's own file — `extensions/usage-limits/web.tsx`'s provider card, whose `rounded-lg`
+      became `rounded-card` in 4.1 — because an extension's files belong to the step that owns them;
+      that step has come, and the card says `${PANE} mb-3 p-2 last:mb-0` now. Three more spelled the
+      same frame where they draw one floating surface: `components/ui/sheet.tsx` and
+      `components/ui/alert-dialog.tsx` take it — the sheet measured unmoved at `912,8,360,744` at
+      1280×800, radius 10, a 1px `rgb(49, 50, 68)` border, the `canvas` fill — while
+      `components/ui/dialog.tsx` keeps its own: its card is the `sm:` one, and `PANE`'s radius and
+      border would have to be undone below `sm`, where the dialog is the screen. Unmoved at 1280×800 and 390×844: the agent card
+      736×38 (340×38 at 390), the tool fold 736×38, the table's box 736×226.4 (340×275.2), each at
+      radius 10, a 1px `rgb(49, 50, 68)` border, and its own `panel` fill or none. The compaction
+      summary, the quote and the two code surfaces were read from their class string, since no state
+      that draws one is reachable read-only: each is the same four tokens plus the fill it had. The
+      two-line headers of the transcript and a page are **not** `PaneHeader`: `min-h-header` with
+      `py-0.5`, a title over its subtitle. `transcript/transcript.tsx:558` stated `rounded-card` twice
+      and states it once now. One more turned up in the review of this phase:
+      `shell/appearance-dialog.tsx`'s flavour cards spelled `rounded-card border-edge-soft border`
+      beside their `bg-raised`, and say `${PANE} bg-raised …` now. Measured unmoved at 1280×800:
+      112.5×132.5 at `397,282`, radius 10, a 1px `rgb(49, 50, 68)` border, an 8px padding and gap.
+- [x] The pane header's third copy: `shell/settings.tsx:39` has the same shape as `shell/home.tsx:89`
+      and `shell/panels.tsx:323`. All three are `PaneHeader` now, the sheet's included: it draws no frame
+      of its own, but the row is the pane's row. Measured unmoved at 1280×800 and 390×844: the sidebar
+      264×744, home 992×744 (374×788 at 390), the transcript 992×560.5 (374×600.5), the status bar
+      1264×32 (374×32), the drawer 581×744, the covered panel 992×744, a page 403×744, the settings
+      sheet 360×744 (374×828); every header 45px — 47 in home, as before — with the same 10px/12px
+      padding, radius 10, a 1px `rgb(49, 50, 68)` border and the same `canvas` fill. The transcript's and
+      the page's `min-h-header` rows stayed as they were.
+- [x] Extension details: the wrapper `text-meta flex flex-col gap-2` in seven `details.tsx`
       (anthropic-subscription, auto-session-name, subagents ×2, git-history, tags, usage-limits; mcp
       close to it), the "turn the extension on" sentence in six (auto-session-name, mcp, tags,
       usage-limits, bash-timeout, dictation), and the label + `Switch` row in three
       (auto-session-name, mcp, usage-limits). Core gives the generic pieces in `web/src/ui/`; the
-      words stay each extension's.
-- [ ] Extension popovers: four `PopoverContent` frames (`mcp` `w-72 p-1`, `keep-warm` `p-3`,
-      `usage-limits` `w-72 p-3`, `git-stats` `w-64 p-3`) — sizes the primitive can name.
-- [ ] Panel toolbars: the `border-b` toolbar row in `files/panel.tsx`, `browser/panel.tsx`,
+      words stay each extension's. Done: `web/src/ui/details.tsx` holds `DetailsColumn` and
+      `DetailsNote`. Not `Details`, which is what every details module already calls its default
+      export. `DetailsColumn` is the wrapper in all seven, mcp's `flex flex-col gap-2` included: the
+      `text-meta` it adds is inert there, because every child of that column states its own size. The
+      sentence is `DetailsNote` in seven, not six — Subagents' off state is the same string, and the
+      bullet's list was short by one. The row is `Field orientation="horizontal"` in the two that
+      have one: its `flex-row items-center gap-2` is the row they wrote, so nothing moved. MCP's third
+      is not that row — a server's card with a column, a spinner and a switch at the default size —
+      and [Item](#39-item-new) already keeps it. The label stays a `<span className="text-ink">`:
+      `Label` is `text-meta text-muted`, a second look and a second size for a name at 12px ink. **One
+      look changed:** bash-timeout's and dictation's note was `text-muted` where the other five were
+      `text-faint`, and a note that says the same thing in seven places is one look. Same `text-meta`
+      size and line box, so only the palette step moved, subtext1 to subtext0. Unmoved at 1280×800 and
+      390×844: MCP's note `317,252,646,18` and `12,189,366,18` in `rgb(166, 173, 200)`; the tags
+      column `317,252,646,194.5` and `12,189,366,212.5` with its form at 58.5, its list at 84 and its
+      hint at 36 and 54; Usage limits' four rows `317,278,646,18` with the label 112 wide at 329 and
+      the switch 28×16 at 449, and `12,215,366,18` with the label at 24 and the switch at 144; Session
+      names' row `317,252,646,18`, its label 192.13 wide, its switch at 517.13.
+- [x] Extension popovers: four `PopoverContent` frames (`mcp` `w-72 p-1`, `keep-warm` `p-3`,
+      `usage-limits` `w-72 p-3`, `git-stats` `w-64 p-3`) — sizes the primitive can name. Done:
+      `PopoverContent` takes a `size`, the way `Button` does — `menu` is `w-72 p-1`, the 4px a list of
+      rows wants around them, and `panel` is `w-64 p-3`, room for content. There is no default: a
+      caller that names no size draws exactly what it drew, and the shell's rename popover is one. The
+      panel's 256px is what two of the three content popups already were, so Usage limits is the one
+      that states `w-72` beside the size and lets `cn` give it 288. The frames also differ in text
+      size (12px, or 15 for the push question) and two of them scroll under a viewport cap, and both
+      of those stay with the caller: they are not the frame's. `max-h-[70vh] overflow-y-auto` is the
+      same pair in keep-warm and Usage limits, but the context meter caps its own scroll viewport
+      instead, so it is two sites and not a size. Unmoved at 1280×800, padding and text size with
+      them: keep-warm `957,515,256,246` at 12px in a 12px padding; git-stats 256×117.5 at 15px in a
+      12px padding; Usage limits — opened once, as the step allows — 288×560 at 12px in a 12px
+      padding, its four provider cards 247 wide inside it. MCP's popup was read from its class string,
+      since the item is off on this machine and draws no status-bar trigger: `w-72 p-1` is `SIZES.menu`
+      and nothing else about it changed. One copy stays in the core's own
+      `web/src/shell/sessions.tsx` — the rename form's `w-64 p-2`, the panel's width at a tighter 8px
+      inset — because an inset no size names belongs to the step that owns that popover.
+- [x] Panel toolbars: the `border-b` toolbar row in `files/panel.tsx`, `browser/panel.tsx`,
       `notes/panel.tsx`, `git-history/web.tsx` (two) — one toolbar in `web/src/ui/` if the shapes
-      agree.
-- [ ] Section headings in popovers: `context-meter/web.tsx:98`, `subagents/web.tsx:343`.
-- [ ] No duplicated helper function was found: `isPlainClick`, `ago`, `formatDuration` already have one
+      agree. Done: `Toolbar` sits next to `PaneHeader` in `web/src/ui/pane.tsx`, and all six rows take
+      it: `flex items-center gap-2 border-b px-3 py-1.5` in `edge-soft`, which is the row plus the
+      rule, with the 12px inset and the 8px gap the notes tabs, the files tree and both git-history
+      rows already wore. The other three state what a size does not: the files viewer and the browser
+      keep `gap-1 p-2`, and git-history's list keeps `min-h-9 flex-wrap`; the notes row keeps
+      `text-meta justify-between`, the files tree `justify-between`. **The insets still differ, on
+      purpose:** the two viewers are the rows that hold a control edge to edge — a 28px back button
+      and a 32px address field — where the other three are a line of text and 24px actions at the
+      panel's own 12px indent, and making them one would move the panel's body by 4 to 5px for no
+      reason a person asked for. Unmoved at 1280×800: the notes row `690,54,581,47.5` at a `6px 12px`
+      inset and an 8px gap; the browser's `690,54,581,49` at an 8px padding and a 4px gap; the history
+      list's `281,54,401,37` at `6px 12px` and an 8px gap. The files panel's two rows and the review
+      panel's one were read from their class strings: `files` is off on this machine, and a review is
+      not running. A seventh row turned up in the review of this phase: `notes/todos.tsx`'s to-do tabs
+      had copied the base and the text size whole, and says `<Toolbar className="text-meta">` now. Its
+      31px of content is unmoved, at the notes row's own `690,54,581,47.5` at 1280×800, with the same
+      `6px 12px` inset, 8px gap, 12px text and 1px `rgb(49, 50, 68)` rule as the class string it
+      replaced.
+- [x] Section headings in popovers: `context-meter/web.tsx:98`, `subagents/web.tsx:343`. **Judged,
+      not unified.** The two are not the same heading: the context meter's is a `h3` inside a popover —
+      `text-faint flex items-baseline gap-2 uppercase`, with a 10px colour mark, the group's name, its
+      count and its total on one baseline — and Subagents' is a `h2` that is a panel's section row at a
+      fixed 28px with 12px of side padding, `text-meta text-faint flex h-7 shrink-0 items-center gap-2
+      px-3 font-normal`. What they share is `text-faint flex` and the 8px gap, and a heading primitive
+      holding those would leave every class that tells the two apart at the call site, which is a
+      wrapper that wraps nothing. Nothing else in the app repeats one either: the other three `<h3>`
+      and `<h4>` in `extensions/` are a commit's subject, a review's outcome and a provider's name, and
+      the only string two of them share is `text-ink font-medium` — two tokens, not a look.
+- [x] No duplicated helper function was found: `isPlainClick`, `ago`, `formatDuration` already have one
       home each; the two clamps and `plural` are local to their domain.
-- [ ] Delete the copies; no re-export shims.
+- [x] Delete the copies; no re-export shims. True of every repeat this pass unified: `PANE`,
+      `PaneHeader`, `Toolbar`, `EMPTY`, `Loading`, `DetailsColumn`, `DetailsNote` and the popover's
+      `SIZES` are one home each, the strings they replaced are gone from the call sites, and nothing
+      re-exports an old name. What is left is named where it is left and left for a reason: the
+      `dialog.tsx` card, which is a frame only from `sm` up; the two popover headings, which share
+      only a text role and a gap; the two viewers' `p-2` toolbar inset, which is a denser row and not a
+      theme step; the shell's rename popover at `w-64 p-2`, an inset no size names; and
+      `extensions/bash-timeout/details.tsx`'s and `extensions/dictation/details.tsx`'s
+      `flex flex-col gap-2` control columns, which hold fields that state their own sizes and are not
+      the details wrapper.
 - [ ] A key an extension names for a shell command, so the core's own hints can show it — the
       follow-up [Kbd](#310-kbd-new) left open. `web/src/sdk/commands.ts` holds the command names and
       their handlers, not what runs them: a registration beside `useShellCommand`, where the keymap's

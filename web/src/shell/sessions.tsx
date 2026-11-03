@@ -72,6 +72,7 @@ import { useShellCommand } from "../sdk/commands.ts";
 import { focusComposer } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
+import { PANE } from "../ui/pane.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
@@ -1006,7 +1007,7 @@ export const Sessions = memo(function Sessions({
         <aside
             ref={shell}
             data-collapsed={collapsed ? "" : undefined}
-            className={`group/side rounded-card border-edge-soft bg-canvas shrink-0 flex-col border in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[38px] ${
+            className={`group/side ${PANE} bg-canvas shrink-0 flex-col in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[38px] ${
                 sheet ? "fixed inset-2 z-30 flex" : "hidden"
             }`}
         >

@@ -44,6 +44,7 @@ import {
 import { ImageThumbs } from "../ui/attachments.tsx";
 import { Counts, DiffCard } from "../ui/diff.tsx";
 import { CodeBlock } from "../ui/markdown.tsx";
+import { PANE } from "../ui/pane.tsx";
 import { useSession } from "./session.ts";
 
 /** The current time, every second while `live`; a settled clock never redraws. */
@@ -391,7 +392,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
 
     return (
         <>
-            <Collapsible className="group/fold rounded-card border-edge-soft min-w-0 overflow-hidden border">
+            <Collapsible className={`group/fold ${PANE} min-w-0 overflow-hidden`}>
                 <CollapsibleTrigger className="text-tool text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
                     <Chevron />
                     <span className={cn("min-w-0 flex-1 truncate", item.live && "shimmer")}>

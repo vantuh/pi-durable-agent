@@ -27,6 +27,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { Loading } from "@/ui/loading.tsx";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import {
     type BrowserState,
@@ -295,7 +297,7 @@ function Stage({
                     dy: event.deltaY,
                 });
             }}
-            className="bg-sunken flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden outline-none select-none"
+            className="bg-sunken focus-visible:ring-accent flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden outline-none select-none focus-visible:ring-2 focus-visible:ring-inset"
         >
             <img
                 ref={image}
@@ -419,7 +421,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
 
     return (
         <>
-            <div className="border-edge-soft flex items-center gap-1 border-b p-2">
+            <Toolbar className="gap-1 p-2">
                 <IconButton
                     hint="Back"
                     disabled={page?.canGoBack !== true}
@@ -507,7 +509,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                 {page !== undefined && page.errors > 0 ? (
                     <span className="text-meta text-danger">{page.errors}</span>
                 ) : null}
-            </div>
+            </Toolbar>
 
             {problem === null ? null : (
                 <Alert className="rounded-none px-3 py-1.5">{problem}</Alert>
@@ -515,9 +517,14 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
 
             {page?.open === true ? (
                 <Stage id={id} shot={shot} onError={setError} />
+            ) : page?.loading === true ? (
+                // Not an empty state: the toolbar's Stop is the only action while the browser starts.
+                <div className="flex flex-1 items-center justify-center p-4">
+                    <Loading className="text-interface text-center">Starting the browser…</Loading>
+                </div>
             ) : (
                 <Empty className="text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-                    <p>{page?.loading === true ? "Starting the browser…" : "Nothing is open."}</p>
+                    <p>Nothing is open.</p>
                     <Button
                         variant="ghost"
                         onClick={() => void run({ op: "open" })}

@@ -2,16 +2,15 @@ import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { PANE } from "../../ui/pane.tsx";
+
 /**
  * A table, in its own scroll box: a wide one scrolls sideways inside the frame instead of widening the page,
  * which matters on a phone. `className` is the table's, as in shadcn; the frame is the primitive's.
  */
 export function Table({ className, ...props }: ComponentProps<"table">) {
     return (
-        <div
-            data-slot="table-container"
-            className="rounded-card border-edge-soft overflow-x-auto border"
-        >
+        <div data-slot="table-container" className={`${PANE} overflow-x-auto`}>
             <table
                 data-slot="table"
                 className={cn("text-interface w-full border-collapse", className)}

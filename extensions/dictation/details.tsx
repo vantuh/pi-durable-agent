@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsNote } from "@/ui/details.tsx";
 
 import { messageOf } from "./record.ts";
 import {
@@ -93,7 +94,7 @@ function Picker({
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     // Actions come from the server half, which is not there while the folder is off or failed.
     if (!enabled) {
-        return <p className="text-meta text-muted">Turn Dictation on to change these settings.</p>;
+        return <DetailsNote>Turn Dictation on to change these settings.</DetailsNote>;
     }
 
     if (!installed) {

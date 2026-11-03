@@ -90,7 +90,7 @@ function Panel({
     onToggle: (name: string, on: boolean) => void;
 }) {
     return (
-        <PopoverContent side="top" aria-label="MCP servers" className="text-meta w-72 p-1">
+        <PopoverContent size="menu" side="top" aria-label="MCP servers" className="text-meta">
             {problem === undefined ? null : (
                 <Alert
                     className="px-2 py-1.5"

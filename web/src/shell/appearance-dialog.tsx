@@ -20,6 +20,7 @@ import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour, currentFlavour } from "../lib/flavour.ts";
 import type { Width } from "../lib/width.ts";
 import { WIDTH_NAMES, applyWidth, currentWidth } from "../lib/width.ts";
+import { PANE } from "../ui/pane.tsx";
 
 const DOTS = ["red", "yellow", "green", "pink", "blue", "mauve"] as const;
 
@@ -89,7 +90,7 @@ function FlavourGrid() {
                         key={flavour}
                         value={flavour}
                         aria-label={flavour}
-                        className="bg-raised border-edge-soft rounded-card text-ink data-[state=on]:inset-ring-accent focus-visible:ring-offset-canvas flex flex-col gap-2 border p-2 text-left focus-visible:ring-offset-2 data-[state=on]:inset-ring-2"
+                        className={`${PANE} bg-raised text-ink data-[state=on]:inset-ring-accent focus-visible:ring-offset-canvas flex flex-col gap-2 p-2 text-left focus-visible:ring-offset-2 data-[state=on]:inset-ring-2`}
                     >
                         <Preview flavour={flavour} />
                         <span className="text-interface text-ink capitalize">{flavour}</span>

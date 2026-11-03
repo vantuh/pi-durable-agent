@@ -8,6 +8,7 @@ import { Hint } from "@/components/ui/tooltip";
 import type { FolderPage } from "../extensions.ts";
 import type { PageProps, StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
+import { PANE } from "../ui/pane.tsx";
 
 export const pageKey = (page: FolderPage): string => `${page.folder}:${page.id}`;
 
@@ -108,7 +109,7 @@ export function PageHost({
         <section
             ref={host}
             data-slot="page-host"
-            className="rounded-card border-edge-soft bg-canvas absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border"
+            className={`${PANE} bg-canvas absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col`}
         >
             <header className="border-edge-soft min-h-header flex items-center gap-2 border-b px-3 py-0.5">
                 {sub === undefined ? null : (

@@ -55,7 +55,7 @@ export function AttachmentTitle({ className, ...props }: ComponentProps<"span">)
         <span
             data-slot="attachment-title"
             className={cn(
-                "text-meta block max-w-[10rem] min-w-0 truncate font-mono group-data-[state=uploading]/attachment:animate-pulse",
+                "text-meta block max-w-40 min-w-0 truncate font-mono group-data-[state=uploading]/attachment:animate-pulse",
                 className,
             )}
             {...props}

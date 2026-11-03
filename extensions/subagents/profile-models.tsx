@@ -7,6 +7,9 @@ import { ItemActions, ItemContent, ItemTitle } from "@/components/ui/item";
 import { ModelMenu } from "@/composer/model-menu.tsx";
 import { listModels, type Models } from "@/lib/api.ts";
 import { callAction } from "@/sdk/actions.ts";
+import { DetailsColumn } from "@/ui/details.tsx";
+import { Loading } from "@/ui/loading.tsx";
+import { PANE } from "@/ui/pane.tsx";
 
 import { profiles as profilesRef, setModel, type ProfileRow } from "./refs.ts";
 
@@ -77,10 +80,10 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
     };
 
     return (
-        <div className="text-meta flex flex-col gap-2">
+        <DetailsColumn>
             {error === null ? null : <Alert>{error}</Alert>}
 
-            {rows === null ? <p className="text-faint">Loading…</p> : null}
+            {rows === null ? <Loading /> : null}
             {rows?.length === 0 ? (
                 <Empty>
                     No profiles yet: add a Markdown file with a name, a description and a model to
@@ -92,7 +95,7 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                 {(rows ?? []).map((row) => (
                     <li
                         key={row.name}
-                        className={`border-edge-soft rounded-card flex flex-col border ${compact ? "gap-0.5 px-2 py-1" : "gap-1.5 px-2.5 py-2"}`}
+                        className={`${PANE} flex flex-col ${compact ? "gap-0.5 px-2 py-1" : "gap-1.5 px-2.5 py-2"}`}
                     >
                         <div
                             className={`flex justify-between gap-2 ${compact ? "items-center" : "items-start"}`}
@@ -144,6 +147,6 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                     }}
                 />
             )}
-        </div>
+        </DetailsColumn>
     );
 }

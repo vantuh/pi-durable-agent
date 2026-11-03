@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Hint } from "@/components/ui/tooltip";
 
+import { PaneHeader } from "../ui/pane.tsx";
 import type { Props } from "./settings-content.tsx";
 
 // The contents (and the dialogs behind their buttons) are fetched at the first open, not at boot.
@@ -36,7 +37,7 @@ export function Settings({
                     returnFocusTo.current?.focus();
                 }}
             >
-                <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
+                <PaneHeader>
                     <SheetTitle>Settings</SheetTitle>
                     <Hint label="Close">
                         <SheetClose asChild>
@@ -45,7 +46,7 @@ export function Settings({
                             </Button>
                         </SheetClose>
                     </Hint>
-                </header>
+                </PaneHeader>
                 <Suspense fallback={null}>
                     <Content {...props} />
                 </Suspense>

@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast.ts";
 import { cn } from "@/lib/utils";
 import { callAction } from "@/sdk/actions.ts";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import type { ActionRef } from "../../shared/extension-api.ts";
 import {
@@ -217,9 +218,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="border-edge-soft text-meta flex items-center gap-2 border-b px-3 py-1.5">
-                {tabs}
-            </div>
+            <Toolbar className="text-meta">{tabs}</Toolbar>
 
             <form
                 className="px-3 pt-2 pb-1"

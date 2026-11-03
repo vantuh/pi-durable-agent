@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
 import { type McpState, state, toggle } from "./refs.ts";
 
@@ -58,7 +59,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     };
 
     if (!active) {
-        return <p className="text-faint text-meta">Turn the extension on to see its servers.</p>;
+        return <DetailsNote>Turn the extension on to see its servers.</DetailsNote>;
     }
 
     if (current === undefined) {
@@ -66,7 +67,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     }
 
     return (
-        <div className="flex flex-col gap-2">
+        <DetailsColumn>
             {current.problem === undefined ? null : (
                 <Alert
                     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a config file's problem is not one
@@ -109,6 +110,6 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 </div>
             ))}
             {error === undefined ? null : <Alert>{error}</Alert>}
-        </div>
+        </DetailsColumn>
     );
 }

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsNote } from "@/ui/details.tsx";
 
 import { MAX_MINUTES, MIN_MINUTES, saveSettings, settings } from "./refs.ts";
 
@@ -23,7 +24,7 @@ function messageOf(failure: unknown): string {
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     // Actions come from the server half, which is not there while the folder is off or failed.
     if (!enabled) {
-        return <p className="text-meta text-muted">Turn Bash timeout on to change its limit.</p>;
+        return <DetailsNote>Turn Bash timeout on to change its limit.</DetailsNote>;
     }
 
     if (!installed) {

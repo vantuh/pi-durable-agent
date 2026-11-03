@@ -3,6 +3,7 @@ import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PANE } from "@/ui/pane.tsx";
 
 export function AlertDialog(props: ComponentProps<typeof AlertDialogPrimitive.Root>) {
     return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
@@ -28,7 +29,8 @@ export function AlertDialogContent({
                 <AlertDialogPrimitive.Content
                     data-slot="alert-dialog-content"
                     className={cn(
-                        "bg-canvas border-edge-soft text-ink relative flex max-h-full w-full max-w-md flex-col overflow-y-auto rounded-card border shadow-float outline-none",
+                        "bg-canvas text-ink relative flex max-h-full w-full max-w-md flex-col overflow-y-auto shadow-float outline-none",
+                        PANE,
                         className,
                     )}
                     {...props}

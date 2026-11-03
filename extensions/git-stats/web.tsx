@@ -161,7 +161,8 @@ function GitBadge({ session }: StatusProps) {
                 side="bottom"
                 align="end"
                 aria-label="Git push"
-                className="text-interface w-64 p-3"
+                size="panel"
+                className="text-interface"
             >
                 <div className="flex items-start justify-between gap-2">
                     {issue === null ? (

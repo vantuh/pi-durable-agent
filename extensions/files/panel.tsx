@@ -17,7 +17,9 @@ import { Hint } from "@/components/ui/tooltip";
 import { langOfPath } from "@/lib/highlight.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { Loading } from "@/ui/loading.tsx";
 import { CodeBlock } from "@/ui/markdown.tsx";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import { type File, type Folder, list, read } from "./refs.ts";
 
@@ -159,7 +161,7 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
 
     return (
         <>
-            <div className="border-edge-soft flex items-center justify-between border-b px-3 py-1.5">
+            <Toolbar className="justify-between">
                 <span className="text-faint text-meta">Session folder</span>
                 <Hint label="Reload">
                     <Button
@@ -175,7 +177,7 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
                         <RotateCw className="size-3.5" />
                     </Button>
                 </Hint>
-            </div>
+            </Toolbar>
             {error === null ? null : (
                 <Alert className="text-interface rounded-none p-3">{error}</Alert>
             )}
@@ -214,7 +216,7 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
 
     return (
         <>
-            <div className="border-edge-soft flex items-center gap-1 border-b p-2">
+            <Toolbar className="gap-1 p-2">
                 <Hint label="Back to the tree">
                     <Button
                         variant="ghost"
@@ -229,13 +231,13 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
                 <span className="text-interface text-ink min-w-0 flex-1 truncate font-mono">
                     {path}
                 </span>
-            </div>
+            </Toolbar>
             <ScrollArea className="min-h-0 flex-1">
                 <div className="p-3">
                     {error !== null ? (
                         <Alert className="text-interface">{error}</Alert>
                     ) : file === undefined ? (
-                        <p className="text-faint text-interface">Loading…</p>
+                        <Loading className="text-interface" />
                     ) : file.kind === "text" ? (
                         <div className="flex flex-col gap-2">
                             <CodeBlock

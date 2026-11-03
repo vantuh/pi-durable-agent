@@ -105,7 +105,8 @@ function Panel({
         <PopoverContent
             side="top"
             aria-label="Keep warm"
-            className="text-meta max-h-[70vh] w-64 overflow-y-auto p-3 font-mono"
+            size="panel"
+            className="text-meta max-h-[70vh] overflow-y-auto font-mono"
         >
             <div className="flex items-center justify-between gap-3">
                 <span className="text-ink">Keep this context warm</span>
@@ -156,7 +157,7 @@ function Panel({
                                                 onClose();
                                             }
                                         }}
-                                        className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
+                                        className="text-muted hover:text-ink rounded-control focus-visible:ring-accent min-w-0 flex-1 truncate outline-none hover:underline focus-visible:ring-2"
                                     >
                                         {row.label}
                                     </a>

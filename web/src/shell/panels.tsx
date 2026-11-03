@@ -16,6 +16,7 @@ import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
 import type { PanelProps, StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
+import { PANE, PaneHeader } from "../ui/pane.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 
@@ -188,12 +189,10 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
     );
 }
 
-const DRAWER =
-    "rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]";
+const DRAWER = `${PANE} bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
 // Expanded, the panel takes the conversation's place, exactly the box the page frame takes, and the same
 // fade. The drawer's width no longer applies: the row's own left offset does.
-const OVER =
-    "rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto";
+const OVER = `${PANE} bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto`;
 const COLUMN = "lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0";
 
 /**
@@ -321,7 +320,7 @@ export function PanelHost({
             {/* Pinned to the right edge while the panel widens: it comes in like a drawer, not a squashed card. */}
             <div className="flex min-h-0 flex-1 justify-end overflow-hidden">
                 <div className={`flex w-full min-w-0 flex-col ${expanded ? "" : COLUMN}`}>
-                    <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
+                    <PaneHeader>
                         <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
                         <Hint label="Close">
                             <Button
@@ -333,7 +332,7 @@ export function PanelHost({
                                 <X className="size-4" />
                             </Button>
                         </Hint>
-                    </header>
+                    </PaneHeader>
 
                     <div className="flex min-h-0 flex-1 flex-col">
                         <ItemBoundary name={panelKey(panel)}>

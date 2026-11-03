@@ -17,17 +17,27 @@ export function PopoverAnchor(props: ComponentProps<typeof PopoverPrimitive.Anch
 }
 
 /**
- * A dropdown menu's surface with room for anything: the frame is the primitive's, the width, padding
- * and text size are the caller's, because a popup holds prose, rows or a form and each one measures
- * differently. Radix flips and shifts it inside the viewport, and closes it on an outside click and
- * on Escape. Opening moves focus into the content, so Escape has somewhere to return it: the trigger.
- * An outside click does not take the focus back, because it already put it where the person clicked.
+ * The two frames a popup comes in: a menu of rows at its own 4px, and a panel of content with room
+ * around it. A caller whose width differs states it beside the size, and `cn` lets it win.
  */
-export function PopoverContent({
-    className,
-    sideOffset = 4,
-    ...props
-}: ComponentProps<typeof PopoverPrimitive.Content>) {
+const SIZES = {
+    menu: "w-72 p-1",
+    panel: "w-64 p-3",
+};
+
+type PopoverContentProps = ComponentProps<typeof PopoverPrimitive.Content> & {
+    size?: keyof typeof SIZES;
+};
+
+/**
+ * A dropdown menu's surface with room for anything: the frame and the two sizes are the primitive's,
+ * the text size, the scrolling and the room a size does not name are the caller's, because a popup
+ * holds prose, rows or a form and each one measures differently. Radix flips and shifts it inside the
+ * viewport, and closes it on an outside click and on Escape. Opening moves focus into the content, so
+ * Escape has somewhere to return it: the trigger. An outside click does not take the focus back,
+ * because it already put it where the person clicked.
+ */
+export function PopoverContent({ className, size, sideOffset = 4, ...props }: PopoverContentProps) {
     return (
         <PopoverPrimitive.Portal>
             <PopoverPrimitive.Content
@@ -36,6 +46,7 @@ export function PopoverContent({
                 collisionPadding={8}
                 className={cn(
                     "rounded-control border-edge-soft bg-panel text-ink z-50 border shadow-float outline-none",
+                    size === undefined ? undefined : SIZES[size],
                     className,
                 )}
                 {...props}

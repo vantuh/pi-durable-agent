@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+import { Loading } from "@/ui/loading.tsx";
+import { PANE } from "@/ui/pane.tsx";
 
 import { providers, readerFor, SETTINGS_CHANGED, type Bucket, type UsageResult } from "./refs.ts";
 
@@ -145,7 +147,8 @@ function Panel({
         <PopoverContent
             side="top"
             aria-label="Provider usage"
-            className="text-meta max-h-[70vh] w-72 overflow-y-auto p-3"
+            size="panel"
+            className="text-meta max-h-[70vh] w-72 overflow-y-auto"
         >
             <div className="mb-2 flex items-center justify-between">
                 <span className="text-ink font-medium">Provider usage</span>
@@ -166,7 +169,7 @@ function Panel({
             {result.data?.providers.map((provider) => (
                 <section
                     key={provider.id}
-                    className={`border-edge-soft rounded-card mb-3 border p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
+                    className={`${PANE} mb-3 p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
                 >
                     <h4 className="text-ink mb-1.5 font-medium">{provider.name}</h4>
                     {provider.error === undefined ? null : <Alert>{provider.error}</Alert>}
@@ -175,9 +178,7 @@ function Panel({
                     ))}
                 </section>
             ))}
-            {result.data === null && result.failure === null ? (
-                <p className="text-faint">Loading…</p>
-            ) : null}
+            {result.data === null && result.failure === null ? <Loading /> : null}
         </PopoverContent>
     );
 }

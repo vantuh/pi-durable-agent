@@ -18,6 +18,7 @@ import { Hint } from "@/components/ui/tooltip";
 
 import { refreshExtensions } from "../extensions.ts";
 import { type ExtensionInfo, listExtensions, setExtensionEnabled } from "../lib/api.ts";
+import { Loading } from "../ui/loading.tsx";
 import { ExtensionDetails, hasExtensionDetails } from "./extension-details.tsx";
 
 /** The icon button for the Settings footer, and the modal it opens. */
@@ -116,7 +117,7 @@ function ExtensionList() {
             <>
                 {header}
                 {loadError === undefined ? (
-                    <p className="text-meta text-faint animate-drop-in p-3">Loading…</p>
+                    <Loading className="text-meta animate-drop-in p-3" />
                 ) : (
                     <Alert className="animate-drop-in rounded-none p-3">{loadError}</Alert>
                 )}

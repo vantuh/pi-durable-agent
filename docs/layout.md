@@ -25,6 +25,12 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 (`raised`): the selected session row, a person's message, a hover on a control. Borders are
 `edge-soft` inside a panel and never on the page. See [theme.md](theme.md).
 
+Every pane wears one frame — `rounded-card`, a 1px `edge-soft` border, and the fill its job picks —
+and a pane's header is one row: a title on the left, its actions on the right, a rule under it. Both
+are named once, in `web/src/ui/pane.tsx` (`PANE`, `PaneHeader`); positioning, width, drag and
+animation stay with the caller. The transcript's header and a page's are the other row: the two-line
+`min-h-header` with `py-0.5`.
+
 ## Home
 
 `/` is the home page, in place of the conversation and composer: every session from every folder

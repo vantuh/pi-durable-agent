@@ -2,6 +2,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
+import { PANE } from "@/ui/pane.tsx";
 
 export function Sheet(props: ComponentProps<typeof DialogPrimitive.Root>) {
     return <DialogPrimitive.Root data-slot="sheet" {...props} />;
@@ -35,7 +36,8 @@ export function SheetContent({ side = "right", className, children, ...props }: 
             <DialogPrimitive.Content
                 data-slot="sheet-content"
                 className={cn(
-                    "bg-canvas border-edge-soft rounded-card fixed z-50 flex flex-col overflow-hidden border outline-none",
+                    "bg-canvas fixed z-50 flex flex-col overflow-hidden outline-none",
+                    PANE,
                     SIDES[side],
                     className,
                 )}
