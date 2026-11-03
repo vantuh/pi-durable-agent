@@ -364,17 +364,16 @@ const TurnItem = memo(TurnItemView, (before, after) => sameItem(before.item, aft
  */
 const UserMessage = memo(function UserMessage({ user }: { user: NonNullable<Turn["user"]> }) {
     return (
-        <div className="flex justify-end">
-            <div className="bg-raised text-prose text-ink flex max-w-[80%] min-w-0 flex-col gap-1.5 px-3 py-2">
-                <Attachments
-                    files={(user.files ?? []).map((file, index) => ({
-                        ...file,
-                        key: String(index),
-                        state: "done",
-                    }))}
-                />
-                <UserText text={user.text} />
-            </div>
+        <div className="bg-panel text-prose text-ink relative flex min-w-0 flex-col gap-1.5 py-2 pr-3 pl-4">
+            <span aria-hidden className="bg-accent w-stripe absolute inset-y-0 left-0" />
+            <Attachments
+                files={(user.files ?? []).map((file, index) => ({
+                    ...file,
+                    key: String(index),
+                    state: "done",
+                }))}
+            />
+            <UserText text={user.text} />
         </div>
     );
 });
