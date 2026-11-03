@@ -88,15 +88,18 @@ export const StatusBar = memo(function StatusBar({
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-3">
-                <StatusItems
-                    slot="end"
-                    session={session}
-                    sessions={sessions}
-                    openSession={onOpen}
-                />
-                {at("end").map((field) => (
-                    <StatusField key={field.source} field={field} />
-                ))}
+                {/* A phone keeps the state and the settings: five chips around a 171px cell drew over the state. */}
+                <div className="hidden min-w-0 items-center gap-3 sm:flex">
+                    <StatusItems
+                        slot="end"
+                        session={session}
+                        sessions={sessions}
+                        openSession={onOpen}
+                    />
+                    {at("end").map((field) => (
+                        <StatusField key={field.source} field={field} />
+                    ))}
+                </div>
                 <Hint label="Settings">
                     <Button
                         ref={settingsGear}
