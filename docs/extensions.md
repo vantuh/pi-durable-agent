@@ -1174,9 +1174,13 @@ not switch it here. Ponytail's line adds that the level is `full`, because lite 
 a `/ponytail` argument picks and there is no `/ponytail` command here.
 
 - **The switch** is a chip in the status bar's `end` slot, like keep-warm's: a bone for caveman, a
-  turtle for ponytail, lit in `text-accent` and `text-ok` when on and faded to `text-faint/60` when
+  unicorn for ponytail, lit in `text-accent` and `text-ok` when on and faded to `text-faint/60` when
   off. The popover holds one `Switch` and one line saying what the voice changes: caveman — every
   conversation you start, never a subagent; ponytail — every conversation, subagents included.
+- **The unicorn** is `ponytail/icon.tsx`, built with lucide's `createLucideIcon` so it carries the
+  same grid, stroke and props as every other chip. Lucide has no horse: the body is Tabler Icons'
+  `horse` (MIT, Copyright (c) 2020-2026 Paweł Kuna, kept in the file), the horn and its notch are
+  drawn here, and the result was checked at the chip's 14 px.
 - **The state** is one boolean for the whole app, `caveman.json` and `ponytail.json` in the data
   directory, `{ "on": true }`; a missing, broken or non-boolean `on` means off. A failed save leaves
   the mode it had. The chip reads it when the conversation opens and again whenever the popover

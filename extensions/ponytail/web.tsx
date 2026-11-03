@@ -1,4 +1,3 @@
-import { Turtle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
 
+import { Unicorn } from "./icon.tsx";
 import { type Mode, set as setAction, state as stateAction } from "./refs.ts";
 
 const RETRY_MS = 5_000;
@@ -128,7 +128,7 @@ function Ponytail({ session }: StatusItemProps) {
                             mode.on ? "text-ok" : "text-faint/60"
                         }`}
                     >
-                        <Turtle className="size-3.5" />
+                        <Unicorn className="size-3.5" />
                         ponytail
                     </Button>
                 </PopoverTrigger>
