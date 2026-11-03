@@ -7,6 +7,9 @@ export function Toaster() {
         <Sonner
             position="bottom-center"
             duration={3000}
+            // An open dialog (the settings sheet) sets `pointer-events: none` on the body, and a toast
+            // inherits it through the app root: without this its actions cannot be tapped or clicked.
+            className="pointer-events-auto"
             // The top is for session notices: below the panel headers, so none covers their buttons.
             offset={{
                 top: 60,
