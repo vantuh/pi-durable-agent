@@ -888,7 +888,7 @@ out of its line, so all of them stay text.
       something a check can ask for. It sits inside the menu but is not a menu item: no click, no focus stop, no `menuitem` role,
       only the sentence with the rows' own 8px side padding.
 - [x] `web/src/transcript/transcript.tsx:677–679` — the prompt an empty session shows. It keeps
-      `text-prose`: the conversation is prose at 15px, where the sidebar's own states are 12. Unmoved:
+      `text-interface`: the conversation is prose at 15px, where the sidebar's own states are 12. Unmoved:
       15px on a 22.5px line, faint, no padding, measured 227.66×22.5 before and after in a throwaway page,
       since an empty session needs one created. It is not a live
       region: the session was empty when it opened, so nothing replaces anything.
@@ -1367,7 +1367,7 @@ finding is fixed in this phase, not just listed.
       was found):
     - [x] **Font sizes** — fixed in `feat(theme): name every text size`. The 12.5px code text in
           `ui/diff.tsx`, `ui/markdown.tsx` and `transcript/activity.tsx` is `text-code`. The three
-          annotation sizes became one `text-micro` at 11px: 11px had four uses (`activity.tsx`'s
+          annotation sizes became one `text-micro` at 11px (folded into `text-meta` at 12px later): 11px had four uses (`activity.tsx`'s
           outcome counts, `ui/attachment.tsx`'s size, `extensions/subagents/web.tsx`'s context
           percentage), 11.5px one (`activity.tsx`'s group duration, now 11px, −0.5px), and 10px two
           (`subagents/web.tsx`'s model name and folder chip, now 11px, +1px) — the same job, so one
