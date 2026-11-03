@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
 import { tokens } from "@/lib/format.ts";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
+import { ago } from "@/lib/time.ts";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
@@ -26,19 +27,6 @@ const POLL_MS = 60_000;
 /** Local time on a 24-hour dial, as the rest of the app writes it: 21:43, never 09:43 PM. */
 const clock = (at: number) =>
     new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-
-/** How long ago, in the words the rest of the shell uses. */
-function ago(at: number): string {
-    const minutes = Math.max(0, Math.round((Date.now() - at) / 60_000));
-
-    if (minutes < 1) {
-        return "just now";
-    }
-
-    return minutes < 60
-        ? `${String(minutes)} min ago`
-        : `${String(Math.round(minutes / 60))} h ago`;
-}
 
 /** Where the cache stands: warm until the hour after the last request ends, else cold. */
 function cacheLine(warm: WarmState, now: number): string {
@@ -120,7 +108,7 @@ function Panel({
                 <div>{nextLine(warm, now)}</div>
                 {warm.last === undefined ? null : (
                     <div className={failed ? "text-danger" : undefined}>
-                        Last ping {ago(warm.last.at)}
+                        Last ping {ago(warm.last.at, now)}
                         {failed
                             ? `: ${warm.last.error ?? ""}`
                             : ` · read ${tokens(warm.last.read ?? 0)}, wrote ${tokens(warm.last.write ?? 0)}`}

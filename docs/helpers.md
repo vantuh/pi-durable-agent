@@ -129,9 +129,19 @@ not a list of every function in the repository.
 
 ### 5.5 Small browser repeats
 
-- [ ] `newestFirst` is written twice, in `web/src/lib/status-rows.ts` and `web/src/shell/home.tsx`.
-- [ ] `extensions/keep-warm/web.tsx` has its own `ago` beside the core's `web/src/lib/time.ts`; use the
-      core's, accepting its wording ("now" for "just now").
+- [x] `newestFirst` is written twice, in `web/src/lib/status-rows.ts` and `web/src/shell/home.tsx`.
+      Done: the two copies were the same comparison — `activeAt` descending, a session never worked in
+      last — so it lives in `web/src/lib/session-order.ts`, and `test/session-order.test.ts` pins the
+      null. The two inline copies in `shell/sessions.tsx` were that comparison too: the sidebar's
+      `newest`, and the search's sort, which leads with the match score and so takes `newestFirst` as
+      its second key. `session-folders.ts`'s `byLastUse` stays its own: equal times there break by
+      path, so rows do not swap.
+- [x] `extensions/keep-warm/web.tsx` has its own `ago` beside the core's `web/src/lib/time.ts`; use the
+      core's, accepting its wording ("now" for "just now"). Done: the copy is gone, and the line reads
+      `Last ping {ago(warm.last.at, now)}` — "Last ping 3m", "Last ping now", "Last ping 6d", a date
+      past a week — where it said "3 min ago", "just now" and "144 h ago". The bare unit is how the
+      rest of the shell writes relative time, and it is the only wording that reads with all of `ago`'s
+      answers. `clock` (absolute time) stays as it was.
 
 ### Kept separate, with the reason
 

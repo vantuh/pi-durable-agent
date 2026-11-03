@@ -10,6 +10,7 @@ import { Hint } from "@/components/ui/tooltip";
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions } from "../lib/session-nesting.ts";
+import { newestFirst } from "../lib/session-order.ts";
 import { MINUTE } from "../lib/time.ts";
 import { PANE, PaneHeader } from "../ui/pane.tsx";
 import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
@@ -23,10 +24,6 @@ type Props = {
 
 /** The rest of the history is the sidebar's, folder by folder. */
 const RECENT = 20;
-
-function newestFirst(left: SessionSummary, right: SessionSummary): number {
-    return (right.activeAt ?? 0) - (left.activeAt ?? 0);
-}
 
 function Row({
     session,
