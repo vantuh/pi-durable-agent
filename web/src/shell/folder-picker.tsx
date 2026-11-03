@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 import type { NewSessionCollected } from "@/sdk/types.ts";
@@ -292,20 +293,25 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                                 <Alert>Cannot read that folder.</Alert>
                             ) : (
                                 (page?.dirs ?? []).map((dir) => (
-                                    <button
+                                    <Item
                                         key={dir.path}
-                                        type="button"
-                                        onDoubleClick={() => {
-                                            go(dir.path);
-                                        }}
-                                        onClick={() => {
-                                            go(dir.path);
-                                        }}
-                                        className="rounded-control text-ink hover:bg-raised text-interface flex w-full items-center gap-2 px-2 py-1.5 text-left"
+                                        asChild
+                                        size="sm"
+                                        className="text-ink hover:bg-raised text-interface w-full text-left"
                                     >
-                                        <Folder className="text-info size-4 shrink-0" />
-                                        <span className="truncate">{dir.name}</span>
-                                    </button>
+                                        <button
+                                            type="button"
+                                            onDoubleClick={() => {
+                                                go(dir.path);
+                                            }}
+                                            onClick={() => {
+                                                go(dir.path);
+                                            }}
+                                        >
+                                            <Folder className="text-info size-4 shrink-0" />
+                                            <span className="truncate">{dir.name}</span>
+                                        </button>
+                                    </Item>
                                 ))
                             )}
                         </div>
@@ -381,10 +387,9 @@ function Row({
     onClick: () => void;
 }) {
     return (
-        <div
-            className={`rounded-control text-interface flex items-center gap-2 px-2 py-1.5 ${
-                active === true ? "bg-raised text-ink" : "text-muted hover:bg-raised"
-            }`}
+        <Item
+            size="sm"
+            className={`text-interface ${active === true ? "bg-raised text-ink" : "text-muted hover:bg-raised"}`}
         >
             {onIcon === undefined ? (
                 icon
@@ -400,10 +405,14 @@ function Row({
                     </Button>
                 </Hint>
             )}
-            <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left">
+            <button
+                type="button"
+                onClick={onClick}
+                className="rounded-control focus-visible:ring-accent min-w-0 flex-1 text-left outline-none focus-visible:ring-2"
+            >
                 <span className="block truncate">{label}</span>
             </button>
-        </div>
+        </Item>
     );
 }
 

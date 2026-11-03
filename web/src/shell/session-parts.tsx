@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { Hint } from "@/components/ui/tooltip";
 import { ago, DAY, MINUTE } from "@/lib/time.ts";
 
@@ -83,14 +84,10 @@ export function SessionRowContent({
     return (
         <>
             <StateMark session={session} />
-            <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-sidebar text-ink truncate">
-                    {session.title ?? "New session"}
-                </span>
-                <span className="text-meta text-faint truncate font-mono">
-                    {folderName(session.cwd)}
-                </span>
-            </span>
+            <ItemContent>
+                <ItemTitle>{session.title ?? "New session"}</ItemTitle>
+                <ItemDescription className="font-mono">{folderName(session.cwd)}</ItemDescription>
+            </ItemContent>
             {trailing}
             <span className="text-meta text-faint min-w-7 shrink-0 text-right">
                 {session.activeAt === null ? null : ago(session.activeAt, now)}

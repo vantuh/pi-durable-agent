@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
+import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -36,23 +37,24 @@ function Row({
     onOpen: (id: number) => void;
 }) {
     return (
-        <a
-            href={sessionHref(session.id)}
-            title={session.cwd ?? undefined}
-            onClick={(event) => {
-                if (isPlainClick(event)) {
-                    event.preventDefault();
-                    onOpen(session.id);
-                }
-            }}
-            className="rounded-control hover:bg-raised/50 flex items-center gap-3 px-2 py-2"
-        >
-            <SessionRowContent
-                session={session}
-                now={now}
-                trailing={<SessionMarks session={session} />}
-            />
-        </a>
+        <Item asChild className="hover:bg-raised/50">
+            <a
+                href={sessionHref(session.id)}
+                title={session.cwd ?? undefined}
+                onClick={(event) => {
+                    if (isPlainClick(event)) {
+                        event.preventDefault();
+                        onOpen(session.id);
+                    }
+                }}
+            >
+                <SessionRowContent
+                    session={session}
+                    now={now}
+                    trailing={<SessionMarks session={session} />}
+                />
+            </a>
+        </Item>
     );
 }
 

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
+import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 import { langOfPath } from "@/lib/highlight.ts";
@@ -107,34 +108,40 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
 
                     return (
                         <div key={path}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (entry.dir) {
-                                        toggle(path);
-                                    } else {
-                                        onOpen(path);
-                                    }
-                                }}
-                                className="hover:bg-raised text-ink rounded-control flex w-full items-center gap-1.5 py-1 pr-2 text-left"
-                                style={{ paddingLeft: depth * 12 + 8 }}
+                            {/* The row is the indent: `paddingLeft` is the depth, and its corners are the panel's. */}
+                            <Item
+                                asChild
+                                size="sm"
+                                className="hover:bg-raised text-ink w-full gap-1.5 py-1 text-left focus-visible:ring-inset"
                             >
-                                {entry.dir ? (
-                                    expanded ? (
-                                        <ChevronDown className="text-faint size-3.5 shrink-0" />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (entry.dir) {
+                                            toggle(path);
+                                        } else {
+                                            onOpen(path);
+                                        }
+                                    }}
+                                    style={{ paddingLeft: depth * 12 + 8 }}
+                                >
+                                    {entry.dir ? (
+                                        expanded ? (
+                                            <ChevronDown className="text-faint size-3.5 shrink-0" />
+                                        ) : (
+                                            <ChevronRight className="text-faint size-3.5 shrink-0" />
+                                        )
                                     ) : (
-                                        <ChevronRight className="text-faint size-3.5 shrink-0" />
-                                    )
-                                ) : (
-                                    <span className="size-3.5 shrink-0" />
-                                )}
-                                {entry.dir ? (
-                                    <FolderIcon className="text-info size-3.5 shrink-0" />
-                                ) : (
-                                    <FileIcon className="text-faint size-3.5 shrink-0" />
-                                )}
-                                <span className="truncate">{entry.name}</span>
-                            </button>
+                                        <span className="size-3.5 shrink-0" />
+                                    )}
+                                    {entry.dir ? (
+                                        <FolderIcon className="text-info size-3.5 shrink-0" />
+                                    ) : (
+                                        <FileIcon className="text-faint size-3.5 shrink-0" />
+                                    )}
+                                    <span className="truncate">{entry.name}</span>
+                                </button>
+                            </Item>
                             {entry.dir && expanded ? (
                                 <div className="animate-drop-in">{rows(path, depth + 1)}</div>
                             ) : null}

@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Item } from "@/components/ui/item";
 import { Textarea } from "@/components/ui/textarea";
 import { Hint } from "@/components/ui/tooltip";
 import { ago, MINUTE } from "@/lib/time.ts";
@@ -430,44 +431,50 @@ function HistoryRow({
 }) {
     return (
         <li className="border-edge-soft border-b">
-            <Button
-                ref={rowRef}
-                variant="ghost"
-                onClick={() => {
-                    onOpen(target);
-                }}
-                onPointerEnter={() => {
-                    onPrefetch(target === WORKING ? undefined : target);
-                }}
-                onPointerLeave={() => {
-                    onPrefetch(undefined);
-                }}
-                onFocus={() => {
-                    onPrefetch(target === WORKING ? undefined : target);
-                }}
-                className="w-full min-w-0 justify-start gap-2 rounded-none px-3 py-2 text-left focus-visible:ring-inset"
-            >
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
-                        {marker === "local" ? (
-                            <ArrowUp className="text-ok size-3 shrink-0" aria-label="Not pushed" />
-                        ) : marker === "remote" ? (
-                            <ArrowDown
-                                className="text-info size-3 shrink-0"
-                                aria-label="Not pulled"
-                            />
-                        ) : null}
-                        <span className="truncate">{title}</span>
+            <Item asChild>
+                <Button
+                    ref={rowRef}
+                    variant="ghost"
+                    onClick={() => {
+                        onOpen(target);
+                    }}
+                    onPointerEnter={() => {
+                        onPrefetch(target === WORKING ? undefined : target);
+                    }}
+                    onPointerLeave={() => {
+                        onPrefetch(undefined);
+                    }}
+                    onFocus={() => {
+                        onPrefetch(target === WORKING ? undefined : target);
+                    }}
+                    className="w-full min-w-0 justify-start rounded-none px-3 py-2 text-left focus-visible:ring-inset"
+                >
+                    {/* Spans, not the primitive's parts: a `<button>` takes phrasing content only. */}
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
+                            {marker === "local" ? (
+                                <ArrowUp
+                                    className="text-ok size-3 shrink-0"
+                                    aria-label="Not pushed"
+                                />
+                            ) : marker === "remote" ? (
+                                <ArrowDown
+                                    className="text-info size-3 shrink-0"
+                                    aria-label="Not pulled"
+                                />
+                            ) : null}
+                            <span className="truncate">{title}</span>
+                        </span>
+                        <span
+                            className="text-meta text-faint block truncate font-mono leading-tight"
+                            title={at === undefined ? undefined : EXACT_TIME.format(at)}
+                        >
+                            {detail}
+                        </span>
                     </span>
-                    <span
-                        className="text-meta text-faint block truncate font-mono leading-tight"
-                        title={at === undefined ? undefined : EXACT_TIME.format(at)}
-                    >
-                        {detail}
-                    </span>
-                </span>
-                <ChevronRight className="text-faint size-4 shrink-0" />
-            </Button>
+                    <ChevronRight className="text-faint size-4 shrink-0" />
+                </Button>
+            </Item>
         </li>
     );
 }

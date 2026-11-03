@@ -41,6 +41,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Item, ItemTitle } from "@/components/ui/item";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -362,45 +363,45 @@ const SessionRow = memo(function SessionRow({
                         data-holds-open={holding ? "" : undefined}
                         className={`session-row group rounded-control relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
                     >
-                        <a
-                            href={sessionHref(session.id)}
-                            onClick={(event) => {
-                                if (!isPlainClick(event)) {
-                                    return;
-                                }
+                        <Item asChild className="min-w-0 flex-1">
+                            <a
+                                href={sessionHref(session.id)}
+                                onClick={(event) => {
+                                    if (!isPlainClick(event)) {
+                                        return;
+                                    }
 
-                                event.preventDefault();
-                                onOpen(session.id);
-                            }}
-                            aria-current={current ? "page" : holding ? "true" : undefined}
-                            className="rounded-control flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
-                        >
-                            <StateMark session={session} working={working} />
-                            <span
-                                className={`text-sidebar text-ink min-w-0 flex-1 truncate ${FADE}`}
+                                    event.preventDefault();
+                                    onOpen(session.id);
+                                }}
+                                aria-current={current ? "page" : holding ? "true" : undefined}
+                                className="text-left"
                             >
-                                {segments(session.title ?? "New session", ranges).map(
-                                    (part, index) => (
-                                        <span
-                                            key={`${String(index)}-${part.text}`}
-                                            className={
-                                                part.hit
-                                                    ? "bg-warn/30 text-ink rounded-[2px]"
-                                                    : undefined
-                                            }
-                                        >
-                                            {part.text}
-                                        </span>
-                                    ),
-                                )}
-                            </span>
-                            <SessionMarks session={session} />
-                            <span
-                                className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
-                            >
-                                {time}
-                            </span>
-                        </a>
+                                <StateMark session={session} working={working} />
+                                <ItemTitle className={`min-w-0 flex-1 ${FADE}`}>
+                                    {segments(session.title ?? "New session", ranges).map(
+                                        (part, index) => (
+                                            <span
+                                                key={`${String(index)}-${part.text}`}
+                                                className={
+                                                    part.hit
+                                                        ? "bg-warn/30 text-ink rounded-[2px]"
+                                                        : undefined
+                                                }
+                                            >
+                                                {part.text}
+                                            </span>
+                                        ),
+                                    )}
+                                </ItemTitle>
+                                <SessionMarks session={session} />
+                                <span
+                                    className={`session-time text-faint text-meta min-w-7 shrink-0 text-right ${FADE}`}
+                                >
+                                    {time}
+                                </span>
+                            </a>
+                        </Item>
                         <DropdownMenu modal={false}>
                             <Hint label="Session actions">
                                 <DropdownMenuTrigger asChild>

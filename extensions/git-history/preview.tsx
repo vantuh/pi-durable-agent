@@ -23,6 +23,7 @@ import { flushSync } from "react-dom";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button";
+import { Item, ItemContent } from "@/components/ui/item";
 import { cn } from "@/lib/utils";
 
 import { FileTree } from "./file-tree.tsx";
@@ -225,21 +226,25 @@ function WithoutDiff({ files }: { files: ChangedFile[] }) {
     return (
         <ul>
             {files.map((file) => (
-                <li
+                <Item
                     key={file.path}
-                    className="border-edge-soft text-meta flex items-center gap-2 border-t px-3 py-2"
+                    asChild
+                    // Square, because the row is the rule between two files: a 6px radius would curve it.
+                    className="border-edge-soft text-meta rounded-none border-t px-3"
                 >
-                    <span className="min-w-0 flex-1 truncate font-mono">{file.path}</span>
-                    {file.binary ? (
-                        <span className="text-muted shrink-0">binary</span>
-                    ) : (
-                        <span className="flex shrink-0 gap-2">
-                            <span className="text-ok">+{file.added}</span>
-                            <span className="text-danger">−{file.deleted}</span>
-                        </span>
-                    )}
-                    <span className="text-muted shrink-0">no text diff</span>
-                </li>
+                    <li>
+                        <ItemContent className="truncate font-mono">{file.path}</ItemContent>
+                        {file.binary ? (
+                            <span className="text-muted shrink-0">binary</span>
+                        ) : (
+                            <span className="flex shrink-0 gap-2">
+                                <span className="text-ok">+{file.added}</span>
+                                <span className="text-danger">−{file.deleted}</span>
+                            </span>
+                        )}
+                        <span className="text-muted shrink-0">no text diff</span>
+                    </li>
+                </Item>
             ))}
         </ul>
     );

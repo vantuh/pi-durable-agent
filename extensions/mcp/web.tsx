@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Empty } from "@/components/ui/empty.tsx";
+import { Item, ItemActions, ItemContent, ItemTitle } from "@/components/ui/item.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
@@ -105,12 +106,9 @@ function Panel({
             {/* Three rows of h-11 show; more scroll. */}
             <ScrollArea viewportProps={{ className: "max-h-33" }}>
                 {servers.map((server) => (
-                    <div
-                        key={server.name}
-                        className="hover:bg-raised rounded-control flex h-11 items-center gap-2 px-2"
-                    >
-                        <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="text-ink truncate">{server.name}</span>
+                    <Item key={server.name} className="hover:bg-raised h-11 py-0">
+                        <ItemContent>
+                            <ItemTitle className="text-meta">{server.name}</ItemTitle>
                             <span className="truncate">
                                 <span
                                     className={
@@ -123,17 +121,19 @@ function Panel({
                                     <span className="text-faint font-mono"> · {server.target}</span>
                                 )}
                             </span>
-                        </div>
-                        {busy === server.name ? <Spinner className="text-faint" /> : null}
-                        <Switch
-                            checked={server.status !== "off"}
-                            disabled={busy !== undefined}
-                            aria-label={server.name}
-                            onCheckedChange={(on) => {
-                                onToggle(server.name, on);
-                            }}
-                        />
-                    </div>
+                        </ItemContent>
+                        <ItemActions className="gap-2">
+                            {busy === server.name ? <Spinner className="text-faint" /> : null}
+                            <Switch
+                                checked={server.status !== "off"}
+                                disabled={busy !== undefined}
+                                aria-label={server.name}
+                                onCheckedChange={(on) => {
+                                    onToggle(server.name, on);
+                                }}
+                            />
+                        </ItemActions>
+                    </Item>
                 ))}
             </ScrollArea>
         </PopoverContent>

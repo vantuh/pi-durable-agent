@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { Item, ItemTitle } from "@/components/ui/item.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
@@ -162,18 +163,22 @@ function Agents({ session, openSession }: AboveComposerProps) {
         const { parent } = data;
 
         return (
-            <a
-                href={sessionHref(parent.id)}
-                onClick={(event) => {
-                    if (isPlainClick(event)) {
-                        event.preventDefault();
-                        openSession(parent.id);
-                    }
-                }}
-                className={`${ROW} text-agent text-sidebar rounded-control border-edge-soft bg-panel mx-1.5 my-0.5 flex shrink-0 items-center truncate border px-3`}
+            <Item
+                asChild
+                className={`${ROW} text-agent text-sidebar border-edge-soft bg-panel mx-1.5 my-0.5 shrink-0 truncate border px-3`}
             >
-                <span className="truncate">← Back to {parent.title}</span>
-            </a>
+                <a
+                    href={sessionHref(parent.id)}
+                    onClick={(event) => {
+                        if (isPlainClick(event)) {
+                            event.preventDefault();
+                            openSession(parent.id);
+                        }
+                    }}
+                >
+                    <span className="truncate">← Back to {parent.title}</span>
+                </a>
+            </Item>
         );
     }
 
@@ -276,34 +281,36 @@ function AgentRow({
 
     return (
         <li>
-            <a
-                href={sessionHref(kid.id)}
-                data-session={kid.id}
-                title={[name, profile, status].filter((part) => part !== undefined).join(" · ")}
-                aria-current={current ? "page" : undefined}
-                onClick={(event) => {
-                    if (isPlainClick(event)) {
-                        event.preventDefault();
-                        openSession(kid.id);
-                    }
-                }}
-                className={`rounded-control flex h-8 items-center gap-2 px-2 no-underline max-lg:h-11 ${current ? "bg-raised" : "hover:bg-raised/50"}`}
+            <Item
+                asChild
+                className={`h-8 px-2 no-underline max-lg:h-11 ${current ? "bg-raised" : "hover:bg-raised/50"}`}
             >
-                <span
-                    className={`state-mark ${kid.busy ? "working text-warn" : kid.unseen ? "fresh text-ok" : "idle text-faint"}`}
-                    aria-hidden
-                />
-                <span
-                    className={`text-sidebar min-w-0 flex-1 truncate ${kid.busy ? "text-ink" : "text-muted"}`}
+                <a
+                    href={sessionHref(kid.id)}
+                    data-session={kid.id}
+                    title={[name, profile, status].filter((part) => part !== undefined).join(" · ")}
+                    aria-current={current ? "page" : undefined}
+                    onClick={(event) => {
+                        if (isPlainClick(event)) {
+                            event.preventDefault();
+                            openSession(kid.id);
+                        }
+                    }}
                 >
-                    {name}
-                </span>
-                <span
-                    className={`text-meta shrink-0 whitespace-nowrap ${kid.busy ? "text-muted" : "text-faint"}`}
-                >
-                    {status}
-                </span>
-            </a>
+                    <span
+                        className={`state-mark ${kid.busy ? "working text-warn" : kid.unseen ? "fresh text-ok" : "idle text-faint"}`}
+                        aria-hidden
+                    />
+                    <ItemTitle className={`min-w-0 flex-1 ${kid.busy ? "text-ink" : "text-muted"}`}>
+                        {name}
+                    </ItemTitle>
+                    <span
+                        className={`text-meta shrink-0 whitespace-nowrap ${kid.busy ? "text-muted" : "text-faint"}`}
+                    >
+                        {status}
+                    </span>
+                </a>
+            </Item>
         </li>
     );
 }
@@ -400,7 +407,7 @@ function WorkingAgents({
                     }}
                 >
                     <span className="state-mark working text-warn" aria-hidden />
-                    <span className="text-sidebar text-ink min-w-0 flex-1 truncate">{name}</span>
+                    <ItemTitle className="min-w-0 flex-1">{name}</ItemTitle>
                 </a>
             </DropdownMenuItem>
         );

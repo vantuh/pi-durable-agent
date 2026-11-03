@@ -969,24 +969,145 @@ What the sweep left as text, and why:
 
 One row: media, title, description, actions. Links stay links through `asChild`.
 
-- [ ] Add `components/ui/item.tsx`.
-- [ ] Session rows: `web/src/shell/sessions.tsx:1093–1115` (`SessionRow`),
+- [x] Add `components/ui/item.tsx`, with the sidebar's session link as its first caller. One container
+      and four parts: `Item` (`flex items-center gap-2`, `rounded-control`, the theme's focus ring,
+      `md` at `px-2 py-2` or `sm` at `px-2 py-1.5`, `asChild` so the row stays its `<a>` or `<button>`),
+      `ItemContent` (the row's one column), `ItemTitle` (13px ink, truncated), `ItemDescription` (12px
+      faint, truncated) and `ItemActions` (the row's controls at its end). No `ItemMedia`: the marks and
+      icons sit in the row as the 8px and 16px elements they are, and a box around them would state a
+      size they do not have. The fill a row takes under the pointer or while it is open stays with its
+      family — a session row whispers at `raised/50`, a folder row fills, a queued card is already
+      raised — and so does its font size, since the same row is 13px in a panel and 15px in a picker.
+      The sidebar's link measured 250×38 before and after: 8px of padding, an 8px gap, a 6px radius, and
+      every child at the same x.
+- [x] Session rows: `web/src/shell/sessions.tsx:1093–1115` (`SessionRow`),
       `web/src/shell/home.tsx:36–52, 119–125`, `web/src/shell/sessions-status.tsx:69–106` (keep
-      the two-tap touch submenu).
-- [ ] Folder rows: `web/src/shell/folder-picker.tsx:289–303, 364–394` (keep double-click). The
-      star beside a favourite is a `Button` already.
-- [ ] File tree rows: `extensions/git-history/file-tree.tsx:60–101`. The row is the indent
-      (`paddingLeft` from the depth), and the folder row's name is not `flex-1`.
-- [ ] Every row that is a link takes `asChild` over the `a` and keeps its plain-click guard, so
+      the two-tap touch submenu). The three draw one content row: `session-parts.tsx`'s
+      `SessionRowContent` is `ItemContent` over `ItemTitle` and `ItemDescription`, so the sidebar's
+      link, the home page's link and the status menu's rows cannot drift apart. The sidebar's row is
+      `Item asChild` over its `<a>`; its own wrapper keeps the `raised` fill and the absolutely
+      placed actions trigger, because the fill spans the actions and the anchor does not. The home
+      link is `Item asChild` with only its `hover:bg-raised/50` left. The status menu's rows stay
+      `DropdownMenuItem` / `DropdownMenuSubTrigger`: `Item` supplies no container there, only the
+      parts, and `ROW` keeps its `px-2 py-1.5` because the item's own base holds the gap, the
+      `data-[highlighted]` fill and the open look. One gap for all three now, 8px: the same session
+      row was 12px in the home list and in the status menu and 8px in the sidebar, so it cost the
+      home row 4px before its column (432 → 428 at 1280, the column 589.14 → 601.14 wide, the marks
+      4px further right, the time unmoved on the right edge) and the status row 4px (the column
+      48 → 44, 200.44 → 212.44 wide) at the same 53.5 and 49.5 tall. The time stays a bare span: it
+      is a readout at the row's end, not a description.
+- [x] Folder rows: `web/src/shell/folder-picker.tsx:289–303, 364–394` (keep double-click). The
+      star beside a favourite is a `Button` already. Both rows are `Item` at `sm`: a directory is
+      `Item asChild` over its `<button>` and keeps its click and its double-click, and a favourite or
+      recent folder is the `Item` `div` holding the star and the label's own button. The two were
+      already the same row — `rounded-control`, `px-2 py-1.5`, `gap-2`, 15px — so nothing moved: a
+      directory 540×34.5, a sidebar folder 161×34.5, in the same places. The row's own focus ring can
+      never show, since the `div` is not focusable and its two buttons are, so the label button carries
+      the theme's ring where it had the browser's outline; the star, a `Button`, already had it.
+- [x] File tree rows: `extensions/git-history/file-tree.tsx:60–101`. The row is the indent
+      (`paddingLeft` from the depth), and the folder row's name is not `flex-1`. Both rows are
+      `Item asChild` at `sm`, keeping their `py-0.5`, their 4px and 6px gaps and their square
+      corners: the primitive's `px-2` is the 8px the rows already had on the right, and the depth
+      stays the inline `paddingLeft` that overrides its left. Unmoved: a folder row 239×22 at 12px
+      with 6, 16 and 26 of indent, a file row 239×22 with 32 and 52, both 8px from the right edge.
+      The browser's outline became the theme's ring, drawn inset because the row is the full width
+      of the column it scrolls in.
+- [x] Every row that is a link takes `asChild` over the `a` and keeps its plain-click guard, so
       Cmd-click and open-in-new-tab still work: the session row's link
       (`web/src/shell/sessions.tsx:277`), a home row's link (`web/src/shell/home.tsx:38`), and the
-      subagent links (`extensions/subagents/web.tsx:102`, `:159`, `:273`).
-- [ ] Queue rows: `web/src/composer/queued.tsx:53–136`.
-- [ ] Settings rows: `web/src/shell/settings-content.tsx:133–139`.
-- [ ] Extension rows: `extensions/files/panel.tsx:104–115`,
-      `extensions/subagents/web.tsx:158–170, 271–287`,
-      `extensions/subagents/profile-models.tsx:96–101`, `extensions/git-history/web.tsx:434–450`,
-      `extensions/git-history/preview.tsx:222–231`.
+      subagent links (`extensions/subagents/web.tsx:102`, `:159`, `:273`). The two core links are in,
+      with their rows: each is still the `<a>` itself, holding its `href` and `isPlainClick`, and a
+      Cmd-click, a middle click or a Shift-click returns without `preventDefault`, so the browser
+      opens the tab it was asked for. The three subagent links are the same `<a>`s. The chip keeps
+      the `Badge asChild` [Badge](#25-badge-installed-reduced-to-one-look) gave it: it is a chip,
+      36px tall in a frame that holds a dot, a name, a model and a meter, not a row that lays out a
+      title and its actions. The back link and the agent row are `Item asChild` over their links.
+- [x] Queue rows: `web/src/composer/queued.tsx:53–136`. The card is `Item asChild` over its `<li>` —
+      `rounded-card`, the `raised` fill, its frame, the stripe's `pl-3` and `pr-1` are the caller's —
+      and the two boxes inside it were already the primitive's: the column is `ItemContent` and the
+      edit/remove pair is `ItemActions`. The disclosure `Button`, the stripe and the line clamp stay.
+      Unmoved on a throwaway page that held the old markup under the new: 1216×78.5 and 1216×56.5,
+      `6px 4px 6px 12px`, a 6px gap, 10px corners, the stripe 3px at the left edge and the actions at
+      the right one. The queue itself was not filled, so the card was measured outside the composer.
+- [x] Settings rows: `web/src/shell/settings-content.tsx:133–139`. **Stays custom.** A key and its value
+      are a readout, not a row of a list: 334×18 with no padding, no corner and no fill, the label and
+      the value on one baseline at either end. `Item` would make it a 34px box, centre what is aligned
+      on the baseline, and give it a focus ring nothing can reach, so the two spans it is stay two spans.
+
+Extension rows: five rows, each keeping its family's fill, height and padding, and taking the
+primitive's base and parts.
+
+- [x] File tree: `extensions/files/panel.tsx:104–115`. `Item asChild` at `sm` over its `<button>`:
+      573×30.5, `8px` of padding on the left as on the right, 4px of vertical padding, a 6px gap and
+      the 6px radius, all unmoved, and 364×30.5 at 390. The depth is still the inline `paddingLeft`
+      (8px at the root, 20px one level in), and the browser's outline is the theme's ring, drawn
+      inset.
+- [x] Back link and agent rows: `extensions/subagents/web.tsx:158–170, 271–287`. Both are `Item
+      asChild` over their `<a>`, keeping the `href`, the `isPlainClick` guard, the `title` and the
+      `aria-current`. Unmoved: the back link 980×36, 6px of margin each side, one 1px frame and a
+      6px radius, its 13px line centred 8.25px down — the primitive's 8px of vertical padding sits
+      inside a height `h-9` already fixes; the agent row 250×32 (`max-lg:h-11`), an 8px inset, a 6px
+      gap, the same `raised` fill on the open one and the same working and idle colours, now on
+      `ItemTitle`. At 390 they are 362×40 (`max-[760px]:h-10`) and 360×44.
+- [x] Model cards: `extensions/subagents/profile-models.tsx:96–101`. **The card stays a card**: a
+      334×54 frame at `rounded-card`, `4px 8px` of padding, and a column of a title row and a mono
+      model line. Its title row takes the parts — `ItemContent`, `ItemTitle` at `text-interface` and
+      `ItemActions` — and keeps its own `justify-between gap-2`, and the `items-start` it takes when
+      the description is shown, which `Item`'s centred row and truncating description would undo.
+      Unmoved: the title row 316×24, an 8px gap, the name at 15px ink, Change 56×24 at the right
+      edge.
+- [x] History row: `extensions/git-history/web.tsx:434–450`. `Item asChild` over the `Button` Phase 1
+      left as the row, so the base layout, the 6px radius and the ring are the primitive's and the
+      `gap-2` the caller restated is gone. Unmoved: the row 975×51.75 in its 52.75 `li` at 1280 and
+      372×51.75 at 390, `8px 12px` of padding, an 8px gap, square corners, the inset ring and the
+      15px text. The content stays three spans, because a button element takes phrasing content
+      only: the call [Separator](#24-separator-new) made for the timeline rule, and those spans
+      already say the parts' classes.
+- [x] Files without a diff: `extensions/git-history/preview.tsx:222–231`. `Item asChild` over its
+      `<li>`, square because the row is the rule between two files — a 6px radius would curve the
+      top border — with the path as `ItemContent` and the two trailing readouts left bare, since
+      they are readouts and not controls. The row is inert, so the primitive's ring never shows. No
+      commit in this folder's history carries a file the patch leaves out, so the row was measured
+      as markup under the old one: 35px tall, `8px 12px`, an 8px gap, a 1px top rule, the path 563
+      wide and the two readouts at 583 and 627, either way.
+
+A sweep of `extensions/` for the other rows of the same shape — a mark or an icon, a title, and
+something at the end — found these seven. Each is judged by what its family already is: a row of a
+popover or of a list takes `Item` where its geometry survives, and a row that is a card, a form line
+or a drag handle keeps its own box.
+
+- [x] MCP servers: `extensions/mcp/web.tsx:107–128`. `Item` at the `h-11` the row already had, so
+      its vertical padding is 0: the column is `ItemContent` over `ItemTitle` at the popover's 12px,
+      and the spinner and the switch are `ItemActions` with the 8px gap the row gave them. The
+      extension is off on this machine and `mcp.json` holds no server, so the row was measured as
+      markup under the old one: 44px tall, `0 8px`, an 8px gap, the column 220×36 with its two 18px
+      lines at 4 and 22, the switch 36 wide at the row's end — either way.
+- [x] MCP servers in settings: `extensions/mcp/details.tsx:81–111`. **Stays custom.** A server's name,
+      target and status over a switch, in the settings column's own `gap-2`, with no frame and no
+      hover: 59px tall at no padding. `Item` would make it 72, indent the name 8px from the heading
+      and the alerts above it, narrow its column 286 → 274 and tighten the 12px gap to 8, for a row
+      nothing else in that column shares.
+- [x] Warming sessions: `extensions/keep-warm/web.tsx:139–180`. **Stays custom.** The row is 230×24
+      with no padding at all — the popover's own 12px is its inset — and its 12px mono name, the
+      time and the 24px × sit on one line under the "Warming" heading. `Item` at `md` would make it
+      40 and start the name 8px right of that heading.
+- [x] Tags: `extensions/tags/details.tsx:140–205`. **Stays custom.** The row is 646×28 at `2px 0`: a
+      12px dot, the name, the count of sessions that carry it, and two 24px targets, so its height
+      is the targets' plus 4. `Item` at `sm` would make it 36 and indent the dot 8px from the name
+      field and the swatches above it; at `md`, 40.
+- [x] Provider cards: `extensions/usage-limits/web.tsx:166–180`. **Stays custom.** It is a card, not
+      a row: 247×128 and 247×208, a 1px frame at an 8px radius with 8px of padding, a heading and
+      one meter per limit inside it. Nothing in it is a title with actions at its end.
+- [x] To-dos: `extensions/notes/todos.tsx:357–395`. **Stays custom.** The row is 558×32 at `4px 8px`
+      with `items-start`, holding a 24px grip, a 16px checkbox, the title's own button and a 24px
+      bin. `Item`'s `py-2` would make it 40, its centred row would drop the grip and the checkbox
+      beside a title that wraps onto two lines — at 390 such a title is 45px tall in a 53px row,
+      with the grip 4px from its top and the checkbox 7, where centring would put them at 19 — and
+      its ring cannot reach a row that is not focusable.
+- [x] Working agents: `extensions/subagents/web.tsx:394–412`. The status bar's submenu: a working
+      mark and the agent's name, inside a `DropdownMenuItem`. The container stays the menu item — the
+      row is a menu's, and [Item](#39-item-new) supplies no container there — and only the name takes
+      `ItemTitle`, so the row 198×31.5 at `6px 8px` and its 13px ink name are what they were.
 
 ### 3.10 Kbd (new)
 

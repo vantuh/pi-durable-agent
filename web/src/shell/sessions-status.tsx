@@ -33,7 +33,8 @@ type Props = {
     children: ReactNode;
 };
 
-const ROW = "gap-3 px-2 py-1.5";
+/** The padding only: the gap, the hover fill and the open look are the menu item's, which is the row. */
+const ROW = "px-2 py-1.5";
 
 type RowProps = {
     session: SessionSummary;

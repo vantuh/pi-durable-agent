@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
+import { ItemActions, ItemContent, ItemTitle } from "@/components/ui/item";
 import { ModelMenu } from "@/composer/model-menu.tsx";
 import { listModels, type Models } from "@/lib/api.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -96,17 +97,15 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                         <div
                             className={`flex justify-between gap-2 ${compact ? "items-center" : "items-start"}`}
                         >
-                            <div className="min-w-0">
-                                <span className="text-ink text-interface block truncate">
-                                    {row.name}
-                                </span>
+                            <ItemContent>
+                                <ItemTitle className="text-interface">{row.name}</ItemTitle>
                                 {compact ? null : (
                                     <span className="text-muted block break-words">
                                         {row.description}
                                     </span>
                                 )}
-                            </div>
-                            <div className="flex shrink-0 items-center">
+                            </ItemContent>
+                            <ItemActions>
                                 <Button
                                     variant="ghost"
                                     className={
@@ -121,7 +120,7 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                                 >
                                     {compact ? "Change" : "Change model"}
                                 </Button>
-                            </div>
+                            </ItemActions>
                         </div>
                         <span className={`text-faint font-mono ${compact ? "truncate" : ""}`}>
                             {row.model ?? "no model: agent_spawn refuses this profile"}
