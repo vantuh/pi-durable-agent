@@ -106,7 +106,7 @@ In `styles.css`, next to the roles, so no component invents its own:
 - text sizes, one name per job, smallest first: `--text-micro: 11px` (an annotation inside a dense
   row — a duration, a file's size, a chip's model name or folder), `--text-meta: 12px` (metadata),
   `--text-code: 12.5px` (monospace lines: code blocks, diffs, tool names and their arguments),
-  `--text-sidebar: 13px` (session titles and the sidebar heading), `--text-tool: 13px` (tool group
+  `--text-ui: 14px` (the chrome: session titles, the sidebar heading, list items, tool group
   headings), `--text-interface: 15px`, `--text-prose: 15px`, `--text-subheading: 16px` (a Markdown
   answer's `h2`) and `--text-heading: 18px` (its `h1`, and the extensions dialog's title);
 - `--text-heading` and `--text-subheading` carry a `--text-*-line-height` (1.75rem, 1.5rem): both

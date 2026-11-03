@@ -50,7 +50,7 @@ export function ItemTitle({ className, ...props }: ComponentProps<"div">) {
     return (
         <div
             data-slot="item-title"
-            className={cn("text-sidebar text-ink truncate", className)}
+            className={cn("text-ui text-ink truncate", className)}
             {...props}
         />
     );

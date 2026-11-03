@@ -305,7 +305,7 @@ function RenameForm({
                 onChange={(event) => {
                     setDraft(event.target.value);
                 }}
-                className="border-edge-soft bg-canvas text-sidebar"
+                className="border-edge-soft bg-canvas text-ui"
             />
             <div className="flex justify-end gap-1">
                 <Button variant="ghost" size="sm" onClick={onCancel}>
@@ -1054,7 +1054,7 @@ export const Sessions = memo(function Sessions({
                         </Button>
                     </Hint>
                     <h2
-                        className={`text-sidebar text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
+                        className={`text-ui text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
                     >
                         Sessions
                     </h2>
@@ -1131,7 +1131,7 @@ export const Sessions = memo(function Sessions({
                                     stopSearch();
                                 }
                             }}
-                            className="border-edge-soft text-sidebar h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
+                            className="border-edge-soft text-ui h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
                         />
                         <Hint label="Close search">
                             <Button

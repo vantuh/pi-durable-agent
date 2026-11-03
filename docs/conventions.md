@@ -55,7 +55,7 @@ One rule, no exceptions: **a colour comes from the theme or it does not exist.**
 The same rule for the rest of the look, so a change to the theme reaches every screen by itself.
 
 - **Names, not numbers.** Font size
-  (`text-micro`, `text-meta`, `text-code`, `text-sidebar`, `text-interface`, `text-subheading`,
+  (`text-micro`, `text-meta`, `text-code`, `text-ui`, `text-interface`, `text-subheading`,
   `text-heading`), shadow (`shadow-float`), and the named spacing (`w-stripe`, `min-h-header`) live
   in `web/src/styles/styles.css`. Other spacing uses Tailwind's scale (`p-3`, `max-w-48`).
 - **A second use earns a name.** A value used twice is added to the theme and to `cn`'s merge config

@@ -163,7 +163,7 @@ function Agents({ session, openSession }: AboveComposerProps) {
         return (
             <Item
                 asChild
-                className={`${ROW} text-agent text-sidebar border-edge-soft bg-panel mx-1.5 my-0.5 shrink-0 truncate border px-3`}
+                className={`${ROW} text-agent text-ui border-edge-soft bg-panel mx-1.5 my-0.5 shrink-0 truncate border px-3`}
             >
                 <a
                     href={sessionHref(parent.id)}

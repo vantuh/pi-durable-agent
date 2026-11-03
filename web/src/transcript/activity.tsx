@@ -203,7 +203,7 @@ function argsText(name: string, args: unknown): string {
 
 function ThoughtBody({ text }: { text: string }) {
     return (
-        <p className="border-spark/30 bg-sunken text-tool text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
+        <p className="border-spark/30 bg-sunken text-ui text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
             {text}
         </p>
     );
@@ -393,7 +393,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
     return (
         <>
             <Collapsible className={`group/fold ${PANE} min-w-0 overflow-hidden`}>
-                <CollapsibleTrigger className="text-tool text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
+                <CollapsibleTrigger className="text-ui text-muted hover:bg-raised/50 hover:text-ink group-data-[state=open]/fold:border-edge-soft flex min-h-9 w-full min-w-0 items-center gap-2.5 px-3 text-left group-data-[state=open]/fold:border-b">
                     <Chevron />
                     <span className={cn("min-w-0 flex-1 truncate", item.live && "shimmer")}>
                         {summarize(item.steps, thinking)}
