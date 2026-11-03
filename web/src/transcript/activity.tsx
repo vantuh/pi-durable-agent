@@ -159,6 +159,7 @@ function Mark({
 
     return (
         <span className="bg-canvas ring-canvas relative shrink-0 rounded-full ring-3">
+            {/* Not a step: 19px is what puts this mark's centre on the timeline rule, 13px in at 22.5. */}
             <span
                 {...(label === undefined ? {} : { "aria-label": label, role: "img" })}
                 className={cn(
@@ -260,10 +261,11 @@ function StepBody({
     );
 }
 
+// Not steps: a step's line is 34px, and 13px of indent is what lands the 19px mark's centre on the rule below.
 const STEP_HEAD =
     "hover:bg-raised/50 flex min-h-[34px] w-full min-w-0 items-center gap-2.5 pr-3.5 pl-[13px] text-left";
 
-/** Under a step's line, in line with its label. */
+/** Under a step's line, in line with its label. 42px is the indent, the mark and the row's 10px gap. */
 const STEP_BODY = "mt-1.5 mr-3.5 mb-3 ml-[42px] flex min-w-0 flex-col gap-2";
 
 function imageUrl(session: number, image: GroupImage): string {
@@ -305,7 +307,7 @@ function StepRow({
                     <Mark tone="thought" />
                     <span
                         className={cn(
-                            "text-ink font-mono text-[12.5px] font-semibold",
+                            "text-ink font-mono text-code font-semibold",
                             step.streaming && "shimmer",
                         )}
                     >
@@ -334,20 +336,20 @@ function StepRow({
                 />
                 <span
                     className={cn(
-                        "max-w-[45%] shrink-0 truncate font-mono text-[12.5px] font-semibold",
+                        "max-w-[45%] shrink-0 truncate font-mono text-code font-semibold",
                         skill === undefined ? "text-ink" : "text-warn",
                     )}
                 >
                     {skill ?? step.name}
                 </span>
-                <span className="text-muted min-w-0 flex-1 truncate font-mono text-[12.5px]">
+                <span className="text-muted text-code min-w-0 flex-1 truncate font-mono">
                     {subject ?? ""}
                 </span>
                 {outcome === undefined ? null : (
                     <span
                         {...(took === undefined ? {} : { title: `took ${formatDuration(took)}` })}
                         className={cn(
-                            "max-w-[40%] shrink-0 truncate font-mono text-[11px] tabular-nums",
+                            "max-w-[40%] shrink-0 truncate font-mono text-micro tabular-nums",
                             outcome.tone === "ok"
                                 ? "text-ok"
                                 : outcome.tone === "danger"
@@ -402,7 +404,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                     {item.startedAt === undefined || until === undefined ? null : (
                         <span
                             className={cn(
-                                "shrink-0 font-mono text-[11.5px] tabular-nums",
+                                "shrink-0 font-mono text-micro tabular-nums",
                                 item.live ? "text-accent" : "text-faint",
                             )}
                         >
@@ -413,6 +415,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                 <CollapsibleContent>
                     {lone === undefined ? (
                         <div className="relative py-1.5">
+                            {/* 22px is where the marks' centres are, so the 1px rule runs through each of them. */}
                             <Separator
                                 orientation="vertical"
                                 className="bg-edge absolute top-5 bottom-5 left-[22px]"

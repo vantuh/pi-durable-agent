@@ -97,7 +97,7 @@ function Group({ title, unit, parts }: { title: string; unit: string; parts: Par
     return (
         <section className="flex flex-col gap-1">
             <h3 className="text-faint flex items-baseline gap-2 uppercase">
-                <span className="bg-accent size-2.5 self-center rounded-sm" />
+                <span className="bg-accent rounded-mark size-2.5 self-center" />
                 {title}
                 <span className="normal-case">{`${String(count)} ${unit}`}</span>
                 <span className="text-ink ml-auto">{compact(total)}</span>

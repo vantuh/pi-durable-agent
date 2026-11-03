@@ -104,7 +104,7 @@ function Chip({
     return (
         <Badge
             asChild
-            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:border-agent rounded-control gap-2 py-1 font-sans no-underline`}
+            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:ring-accent rounded-control gap-2 py-1 font-sans no-underline outline-none focus-visible:ring-2`}
         >
             <a
                 href={href}
@@ -118,15 +118,16 @@ function Chip({
                 }}
             >
                 <span className="state-mark working text-warn" aria-hidden />
-                <span className="text-ink text-meta max-w-[120px] truncate">{agent.name}</span>
+                <span className="text-ink text-meta max-w-30 truncate">{agent.name}</span>
                 {agent.model === "" ? null : (
-                    <span className="text-faint max-w-[84px] truncate text-[10px]">
+                    <span className="text-faint text-micro max-w-21 truncate">
                         {shortModel(agent.model)}
                     </span>
                 )}
+                {/* Not a step: 70px holds a folder's last segment, and keeps it shorter than the name beside it. */}
                 {elsewhere ? (
                     <span
-                        className="text-faint bg-raised border-edge-soft rounded-control hidden max-w-[70px] truncate border px-1 text-[10px] sm:inline"
+                        className="text-faint bg-raised border-edge-soft rounded-control text-micro hidden max-w-[70px] truncate border px-1 sm:inline"
                         aria-hidden
                     >
                         {agent.cwd
@@ -135,7 +136,7 @@ function Chip({
                             .at(-1) ?? agent.cwd}
                     </span>
                 ) : null}
-                <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
+                <span className="text-faint text-micro flex items-center gap-1.5 font-mono">
                     {agent.window > 0 ? (
                         <>
                             <Progress

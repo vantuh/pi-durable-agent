@@ -117,7 +117,7 @@ export function CodeBlock({ code, lang, title }: { code: string; lang: string; t
                     </Button>
                 </Hint>
             </div>
-            <pre className="text-ink overflow-x-auto px-3 py-2.5 font-mono text-[12.5px] leading-relaxed">
+            <pre className="text-ink text-code overflow-x-auto px-3 py-2.5 font-mono leading-relaxed">
                 <code>
                     {fresh === undefined
                         ? code
@@ -180,6 +180,7 @@ const COMPONENTS: Components = {
     },
     code({ children }) {
         return (
+            // A relative size, not a step: inline code sits in prose of any size and stays just under it.
             <code className="rounded-control bg-raised border-edge-soft border px-1 py-px font-mono text-[0.88em]">
                 {children}
             </code>
@@ -200,8 +201,10 @@ const COMPONENTS: Components = {
             </a>
         ) : null;
     },
-    h1: ({ children }) => <h3 className="text-ink mt-2 text-lg font-semibold">{children}</h3>,
-    h2: ({ children }) => <h3 className="text-ink mt-2 text-base font-semibold">{children}</h3>,
+    h1: ({ children }) => <h3 className="text-ink text-heading mt-2 font-semibold">{children}</h3>,
+    h2: ({ children }) => (
+        <h3 className="text-ink text-subheading mt-2 font-semibold">{children}</h3>
+    ),
     h3: ({ children }) => <h4 className="text-ink mt-1 font-semibold">{children}</h4>,
     h4: ({ children }) => <h5 className="text-ink font-semibold">{children}</h5>,
     ul: ({ children }) => (

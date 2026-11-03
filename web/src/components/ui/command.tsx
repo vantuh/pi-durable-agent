@@ -24,7 +24,7 @@ export function CommandInput({
         <div className="px-3 py-2">
             <CommandPrimitive.Input
                 className={cn(
-                    "rounded-control border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint w-full border px-2.5 py-1.5 outline-none",
+                    "rounded-control border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint focus-visible:ring-accent w-full border px-2.5 py-1.5 outline-none focus-visible:ring-2",
                     className,
                 )}
                 {...props}

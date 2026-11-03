@@ -20,8 +20,8 @@ export function ToggleGroup({
 
 /**
  * The pressed item wears the raised fill and the ink of any other pressed control, the rest stay
- * muted. Radius and text size are the theme's; the padding, the layout and the ring of a card group
- * are the caller's className.
+ * muted. Radius, text size and the focus ring are the theme's; the padding, the layout, and whatever
+ * a group says about its own state (a card's ring) are the caller's className.
  */
 export function ToggleGroupItem({
     className,
@@ -31,7 +31,7 @@ export function ToggleGroupItem({
         <ToggleGroupPrimitive.Item
             data-slot="toggle-group-item"
             className={cn(
-                "rounded-control text-interface text-muted data-[state=on]:bg-raised data-[state=on]:text-ink",
+                "rounded-control text-interface text-muted focus-visible:ring-accent data-[state=on]:bg-raised data-[state=on]:text-ink outline-none focus-visible:ring-2",
                 className,
             )}
             {...props}

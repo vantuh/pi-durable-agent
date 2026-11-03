@@ -110,7 +110,7 @@ export function PageHost({
             data-slot="page-host"
             className="rounded-card border-edge-soft bg-canvas absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border"
         >
-            <header className="border-edge-soft flex min-h-[45px] items-center gap-2 border-b px-3 py-0.5">
+            <header className="border-edge-soft min-h-header flex items-center gap-2 border-b px-3 py-0.5">
                 {sub === undefined ? null : (
                     <Hint label="Back">
                         <Button

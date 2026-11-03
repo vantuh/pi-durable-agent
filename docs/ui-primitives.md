@@ -480,7 +480,8 @@ gain in reading is on the popup's meter and the subagents chip's, which are anno
 Collision-aware placement, outside-click and Escape, focus return.
 
 - [x] Add `components/ui/popover.tsx`. The content is the dropdown's surface — `rounded-control`,
-      `border-edge-soft`, `bg-panel`, `shadow-lg`, `z-50`, `collisionPadding={8}` — with no padding
+      `border-edge-soft`, `bg-panel`, `shadow-float` (then `shadow-lg`), `z-50`,
+      `collisionPadding={8}` — with no padding
       or width of its own: a popup holds prose, rows or a form, and each frame is the caller's. The
       anchor is exported for the rename form, which the row's menu item opens. No animation: the
       repo has no `tailwindcss-animate`, and the theme has no motion for a popup.
@@ -1346,22 +1347,102 @@ finding is fixed in this phase, not just listed.
 
 ### 4.1 Every class comes from the theme
 
-- [ ] Audit every `className` and `cn(...)` in `web/src` and `extensions/` for values that bypass
+- [x] Audit every `className` and `cn(...)` in `web/src` and `extensions/` for values that bypass
       the theme: arbitrary values (`rounded-[4px]`, `px-[7px]`, `h-[30px]`, `text-[11px]`,
       `gap-[3px]`, `shadow-[…]`), raw lengths in inline `style` that are not computed geometry,
       Tailwind defaults where the theme has its own name (`rounded` / `rounded-md` beside
       `rounded-control`, `text-xs` beside `text-meta`), and any colour that is not a role.
-- [ ] Fix each finding: use the theme's token, or add the missing token to the theme first
+- [x] Fix each finding: use the theme's token, or add the missing token to the theme first
       (`styles.css`, and `catppuccin.css` for a colour), then use it. A value that must stay
       literal (measured geometry, a computed width) gets a one-line reason beside it.
-- [ ] One focus treatment: every focusable primitive draws the theme's ring. Known gaps:
-      `ToggleGroupItem` shows the browser's own outline, the flavour cards use `outline-ink`.
-- [ ] Teach `cn` (`web/src/lib/utils.ts`) every theme scale it does not know yet, so a caller's
-      token always wins over a primitive's base.
+- [x] Findings of the audit (grep at `09ceee1`+, each fixed below; no colour literal or palette class
+      was found):
+    - [x] **Font sizes** — fixed in `feat(theme): name every text size`. The 12.5px code text in
+          `ui/diff.tsx`, `ui/markdown.tsx` and `transcript/activity.tsx` is `text-code`. The three
+          annotation sizes became one `text-micro` at 11px: 11px had four uses (`activity.tsx`'s
+          outcome counts, `ui/attachment.tsx`'s size, `extensions/subagents/web.tsx`'s context
+          percentage), 11.5px one (`activity.tsx`'s group duration, now 11px, −0.5px), and 10px two
+          (`subagents/web.tsx`'s model name and folder chip, now 11px, +1px) — the same job, so one
+          size rather than three. Markdown's headings kept both steps and their line boxes as
+          `text-heading` (18px/1.75rem) and `text-subheading` (16px/1.5rem); the extensions dialog's
+          title is the `text-heading` that made 18px worth a name. `text-[0.88em]` inline code stays
+          relative, with its reason beside it.
+    - [x] **Shadow** — fixed in `feat(theme): one shadow for floating surfaces`. Tailwind's `lg`
+          geometry is now `--shadow-float`, drawn in `--role-shadow`, which every flavour names as
+          `--ctp-shadow` (crust at 45% in the three dark flavours, `text` at 14% in Latte — black was
+          the one colour the theme never named). The nine `shadow-lg` sites all use it: drop-overlay,
+          the composer's completion list, selection-quote, alert-dialog, popover, sonner, tooltip and
+          both dropdown menus.
+    - [x] **Radius** — fixed in `fix(theme): radius from the theme`. `rounded-[2px]`, three uses
+          (`ui/diff.tsx`'s added and removed lines, `shell/sessions.tsx`'s search hit), is
+          `rounded-mark`, a deliberate small radius now named. `extensions/usage-limits/web.tsx:169`'s
+          `rounded-lg` (8px) is `rounded-card` (10px), as every other framed box. The context meter's
+          legend dot was `rounded-sm` (4px on a 10px box) and is `rounded-mark` (2px): the tie with
+          `control` was broken by the mark it is, and by what 6px would have done to a 10px square —
+          a clamp to 5px, a circle. Two of the audit's findings were comments, not classes —
+          `extensions/usage-limits/web.tsx:23` ("the rounded percentage") and
+          `extensions/bash-timeout/server.ts:81` ("not rounded to nothing") — so nothing changed there.
+    - [x] **Repeated design geometry** — fixed in `feat(theme): name the repeated geometry`. Two of
+          these lengths are theme names now, because more than one component draws them: the 3px
+          accent stripe (`w-stripe`, `composer/queued.tsx`, `transcript/agent-message.tsx`) and the
+          pane header's floor (`min-h-header`, `shell/pages.tsx`, `transcript/transcript.tsx`, both
+          45px). Three more were on the spacing scale already: `max-w-[120px]` and `max-w-[84px]` on
+          the subagents chip are `max-w-30` and `max-w-21`, and the collapsed rail's header padding
+          `px-[6px]` is `px-1.5`. The git-history toolbar's `min-h-[35px]` is `min-h-9` (36px): a 16px
+          pill in `py-1.5` beside the 24px actions made the row 37px with its border, so the floor
+          never bound and the row did not move. The rest stay numbers, each with its reason beside it
+          in the code: the two resize handles' `left-[3px]` (a 2px grip centred in an 8px strip), the
+          horizontal handle's `after:h-[3px]`, the subagents folder chip's `max-w-[70px]`, the
+          collapsed rail's `w-[38px]` (6 + a 24px row + 6, plus the card's two 1px borders), and the
+          timeline's five — `size-[19px]`, `pl-[13px]`, `ml-[42px]`, `left-[22px]`, `min-h-[34px]` —
+          which are one drawing: the 13px indent puts the 19px mark's centre on the 1px rule at
+          22.5px, and a step's body starts where its label does (13 + 19 + 10).
+    - [x] **Stays, with a one-line reason each**: viewport and container calculations (`calc`, `min`,
+          `dvh`, `vh`, `svh`, `%`, CSS variables set by script or Radix), `lh` heights tied to the
+          text, `transition-[…]` property lists, grid templates, and arbitrary selectors. Read one by
+          one, most say what they are — `max-h-[10lh]` is ten lines, `h-[min(36rem,80dvh)]` the room
+          a dialog takes, `grid-cols-[1fr_auto_1fr]` the status bar's three fields — so they got no
+          comment. Two are left literal without one on purpose: `max-[760px]` in
+          `extensions/subagents/web.tsx` is the width the chip strip switches its row height at, and
+          the theme has no breakpoint scale to name it from; `after:content-['']` says nothing about a
+          length.
+    - [x] **Focus** — fixed in `fix(ui): one focus treatment`. `ToggleGroupItem` showed the browser's
+          own outline, the flavour cards an `outline-ink` 2px away, the sidebar's resize separator an
+          outline, and the subagents chip only a border colour: all four draw the theme's ring now,
+          and two more gaps the grep found were fixed with them — a `TabsTrigger` drew no focus at
+          all, and `CommandInput` had a border and nothing else. `extensions/notes/panel.tsx` still
+          drops the ring on purpose (3.11).
+- [x] One focus treatment: every focusable primitive draws the theme's ring — `outline-none` and
+      `focus-visible:ring-2 focus-visible:ring-accent` — and `ToggleGroupItem` draws it, so all three
+      of the appearance dialog's groups do. The flavour cards keep the chosen state apart from it: a
+      chosen card wears `inset-ring-2` in accent inside its own border, focus the ring 2px outside
+      it, and the two are different box-shadow properties, so a card reads as chosen and focused at
+      once. One ring variable cannot hold two states — the same `ring-2` in both states would leave
+      a chosen card showing only the focus ring and hiding its choice — so the two states are drawn
+      on two properties, and the chosen card's accent moved from an outer ring to an inner one. The
+      separator's focus is a 2px accent `ring-inset` inside its 10 or 16px band, where an outside
+      ring would be a box painted round nothing, and its grip still turns accent. The rest of the
+      `outline-none` in the app is deliberate and stays: dialog, sheet, popover, tooltip and menu
+      surfaces, which are focus scopes and not tab stops; menu and listbox items, whose
+      `data-highlighted` fill is the focus mark; the `tabIndex={-1}` headings and panel that take
+      focus only so a screen reader announces them; the two resize handle buttons, whose grip lights
+      up on `group-focus-visible`; the composer's textarea, which takes `focus-within:border-accent`
+      on its card ([Kept custom](#kept-custom)); the attachment's overlay trigger, whose frame takes
+      `has-[:focus-visible]:border-accent`; and the notes editor, which drops the ring on purpose.
+      Sonner's toast keeps its stylesheet's one-declaration 2px accent outline: it is the same ring
+      drawn by a library that owns its own focus styles.
+- [x] Teach `cn` (`web/src/lib/utils.ts`) every theme scale it does not know yet, so a caller's
+      token always wins over a primitive's base. It knew the text, radius and shadow names; the gap
+      was the spacing names this phase added — `cn("w-4", "w-stripe")` kept both, so a caller's
+      stripe could not take a width off a primitive's base, and the same for `min-h-header`.
+      Colours, `font-sans` and `font-mono`, and Tailwind's own steps need nothing: tailwind-merge
+      reads them already. Proved with a throwaway script over one case per scale — text, radius,
+      shadow, spacing (width, height, inset and size), colour, border, ring, font — which printed
+      the caller's token for all seventeen, then was deleted.
 
 ### 4.2 Repeated code goes to one place
 
-- [ ] Audit for repetition across `web/src` and `extensions/`: the same class string or class
+- [x] Audit for repetition across `web/src` and `extensions/`: the same class string or class
       fragment in several files, the same small function (formatting a time, a path, a percentage,
       a count; picking a tone; building a class), the same wrapper component written twice.
 - [ ] Move each repeat to the place that owns it: a primitive's variant or size, a component in
@@ -1383,6 +1464,22 @@ finding is fixed in this phase, not just listed.
       one, or the frame left to the theme's three names, and the pane header's two copies folded into
       one. `transcript/transcript.tsx:558` also states `rounded-card` twice in one string, which the
       fold must not copy.
+- [ ] The pane header's third copy: `shell/settings.tsx:39` has the same shape as `shell/home.tsx:89`
+      and `shell/panels.tsx:323`.
+- [ ] Extension details: the wrapper `text-meta flex flex-col gap-2` in seven `details.tsx`
+      (anthropic-subscription, auto-session-name, subagents ×2, git-history, tags, usage-limits; mcp
+      close to it), the "turn the extension on" sentence in six (auto-session-name, mcp, tags,
+      usage-limits, bash-timeout, dictation), and the label + `Switch` row in three
+      (auto-session-name, mcp, usage-limits). Core gives the generic pieces in `web/src/ui/`; the
+      words stay each extension's.
+- [ ] Extension popovers: four `PopoverContent` frames (`mcp` `w-72 p-1`, `keep-warm` `p-3`,
+      `usage-limits` `w-72 p-3`, `git-stats` `w-64 p-3`) — sizes the primitive can name.
+- [ ] Panel toolbars: the `border-b` toolbar row in `files/panel.tsx`, `browser/panel.tsx`,
+      `notes/panel.tsx`, `git-history/web.tsx` (two) — one toolbar in `web/src/ui/` if the shapes
+      agree.
+- [ ] Section headings in popovers: `context-meter/web.tsx:98`, `subagents/web.tsx:343`.
+- [ ] No duplicated helper function was found: `isPlainClick`, `ago`, `formatDuration` already have one
+      home each; the two clamps and `plural` are local to their domain.
 - [ ] Delete the copies; no re-export shims.
 - [ ] A key an extension names for a shell command, so the core's own hints can show it — the
       follow-up [Kbd](#310-kbd-new) left open. `web/src/sdk/commands.ts` holds the command names and

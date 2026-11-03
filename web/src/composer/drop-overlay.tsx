@@ -104,7 +104,7 @@ export function DropOverlay({ dragging, batch }: { dragging: boolean; batch: Pen
             }`}
         >
             <div
-                className={`rounded-card bg-panel flex w-full max-w-sm flex-col items-center gap-3 border-2 p-8 text-center shadow-lg ${
+                className={`rounded-card bg-panel shadow-float flex w-full max-w-sm flex-col items-center gap-3 border-2 p-8 text-center ${
                     dragging ? "border-accent border-dashed" : "border-edge"
                 }`}
             >

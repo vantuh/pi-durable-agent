@@ -23,7 +23,7 @@ export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsP
     return (
         <TabsPrimitive.Trigger
             className={cn(
-                "rounded-control text-interface hover:text-ink data-[state=active]:bg-raised data-[state=active]:text-ink inline-flex flex-1 items-center justify-center px-2 py-1 whitespace-nowrap outline-none",
+                "rounded-control text-interface hover:text-ink focus-visible:ring-accent data-[state=active]:bg-raised data-[state=active]:text-ink outline-none focus-visible:ring-2 inline-flex flex-1 items-center justify-center px-2 py-1 whitespace-nowrap",
                 className,
             )}
             {...props}

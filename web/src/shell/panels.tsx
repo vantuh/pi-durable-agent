@@ -182,6 +182,7 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
             }}
             className="group absolute inset-y-0 -left-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
+            {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
             <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
         </button>
     );

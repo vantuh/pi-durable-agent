@@ -8,8 +8,20 @@ import { extendTailwindMerge } from "tailwind-merge";
 const twMerge = extendTailwindMerge({
     extend: {
         theme: {
-            text: ["meta", "sidebar", "tool", "interface", "prose"],
-            radius: ["control", "card"],
+            text: [
+                "micro",
+                "meta",
+                "code",
+                "sidebar",
+                "tool",
+                "interface",
+                "prose",
+                "subheading",
+                "heading",
+            ],
+            radius: ["control", "card", "mark"],
+            shadow: ["float"],
+            spacing: ["stripe", "header"],
         },
     },
 });

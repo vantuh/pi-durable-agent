@@ -38,6 +38,7 @@ build output contains no `neutral`.
 | `ink`                       | `text`                        | Body text                                       |
 | `muted`                     | `subtext1`                    | Secondary text                                  |
 | `faint`                     | `subtext0`                    | Metadata, timestamps                            |
+| `shadow`                    | `--ctp-shadow`, per flavour   | The ink a floating surface's shadow is drawn in |
 | `accent`                    | `mauve`                       | The one interactive colour: buttons, focus ring |
 | `on-accent`                 | `crust`                       | Text on an accent fill                          |
 | `ok` `warn` `danger` `info` | `green` `yellow` `red` `blue` | State marks, counts, tool status                |
@@ -47,6 +48,12 @@ The `tag-*` roles (`red`, `peach`, `yellow`, `green`, `teal`, `blue`, `mauve`, `
 meaning of their own: an extension that lets a person colour something asks which hue and stores
 that name. `extensions/tags` is the one that does, and writes the classes out in full so Tailwind
 still finds them in the source.
+
+`shadow` is the one role no Catppuccin name answers. A shadow is dark on Latte's light `base` and
+darker still on Mocha's, so one palette entry cannot be right for both, and Tailwind's own shadow is
+drawn in black — a colour the theme never named. Each flavour therefore names `--ctp-shadow` itself,
+alpha included (crust at 45% in the three dark flavours, `text` at 14% in Latte), and the role maps
+onto it like any other colour. A component uses `shadow-float`; nothing names a shadow's colour.
 
 Text roles skip `overlay0`–`overlay2` on purpose. Measured against `canvas` they fall to 2.3–3.6 in
 Latte and Frappé, which is unreadable at 12–13px; `text`, `subtext1`, and `subtext0` measure
@@ -79,18 +86,34 @@ classes (`bg-canvas`, `bg-accent`). The Appearance cards do this.
 
 ## Adding a flavour
 
-Copy a block, keep the same 26 names, set `color-scheme` right. Nothing else changes: the roles are
-already pointing at names, not values.
+Copy a block, keep the same names — the 26 Catppuccin entries plus `shadow` — and set `color-scheme`
+right. Nothing else changes: the roles are already pointing at names, not values.
 
 ## The rest of the scale
 
 In `styles.css`, next to the roles, so no component invents its own:
 
-- `--radius-control: 6px`, `--radius-card: 10px` (`rounded-control`, `rounded-card`);
-- `--text-meta: 12px`, `--text-sidebar: 13px` (session titles and sidebar heading),
-  `--text-tool: 13px` (tool group headings),
-  `--text-interface: 15px`, `--text-prose: 15px` (`text-meta`, `text-interface`,
-  `text-prose`);
+- `--shadow-float` (`shadow-float`): Tailwind's `lg` geometry — `0 10px 15px -3px` and
+  `0 4px 6px -4px` — in `--role-shadow`. Every surface that floats over the app wears it, so a
+  popup, a tooltip, a menu and a toast cast the same shadow in every flavour;
+- `--radius-control: 6px` (a button, an input, a tooltip, a popup), `--radius-card: 10px` (a
+  pane, a card, a toast) and `--radius-mark: 2px` (a highlight behind a run of characters: a diff's
+  added or removed line, a search hit, a legend's dot);
+- two spacing names, for the lengths more than one component draws: `--spacing-stripe: 3px`
+  (`w-stripe`: the accent mark down the side of a queued message and of a subagent's card) and
+  `--spacing-header: 45px` (`min-h-header`: a pane header's floor, in the transcript and in a page).
+  Every other length of the spacing scale is Tailwind's own step, `calc(var(--spacing) * n)` at 4px
+  a step, and a length that belongs to one component's own drawing — a timeline mark, a rail, a
+  chip's cap — stays a number in that component, with the reason beside it;
+- text sizes, one name per job, smallest first: `--text-micro: 11px` (an annotation inside a dense
+  row — a duration, a file's size, a chip's model name or folder), `--text-meta: 12px` (metadata),
+  `--text-code: 12.5px` (monospace lines: code blocks, diffs, tool names and their arguments),
+  `--text-sidebar: 13px` (session titles and the sidebar heading), `--text-tool: 13px` (tool group
+  headings), `--text-interface: 15px`, `--text-prose: 15px`, `--text-subheading: 16px` (a Markdown
+  answer's `h2`) and `--text-heading: 18px` (its `h1`, and the extensions dialog's title);
+- `--text-heading` and `--text-subheading` carry a `--text-*-line-height` (1.75rem, 1.5rem): both
+  replaced one of Tailwind's own steps, which brought a line box with it, and the line box stays as
+  it was. Every other name here sets a size only and inherits the line height of its line;
 - `--font-sans` and `--font-mono` (`font-sans`, `font-mono`). The body and interface use 15px
   system sans; code, diffs, paths and numeric metadata use JetBrains Mono. Metadata stays at 12px.
 - JetBrains Mono's variable upright and italic fonts are bundled in `web/src/fonts/` with their

@@ -82,11 +82,14 @@ function FlavourGrid() {
                 className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
             >
                 {FLAVOURS.map((flavour) => (
+                    // A chosen card wears an accent ring inside its own border; focus draws the theme's ring
+                    // 2px outside it. Two rings on different properties, so a card reads as chosen and as
+                    // focused at once, and neither state can hide the other.
                     <ToggleGroupItem
                         key={flavour}
                         value={flavour}
                         aria-label={flavour}
-                        className="bg-raised border-edge-soft rounded-card focus-visible:outline-ink text-ink data-[state=on]:ring-accent flex flex-col gap-2 border p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 data-[state=on]:ring-2"
+                        className="bg-raised border-edge-soft rounded-card text-ink data-[state=on]:inset-ring-accent focus-visible:ring-offset-canvas flex flex-col gap-2 border p-2 text-left focus-visible:ring-offset-2 data-[state=on]:inset-ring-2"
                     >
                         <Preview flavour={flavour} />
                         <span className="text-interface text-ink capitalize">{flavour}</span>

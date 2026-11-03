@@ -39,6 +39,8 @@
     --role-ink: var(--ctp-text);
     --role-muted: var(--ctp-subtext1);
     --role-faint: var(--ctp-subtext0);
+    /* The colour a floating surface's shadow is drawn in: one role, because a shadow is not a hue. */
+    --role-shadow: var(--ctp-shadow);
 
     --role-accent: var(--ctp-mauve);
     --role-on-accent: var(--ctp-crust);
@@ -126,12 +128,26 @@
 
     --radius-control: 6px;
     --radius-card: 10px;
+    --radius-mark: 2px;
 
+    /* The two lengths more than one component draws: the accent stripe's thickness, and the floor of a pane header. */
+    --spacing-stripe: 3px;
+    --spacing-header: 45px;
+
+    /* Tailwind's lg geometry (10px/15px blur, 6px/4px spread), in the theme's shadow ink instead of black. */
+    --shadow-float: 0 10px 15px -3px var(--role-shadow), 0 4px 6px -4px var(--role-shadow);
+
+    --text-micro: 11px;
     --text-meta: 12px;
+    --text-code: 12.5px;
     --text-sidebar: 13px;
     --text-tool: 13px;
     --text-interface: 15px;
     --text-prose: 15px;
+    --text-subheading: 16px;
+    --text-subheading--line-height: 1.5rem;
+    --text-heading: 18px;
+    --text-heading--line-height: 1.75rem;
 }
 
 @theme {

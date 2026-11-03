@@ -166,7 +166,7 @@ function Panel({
             {result.data?.providers.map((provider) => (
                 <section
                     key={provider.id}
-                    className={`border-edge-soft mb-3 rounded-lg border p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
+                    className={`border-edge-soft rounded-card mb-3 border p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
                 >
                     <h4 className="text-ink mb-1.5 font-medium">{provider.name}</h4>
                     {provider.error === undefined ? null : <Alert>{provider.error}</Alert>}

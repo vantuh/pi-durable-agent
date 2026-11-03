@@ -102,7 +102,7 @@ function ExtensionList() {
                     Extensions
                 </Button>
             )}
-            <DialogTitle className="text-lg">{current?.title ?? "Extensions"}</DialogTitle>
+            <DialogTitle className="text-heading">{current?.title ?? "Extensions"}</DialogTitle>
             <DialogDescription>
                 {current === undefined
                     ? "Turn a feature on or off. It applies at once."

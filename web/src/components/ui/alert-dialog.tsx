@@ -28,7 +28,7 @@ export function AlertDialogContent({
                 <AlertDialogPrimitive.Content
                     data-slot="alert-dialog-content"
                     className={cn(
-                        "bg-canvas border-edge-soft text-ink relative flex max-h-full w-full max-w-md flex-col overflow-y-auto rounded-card border shadow-lg outline-none",
+                        "bg-canvas border-edge-soft text-ink relative flex max-h-full w-full max-w-md flex-col overflow-y-auto rounded-card border shadow-float outline-none",
                         className,
                     )}
                     {...props}

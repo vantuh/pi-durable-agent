@@ -1,7 +1,11 @@
 /*
  * Catppuccin, all four flavours, from the upstream palette v1.8.0.
  *
- * Every flavour sets the same 26 names, so `data-flavour` on <html> is the whole switch.
+ * Every flavour sets the same 26 Catppuccin names, so `data-flavour` on <html> is the whole
+ * switch, and one of its own: `shadow`, the ink shadows are drawn in. Catppuccin has no such
+ * token, and no single palette entry is a shadow in both a light and a dark flavour — over Latte's
+ * `base` a shadow is dark, over Mocha's it is darker still — so each flavour names it, alpha and
+ * all, and `styles.css` gives it a role like every other colour.
  * `color-scheme` rides along, which is what makes native scrollbars and form controls match.
  * The selectors are `html[data-flavour=...]`, not `[data-flavour=...]`: a bare attribute
  * selector ties with `:root`, and then the order of the built file picks the winner.
@@ -40,6 +44,7 @@ html[data-flavour="latte"],
     --ctp-base: #eff1f5;
     --ctp-mantle: #e6e9ef;
     --ctp-crust: #dce0e8;
+    --ctp-shadow: rgb(76 79 105 / 0.14);
 }
 
 /* Frappé */
@@ -72,6 +77,7 @@ html[data-flavour="frappe"],
     --ctp-base: #303446;
     --ctp-mantle: #292c3c;
     --ctp-crust: #232634;
+    --ctp-shadow: rgb(35 38 52 / 0.45);
 }
 
 /* Macchiato */
@@ -104,6 +110,7 @@ html[data-flavour="macchiato"],
     --ctp-base: #24273a;
     --ctp-mantle: #1e2030;
     --ctp-crust: #181926;
+    --ctp-shadow: rgb(24 25 38 / 0.45);
 }
 
 /* Mocha */
@@ -137,4 +144,5 @@ html[data-flavour="mocha"],
     --ctp-base: #1e1e2e;
     --ctp-mantle: #181825;
     --ctp-crust: #11111b;
+    --ctp-shadow: rgb(17 17 27 / 0.45);
 }

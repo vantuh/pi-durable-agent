@@ -58,7 +58,7 @@ export function TooltipContent({
                 sideOffset={sideOffset}
                 collisionPadding={8}
                 className={cn(
-                    "rounded-control border-edge bg-raised text-ink text-meta z-50 max-w-xs border px-2 py-1 shadow-lg outline-none",
+                    "rounded-control border-edge bg-raised text-ink text-meta z-50 max-w-xs border px-2 py-1 shadow-float outline-none",
                     className,
                 )}
                 {...props}

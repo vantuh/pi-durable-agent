@@ -73,7 +73,7 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                         <li>
                             <span
                                 aria-hidden
-                                className={`absolute inset-y-0 left-0 w-[3px] ${look.stripe}`}
+                                className={`w-stripe absolute inset-y-0 left-0 ${look.stripe}`}
                             />
                             <ItemContent>
                                 <span className="text-meta flex items-center gap-1">

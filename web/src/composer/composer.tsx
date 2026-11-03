@@ -525,7 +525,7 @@ export const Composer = memo(function Composer({
                         onMouseDown={(event) => {
                             event.preventDefault();
                         }}
-                        className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border shadow-lg"
+                        className="rounded-control border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border"
                     >
                         <CommandList label="Completions" className="min-h-0 overflow-y-auto p-1">
                             {matches.map((candidate, index) => (

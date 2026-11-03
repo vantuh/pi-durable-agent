@@ -29,8 +29,8 @@ const SIGN = {
 } as const;
 
 const CHANGED = {
-    add: "bg-ok/25 rounded-[2px]",
-    del: "bg-danger/25 rounded-[2px]",
+    add: "bg-ok/25 rounded-mark",
+    del: "bg-danger/25 rounded-mark",
     ctx: "",
 } as const;
 
@@ -304,7 +304,7 @@ export function DiffCard({ diff, path, lang }: { diff: string; path?: string; la
                     <Counts {...diffCounts(diff)} />
                 </div>
             )}
-            <div className="py-1 font-mono text-[12.5px] leading-relaxed">
+            <div className="text-code py-1 font-mono leading-relaxed">
                 {split ? (
                     <SplitBody rows={rows} tokens={tokens} width={width} />
                 ) : (

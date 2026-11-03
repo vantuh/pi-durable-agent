@@ -1064,7 +1064,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             : data?.commits.find((candidate) => candidate.hash === shownTarget);
     const detail = shownTarget === undefined ? undefined : detailOf(shownTarget, listed, looked);
     const toolbar = (
-        <div className="border-edge-soft flex min-h-[35px] flex-wrap items-center gap-2 border-b px-3 py-1.5">
+        <div className="border-edge-soft flex min-h-9 flex-wrap items-center gap-2 border-b px-3 py-1.5">
+            {/* 36px is the step the row already measured: a 16px pill in py-1.5 beside the 24px actions is 37 with its
+                border, so the 35px floor this was had never bound. */}
             {data?.branch ? (
                 <Badge
                     title={`${data.branch} in ${session.cwd ?? "this folder"}`}

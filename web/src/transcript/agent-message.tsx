@@ -25,7 +25,7 @@ export function AgentMessage({ text, author, onOpenSession }: Props) {
 
     return (
         <Collapsible className="group/agent rounded-card border-edge-soft bg-panel relative overflow-hidden border">
-            <span aria-hidden className="bg-agent absolute inset-y-0 left-0 w-[3px]" />
+            <span aria-hidden className="bg-agent w-stripe absolute inset-y-0 left-0" />
             <div className="text-meta flex items-center gap-1 py-1.5 pr-1.5 pl-3">
                 <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
                     <ChevronRight className="text-faint size-3.5 shrink-0 transition-transform group-data-[state=open]/agent:rotate-90" />

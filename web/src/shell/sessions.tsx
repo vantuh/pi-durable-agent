@@ -228,6 +228,7 @@ function ResizeHandle() {
             }}
             className="group absolute inset-y-0 -right-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
+            {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
             <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
         </button>
     );
@@ -387,7 +388,7 @@ const SessionRow = memo(function SessionRow({
                                                 key={`${String(index)}-${part.text}`}
                                                 className={
                                                     part.hit
-                                                        ? "bg-warn/30 text-ink rounded-[2px]"
+                                                        ? "bg-warn/30 text-ink rounded-mark"
                                                         : undefined
                                                 }
                                             >
@@ -1001,6 +1002,7 @@ export const Sessions = memo(function Sessions({
     });
 
     return (
+        // 38px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the card's two 1px borders.
         <aside
             ref={shell}
             data-collapsed={collapsed ? "" : undefined}
@@ -1009,7 +1011,7 @@ export const Sessions = memo(function Sessions({
             }`}
         >
             <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
-                <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-[6px]">
+                <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-1.5">
                     <Hint label="Home: every session">
                         <Button
                             variant="ghost"
