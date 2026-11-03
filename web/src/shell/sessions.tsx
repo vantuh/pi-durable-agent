@@ -1013,7 +1013,7 @@ export const Sessions = memo(function Sessions({
             }`}
         >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-1.5">
+                <header className="border-edge-soft relative flex items-center gap-2 px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:border-b lg:group-data-[collapsed]/side:px-1.5">
                     {/* The rail has room for one button: there the logo expands, and shows it on hover. */}
                     <Hint label="Expand sidebar">
                         <Button
@@ -1058,14 +1058,41 @@ export const Sessions = memo(function Sessions({
                     >
                         Sessions
                     </h2>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 lg:group-data-[collapsed]/side:hidden">
+                        <Hint label="New session">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="New session"
+                                onClick={onNew}
+                            >
+                                <Plus className="size-4" />
+                            </Button>
+                        </Hint>
+                        <Hint
+                            label="Search sessions"
+                            keys={<CommandKeys command="session.search" />}
+                        >
+                            <Button
+                                ref={searchTrigger}
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Search sessions"
+                                aria-expanded={searching}
+                                onClick={() => {
+                                    setSearching(true);
+                                }}
+                            >
+                                <Search className="size-4" />
+                            </Button>
+                        </Hint>
                         <Hint label="Collapse sidebar">
                             <Button
                                 variant="ghost"
                                 size="icon-sm"
                                 aria-label="Collapse sidebar"
                                 onClick={toggleCollapsed}
-                                className="hidden shrink-0 lg:inline-flex lg:group-data-[collapsed]/side:hidden"
+                                className="hidden shrink-0 lg:inline-flex"
                             >
                                 <PanelLeftClose className="size-4" />
                             </Button>
@@ -1082,9 +1109,48 @@ export const Sessions = memo(function Sessions({
                             </Button>
                         </Hint>
                     </div>
+                    <div
+                        className={`bg-panel absolute inset-0 flex items-center px-3 py-2 transition-opacity duration-200 lg:group-data-[collapsed]/side:hidden ${searching ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                    >
+                        <Search className="text-faint pointer-events-none absolute left-5 size-3.5" />
+                        <Input
+                            ref={searchBox}
+                            type="search"
+                            value={query}
+                            aria-label="Search sessions"
+                            placeholder={`Search in ${scope}`}
+                            tabIndex={searching ? undefined : -1}
+                            onChange={(event) => {
+                                setQuery(event.target.value);
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                    event.preventDefault();
+                                    // The key is this field's: it must not also leave the panel's full screen.
+                                    event.stopPropagation();
+                                    stopSearch();
+                                }
+                            }}
+                            className="border-edge-soft text-sidebar h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
+                        />
+                        <Hint label="Close search">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close search"
+                                onClick={stopSearch}
+                                tabIndex={searching ? undefined : -1}
+                                className="absolute top-1/2 right-4.5 -translate-y-1/2"
+                            >
+                                <X className="size-3.5" />
+                            </Button>
+                        </Hint>
+                    </div>
                 </header>
 
-                <div className={`border-edge-soft border-b ${FADE} ${FOLD}`}>
+                <div
+                    className={`border-edge-soft flex items-center gap-1 border-b px-1.5 py-1 ${FADE} ${FOLD}`}
+                >
                     <DropdownMenu
                         modal={false}
                         open={scopeOpen}
@@ -1097,7 +1163,10 @@ export const Sessions = memo(function Sessions({
                         }}
                     >
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="w-full justify-start px-3 py-2">
+                            <Button
+                                variant="ghost"
+                                className="min-w-0 flex-1 justify-start px-2 py-1"
+                            >
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
                                     {scope}
@@ -1105,10 +1174,7 @@ export const Sessions = memo(function Sessions({
                                 <ChevronDown className="text-faint size-3.5 shrink-0" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            align="start"
-                            className="w-(--radix-dropdown-menu-trigger-width)"
-                        >
+                        <DropdownMenuContent align="start" className="w-64">
                             <ScrollArea viewportProps={{ className: "max-h-72" }}>
                                 <DropdownMenuItem
                                     onSelect={() => {
@@ -1129,87 +1195,6 @@ export const Sessions = memo(function Sessions({
                             </ScrollArea>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-
-                <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
-                    <div className="relative min-w-0 flex-1">
-                        <Button
-                            variant="ghost"
-                            onClick={onNew}
-                            tabIndex={searching ? -1 : undefined}
-                            className={`border-edge bg-sunken text-ink w-full gap-2 border py-2.5 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
-                        >
-                            <Plus className="size-4" />
-                            <span className="text-sidebar">New session</span>
-                        </Button>
-                        <div
-                            className={`absolute inset-0 transition-[opacity,transform] duration-200 ${searching ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"}`}
-                        >
-                            <Search className="text-faint pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
-                            <Input
-                                ref={searchBox}
-                                type="search"
-                                value={query}
-                                aria-label="Search sessions"
-                                placeholder={`Search in ${scope}`}
-                                tabIndex={searching ? undefined : -1}
-                                onChange={(event) => {
-                                    setQuery(event.target.value);
-                                }}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Escape") {
-                                        event.preventDefault();
-                                        // The key is this field's: it must not also leave the panel's full screen.
-                                        event.stopPropagation();
-                                        stopSearch();
-                                    }
-                                }}
-                                className="border-edge-soft text-sidebar h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
-                            />
-                            <Hint label="Close search">
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Close search"
-                                    onClick={stopSearch}
-                                    tabIndex={searching ? undefined : -1}
-                                    className="absolute top-1/2 right-1.5 -translate-y-1/2"
-                                >
-                                    <X className="size-3.5" />
-                                </Button>
-                            </Hint>
-                        </div>
-                    </div>
-                    <Hint label="Search sessions" keys={<CommandKeys command="session.search" />}>
-                        <Button
-                            ref={searchTrigger}
-                            variant="ghost"
-                            aria-label="Search sessions"
-                            aria-expanded={searching}
-                            aria-hidden={searching ? true : undefined}
-                            tabIndex={searching ? -1 : undefined}
-                            onClick={() => {
-                                if (searching) {
-                                    stopSearch();
-                                } else {
-                                    setSearching(true);
-                                }
-                            }}
-                            className={`border-edge-soft bg-sunken shrink-0 overflow-hidden border px-0 transition-[width,opacity] duration-200 ${searching ? "pointer-events-none w-0 border-transparent opacity-0" : "w-9 opacity-100"}`}
-                        >
-                            <Search className="size-4" />
-                        </Button>
-                    </Hint>
-                </div>
-
-                <div className={`flex items-center justify-between px-3 pt-2 ${FADE} ${FOLD}`}>
-                    <span className="text-meta text-muted">
-                        {archived
-                            ? "Archive"
-                            : query.trim() === ""
-                              ? "Sessions"
-                              : `${String(shown.length)} found`}
-                    </span>
                     <div className="flex items-center">
                         {filters.map((item) => {
                             const setMatch = setters.get(item.id);
@@ -1232,6 +1217,7 @@ export const Sessions = memo(function Sessions({
                                     archived ? "Back to sessions" : "Show archived sessions"
                                 }
                                 aria-pressed={archived}
+                                className={archived ? "bg-raised text-ink" : ""}
                                 onClick={() => {
                                     setArchived(!archived);
                                 }}
@@ -1245,6 +1231,7 @@ export const Sessions = memo(function Sessions({
                         </Hint>
                     </div>
                 </div>
+
                 <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">
                         {shown.length === 0 ? (
