@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { writeJsonFile } from "../../server/sdk.ts";
+import { isRecord } from "../../shared/guards.ts";
 import {
     checkIdleMinutes,
     checkLanguage,
@@ -19,10 +20,6 @@ export type DictationFile = { version: 1 } & SettingsFields;
 
 /** What dictation uses until the owner chooses in Settings: `uk` is how they dictate. */
 const DEFAULTS: SettingsFields = { language: "uk", model: null, idleMinutes: DEFAULT_IDLE_MINUTES };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 
 function parseFile(text: string): DictationFile {
     const raw: unknown = JSON.parse(text);

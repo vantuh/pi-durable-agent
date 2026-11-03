@@ -9,9 +9,9 @@
  * conversations. Pages are memory only: a restart closes them, and each conversation's last address and size come back
  * from its saved state when its page is next opened.
  */
+import { messageOf } from "../../../shared/guards.ts";
 import { BrowserError, Chromium } from "./cdp.ts";
 import { findBrowser, profileFolder } from "./discovery.ts";
-import { describe } from "./errors.ts";
 import { BrowserPage, type BrowserState, type Saved, wait } from "./page.ts";
 import { type Viewport, VIEWPORTS, viewportFrom } from "./viewport.ts";
 
@@ -219,7 +219,7 @@ export class Browsers {
 
             return page;
         } catch (error) {
-            this.#problems.set(conversationId, describe(error));
+            this.#problems.set(conversationId, messageOf(error));
 
             throw error;
         } finally {

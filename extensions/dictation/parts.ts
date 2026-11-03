@@ -3,7 +3,7 @@
  * number order. Ported from Pi Pocket's `local-dictation/server.ts` (MIT).
  */
 
-import { HttpError } from "./http.ts";
+import { HttpError } from "../../server/sdk.ts";
 
 /** A recording the browser never finished sending is dropped after this long. */
 const STALE_MS = 10 * 60_000;

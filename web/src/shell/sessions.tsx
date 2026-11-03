@@ -67,6 +67,7 @@ import { isNarrow, watchNarrow } from "../lib/narrow.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { cwdsOf, type FolderRow, folderRows, rowOf } from "../lib/session-folders.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
+import { newestFirst } from "../lib/session-order.ts";
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
 import { focusComposer } from "../sdk/composer.ts";
@@ -801,10 +802,10 @@ export const Sessions = memo(function Sessions({
     const holding = holdingRow(current, sessions);
     const folders = folderRows(topLevel);
 
-    const newest = (rows: SessionSummary[]): SessionSummary[] =>
-        rows.toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0));
     const latest = (cwds: readonly string[]): SessionSummary[] =>
-        newest(topLevel.filter((session) => session.cwd !== null && cwds.includes(session.cwd)));
+        topLevel
+            .filter((session) => session.cwd !== null && cwds.includes(session.cwd))
+            .toSorted(newestFirst);
     // A folder with worktrees shows theirs too; a worktree shows only its own.
     const picked = rowOf(folders, folder);
     const scopeCwds = picked === undefined ? (folder === null ? [] : [folder]) : cwdsOf(picked);
@@ -956,7 +957,7 @@ export const Sessions = memo(function Sessions({
         return match === undefined ? [] : [match];
     });
 
-    const matches = (all ? newest(topLevel) : latest(scopeCwds))
+    const matches = (all ? topLevel.toSorted(newestFirst) : latest(scopeCwds))
         .filter((session) => session.archived === archived)
         .filter((session) => keptBy.every((match) => match(session)))
         .flatMap((session) => {
@@ -966,9 +967,7 @@ export const Sessions = memo(function Sessions({
         })
         // Without a query every score is equal, so the newest stays first either way.
         .toSorted(
-            (left, right) =>
-                right.score - left.score ||
-                (right.session.activeAt ?? 0) - (left.session.activeAt ?? 0),
+            (left, right) => right.score - left.score || newestFirst(left.session, right.session),
         );
     const shown = matches.map((match) => match.session);
     const hits = new Map(matches.map((match) => [match.session.id, match.ranges]));

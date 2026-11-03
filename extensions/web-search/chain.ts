@@ -1,5 +1,6 @@
 /** One question through the providers in order: the first that answers wins. */
 
+import { messageOf } from "../../shared/guards.ts";
 import type { Found } from "./wire.ts";
 
 /** What one search asks: the angles to cover, folded into the one prompt a provider gets. */
@@ -40,7 +41,7 @@ export function buildPrompt({ queries, urls }: Ask, listSources: boolean): strin
 
 /** One short line, so a reason can sit in a list and never carries more than the error's own words. */
 function reasonOf(error: unknown): string {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = messageOf(error);
 
     return (message.split("\n")[0] ?? message).slice(0, 200);
 }

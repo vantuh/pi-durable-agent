@@ -4,6 +4,7 @@
  */
 
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 /** `auto` passes no hint at all, and transcribe.cpp detects the language from the audio. */
 export const LANGUAGES = ["auto", "en", "uk"] as const;
@@ -65,10 +66,6 @@ export function checkIdleMinutes(value: unknown): number {
 export type ModelChoice = { path: string; name: string; megabytes: number };
 
 export type Settings = SettingsFields & { models: ModelChoice[] };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 
 function modelOf(value: unknown): ModelChoice {
     const path = isRecord(value) ? value["path"] : undefined;

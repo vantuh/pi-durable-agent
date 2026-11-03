@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 /** One rate-limit window: a share of its limit and, when the provider says, when it resets. */
 export type Bucket = {
@@ -31,10 +32,6 @@ export const PROVIDERS = [
 export type Settings = { hidden: string[] };
 
 export type UsageResult = { providers: ProviderUsage[]; at: number };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function bucket(value: unknown): Bucket {
     if (

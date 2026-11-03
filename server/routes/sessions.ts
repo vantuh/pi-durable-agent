@@ -2,8 +2,9 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { recordOf } from "../../shared/guards.ts";
 import type { SessionSummary } from "../../shared/protocol.ts";
-import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
+import { answer, readJson, type Route, sessionIdOf, string } from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
 
 export function sessionRoutes(deps: {
@@ -36,7 +37,7 @@ export function sessionRoutes(deps: {
             method: "POST",
             path: /^\/api\/sessions$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const cwd = string(payload?.["cwd"]);
                 const conversation = await sessions.create(cwd ?? process.cwd());
 
@@ -48,7 +49,7 @@ export function sessionRoutes(deps: {
             method: "POST",
             path: /^\/api\/sessions\/archive$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionIdOf(payload?.["session"]);
                 const archived = payload?.["archived"];
 
@@ -72,7 +73,7 @@ export function sessionRoutes(deps: {
             method: "POST",
             path: /^\/api\/sessions\/delete$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionIdOf(payload?.["session"]);
 
                 if (id === undefined) {
@@ -96,7 +97,7 @@ export function sessionRoutes(deps: {
             method: "POST",
             path: /^\/api\/sessions\/title$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionIdOf(payload?.["session"]);
                 const title = payload?.["title"];
 
@@ -120,7 +121,7 @@ export function sessionRoutes(deps: {
             method: "POST",
             path: /^\/api\/sessions\/seen$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionIdOf(payload?.["session"]);
 
                 if (id === undefined) {

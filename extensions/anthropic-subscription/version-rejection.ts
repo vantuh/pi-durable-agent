@@ -2,7 +2,8 @@
  * Adapted from pi-anthropic-auth's version-rejection and billing-version-sync.
  * Copyright (c) 2026 Christopher D. Lasher. MIT; see LICENSE.pi-anthropic-auth.
  */
-import { type Diagnostics, record } from "./refs.ts";
+import { isRecord } from "../../shared/guards.ts";
+import { type Diagnostics } from "./refs.ts";
 import { higherVersion } from "./version.ts";
 
 export type VersionRejection = {
@@ -19,12 +20,12 @@ export async function readVersionRejection(
     }
     try {
         const body: unknown = await response.clone().json();
-        const error = record(body) ? body["error"] : undefined;
-        const details = record(error) ? error["details"] : undefined;
+        const error = isRecord(body) ? body["error"] : undefined;
+        const details = isRecord(error) ? error["details"] : undefined;
         if (
-            !record(body) ||
-            !record(error) ||
-            !record(details) ||
+            !isRecord(body) ||
+            !isRecord(error) ||
+            !isRecord(details) ||
             details["error_code"] !== "claude_code_version_too_old"
         ) {
             return undefined;

@@ -1,5 +1,6 @@
 import type { ModelFetch, RequestModel } from "../../server/sdk.ts";
-import { MARKER, type Diagnostics, record } from "./refs.ts";
+import { isRecord } from "../../shared/guards.ts";
+import { MARKER, type Diagnostics } from "./refs.ts";
 import { hintedResponse, readVersionRejection, recoveryHint } from "./version-rejection.ts";
 import { cliVersion, higherVersion } from "./version.ts";
 
@@ -32,13 +33,13 @@ export function withPayload(request: Request, payload: unknown): Request {
 }
 
 function billingBlock(payload: unknown): string | undefined {
-    const system: unknown = record(payload) ? payload["system"] : undefined;
+    const system: unknown = isRecord(payload) ? payload["system"] : undefined;
     if (!Array.isArray(system)) {
         return undefined;
     }
     for (const block of system) {
         if (
-            record(block) &&
+            isRecord(block) &&
             typeof block["text"] === "string" &&
             block["text"].startsWith(MARKER)
         ) {

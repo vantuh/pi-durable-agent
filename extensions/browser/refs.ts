@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 export type Viewport = { width: number; height: number; scale: number; mobile: boolean };
 
@@ -27,12 +28,8 @@ export type Control =
     | { op: "back" | "forward" | "reload" | "stop" | "clear" }
     | { op: "viewport"; viewport: string };
 
-function isObject(value: unknown): value is object {
-    return typeof value === "object" && value !== null;
-}
-
 function parseState(value: unknown): BrowserState {
-    if (isObject(value) && typeof Reflect.get(value, "open") === "boolean") {
+    if (isRecord(value) && typeof Reflect.get(value, "open") === "boolean") {
         // The server built it from `BrowserPage.state`; the fields are not re-checked one by one.
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same-repo wire type
         return value as BrowserState;
@@ -53,7 +50,7 @@ export const frame = actionRef<{ after: number }, Frame | null>("browser", "fram
         return null;
     }
 
-    if (isObject(value) && typeof Reflect.get(value, "image") === "string") {
+    if (isRecord(value) && typeof Reflect.get(value, "image") === "string") {
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same-repo wire type
         return value as Frame;
     }

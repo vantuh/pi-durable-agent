@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 /** One agent the parent started that is working now. `fill` is 0 to 100; `window` is 0 until it has answered. */
 export type StripAgent = {
@@ -19,10 +20,6 @@ export type Strip = {
     parent: { id: number; title: string } | null;
     agents: StripAgent[];
 };
-
-function isRecord(value: unknown): value is object {
-    return typeof value === "object" && value !== null;
-}
 
 function isAgent(value: unknown): value is StripAgent {
     return (

@@ -30,6 +30,7 @@ import type { PanelProps } from "@/sdk/types.ts";
 import { Loading } from "@/ui/loading.tsx";
 import { Toolbar } from "@/ui/pane.tsx";
 
+import { messageOf } from "../../shared/guards.ts";
 import {
     type BrowserState,
     type Control,
@@ -71,7 +72,7 @@ function usePageState(id: number | null) {
                 }
             } catch (failure) {
                 if (alive) {
-                    setError(failure instanceof Error ? failure.message : String(failure));
+                    setError(messageOf(failure));
                 }
             }
         };
@@ -94,7 +95,7 @@ function usePageState(id: number | null) {
             set(await callAction(control, what, id));
             setError(null);
         } catch (failure) {
-            setError(failure instanceof Error ? failure.message : String(failure));
+            setError(messageOf(failure));
         }
     };
 
@@ -162,7 +163,7 @@ function useInput(id: number | null, onError: (message: string) => void) {
                 const events = queue.current.splice(0, 50);
 
                 await callAction(input, { events }, id).catch((failure: unknown) => {
-                    onError(failure instanceof Error ? failure.message : String(failure));
+                    onError(messageOf(failure));
 
                     return true;
                 });

@@ -5,7 +5,7 @@
  */
 
 import { type FSWatcher, realpathSync, watch } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
@@ -28,8 +28,10 @@ import type {
     Registry,
 } from "@earendil-works/pi-durable";
 
+import { isRecord, messageOf } from "../shared/guards.ts";
 import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
 import { writeJsonFile } from "./atomic-write.ts";
+import { readJsonFile } from "./json-file.ts";
 import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
 
 /**
@@ -314,10 +316,6 @@ function versionHelpers(): void {
     });
 }
 
-function reasonOf(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-}
-
 /** The `actions` export as a map, nothing when absent. Throws when it is not an object of functions. */
 function actionsOf(value: unknown): ReadonlyMap<string, Action> | undefined {
     if (value === undefined) {
@@ -345,10 +343,6 @@ function actionsOf(value: unknown): ReadonlyMap<string, Action> | undefined {
 }
 
 /** The `meta` export, or the folder's name with no description when absent. Throws when it is bad. */
-function isRecord(value: unknown): value is object {
-    return typeof value === "object" && value !== null;
-}
-
 function metaOf(folder: string, value: unknown): ExtensionMeta {
     if (value === undefined) {
         return { title: folder, description: "" };
@@ -690,7 +684,7 @@ export class Extensions {
                 const changed = new Set(this.#pending);
                 this.#pending.clear();
                 void this.load(changed).catch((error: unknown) => {
-                    this.#log(`extensions: ${reasonOf(error)}`);
+                    this.#log(`extensions: ${messageOf(error)}`);
                 });
             }, SETTLE_MS);
         });
@@ -785,11 +779,11 @@ export class Extensions {
                     });
                 }
             } catch (error) {
-                failed.push({ folder, reason: reasonOf(error) });
+                failed.push({ folder, reason: messageOf(error) });
                 if (changed !== undefined && !this.#disabled.has(folder)) {
                     notices.push({
                         level: "error",
-                        message: `Could not load extension “${folder}”: ${reasonOf(error)}${loaded ? ". Previous version is still active." : ""}`,
+                        message: `Could not load extension “${folder}”: ${messageOf(error)}${loaded ? ". Previous version is still active." : ""}`,
                     });
                 }
                 await this.#run(folder, attempt.disposers);
@@ -853,21 +847,13 @@ export class Extensions {
 
     /** A missing or broken file means every folder is on. */
     async #readDisabled(): Promise<Set<string>> {
-        try {
-            const state: unknown = JSON.parse(
-                await readFile(join(this.#dataDir, STATE_FILE), "utf8"),
-            );
-            const list: unknown =
-                typeof state === "object" && state !== null
-                    ? Reflect.get(state, "disabled")
-                    : undefined;
+        const state = await readJsonFile(join(this.#dataDir, STATE_FILE));
+        const list: unknown =
+            typeof state === "object" && state !== null
+                ? Reflect.get(state, "disabled")
+                : undefined;
 
-            return new Set(
-                Array.isArray(list) ? list.filter((item) => typeof item === "string") : [],
-            );
-        } catch {
-            return new Set();
-        }
+        return new Set(Array.isArray(list) ? list.filter((item) => typeof item === "string") : []);
     }
 
     /** Folders that hold a `server.ts`, in name order. A folder with only web code is not one. */
@@ -1223,7 +1209,7 @@ export class Extensions {
             try {
                 await dispose();
             } catch (error) {
-                this.#log(`extensions: ${folder}: dispose failed: ${reasonOf(error)}`);
+                this.#log(`extensions: ${folder}: dispose failed: ${messageOf(error)}`);
             }
         }
     }

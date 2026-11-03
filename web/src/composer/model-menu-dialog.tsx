@@ -21,6 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
+import { tokens } from "../lib/format.ts";
 import { thinkingTab } from "../lib/thinking.ts";
 
 type Props = {
@@ -185,8 +186,7 @@ export function ModelMenu({
                                                 {model.name}
                                             </span>
                                             <span className="text-faint text-meta block truncate">
-                                                {model.provider} ·{" "}
-                                                {Math.round(model.contextWindow / 1000)}k
+                                                {model.provider} · {tokens(model.contextWindow)}
                                                 {defaultModel?.provider === model.provider &&
                                                 defaultModel.modelId === model.id
                                                     ? " · default"

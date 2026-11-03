@@ -1,10 +1,6 @@
-export type ProviderError = { title: string; detail?: string; requestId?: string };
+import { recordOf } from "../../../shared/guards.ts";
 
-function record(value: unknown): Record<string, unknown> | undefined {
-    return typeof value === "object" && value !== null && !Array.isArray(value)
-        ? Object.fromEntries(Object.entries(value))
-        : undefined;
-}
+export type ProviderError = { title: string; detail?: string; requestId?: string };
 
 function text(value: unknown): string | undefined {
     return typeof value === "string" && value !== "" ? value : undefined;
@@ -16,12 +12,12 @@ export function readProviderError(raw: string): ProviderError {
     let body: Record<string, unknown> | undefined;
 
     try {
-        body = record(JSON.parse(raw.slice(start)));
+        body = recordOf(JSON.parse(raw.slice(start)));
     } catch {
         body = undefined;
     }
 
-    const inner = record(body?.["error"]);
+    const inner = recordOf(body?.["error"]);
     const title = text(inner?.["message"]) ?? text(body?.["message"]);
 
     if (start === -1 || title === undefined) {

@@ -7,9 +7,10 @@ import { basename, extname } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 
+import { recordOf } from "../../shared/guards.ts";
 import { runCommand } from "../commands.ts";
 import { entryAt, historyPage } from "../history.ts";
-import { answer, readJson, record, type Route, sessionIdOf, string } from "../http.ts";
+import { answer, readJson, type Route, sessionIdOf, string } from "../http.ts";
 import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
 import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
@@ -168,7 +169,7 @@ export function conversationRoutes(deps: {
             method: "POST",
             path: /^\/api\/messages$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const text = string(payload?.["text"]) ?? "";
                 const id = sessionFrom(payload?.["session"]);
 
@@ -244,7 +245,7 @@ export function conversationRoutes(deps: {
             method: "POST",
             path: /^\/api\/queued\/withdraw$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionFrom(payload?.["session"]);
                 const item = sessionIdOf(payload?.["id"]);
 
@@ -280,7 +281,7 @@ export function conversationRoutes(deps: {
             method: "POST",
             path: /^\/api\/abort$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionFrom(payload?.["session"]);
 
                 if (id === undefined) {
@@ -302,7 +303,7 @@ export function conversationRoutes(deps: {
             method: "POST",
             path: /^\/api\/agent$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const id = sessionFrom(payload?.["session"]);
 
                 if (id === undefined) {
@@ -312,7 +313,7 @@ export function conversationRoutes(deps: {
                 }
 
                 const opened = await attach(id);
-                const model = record(payload?.["model"]);
+                const model = recordOf(payload?.["model"]);
                 const provider = string(model?.["provider"]);
                 const modelId = string(model?.["modelId"]);
                 const level = string(payload?.["thinkingLevel"]);
@@ -340,7 +341,7 @@ export function conversationRoutes(deps: {
             method: "POST",
             path: /^\/api\/commands$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const name = string(payload?.["name"]) ?? "";
                 const args = string(payload?.["args"]) ?? "";
                 const id = sessionFrom(payload?.["session"]);

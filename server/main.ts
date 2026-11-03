@@ -21,6 +21,7 @@ import {
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
+import { recordOf } from "../shared/guards.ts";
 import type {
     ClientBlock,
     ClientEntry,
@@ -36,15 +37,7 @@ import { commitAnnouncer } from "./commit-announcer.ts";
 import { executionEnv } from "./execution-env.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
-import {
-    answer,
-    openEventStream,
-    readBody,
-    record,
-    type Route,
-    sessionIdOf,
-    writeEvent,
-} from "./http.ts";
+import { answer, openEventStream, readBody, type Route, sessionIdOf, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { blocksSince, queuedSince, statusSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
@@ -624,7 +617,7 @@ async function changedSession(request: IncomingMessage): Promise<number | undefi
     }
 
     try {
-        return sessionIdOf(record(await body)?.["session"]);
+        return sessionIdOf(recordOf(await body)?.["session"]);
     } catch {
         // A body that is not JSON was refused by its route, and a list read is never wrong about it.
         return undefined;

@@ -1,9 +1,6 @@
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { sidebarSessions } from "./session-nesting.ts";
-
-function newestFirst(left: SessionSummary, right: SessionSummary): number {
-    return (right.activeAt ?? 0) - (left.activeAt ?? 0);
-}
+import { newestFirst } from "./session-order.ts";
 
 /**
  * What the status popover lists besides the open session. A session started from another is left

@@ -38,6 +38,7 @@ import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { PageProps, WebExtension } from "@/sdk/types.ts";
 import { Toolbar } from "@/ui/pane.tsx";
 
+import { messageOf } from "../../shared/guards.ts";
 import {
     UNTRACKED_FILE_CAP,
     cancel,
@@ -71,7 +72,6 @@ const HASH = /^[0-9a-f]{4,64}$/i;
 /** The page's outline action: ghost's hover fill inside a border, with the ink the page's text has. */
 const button =
     "border-edge text-ink border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 // A commit row counts from now; this is the same instant spelled out in the reader's own zone.
 const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
     year: "numeric",
@@ -156,7 +156,7 @@ function RewordForm({
             await callAction(reword, { hash: commit.hash, subject, body }, session);
             onRewritten();
         } catch (failure) {
-            setError(errorText(failure));
+            setError(messageOf(failure));
             setSaving(false);
         }
     }
@@ -341,7 +341,7 @@ function ChangesView({
                 }
             } catch (failure) {
                 if (alive) {
-                    setError(errorText(failure));
+                    setError(messageOf(failure));
                 }
             }
         })();
@@ -863,7 +863,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 }
             } catch (error) {
                 if (alive) {
-                    setIssue(errorText(error));
+                    setIssue(messageOf(error));
                 }
             } finally {
                 if (alive) {
@@ -902,7 +902,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 }
             } catch (error) {
                 if (alive) {
-                    setLooked({ target: shownTarget, kind: "error", error: errorText(error) });
+                    setLooked({ target: shownTarget, kind: "error", error: messageOf(error) });
                 }
             }
         })();
@@ -954,7 +954,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 }
             } catch (error) {
                 if (alive) {
-                    setIssue(errorText(error));
+                    setIssue(messageOf(error));
                 }
             }
             if (alive) {
@@ -1040,7 +1040,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 }
             }
         } catch (error) {
-            setIssue(errorText(error));
+            setIssue(messageOf(error));
         } finally {
             setStarting(false);
         }
@@ -1054,7 +1054,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             setState(await callAction(cancel, { id: state.id }, id));
             return true;
         } catch (error) {
-            setIssue(errorText(error));
+            setIssue(messageOf(error));
             return false;
         }
     }

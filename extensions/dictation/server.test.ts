@@ -9,7 +9,7 @@ import { beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import type { Host } from "../../server/sdk.ts";
-import { record } from "./http.ts";
+import { recordOf } from "../../shared/guards.ts";
 import { MAX_BYTES, Parts, toSamples } from "./parts.ts";
 import dictation, { actions, candidates, Dictation, http, models } from "./server.ts";
 import { DictationStore } from "./store.ts";
@@ -165,6 +165,43 @@ void describe("parts", () => {
 
         assert.equal(parts.take("stale123"), undefined);
         assert.deepEqual(parts.take("fresh123"), Buffer.from([3, 4]));
+    });
+});
+
+void describe("the routes", () => {
+    void it("answers 400 for a body that is not JSON, the core's reader refusing it", async () => {
+        const dir = await tempDir("dictation-routes");
+        const routes = http(hostOf(dir, []));
+        const server = createServer((request, response) => {
+            void routes({ request, response, path: request.url ?? "/" });
+        });
+
+        await new Promise<void>((resolve) => {
+            server.listen(0, "127.0.0.1", resolve);
+        });
+
+        const address = server.address();
+
+        assert.ok(address !== null && typeof address !== "string");
+
+        try {
+            const response = await fetch(`http://127.0.0.1:${String(address.port)}/audio`, {
+                method: "POST",
+                body: "{not json",
+            });
+            const payload = recordOf(JSON.parse(await response.text()));
+
+            assert.equal(response.status, 400, "a body it cannot read is bad input, not a failure");
+            assert.equal(payload?.["error"], "body is not JSON");
+        } finally {
+            await new Promise<void>((resolve) => {
+                server.close(() => {
+                    resolve();
+                });
+                server.closeAllConnections();
+            });
+            await rm(dir, { recursive: true, force: true });
+        }
     });
 });
 
@@ -416,7 +453,7 @@ void describe("a model the settings no longer name", () => {
             const warm = async () => {
                 const response = await fetch(`${base}/warm`, { method: "POST", body: "{}" });
                 const body: unknown = JSON.parse(await response.text());
-                const error = record(body)?.["error"];
+                const error = recordOf(body)?.["error"];
 
                 return { status: response.status, error: typeof error === "string" ? error : "" };
             };

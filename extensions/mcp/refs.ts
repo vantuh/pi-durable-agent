@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 const STATUSES = ["off", "connecting", "connected", "error"] as const;
 
@@ -14,11 +15,11 @@ export type ServerInfo = {
 export type McpState = { servers: ServerInfo[]; problem?: string };
 
 function object(value: unknown): Record<string, unknown> {
-    if (typeof value !== "object" || value === null) {
+    if (!isRecord(value)) {
         throw new Error("the MCP state is malformed");
     }
 
-    return Object.fromEntries(Object.entries(value));
+    return value;
 }
 
 function parseServer(value: unknown): ServerInfo {

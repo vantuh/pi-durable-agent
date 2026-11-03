@@ -3,7 +3,8 @@
 import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
 import { type ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 
-import { answer, readJson, record, type Route, string } from "../http.ts";
+import { recordOf } from "../../shared/guards.ts";
+import { answer, readJson, type Route, string } from "../http.ts";
 import { type Sessions, supportedLevel, THINKING_LEVELS } from "../sessions.ts";
 
 /** Read through the manager that saves it, so a model added here is in the next read. */
@@ -115,7 +116,7 @@ export function modelRoutes(deps: {
             method: "POST",
             path: /^\/api\/scoped$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const provider = string(payload?.["provider"]);
                 const modelId = string(payload?.["modelId"]);
 
@@ -138,7 +139,7 @@ export function modelRoutes(deps: {
             method: "DELETE",
             path: /^\/api\/scoped$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
+                const payload = recordOf(await readJson(request));
                 const provider = string(payload?.["provider"]);
                 const modelId = string(payload?.["modelId"]);
 
@@ -156,8 +157,8 @@ export function modelRoutes(deps: {
             method: "POST",
             path: /^\/api\/default$/,
             handle: async (request, response) => {
-                const payload = record(await readJson(request));
-                const model = record(payload?.["model"]);
+                const payload = recordOf(await readJson(request));
+                const model = recordOf(payload?.["model"]);
                 const provider = string(model?.["provider"]);
                 const modelId = string(model?.["modelId"]);
                 const thinkingLevel = THINKING_LEVELS.find(

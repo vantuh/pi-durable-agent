@@ -1,4 +1,5 @@
 import { ActionError } from "../../server/sdk.ts";
+import { isRecord } from "../../shared/guards.ts";
 import type { DeviceSubscription } from "./refs.ts";
 
 /**
@@ -15,10 +16,6 @@ const PUSH_HOSTS = [
 
 const ENDPOINT_MAX = 2048;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 
 function bytesOf(value: unknown, name: string): Buffer {
     if (typeof value !== "string" || !BASE64URL.test(value)) {

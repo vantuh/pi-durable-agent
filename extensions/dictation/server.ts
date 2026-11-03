@@ -13,8 +13,17 @@ import { basename, join } from "node:path";
 import { defineExtension } from "@earendil-works/pi-durable";
 import type { TranscribeModel } from "transcribe-cpp";
 
-import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
-import { answer, answerError, HttpError, readJson, record } from "./http.ts";
+import {
+    ActionError,
+    type Action,
+    answer,
+    answerError,
+    type Host,
+    HttpError,
+    type HttpHandler,
+    readJson,
+} from "../../server/sdk.ts";
+import { messageOf, recordOf } from "../../shared/guards.ts";
 import { Parts, toSamples } from "./parts.ts";
 import {
     checkIdleMinutes,
@@ -34,6 +43,9 @@ export const meta = {
 
 /** What the browser sends and the model takes: 16 kHz mono 16-bit PCM. */
 const RATE = 16_000;
+
+/** A recording arrives in parts, each a few hundred KB of base64: past this, the page is sending what it does not mean to. */
+const MAX_BODY = 4 * 1024 * 1024;
 
 /** The recording id the browser makes: `crypto.randomUUID()`, checked here because the body is unchecked JSON. */
 const ID = /^[A-Za-z0-9-]{8,64}$/;
@@ -173,10 +185,7 @@ export class Dictation {
 
             return result.text.trim();
         } catch (failure) {
-            throw new HttpError(
-                500,
-                `Transcription failed: ${failure instanceof Error ? failure.message : String(failure)}`,
-            );
+            throw new HttpError(500, `Transcription failed: ${messageOf(failure)}`);
         } finally {
             this.#rest();
         }
@@ -280,10 +289,7 @@ export class Dictation {
     }
 
     #failed(failure: unknown): HttpError {
-        return new HttpError(
-            503,
-            `The dictation model did not load: ${failure instanceof Error ? failure.message : String(failure)}`,
-        );
+        return new HttpError(503, `The dictation model did not load: ${messageOf(failure)}`);
     }
 }
 
@@ -344,11 +350,11 @@ export const http =
     (host: Host): HttpHandler =>
     async ({ request, response, path }) => {
         try {
-            const body = record(await readJson(request)) ?? {};
+            const body = recordOf(await readJson(request, MAX_BODY)) ?? {};
 
             answer(response, 200, await handle(manager(host), routeOf(path), body));
         } catch (error) {
-            answerError(response, error);
+            answerError(response, error, "the dictation request failed");
         }
     };
 

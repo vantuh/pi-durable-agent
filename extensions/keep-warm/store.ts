@@ -1,8 +1,7 @@
 /** The state file: the switch, the stopped conversations and the last ping of each. A missing or broken file means on. */
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { writeJsonFile } from "../../server/sdk.ts";
+import { readJsonFile, writeJsonFile } from "../../server/sdk.ts";
 import type { Ping } from "./refs.ts";
 import type { Stored } from "./warm.ts";
 
@@ -34,45 +33,41 @@ function pingOf(value: unknown): Ping | undefined {
 }
 
 export async function readStore(dir: string): Promise<Stored> {
-    try {
-        const parsed: unknown = JSON.parse(await readFile(join(dir, FILE), "utf8"));
+    const parsed = await readJsonFile(join(dir, FILE));
 
-        if (typeof parsed !== "object" || parsed === null) {
-            return {};
-        }
-
-        const off: unknown = Reflect.get(parsed, "off");
-        const stored: unknown = Reflect.get(parsed, "last");
-        const stops: unknown = Reflect.get(parsed, "stop");
-        const last: Record<string, Ping> = {};
-        const stop: Record<string, number> = {};
-
-        if (typeof stops === "object" && stops !== null) {
-            for (const [session, value] of Object.entries(stops)) {
-                if (typeof value === "number") {
-                    stop[session] = value;
-                }
-            }
-        }
-
-        if (typeof stored === "object" && stored !== null) {
-            for (const [session, value] of Object.entries(stored)) {
-                const ping = pingOf(value);
-
-                if (ping !== undefined) {
-                    last[session] = ping;
-                }
-            }
-        }
-
-        return {
-            ...(off === true ? { off: true as const } : {}),
-            ...(Object.keys(stop).length === 0 ? {} : { stop }),
-            ...(Object.keys(last).length === 0 ? {} : { last }),
-        };
-    } catch {
+    if (typeof parsed !== "object" || parsed === null) {
         return {};
     }
+
+    const off: unknown = Reflect.get(parsed, "off");
+    const stored: unknown = Reflect.get(parsed, "last");
+    const stops: unknown = Reflect.get(parsed, "stop");
+    const last: Record<string, Ping> = {};
+    const stop: Record<string, number> = {};
+
+    if (typeof stops === "object" && stops !== null) {
+        for (const [session, value] of Object.entries(stops)) {
+            if (typeof value === "number") {
+                stop[session] = value;
+            }
+        }
+    }
+
+    if (typeof stored === "object" && stored !== null) {
+        for (const [session, value] of Object.entries(stored)) {
+            const ping = pingOf(value);
+
+            if (ping !== undefined) {
+                last[session] = ping;
+            }
+        }
+    }
+
+    return {
+        ...(off === true ? { off: true as const } : {}),
+        ...(Object.keys(stop).length === 0 ? {} : { stop }),
+        ...(Object.keys(last).length === 0 ? {} : { last }),
+    };
 }
 
 export async function writeStore(dir: string, store: Stored): Promise<void> {

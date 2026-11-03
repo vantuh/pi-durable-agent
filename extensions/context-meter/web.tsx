@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { tokens } from "@/lib/format.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
@@ -15,17 +16,6 @@ const WARN_ABOVE = 0.7;
 const DANGER_ABOVE = 0.9;
 const ROW =
     "grid grid-cols-[minmax(0,9rem)_1fr_4rem_3rem] items-center gap-3 text-left max-sm:grid-cols-[minmax(0,1fr)_4rem_3rem]";
-
-/** 119, 2.7k, 18k: one decimal below 10k. */
-function compact(count: number): string {
-    if (count < 1000) {
-        return String(count);
-    }
-
-    return count < 10_000
-        ? `${(count / 1000).toFixed(1)}k`
-        : `${String(Math.round(count / 1000))}k`;
-}
 
 const percent = (fill: number): string => `${String(Math.round(fill * 100))}%`;
 
@@ -56,7 +46,7 @@ function Cells({ part, biggest, fold }: { part: Part; biggest: number; fold?: bo
             )}
             <span className="text-faint truncate max-sm:hidden">{part.preview}</span>
             <Share fill={part.tokens / biggest} />
-            <span className="text-muted text-right">{compact(part.tokens)}</span>
+            <span className="text-muted text-right">{tokens(part.tokens)}</span>
         </>
     );
 }
@@ -100,7 +90,7 @@ function Group({ title, unit, parts }: { title: string; unit: string; parts: Par
                 <span className="bg-accent rounded-mark size-2.5 self-center" />
                 {title}
                 <span className="normal-case">{`${String(count)} ${unit}`}</span>
-                <span className="text-ink ml-auto">{compact(total)}</span>
+                <span className="text-ink ml-auto">{tokens(total)}</span>
             </h3>
             {parts.map((part) => (
                 <Row key={part.name} part={part} biggest={biggest} />
@@ -127,8 +117,8 @@ function Popup({ data }: { data: Breakdown }) {
                         <span className="text-faint">context</span>
                         <span className="flex items-center gap-3">
                             <span className="text-ink">
-                                {compact(data.used)}
-                                {data.window > 0 ? ` of ${compact(data.window)}` : ""}
+                                {tokens(data.used)}
+                                {data.window > 0 ? ` of ${tokens(data.window)}` : ""}
                             </span>
                             {data.window > 0 ? (
                                 <>
