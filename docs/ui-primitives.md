@@ -1650,14 +1650,45 @@ finding is fixed in this phase, not just listed.
 
 ### 4.3 The rule, written down
 
-- [ ] Extend the colour rule in `AGENTS.md` (and `docs/conventions.md`) to every design value:
+- [x] Extend the colour rule in `AGENTS.md` (and `docs/conventions.md`) to every design value:
       radius, spacing, font size, line height, shadow, and control height come from the theme by
       name; an arbitrary value needs a reason in the code.
 
 ### 4.4 What changed, in plain words
 
-- [ ] When everything above is done, write a short summary for the person using the app: what
+- [x] When everything above is done, write a short summary for the person using the app: what
       looks and works better, what is new, and what to expect — without implementation detail.
+
+**What changed for you.**
+
+- **One look everywhere.** Buttons, menus, popups, rows, error notes, empty lists, and loading lines
+  are each drawn by one piece now, so the same thing looks and behaves the same in the sidebar, the
+  panels, and every extension. Small mismatches went with it: rows with different gaps, labels
+  lighter than their own hints, an oversized slash-command list, a red line here and a red box there.
+- **Hints that appear at once.** Every icon button explains itself in a themed tooltip on hover and
+  on keyboard focus, instead of the browser's delayed grey label. Send shows its key, `Enter`.
+- **Popups that behave.** Every popup opens on a click, closes on Escape or a click outside, stays
+  inside the screen on a phone, and gives the focus back where it came from. The context meter opens
+  on a click now, like the rest.
+- **The keyboard works throughout.** Every control shows the same accent ring when it has the focus;
+  the appearance choices, the send-mode menu, and the slash-command list move with the arrow keys;
+  confirmations put the focus on the safe answer, and shortcuts stop working behind them.
+- **Safer confirmations.** Deleting a session or a worktree asks in a proper dialog, which waits for
+  the answer and cannot be clicked away by accident.
+- **Screen readers hear more.** Fields have names, errors are announced, meters say their value, and
+  the current folder in the path is marked as current.
+- **Small fixes on the way.** Markdown tables keep their column alignment; an overfull context meter
+  still shows its value; a session hidden by search or opened as a subagent can be renamed; the
+  shadow under popups takes its colour from the theme in every flavour.
+- **Change the theme in one place.** Colours, radii, font sizes, shadows, and the repeated sizes are
+  named once in the theme, so a change there reaches every screen without touching a component. The
+  rule is in `AGENTS.md`, so new code keeps to it.
+
+What to expect: the app looks almost the same — most screens moved by no pixel at all. The visible
+differences are the themed tooltips and focus rings, slightly darker scrims and shadows in the dark
+flavours, a few error lines that became soft red boxes, and the rename form sitting under the row.
+Still open: showing the `hotkeys` bindings in the core's own hints needs a small contract in the sdk
+(4.2's last box), a decision left for later.
 
 ## Repeated elements this plan unifies
 

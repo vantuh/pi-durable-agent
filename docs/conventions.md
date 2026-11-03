@@ -50,6 +50,27 @@ One rule, no exceptions: **a colour comes from the theme or it does not exist.**
   or inline `style` — not in a component, not in a dev page, not in a one-off border.
 - Tailwind's own palette is deleted, so the wrong way does not compile to anything.
 
+## Every other design value
+
+The same rule for the rest of the look, so a change to the theme reaches every screen by itself.
+
+- **Names, not numbers.** Radius (`rounded-control`, `rounded-card`, `rounded-mark`), font size
+  (`text-micro`, `text-meta`, `text-code`, `text-sidebar`, `text-interface`, `text-subheading`,
+  `text-heading`), shadow (`shadow-float`), and the named spacing (`w-stripe`, `min-h-header`) live
+  in `web/src/styles/styles.css`. Other spacing uses Tailwind's scale (`p-3`, `max-w-48`).
+- **A second use earns a name.** A value used twice is added to the theme and to `cn`'s merge config
+  in `web/src/lib/utils.ts`, so a caller's token always replaces a primitive's base. A value used
+  once snaps to the nearest name.
+- **An arbitrary value needs a reason.** Allowed: viewport and container calculations, `lh` heights,
+  `transition-[…]` lists, grid templates, arbitrary selectors, and one component's own measured
+  drawing — the last with a one-line comment saying what it measures.
+- **One focus ring.** A focusable element draws `focus-visible:ring-2 focus-visible:ring-accent`
+  (inset where it fills a scrolling column); a chosen state that must show beside focus uses
+  `inset-ring`.
+- **A shared look has one home.** A primitive in `components/ui/`, a variant or size on it, or a part
+  in `web/src/ui/` (`PANE`, `PaneHeader`, `Toolbar`, `Loading`, `DetailsColumn`, `DetailsNote`). A
+  class string copied into a second file is the mistake this prevents.
+
 ## Who owns what
 
 - **`oxfmt` owns layout.** Nobody argues about spaces, quotes, import order, or Tailwind class
