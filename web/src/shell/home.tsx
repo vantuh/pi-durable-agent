@@ -9,7 +9,7 @@ import { Hint } from "@/components/ui/tooltip";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
-import { sidebarSessions } from "../lib/session-nesting.ts";
+import { sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { newestFirst } from "../lib/session-order.ts";
 import { MINUTE } from "../lib/time.ts";
 import { PANE, PaneHeader } from "../ui/pane.tsx";
@@ -28,10 +28,12 @@ const RECENT = 20;
 function Row({
     session,
     now,
+    working,
     onOpen,
 }: {
     session: SessionSummary;
     now: number;
+    working: number;
     onOpen: (id: number) => void;
 }) {
     return (
@@ -49,6 +51,7 @@ function Row({
                 <SessionRowContent
                     session={session}
                     now={now}
+                    working={working}
                     trailing={<SessionMarks session={session} />}
                 />
             </a>
@@ -121,6 +124,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                                         key={session.id}
                                         session={session}
                                         now={now}
+                                        working={workingChildren(session.id, sessions)}
                                         onOpen={onOpen}
                                     />
                                 ))}

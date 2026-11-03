@@ -75,15 +75,18 @@ export function SessionMarks({ session }: { session: SessionSummary }) {
 export function SessionRowContent({
     session,
     now,
+    working = 0,
     trailing,
 }: {
     session: SessionSummary;
     now: number;
+    /** Sessions started from this one that are working, as in the sidebar. */
+    working?: number;
     trailing?: ReactNode;
 }) {
     return (
         <>
-            <StateMark session={session} />
+            <StateMark session={session} working={working} />
             <ItemContent>
                 <ItemTitle>{session.title ?? "New session"}</ItemTitle>
                 <ItemDescription className="font-mono">{folderName(session.cwd)}</ItemDescription>
