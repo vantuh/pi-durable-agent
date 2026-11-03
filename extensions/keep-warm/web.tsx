@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
+import { tokens } from "@/lib/format.ts";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -21,9 +22,6 @@ import {
 } from "./refs.ts";
 
 const POLL_MS = 60_000;
-
-const tokens = (count = 0) =>
-    count >= 1000 ? `${String(Math.round(count / 1000))}k` : String(count);
 
 /** Local time on a 24-hour dial, as the rest of the app writes it: 21:43, never 09:43 PM. */
 const clock = (at: number) =>
@@ -125,7 +123,7 @@ function Panel({
                         Last ping {ago(warm.last.at)}
                         {failed
                             ? `: ${warm.last.error ?? ""}`
-                            : ` · read ${tokens(warm.last.read)}, wrote ${tokens(warm.last.write)}`}
+                            : ` · read ${tokens(warm.last.read ?? 0)}, wrote ${tokens(warm.last.write ?? 0)}`}
                     </div>
                 )}
                 <div className="pt-1">

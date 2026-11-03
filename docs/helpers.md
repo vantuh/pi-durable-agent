@@ -111,11 +111,21 @@ not a list of every function in the repository.
 
 ### 5.4 Tokens and cost read the same everywhere → `web/src/lib/format.ts`
 
-- [ ] The transcript (`tokens`, `dollars`) and the composer's stats (`compact`, `money`) show the same
+- [x] The transcript (`tokens`, `dollars`) and the composer's stats (`compact`, `money`) show the same
       numbers with different rules; `extensions/context-meter/web.tsx` (`compact`, `percent`) and
-      `extensions/keep-warm/web.tsx` (`tokens`) add two more. One `tokens` and one `cost` in
-      `web/src/lib/format.ts`, the transcript's rules unless a caller shows a reason; every copy
-      replaced.
+      `extensions/keep-warm/web.tsx` (`tokens`) add two more. Done: `web/src/lib/format.ts` holds
+      `tokens` and `cost`, on the transcript's rules with the two things the copies had and everyone
+      wanted — `M` for millions (a context window is a million tokens) and `$0` for nothing spent —
+      and one thing all four disagreed about: a trailing `.0`, so a count of 5000 is `5k`, not `5.0k`.
+      One decimal of k under ten thousand, whole k to a million, and a rounding that reaches the next
+      unit says it there: 999_999 is `1M`, not `1000k`. Prices are `$0`, three decimals under a dollar
+      (`$0.135`), two from it (`$19.84`). Every copy calls them — the transcript, the composer, and
+      `context-meter`, `subagents` and `keep-warm` — and so does a fifth found while doing it,
+      `web/src/composer/model-menu-dialog.tsx`, which printed a model's window as `1000k`.
+      `test/format.test.ts` pins the boundaries. Kept where they were: `percent` stays in
+      `context-meter` (a share of the window, and its two callers are the meter and the readout beside
+      it), `usage-limits` counts percent 0 to 100 rather than 0 to 1, and `tokens-per-second` formats a
+      rate on the server, where `web/src/lib` is out of reach.
 
 ### 5.5 Small browser repeats
 

@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
+import { cost, tokens } from "../lib/format.ts";
 import { readProviderError } from "../lib/provider-error.ts";
 import { splitQuote } from "../lib/quote.ts";
 import { type Item, sameItem, sameTurn, type Turn, turnsOf } from "../lib/turns.ts";
@@ -175,11 +176,6 @@ function LoadingTurn() {
     );
 }
 
-const tokens = (count: number): string =>
-    count < 1000 ? String(count) : `${(count / 1000).toFixed(count < 10_000 ? 1 : 0)}k`;
-
-const dollars = (cost: number): string => `$${cost.toFixed(cost < 1 ? 3 : 2)}`;
-
 /**
  * The answer's statistics, above it: model and thinking level, then context, output, cost and time. Context is the
  * newest response's prompt; output and cost add up every response of the turn. Its hint says it in full.
@@ -201,7 +197,7 @@ function AnswerHeader({ turn }: { turn: Turn }) {
             : [
                   ...(cachedPercent === undefined ? [] : [`↻${String(cachedPercent)}%`]),
                   `↑${tokens(stats.context)} ↓${tokens(stats.output)}`,
-                  ...(stats.cost > 0 ? [dollars(stats.cost)] : []),
+                  ...(stats.cost > 0 ? [cost(stats.cost)] : []),
               ];
     const hint =
         stats === undefined
@@ -215,7 +211,7 @@ function AnswerHeader({ turn }: { turn: Turn }) {
                             `${String(cachedPercent)}% of it came from the cache (${stats.cached.toLocaleString()} tokens)`,
                         ]),
                   `output ${stats.output.toLocaleString()} tokens`,
-                  ...(stats.cost > 0 ? [`cost ${dollars(stats.cost)}`] : []),
+                  ...(stats.cost > 0 ? [`cost ${cost(stats.cost)}`] : []),
               ].join(" · ");
 
     const row = (
