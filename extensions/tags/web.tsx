@@ -1,9 +1,16 @@
-import { Check, Tag, X } from "lucide-react";
+import { Check, ListFilter, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu.tsx";
 import { Empty } from "@/components/ui/empty.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import { toast } from "@/lib/toast.ts";
@@ -83,8 +90,8 @@ function TagsMenu({ session }: SessionItemProps) {
 }
 
 /**
- * The tag filter of the sidebar's list: every session that carries at least one chosen tag. The chips
- * are the control, so they are drawn whether or not anything is chosen, and only when tags exist.
+ * The tag filter of the sidebar's list: every session that carries at least one chosen tag. An icon
+ * beside the archive button opens a checklist; it is drawn only when tags exist.
  */
 function TagFilter({ setMatch }: SessionFilterProps) {
     const state = useTags();
@@ -113,57 +120,62 @@ function TagFilter({ setMatch }: SessionFilterProps) {
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1 px-3 py-2">
-            {tags.map((tag) => {
-                const on = live.includes(tag.id);
-
-                return (
-                    <Hint
-                        key={tag.id}
-                        label={
-                            on ? `${tag.name}: shown, click to stop` : `${tag.name}: click to show`
-                        }
-                    >
-                        {/* A wash of the tag's own hue is the pill, and it stays on hover: ghost's raised fill
-                            would replace it. The focus ring is the app's, not the browser's. */}
-                        <Badge
-                            asChild
-                            className={`rounded-control focus-visible:ring-accent h-auto max-w-24 min-w-0 gap-0.5 border-0 px-1.5 py-0.5 font-sans outline-none hover:brightness-110 focus-visible:ring-2 [&>svg]:size-2.5 ${TAG_TONE[tag.color]}`}
-                        >
-                            <button
-                                type="button"
-                                aria-pressed={on}
-                                onClick={() => {
-                                    setChosen((held) =>
-                                        held.includes(tag.id)
-                                            ? held.filter((each) => each !== tag.id)
-                                            : [...held, tag.id],
-                                    );
-                                }}
-                            >
-                                <span className="truncate">{tag.name}</span>
-                                {on ? <X aria-hidden /> : null}
-                            </button>
-                        </Badge>
-                    </Hint>
-                );
-            })}
-            {live.length === 0 ? null : (
-                <Hint label="Show every tag">
+        <DropdownMenu modal={false}>
+            <Hint
+                label={
+                    live.length === 0 ? "Filter by tag" : `Filtered by ${String(live.length)} tags`
+                }
+            >
+                <DropdownMenuTrigger asChild>
                     <Button
                         variant="ghost"
-                        size="sm"
-                        aria-label="Show every tag"
-                        onClick={() => {
-                            setChosen([]);
-                        }}
-                        className="shrink-0 px-1 py-0 underline-offset-2 hover:underline"
+                        size="icon"
+                        aria-label="Filter by tag"
+                        className={`relative ${live.length === 0 ? "" : "text-accent"}`}
                     >
-                        clear
+                        <ListFilter className="size-4" />
+                        {live.length === 0 ? null : (
+                            <span className="bg-accent text-on-accent text-micro absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full leading-none">
+                                {live.length}
+                            </span>
+                        )}
                     </Button>
-                </Hint>
-            )}
-        </div>
+                </DropdownMenuTrigger>
+            </Hint>
+            <DropdownMenuContent align="end" className="w-56">
+                {tags.map((tag) => (
+                    <DropdownMenuCheckboxItem
+                        key={tag.id}
+                        checked={live.includes(tag.id)}
+                        // Stay open: choosing two tags should not mean opening the menu twice.
+                        onSelect={(event) => {
+                            event.preventDefault();
+                        }}
+                        onCheckedChange={(on) => {
+                            setChosen((held) =>
+                                on ? [...held, tag.id] : held.filter((each) => each !== tag.id),
+                            );
+                        }}
+                    >
+                        <span className={`size-2 shrink-0 rounded-full ${TAG_DOT[tag.color]}`} />
+                        <span className="truncate">{tag.name}</span>
+                    </DropdownMenuCheckboxItem>
+                ))}
+                {live.length === 0 ? null : (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onSelect={() => {
+                                setChosen([]);
+                            }}
+                        >
+                            <X />
+                            Show every tag
+                        </DropdownMenuItem>
+                    </>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

@@ -218,9 +218,9 @@ export type SessionFilterProps = {
 };
 
 /**
- * A filter an extension adds to the sidebar's list. Its component draws the whole control, with its
- * own margins, and sits between the folder scope and the new-session button; nothing is drawn when
- * the extension has nothing to filter by.
+ * A filter an extension adds to the sidebar's list. Its component draws the whole control, and sits in
+ * the list header before the archive button, so an icon button fits; nothing is drawn when the
+ * extension has nothing to filter by.
  */
 export type SessionFilterItem = {
     id: string;

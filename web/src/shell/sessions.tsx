@@ -1137,24 +1137,6 @@ export const Sessions = memo(function Sessions({
                     </DropdownMenu>
                 </div>
 
-                {filters.length === 0 ? null : (
-                    <div className="border-edge-soft border-b">
-                        {filters.map((item) => {
-                            const setMatch = setters.get(item.id);
-                            const Filter = item.component;
-
-                            return setMatch === undefined ? null : (
-                                <ItemBoundary
-                                    key={`${item.folder}:${item.id}`}
-                                    name={`${item.folder}:${item.id}`}
-                                >
-                                    <Filter setMatch={setMatch} />
-                                </ItemBoundary>
-                            );
-                        })}
-                    </div>
-                )}
-
                 <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
                     <div className="relative min-w-0 flex-1">
                         <Button
@@ -1234,23 +1216,40 @@ export const Sessions = memo(function Sessions({
                               ? "Sessions"
                               : `${String(shown.length)} found`}
                     </span>
-                    <Hint label={archived ? "Back to sessions" : "Show archived sessions"}>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={archived ? "Back to sessions" : "Show archived sessions"}
-                            aria-pressed={archived}
-                            onClick={() => {
-                                setArchived(!archived);
-                            }}
-                        >
-                            {archived ? (
-                                <ArrowLeft className="size-4" />
-                            ) : (
-                                <Archive className="size-4" />
-                            )}
-                        </Button>
-                    </Hint>
+                    <div className="flex items-center">
+                        {filters.map((item) => {
+                            const setMatch = setters.get(item.id);
+                            const Filter = item.component;
+
+                            return setMatch === undefined ? null : (
+                                <ItemBoundary
+                                    key={`${item.folder}:${item.id}`}
+                                    name={`${item.folder}:${item.id}`}
+                                >
+                                    <Filter setMatch={setMatch} />
+                                </ItemBoundary>
+                            );
+                        })}
+                        <Hint label={archived ? "Back to sessions" : "Show archived sessions"}>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={
+                                    archived ? "Back to sessions" : "Show archived sessions"
+                                }
+                                aria-pressed={archived}
+                                onClick={() => {
+                                    setArchived(!archived);
+                                }}
+                            >
+                                {archived ? (
+                                    <ArrowLeft className="size-4" />
+                                ) : (
+                                    <Archive className="size-4" />
+                                )}
+                            </Button>
+                        </Hint>
+                    </div>
                 </div>
                 <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">

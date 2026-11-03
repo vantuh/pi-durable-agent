@@ -273,17 +273,17 @@ on the rows at once.
 
 ### Filters in the session list
 
-`web.tsx` may export `sessionFilter: [{ id, component }]`. The component is drawn in the sidebar
-between the folder scope and the new-session button, inside an error boundary, and draws the whole
-control itself, margins included; the extension that has nothing to filter by draws nothing. It gets
+`web.tsx` may export `sessionFilter: [{ id, component }]`. The component is drawn in the sidebar's
+list header, before the archive button, inside an error boundary, and draws the whole control
+itself: an icon button fits the row. The extension that has nothing to filter by draws nothing. It gets
 `setMatch(match)`: the predicate the list keeps, or `null` for every session. Call it from an effect
 or a handler, never while rendering, and only when the answer moved — a new function re-renders the
 list and every row.
 
 The folder scope, the fuzzy search and the archive switch still apply on top, and the counts in the
 folder menu stay as they were: a filter narrows the list, it does not re-count the folders.
-`extensions/tags` draws one chip per tag there, and keeps every session that carries at least one
-chosen tag.
+`extensions/tags` draws a filter icon there that opens a checklist of tags, counts the chosen ones
+on the icon, and keeps every session that carries at least one chosen tag.
 
 ### Options in the new-session picker
 
