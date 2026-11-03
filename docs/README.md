@@ -15,6 +15,7 @@ The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 | [pwa.md](pwa.md)                     | Manifest, icons, and the offline shell worker.             |
 | [conventions.md](conventions.md)     | Every rule, and the mistake it prevents.                   |
 | [ui-primitives.md](ui-primitives.md) | Plan: hand-written controls replaced by shadcn primitives. |
+| [helpers.md](helpers.md)             | Plan: one home for each repeated helper function.          |
 
 Planned, not written yet: `agent.md` (tools, prompt, permissions).
 
