@@ -8,7 +8,6 @@
  * killed the command, every open browser hears about it: the red row is only visible in the session it ran
  * in, which may be a subagent's conversation nobody is looking at.
  */
-import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import { type Context, withCancel } from "@earendil-works/chord/context";
@@ -25,7 +24,13 @@ import {
 } from "@earendil-works/pi-durable";
 import { createBashTool } from "@earendil-works/pi-durable/tools";
 
-import { type Action, ActionError, type Host, writeJsonFile } from "../../server/sdk.ts";
+import {
+    type Action,
+    ActionError,
+    type Host,
+    readJsonFile,
+    writeJsonFile,
+} from "../../server/sdk.ts";
 import {
     DEFAULT_MINUTES,
     FILE,
@@ -160,17 +165,11 @@ export function idleGuard(seconds: number): Wrap {
 
 /** Read on every call, so a save is in force at once; missing or broken means the default. */
 async function minutesOf(dataDir: string): Promise<number> {
-    try {
-        const parsed: unknown = JSON.parse(await readFile(join(dataDir, FILE), "utf8"));
-        const minutes: unknown =
-            typeof parsed === "object" && parsed !== null
-                ? Reflect.get(parsed, "minutes")
-                : undefined;
+    const parsed = await readJsonFile(join(dataDir, FILE));
+    const minutes: unknown =
+        typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "minutes") : undefined;
 
-        return isMinutes(minutes) ? minutes : DEFAULT_MINUTES;
-    } catch {
-        return DEFAULT_MINUTES;
-    }
+    return isMinutes(minutes) ? minutes : DEFAULT_MINUTES;
 }
 
 /** The limit in seconds when the call has to run on it, null when the timeout the model asked for is short enough. */

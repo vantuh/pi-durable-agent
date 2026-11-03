@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { readFileSync } from "node:fs";
 import { promisify } from "node:util";
 
 import {
@@ -10,6 +9,7 @@ import {
     type Tool,
 } from "@earendil-works/pi-mcp";
 
+import { writeJsonFile } from "../../server/sdk.ts";
 import { isRecord, messageOf } from "../../shared/guards.ts";
 import type { McpState, ServerInfo } from "./refs.ts";
 
@@ -86,6 +86,34 @@ function failure(error: unknown): string {
     }
 
     return typeof code === "string" ? `error ${code}` : "unknown failure";
+}
+
+/**
+ * Saving a switch is a read and then a write, so two switches made at once must not both read the
+ * file before either wrote it: the second would drop the first's choice. Saves run one at a time per
+ * state file, across every instance in the process — a reload makes a new `Connections` while the old
+ * one may still be saving. An entry lives only while a save is in flight.
+ */
+const QUEUES = Symbol.for("pi-durable-agent.mcp.queues");
+
+type Queues = Map<string, Promise<unknown>>;
+
+function isQueues(value: unknown): value is Queues {
+    return value instanceof Map;
+}
+
+function queues(): Queues {
+    const found: unknown = Reflect.get(globalThis, QUEUES);
+
+    if (isQueues(found)) {
+        return found;
+    }
+
+    const made: Queues = new Map();
+
+    Reflect.set(globalThis, QUEUES, made);
+
+    return made;
 }
 
 async function transportOf(raw: Raw) {
@@ -181,6 +209,30 @@ export class Connections {
         }
     }
 
+    /**
+     * Saves one switch once the save before it has read and written the file. Only the read and the
+     * write are held: connecting a server can take seconds and must not keep the file waiting.
+     */
+    #saveSwitch(name: string, enabled: boolean): Promise<void> {
+        const all = queues();
+        const save = (all.get(this.#state) ?? Promise.resolve()).then(() =>
+            writeJsonFile(this.#state, { ...this.#saved(), [name]: enabled }),
+        );
+        const tail = save.catch(() => undefined);
+
+        all.set(this.#state, tail);
+        // Only the last save may drop the entry; a later one has replaced it by then.
+        void tail.then(() => {
+            if (all.get(this.#state) === tail) {
+                all.delete(this.#state);
+            }
+
+            return undefined;
+        });
+
+        return save;
+    }
+
     /** Resolves once the connection is up or has failed. */
     async setEnabled(name: string, enabled: boolean): Promise<void> {
         const found = this.#servers().find(([one]) => one === name);
@@ -189,8 +241,7 @@ export class Connections {
             throw new Error(`no MCP server named "${name}"`);
         }
 
-        mkdirSync(dirname(this.#state), { recursive: true });
-        writeFileSync(this.#state, JSON.stringify({ ...this.#saved(), [name]: enabled }));
+        await this.#saveSwitch(name, enabled);
         await this.#drop(name);
 
         if (enabled) {

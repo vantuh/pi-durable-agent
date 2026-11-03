@@ -24,7 +24,8 @@ const MAX_SEEN = 200;
 /**
  * Changes to one file run one after another across every instance in the process. A reload makes a
  * new store while the old one may still be working, and the actions and the listener each hold one.
- * An entry lives only while a change is in flight.
+ * An entry lives only while a change is in flight. The core's writer queues the write alone; here a
+ * change reads the file before it writes, and that read has to wait with it.
  */
 const QUEUES = Symbol.for("pi-durable-agent.push.queues");
 

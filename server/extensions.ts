@@ -5,7 +5,7 @@
  */
 
 import { type FSWatcher, realpathSync, watch } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { registerHooks } from "node:module";
 import { join, sep } from "node:path";
@@ -31,6 +31,7 @@ import type {
 import { isRecord, messageOf } from "../shared/guards.ts";
 import type { ClientStatus, ExtensionNotice } from "../shared/protocol.ts";
 import { writeJsonFile } from "./atomic-write.ts";
+import { readJsonFile } from "./json-file.ts";
 import type { FetchWrapper, RequestShaper, ResolveModelAuth } from "./model-requests.ts";
 
 /**
@@ -846,21 +847,13 @@ export class Extensions {
 
     /** A missing or broken file means every folder is on. */
     async #readDisabled(): Promise<Set<string>> {
-        try {
-            const state: unknown = JSON.parse(
-                await readFile(join(this.#dataDir, STATE_FILE), "utf8"),
-            );
-            const list: unknown =
-                typeof state === "object" && state !== null
-                    ? Reflect.get(state, "disabled")
-                    : undefined;
+        const state = await readJsonFile(join(this.#dataDir, STATE_FILE));
+        const list: unknown =
+            typeof state === "object" && state !== null
+                ? Reflect.get(state, "disabled")
+                : undefined;
 
-            return new Set(
-                Array.isArray(list) ? list.filter((item) => typeof item === "string") : [],
-            );
-        } catch {
-            return new Set();
-        }
+        return new Set(Array.isArray(list) ? list.filter((item) => typeof item === "string") : []);
     }
 
     /** Folders that hold a `server.ts`, in name order. A folder with only web code is not one. */

@@ -6,14 +6,15 @@
  * does not survive one: its address comes back when it opens again, not what was typed on it.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { awaitWithContext } from "@earendil-works/chord/context";
 import { AgentDoc, defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 
-import { ActionError, type Action, type Host } from "../../server/sdk.ts";
+import { ActionError, type Action, type Host, writeJsonFile } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 import { Browsers } from "./lib/browsers.ts";
 import { BrowserError } from "./lib/cdp.ts";
 import type { BrowserPage, LogEntry, Saved, Target } from "./lib/page.ts";
@@ -93,8 +94,16 @@ function required<T>(value: T | undefined, action: string, what: string): T {
     return value;
 }
 
+/** The pages' addresses and sizes, and the write that was asked for last. */
+type SavedStore = {
+    load: (id: number) => Promise<Saved | undefined>;
+    save: (id: number, saved: Saved) => void;
+    /** Resolves once every save handed to `save` is written, or has failed and been logged. */
+    flush: () => Promise<void>;
+};
+
 /** The last address and size of each session, so a page opens where it was. */
-function savedStore(file: string) {
+function savedStore(file: string, log: (line: string) => void): SavedStore {
     let all: Record<string, Saved> = {};
 
     try {
@@ -107,21 +116,29 @@ function savedStore(file: string) {
         all = {};
     }
 
+    /** The last write; the core's writer holds it behind the ones before it, so it stands for all. */
+    let written: Promise<void> = Promise.resolve();
+
     return {
         load: (id: number): Promise<Saved | undefined> => Promise.resolve(all[String(id)]),
         save: (id: number, saved: Saved): void => {
             all[String(id)] = saved;
-            mkdirSync(join(file, ".."), { recursive: true });
-            writeFileSync(file, JSON.stringify(all));
+            // A copy per save: the writer turns the value into text when its turn comes, and `all` has
+            // moved on by then. Called from a page's timer, so a failure is logged and never thrown.
+            written = writeJsonFile(file, { ...all }).catch((error: unknown) => {
+                log(`browser: the open pages were not saved: ${messageOf(error)}`);
+            });
         },
+        flush: () => written,
     };
 }
 
 const instances = new WeakMap<Host, Browsers>();
 
 declare global {
-    // A reload builds a new version of this module; the running Chromium and its pages outlive it.
-    var piDurableBrowser: { browsers: Browsers; version: number } | undefined;
+    // A reload builds a new version of this module; the running Chromium, its pages and the store they
+    // save into outlive it, so the version that stops the browser is the one that waits for the save.
+    var piDurableBrowser: { browsers: Browsers; store: SavedStore; version: number } | undefined;
 }
 
 function browsersOf(host: Host): Browsers {
@@ -135,8 +152,9 @@ function browsersOf(host: Host): Browsers {
 }
 
 export default function createBrowser(host: Host) {
-    const store = savedStore(join(host.dataDir, "browser", "saved.json"));
     const kept = globalThis.piDurableBrowser;
+    // A reload takes the store the running pages save into: a second one would be a file nothing writes.
+    const store = kept?.store ?? savedStore(join(host.dataDir, "browser", "saved.json"), host.log);
     const version = (kept?.version ?? 0) + 1;
     const browsers =
         kept?.browsers ??
@@ -147,13 +165,15 @@ export default function createBrowser(host: Host) {
             log: host.log,
         });
 
-    globalThis.piDurableBrowser = { browsers, version };
+    globalThis.piDurableBrowser = { browsers, store, version };
     instances.set(host, browsers);
     // The old version is disposed after the new one was built: close only when nothing replaced it.
     host.onDispose(async () => {
         if (globalThis.piDurableBrowser?.version === version) {
             globalThis.piDurableBrowser = undefined;
             await browsers.closeAll({ final: true });
+            // The pages saved their last address as they closed, and the server exits right after this.
+            await store.flush();
         }
     });
 

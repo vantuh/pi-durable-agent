@@ -52,16 +52,50 @@ not a list of every function in the repository.
 
 ### 5.2 JSON files through the core's atomic writer
 
-- [ ] The core already exports `writeJsonFile` / `writeFileAtomic` (`server/atomic-write.ts`, through
-      `server/sdk.ts`): temp file, rename, a queue per file, parent folder made. Only `notes` uses it.
-      The other stores write their own way: `dictation/store`, `auto-session-name/store`,
-      `git-worktree/remembered` (own temp + rename, no folder), `usage-limits/settings`,
-      `keep-warm/store`, `push/store` (own queue), `tags/store` (own queue), `mcp/connections`,
-      `browser/server`, and the core's own favourites in `server/routes/files.ts`. Every writer goes
-      through the core's; the private queues that only serialised writes go with it.
-- [ ] Readers: the same "read JSON, fall back" shape repeats, but missing-file and bad-file behaviour
-      differ per store. Add one core reader only if most stores can use it unchanged; otherwise record
-      why they stay.
+- [x] **Writers.** Every JSON file a store keeps is written by `writeJsonFile` / `writeFileAtomic`
+      (`server/atomic-write.ts`, through `server/sdk.ts`): a temporary file beside the target, a rename,
+      a queue per path, the parent folder made. The audit named ten stores; four of them still wrote
+      their own way and are the ones this item changed — `git-worktree/remembered` (its own temp and
+      rename, no folder), `mcp/connections` (`mkdirSync` + `writeFileSync`), `browser/server` (the same,
+      from a page's debounce timer, so a failure now goes to `host.log` instead of nowhere) and the
+      core's favourites in `server/routes/files.ts` (a plain `writeFile`). The other six had been
+      written through the core since they were built and needed nothing: `dictation` and `push`
+      (`0600`), `auto-session-name`, `usage-limits`, `keep-warm`, `tags` — the audit was reading an
+      older tree than the code. Two of the four needed more than the writer. `mcp`'s save stopped
+      being atomic the moment it was awaited: two switches could both read the file before either
+      wrote it, so its read and its write run in one queue of their own (below). `browser`'s save was a
+      promise nobody held, and the server exits right after the extension is disposed, so the store
+      keeps its last write and the disposal awaits it — a page's address was otherwise lost by the
+      exit rather than by the write.
+- [x] Nothing wanted pretty JSON: every one of these files is on disk as one compact line already, so
+      `WriteOptions` gained no `space`, and the only change to what a file holds is the newline
+      `writeJsonFile` appends — no reader looks at bytes. Two writes that are not JSON files stay: an
+      uploaded file (`writeFile(…, { flag: "wx" })`, and the flag is what keeps two uploads of one
+      name apart, which a rename cannot carry) and `subagents` writing a profile's Markdown through
+      `writeFileAtomic`.
+- [x] **Three queues stay, and they are not copies of the core's.** `push/store`, `tags/store` and
+      `mcp/connections` serialise a _change_, not a write: the file is read, changed and written
+      inside the queue, and the core's queue holds the write alone, so the read before it would still
+      race. `mcp` is the one this item added, and it is the item's own trap: the switch had no race
+      while its write was synchronous and no yield sat between the read and it. Each keeps its queue in
+      `globalThis` under a symbol, so a reloaded version waits for the save its old version started,
+      and says why in a line above the queue. No private queue only serialised a write, so none went.
+- [x] **Readers.** `readJsonFile` in `server/json-file.ts`, exported through `server/sdk.ts`, is the
+      read: the value, or `undefined` when the file is missing or does not hold JSON. Anything else —
+      a folder where the file should be, no permission — is thrown, because that is a mistake and not
+      an empty store. Nine files call it and lost their `try { JSON.parse(await readFile(…)) } catch`:
+      `auto-session-name`, `bash-timeout`, `git-worktree`, `hotkeys`, `keep-warm`, `tags`,
+      `usage-limits`, and the core's extensions list and favourites. Their shape checks and fallbacks
+      are unchanged; what changed is that a data file that is there but unreadable is no longer read as
+      empty — a broken store used to look exactly like an empty one.
+- [x] Five reads keep their own, because `undefined` is not an answer they can take: `dictation` and
+      `push` must not replace a file they cannot read (missing means the defaults, broken is an error
+      that leaves every subscription alone, so they still tell the two apart), `mcp`'s config reader
+      reports a broken `mcp.json` in `list`'s `problem`, `browser` reads synchronously while its store
+      is built and handed to a running Chromium, and `notes` must seed a missing to-do list from the
+      note while a broken one is an error. Outside the stores, `usage-limits` reads Codex CLI's own
+      `~/.codex/auth.json`, where any failure at all means "no Codex usage" and a throw would surface
+      as a provider error.
 
 ### 5.3 The dictation extension's HTTP helpers
 
@@ -89,8 +123,9 @@ not a list of every function in the repository.
   handling, and no shared home without a core git API nobody else needs.
 - **Processes, timers, cancellation**: each is shaped by its task (build output, Chromium's lifetime,
   Kiro's process group, the bash idle guard); one helper would hide the differences that matter.
-- **Safe `JSON.parse`**: the request body, SSE frames, browser storage, and each store treat bad JSON
-  differently on purpose.
+- **Safe `JSON.parse`**: the request body (`server/http.ts` answers 400), SSE frames, and browser
+  storage each treat bad JSON on purpose, and `dictation`, `push`, `mcp`, `browser` and `notes` keep
+  their own read of a store's file for the reasons under 5.2.
 - **Browser persistence** (sidebar and panel widths, sidebar height, enum preferences): keys, fallbacks,
   and side effects differ; a generic storage wrapper would hide them.
 - **Relative time in `subagents`**: it runs on the server, where `web/src/lib/time.ts` is out of reach,

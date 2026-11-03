@@ -1,11 +1,10 @@
 /** App-wide keyboard shortcuts: a prefix key, then a letter, and shift with the arrows. */
 
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import type { Action, Host } from "../../server/sdk.ts";
+import { type Action, type Host, readJsonFile } from "../../server/sdk.ts";
 import { mergeKeymap, type Keymap } from "./lib.ts";
 
 export const meta = {
@@ -20,11 +19,7 @@ export default function hotkeys(host: Host) {
 
 /** A missing or broken file means the defaults. */
 export async function readKeymap(dir: string): Promise<Keymap> {
-    try {
-        return mergeKeymap(JSON.parse(await readFile(join(dir, "hotkeys.json"), "utf8")));
-    } catch {
-        return mergeKeymap(undefined);
-    }
+    return mergeKeymap(await readJsonFile(join(dir, "hotkeys.json")));
 }
 
 export const actions = (host: Host): Record<string, Action> => ({

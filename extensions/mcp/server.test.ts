@@ -121,6 +121,33 @@ void describe("mcp connections", () => {
         }
     });
 
+    void it("keeps both of two switches made at once", async () => {
+        const first = new Connections(config, state, () => undefined);
+
+        try {
+            // Neither switch waits for the other: the second must read what the first wrote.
+            await Promise.all([first.setEnabled("sleeper", true), first.setEnabled("echo", false)]);
+        } finally {
+            await first.close();
+        }
+
+        const second = new Connections(config, state, () => undefined);
+
+        await second.start();
+
+        try {
+            assert.deepEqual(
+                second.list().servers.map(({ name, status }) => [name, status]),
+                [
+                    ["echo", "off"],
+                    ["sleeper", "connected"],
+                ],
+            );
+        } finally {
+            await second.close();
+        }
+    });
+
     void it("shows a server that cannot start as an error, and a broken file as a problem", async () => {
         await writeFile(
             config,

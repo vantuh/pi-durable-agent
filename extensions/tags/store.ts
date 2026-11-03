@@ -4,10 +4,9 @@
  * cannot put a name on a session that no longer exists.
  */
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { ActionError, writeJsonFile } from "../../server/sdk.ts";
+import { ActionError, readJsonFile, writeJsonFile } from "../../server/sdk.ts";
 import {
     FALLBACK_COLOR,
     isTagColor,
@@ -23,6 +22,8 @@ const FILE = "tags.json";
  * Changes to one file run one after another across every instance in the process: a reload makes a
  * new module while the old one may still be writing, and the two would read the same file, so the
  * later write would drop the earlier one's change. An entry lives only while a change is in flight.
+ * The core's writer queues the write alone; here a change reads the file before it writes, and that
+ * read has to wait with it.
  */
 const QUEUES = Symbol.for("pi-durable-agent.tags.queues");
 
@@ -81,13 +82,7 @@ function tagFrom(value: unknown): Tag | undefined {
 }
 
 export async function readTags(dir: string): Promise<TagsState> {
-    let parsed: unknown;
-
-    try {
-        parsed = JSON.parse(await readFile(join(dir, FILE), "utf8"));
-    } catch {
-        return { tags: [], sessions: {} };
-    }
+    const parsed = await readJsonFile(join(dir, FILE));
 
     if (typeof parsed !== "object" || parsed === null) {
         return { tags: [], sessions: {} };

@@ -3,8 +3,9 @@
  * worktree, so git can no longer say which repository its sessions belong under.
  */
 
-import { readFile, rename, writeFile } from "node:fs/promises";
 import { join, sep } from "node:path";
+
+import { readJsonFile, writeJsonFile } from "../../server/sdk.ts";
 
 const FILE = "git-worktree.json";
 
@@ -28,15 +29,7 @@ export function mainOfRemembered(remembered: Remembered, cwd: string): string | 
 
 /** Nothing for a file that is missing or holds something else. */
 export async function readRemembered(dataDir: string): Promise<Remembered> {
-    const text = await readFile(join(dataDir, FILE), "utf8").catch(() => "");
-    let parsed: unknown;
-
-    try {
-        parsed = JSON.parse(text);
-    } catch {
-        return new Map();
-    }
-
+    const parsed = await readJsonFile(join(dataDir, FILE));
     const rows = new Map<string, string>();
 
     if (typeof parsed === "object" && parsed !== null) {
@@ -62,9 +55,5 @@ export async function rememberWorktree(
 
     rows.set(worktree, main);
 
-    const target = join(dataDir, FILE);
-    const temp = `${target}.tmp`;
-
-    await writeFile(temp, JSON.stringify(Object.fromEntries(rows)), "utf8");
-    await rename(temp, target);
+    await writeJsonFile(join(dataDir, FILE), Object.fromEntries(rows));
 }
