@@ -383,7 +383,7 @@ const SessionRow = memo(function SessionRow({
                                 className="text-left"
                             >
                                 <StateMark session={session} working={working} />
-                                <ItemTitle className={`text-meta min-w-0 flex-1 ${FADE}`}>
+                                <ItemTitle className={`min-w-0 flex-1 font-sans ${FADE}`}>
                                     {segments(session.title ?? "New session", ranges).map(
                                         (part, index) => (
                                             <span
