@@ -18,7 +18,7 @@ type ProgressProps = Omit<ComponentProps<typeof ProgressPrimitive.Root>, "value"
 
 /**
  * shadcn's progress on the theme's roles: the raised track, and an indicator filled to `value` the way the
- * hand-written meters were, by width. The meter's size (height, width, radius) is the caller's className and
+ * hand-written meters were, by width. The meter's size (height, width) is the caller's className and
  * its name is the caller's `aria-label`, because every host labels its meter with its own words.
  *
  * The root is a span through `asChild`: most hosts are a button or a span, which take phrasing content only. The
@@ -40,7 +40,7 @@ export function Progress({
         <ProgressPrimitive.Root value={filled} max={max} asChild {...props}>
             <span
                 data-slot="progress"
-                className={cn("bg-raised flex h-1 overflow-hidden rounded-full", className)}
+                className={cn("bg-raised flex h-1 overflow-hidden", className)}
             >
                 <ProgressPrimitive.Indicator asChild>
                     <span

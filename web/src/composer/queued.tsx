@@ -68,7 +68,7 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                         key={item.id}
                         asChild
                         size="sm"
-                        className="rounded-card border-edge bg-raised relative items-start gap-1.5 overflow-hidden border pr-1 pl-3"
+                        className="border-edge bg-raised relative items-start gap-1.5 overflow-hidden border pr-1 pl-3"
                     >
                         <li>
                             <span

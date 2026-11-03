@@ -30,8 +30,8 @@ const SIGN = {
 } as const;
 
 const CHANGED = {
-    add: "bg-ok/25 rounded-mark",
-    del: "bg-danger/25 rounded-mark",
+    add: "bg-ok/25",
+    del: "bg-danger/25",
     ctx: "",
 } as const;
 

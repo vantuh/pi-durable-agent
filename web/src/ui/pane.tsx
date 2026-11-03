@@ -3,13 +3,12 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * The frame every box in the app wears: the theme's card radius and a 1px soft border. The fill is the
- * caller's, because it is the box's own job — a shell region is `bg-canvas`, a card `bg-panel`, a code
- * surface `bg-sunken` — and so are the room, the position and the animation. That is why this is a class
- * and not a component: the seven regions are two `aside`s, three `section`s and a `footer`, and two of
- * them are class strings chosen by state.
+ * The frame every box inside a region wears: a square 1px soft border. The fill is the caller's, because
+ * it is the box's own job — a card `bg-panel`, a code surface `bg-sunken` — and so are the room, the
+ * position and the animation. The shell regions do not wear it: they touch, so each carries one rule on
+ * the side it shares (`border-r` sidebar, `border-l` panel and settings, `border-t` status bar).
  */
-export const PANE = "rounded-card border-edge-soft border";
+export const PANE = "border-edge-soft border";
 
 /**
  * The row at the top of a pane: a title on the left, its actions on the right, a rule under it, 47px

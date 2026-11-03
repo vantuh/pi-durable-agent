@@ -96,10 +96,7 @@ function FlavourGrid() {
                         <span className="text-interface text-ink capitalize">{flavour}</span>
                         <span data-preview={flavour} className="flex gap-1" aria-hidden="true">
                             {DOTS.map((dot) => (
-                                <span
-                                    key={dot}
-                                    className={`size-3 rounded-full ${DOT_CLASS[dot]}`}
-                                />
+                                <span key={dot} className={`size-3 ${DOT_CLASS[dot]}`} />
                             ))}
                         </span>
                     </ToggleGroupItem>
@@ -135,7 +132,7 @@ function WidthPicker() {
                     applyWidth(width);
                     setActive(width);
                 }}
-                className="rounded-control bg-sunken flex shrink-0 p-0.5"
+                className="bg-sunken flex shrink-0 p-0.5"
             >
                 {WIDTH_NAMES.map((width) => (
                     <ToggleGroupItem key={width} value={width} className="px-2 py-1 capitalize">
@@ -173,7 +170,7 @@ function DiffLayoutPicker() {
                     applyDiffLayout(layout);
                     setActive(layout);
                 }}
-                className="rounded-control bg-sunken flex shrink-0 p-0.5"
+                className="bg-sunken flex shrink-0 p-0.5"
             >
                 {DIFF_LAYOUTS.map((layout) => (
                     <ToggleGroupItem key={layout} value={layout} className="px-2 py-1">
@@ -200,13 +197,13 @@ function Preview({ flavour }: { flavour: Flavour }) {
         <span
             data-preview={flavour}
             aria-hidden="true"
-            className="rounded-control border-edge-soft bg-canvas flex h-16 gap-1 overflow-hidden border"
+            className="border-edge-soft bg-canvas flex h-16 gap-1 overflow-hidden border"
         >
             <span className="bg-sunken w-1/4" />
             <span className="flex flex-1 flex-col justify-center gap-1.5 p-1.5">
-                <span className="bg-ink h-1 w-4/5 rounded-full" />
-                <span className="bg-muted h-1 w-3/5 rounded-full" />
-                <span className="bg-accent h-2 w-1/3 rounded-full" />
+                <span className="bg-ink h-1 w-4/5" />
+                <span className="bg-muted h-1 w-3/5" />
+                <span className="bg-accent h-2 w-1/3" />
             </span>
         </span>
     );

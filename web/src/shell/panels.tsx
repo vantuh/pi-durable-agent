@@ -16,7 +16,7 @@ import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
 import type { PanelProps, StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
-import { PANE, PaneHeader } from "../ui/pane.tsx";
+import { PaneHeader } from "../ui/pane.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 
@@ -184,15 +184,15 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
             className="group absolute inset-y-0 -left-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
             {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
-            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
+            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
         </button>
     );
 }
 
-const DRAWER = `${PANE} bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
+const DRAWER = `border-edge-soft bg-panel fixed inset-0 border-l z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
 // Expanded, the panel takes the conversation's place, exactly the box the page frame takes, and the same
 // fade. The drawer's width no longer applies: the row's own left offset does.
-const OVER = `${PANE} bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto`;
+const OVER = `border-edge-soft bg-panel fixed inset-0 border-l z-20 flex min-w-0 flex-col animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto`;
 const COLUMN = "lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0";
 
 /**

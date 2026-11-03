@@ -26,7 +26,7 @@ function toneOf(fill: number): "accent" | "warn" | "danger" {
 /** A share of the biggest row, not a value on its way to full: the row's numbers beside it are what it says. */
 function Share({ fill }: { fill: number }) {
     return (
-        <span className="bg-raised flex h-1 overflow-hidden rounded-full" aria-hidden>
+        <span className="bg-raised flex h-1 overflow-hidden" aria-hidden>
             <span className="bg-accent" style={{ width: percent(Math.min(1, fill)) }} />
         </span>
     );
@@ -87,7 +87,7 @@ function Group({ title, unit, parts }: { title: string; unit: string; parts: Par
     return (
         <section className="flex flex-col gap-1">
             <h3 className="text-faint flex items-baseline gap-2 uppercase">
-                <span className="bg-accent rounded-mark size-2.5 self-center" />
+                <span className="bg-accent size-2.5 self-center" />
                 {title}
                 <span className="normal-case">{`${String(count)} ${unit}`}</span>
                 <span className="text-ink ml-auto">{tokens(total)}</span>

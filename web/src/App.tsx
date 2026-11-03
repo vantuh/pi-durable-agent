@@ -363,9 +363,9 @@ export function App() {
     });
 
     return (
-        <div className="bg-sunken flex h-full flex-col gap-2 p-2">
+        <div className="bg-sunken flex h-full flex-col">
             {/* Positioned: a panel that fills the conversation measures its place from this row. */}
-            <div className="relative flex min-h-0 flex-1 items-stretch gap-2">
+            <div className="relative flex min-h-0 flex-1 items-stretch">
                 <Sessions
                     sessions={sessions}
                     current={current}
@@ -385,7 +385,7 @@ export function App() {
                 <main
                     data-slot="conversation"
                     inert={panelExpanded}
-                    className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-w-80"
+                    className="bg-canvas relative flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-80"
                 >
                     {current === null ? (
                         <Home
@@ -401,7 +401,7 @@ export function App() {
                     ) : (
                         <>
                             <div
-                                className={`flex min-h-0 flex-1 flex-col gap-2 ${pageOpen || panelExpanded ? "invisible" : ""}`}
+                                className={`flex min-h-0 flex-1 flex-col ${pageOpen || panelExpanded ? "invisible" : ""}`}
                                 inert={pageOpen || panelExpanded}
                             >
                                 <Transcript

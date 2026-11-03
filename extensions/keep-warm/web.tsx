@@ -143,7 +143,7 @@ function Panel({
                                                 onClose();
                                             }
                                         }}
-                                        className="text-muted hover:text-ink rounded-control focus-visible:ring-accent min-w-0 flex-1 truncate outline-none hover:underline focus-visible:ring-2"
+                                        className="text-muted hover:text-ink focus-visible:ring-accent min-w-0 flex-1 truncate outline-none hover:underline focus-visible:ring-2"
                                     >
                                         {row.label}
                                     </a>

@@ -34,7 +34,7 @@ export function Button({
 }: ButtonProps) {
     const classes = cn(
         // The weight is stated, not inherited: a ghost button sits inside text of every weight.
-        "rounded-control focus-visible:ring-accent inline-flex items-center justify-center gap-1.5 font-normal outline-none focus-visible:ring-2 disabled:opacity-50",
+        "focus-visible:ring-accent inline-flex items-center justify-center gap-1.5 font-normal outline-none focus-visible:ring-2 disabled:opacity-50",
         VARIANTS[variant],
         SIZES[size],
         className,

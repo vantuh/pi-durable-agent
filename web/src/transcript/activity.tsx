@@ -159,12 +159,12 @@ function Mark({
                 : undefined;
 
     return (
-        <span className="bg-canvas ring-canvas relative shrink-0 rounded-full ring-3">
+        <span className="bg-canvas ring-canvas relative shrink-0 ring-3">
             {/* Not a step: 19px is what puts this mark's centre on the timeline rule, 13px in at 22.5. */}
             <span
                 {...(label === undefined ? {} : { "aria-label": label, role: "img" })}
                 className={cn(
-                    "grid size-[19px] place-items-center rounded-full",
+                    "grid size-[19px] place-items-center",
                     tone === "done" && tool !== undefined && WARN_TOOLS.has(tool)
                         ? "bg-warn/15 text-warn"
                         : MARK_TONES[tone],
@@ -182,7 +182,7 @@ function Mark({
 
 function Pre({ children, tone }: { children: string; tone?: "danger" }) {
     return (
-        <ScrollArea className="rounded-control bg-sunken" viewportProps={{ className: "max-h-72" }}>
+        <ScrollArea className="bg-sunken" viewportProps={{ className: "max-h-72" }}>
             <pre
                 className={cn(
                     "text-meta px-2.5 py-2 font-mono whitespace-pre-wrap break-all",
@@ -203,7 +203,7 @@ function argsText(name: string, args: unknown): string {
 
 function ThoughtBody({ text }: { text: string }) {
     return (
-        <p className="rounded-control border-spark/30 bg-sunken text-tool text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
+        <p className="border-spark/30 bg-sunken text-tool text-muted border-l-2 px-3 py-2.5 whitespace-pre-wrap italic">
             {text}
         </p>
     );

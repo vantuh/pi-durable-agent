@@ -74,7 +74,6 @@ import { focusComposer } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { CommandKeys } from "../ui/command-keys.tsx";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
-import { PANE } from "../ui/pane.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
@@ -232,7 +231,7 @@ function ResizeHandle() {
             className="group absolute inset-y-0 -right-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
             {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
-            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
+            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
         </button>
     );
 }
@@ -367,7 +366,7 @@ const SessionRow = memo(function SessionRow({
                     <div
                         ref={attach}
                         data-holds-open={holding ? "" : undefined}
-                        className={`session-row group rounded-control relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
+                        className={`session-row group relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
                     >
                         <Item asChild className="min-w-0 flex-1">
                             <a
@@ -390,9 +389,7 @@ const SessionRow = memo(function SessionRow({
                                             <span
                                                 key={`${String(index)}-${part.text}`}
                                                 className={
-                                                    part.hit
-                                                        ? "bg-warn/30 text-ink rounded-mark"
-                                                        : undefined
+                                                    part.hit ? "bg-warn/30 text-ink" : undefined
                                                 }
                                             >
                                                 {part.text}
@@ -1007,15 +1004,15 @@ export const Sessions = memo(function Sessions({
     });
 
     return (
-        // 38px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the card's two 1px borders.
+        // 37px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the 1px border.
         <aside
             ref={shell}
             data-collapsed={collapsed ? "" : undefined}
-            className={`group/side ${PANE} bg-canvas shrink-0 flex-col in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[38px] ${
-                sheet ? "fixed inset-2 z-30 flex" : "hidden"
+            className={`group/side border-edge-soft bg-panel shrink-0 flex-col border-r in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[37px] ${
+                sheet ? "fixed inset-0 z-30 flex" : "hidden"
             }`}
         >
-            <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-1.5">
                     {/* The rail has room for one button: there the logo expands, and shows it on hover. */}
                     <Hint label="Expand sidebar">
@@ -1100,10 +1097,7 @@ export const Sessions = memo(function Sessions({
                         }}
                     >
                         <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start rounded-none px-3 py-2"
-                            >
+                            <Button variant="ghost" className="w-full justify-start px-3 py-2">
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
                                     {scope}

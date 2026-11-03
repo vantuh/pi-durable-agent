@@ -62,7 +62,7 @@ function Rows({
                             <Item
                                 asChild
                                 size="sm"
-                                className="text-muted hover:bg-raised w-full gap-1 rounded-none py-0.5 text-left focus-visible:ring-inset"
+                                className="text-muted hover:bg-raised w-full gap-1 py-0.5 text-left focus-visible:ring-inset"
                             >
                                 <button
                                     type="button"
@@ -85,7 +85,7 @@ function Rows({
                             <Item
                                 asChild
                                 size="sm"
-                                className="hover:bg-raised w-full gap-1.5 rounded-none py-0.5 text-left focus-visible:ring-inset"
+                                className="hover:bg-raised w-full gap-1.5 py-0.5 text-left focus-visible:ring-inset"
                             >
                                 <button
                                     type="button"

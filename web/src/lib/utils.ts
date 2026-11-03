@@ -3,7 +3,7 @@ import { extendTailwindMerge } from "tailwind-merge";
 
 /**
  * The theme's own names: unknown to tailwind-merge, `text-meta` would be read as a colour and lost
- * beside `text-muted`, and `rounded-control` would lose to a base `rounded-full`.
+ * beside `text-muted`.
  */
 const twMerge = extendTailwindMerge({
     extend: {
@@ -19,7 +19,6 @@ const twMerge = extendTailwindMerge({
                 "subheading",
                 "heading",
             ],
-            radius: ["control", "card", "mark"],
             shadow: ["float"],
             spacing: ["stripe", "header"],
         },

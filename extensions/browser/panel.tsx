@@ -512,9 +512,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                 ) : null}
             </Toolbar>
 
-            {problem === null ? null : (
-                <Alert className="rounded-none px-3 py-1.5">{problem}</Alert>
-            )}
+            {problem === null ? null : <Alert className="px-3 py-1.5">{problem}</Alert>}
 
             {page?.open === true ? (
                 <Stage id={id} shot={shot} onError={setError} />

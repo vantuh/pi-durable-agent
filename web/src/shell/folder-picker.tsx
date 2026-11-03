@@ -252,7 +252,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         </Button>
                     </Hint>
 
-                    <Breadcrumb className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-1.5 font-mono">
+                    <Breadcrumb className="bg-sunken text-meta flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-1.5 font-mono">
                         <BreadcrumbList>
                             {trail.map((crumb, at) => (
                                 <Fragment key={crumb.path}>
@@ -301,7 +301,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         </nav>
                     </ScrollArea>
 
-                    <ScrollArea className="rounded-control border-edge-soft min-h-0 flex-1 border">
+                    <ScrollArea className="border-edge-soft min-h-0 flex-1 border">
                         <div className="p-1">
                             {error ? (
                                 <Alert>Cannot read that folder.</Alert>
@@ -419,7 +419,7 @@ function Row({
             <button
                 type="button"
                 onClick={onClick}
-                className="rounded-control focus-visible:ring-accent min-w-0 flex-1 text-left outline-none focus-visible:ring-2"
+                className="focus-visible:ring-accent min-w-0 flex-1 text-left outline-none focus-visible:ring-2"
             >
                 <span className="block truncate">{label}</span>
             </button>

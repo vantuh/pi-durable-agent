@@ -6,10 +6,7 @@ export function Skeleton({ className, ...props }: ComponentProps<"div">) {
     return (
         <div
             data-slot="skeleton"
-            className={cn(
-                "bg-raised animate-pulse rounded-control motion-reduce:animate-none",
-                className,
-            )}
+            className={cn("bg-raised animate-pulse motion-reduce:animate-none", className)}
             {...props}
         />
     );

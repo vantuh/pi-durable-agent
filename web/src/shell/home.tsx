@@ -12,7 +12,7 @@ import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { newestFirst } from "../lib/session-order.ts";
 import { MINUTE } from "../lib/time.ts";
-import { PANE, PaneHeader } from "../ui/pane.tsx";
+import { PaneHeader } from "../ui/pane.tsx";
 import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
@@ -86,7 +86,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
     ];
 
     return (
-        <section className={`${PANE} bg-canvas flex min-h-0 flex-1 flex-col`}>
+        <section className="bg-canvas flex min-h-0 flex-1 flex-col">
             <PaneHeader className="gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                     <Hint label="Sessions">

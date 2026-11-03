@@ -96,9 +96,7 @@ In `styles.css`, next to the roles, so no component invents its own:
 - `--shadow-float` (`shadow-float`): Tailwind's `lg` geometry — `0 10px 15px -3px` and
   `0 4px 6px -4px` — in `--role-shadow`. Every surface that floats over the app wears it, so a
   popup, a tooltip, a menu and a toast cast the same shadow in every flavour;
-- `--radius-control: 6px` (a button, an input, a tooltip, a popup), `--radius-card: 10px` (a
-  pane, a card, a toast) and `--radius-mark: 2px` (a highlight behind a run of characters: a diff's
-  added or removed line, a search hit, a legend's dot);
+- no radius: every corner is square, so the theme has no `--radius-*` names;
 - two spacing names, for the lengths more than one component draws: `--spacing-stripe: 3px`
   (`w-stripe`: the accent mark down the side of a queued message and of a subagent's card) and
   `--spacing-header: 45px` (`min-h-header`: a pane header's floor, in the transcript and in a page).

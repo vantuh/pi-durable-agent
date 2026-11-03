@@ -11,7 +11,7 @@ export function Kbd({ className, ...props }: ComponentProps<"kbd">) {
         <kbd
             data-slot="kbd"
             className={cn(
-                "bg-ink/20 text-muted text-meta rounded-control pointer-events-none inline-flex h-5 min-w-5 shrink-0 items-center justify-center px-1.5 font-mono font-medium select-none",
+                "bg-ink/20 text-muted text-meta pointer-events-none inline-flex h-5 min-w-5 shrink-0 items-center justify-center px-1.5 font-mono font-medium select-none",
                 className,
             )}
             {...props}

@@ -38,7 +38,7 @@ function SessionTags({ session }: SessionItemProps) {
                 <Badge
                     key={tag.id}
                     title={tag.name}
-                    className={`rounded-control h-auto max-w-20 truncate border-0 px-1 py-0.5 font-sans ${TAG_TONE[tag.color]}`}
+                    className={`h-auto max-w-20 truncate border-0 px-1 py-0.5 font-sans ${TAG_TONE[tag.color]}`}
                 >
                     {/* The name is its own box, because `truncate` clips a badge's anonymous text child
                         without an ellipsis; the badge keeps its own so `max-w-20` still wins. */}
@@ -83,7 +83,7 @@ function TagsMenu({ session }: SessionItemProps) {
             }}
         >
             <Check className={held.has(tag.id) ? "size-4" : "size-4 opacity-0"} />
-            <span className={`size-2 shrink-0 rounded-full ${TAG_DOT[tag.color]}`} />
+            <span className={`size-2 shrink-0 ${TAG_DOT[tag.color]}`} />
             <span className="truncate">{tag.name}</span>
         </DropdownMenuItem>
     ));
@@ -135,7 +135,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                     >
                         <ListFilter className="size-4" />
                         {live.length === 0 ? null : (
-                            <span className="bg-accent text-on-accent text-micro absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full leading-none">
+                            <span className="bg-accent text-on-accent text-micro absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center leading-none">
                                 {live.length}
                             </span>
                         )}
@@ -157,7 +157,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                             );
                         }}
                     >
-                        <span className={`size-2 shrink-0 rounded-full ${TAG_DOT[tag.color]}`} />
+                        <span className={`size-2 shrink-0 ${TAG_DOT[tag.color]}`} />
                         <span className="truncate">{tag.name}</span>
                     </DropdownMenuCheckboxItem>
                 ))}

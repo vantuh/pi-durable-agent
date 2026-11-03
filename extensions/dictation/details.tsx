@@ -39,7 +39,7 @@ const LABELS: Record<Language, string> = { auto: "Auto", en: "English", uk: "Ukr
 
 /** The same box for all three fields: the shell draws them this way everywhere. */
 const FIELD =
-    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2";
+    "border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2";
 
 type Option = { value: string; label: string };
 

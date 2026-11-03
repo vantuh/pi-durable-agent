@@ -146,7 +146,7 @@ function GitBadge({ session }: StatusProps) {
                             size="sm"
                             aria-label="Push commits"
                             aria-disabled={!canPush || pushing}
-                            className="border-edge text-accent hover:text-accent -mr-1 h-5 gap-1 rounded-full border px-1.5 aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
+                            className="border-edge text-accent hover:text-accent -mr-1 h-5 gap-1 border px-1.5 aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
                         >
                             {pushing ? (
                                 <LoaderCircle className="size-3 animate-spin" />
@@ -188,7 +188,7 @@ function GitBadge({ session }: StatusProps) {
                 </div>
                 {confirm ? (
                     <Button
-                        className="mt-3 rounded-full"
+                        className="mt-3"
                         onClick={() => {
                             void doPush();
                         }}

@@ -29,7 +29,7 @@ export function DialogContent({
             <DialogPrimitive.Content
                 data-slot="dialog-content"
                 className={cn(
-                    "bg-canvas border-edge-soft text-ink fixed inset-0 z-50 flex flex-col outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[80dvh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-card sm:border",
+                    "bg-canvas border-edge-soft text-ink fixed inset-0 z-50 flex flex-col outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[80dvh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:border",
                     className,
                 )}
                 {...props}

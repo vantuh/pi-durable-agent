@@ -101,7 +101,7 @@ function Chip({
     return (
         <Badge
             asChild
-            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:ring-accent rounded-control gap-2 py-1 font-sans no-underline outline-none focus-visible:ring-2`}
+            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:ring-accent gap-2 py-1 font-sans no-underline outline-none focus-visible:ring-2`}
         >
             <a
                 href={href}
@@ -124,7 +124,7 @@ function Chip({
                 {/* Not a step: 70px holds a folder's last segment, and keeps it shorter than the name beside it. */}
                 {elsewhere ? (
                     <span
-                        className="text-faint bg-raised border-edge-soft rounded-control text-micro hidden max-w-[70px] truncate border px-1 sm:inline"
+                        className="text-faint bg-raised border-edge-soft text-micro hidden max-w-[70px] truncate border px-1 sm:inline"
                         aria-hidden
                     >
                         {agent.cwd

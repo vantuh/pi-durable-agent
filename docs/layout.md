@@ -1,32 +1,29 @@
 # Layout
 
-Floating panels with a gap between them, on a darker page, and one status bar underneath. This
-is the shape we settled on after the mockup: cards with gaps, not flush columns — the gaps are what
-tell a panel from the page.
+Flush panels, one 1px rule between them, and one flat status bar underneath. Brutalist on purpose:
+no gaps, no rounded corners, no shadows on the shell.
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ page: bg-sunken, 8px padding, 8px gaps                                       │
-│ ┌────────────────┐ ┌───────────────────────────────────────┐ ┌────────────┐  │
-│ │ Sessions       │ │ Session name            ⎇ branch       │ │ (Settings  │  │
-│ │ 264px, drag    │ ├───────────────────────────────────────┤ │ sheet over │  │
-│ │ folder pill    │ │ transcript  (the only scroller)        │ │ the app,   │  │
-│ │ list of rows   │ │                                        │ │ 360px)     │  │
-│ │                │ ├───────────────────────────────────────┤ │            │  │
-│ │                │ │ composer                               │ │            │  │
-│ └────────────────┘ └───────────────────────────────────────┘ └────────────┘  │
-│ ┌──────────────────────────────────────────────────────────────────────────┐ │
-│ │ ● ready  ~/project  ⎇ main          model            ↑in ↓out · $cost ⚙ │ │
-│ └──────────────────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌────────────────┬───────────────────────────────────────┬────────────┐
+│ Sessions       │ Session name            ⎇ branch       │ (Settings  │
+│ 264px, drag    ├───────────────────────────────────────┤ sheet over │
+│ folder pill    │ transcript  (the only scroller)        │ the app,   │
+│ list of rows   │                                        │ 360px)     │
+│                ├───────────────────────────────────────┤            │
+│                │ composer                               │            │
+├────────────────┴───────────────────────────────────────┴────────────┤
+│ ● ready  ~/project  ⎇ main          model            ↑in ↓out · $cost ⚙ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-The roles, top down: page `sunken`, panels `canvas`, anything inside a panel that must stand out
-(`raised`): the selected session row, a person's message, a hover on a control. Borders are
-`edge-soft` inside a panel and never on the page. See [theme.md](theme.md).
+The roles, top down: the conversation `canvas`; the sidebar, the right panel, the settings sheet and
+the status bar `panel`; anything inside that must stand out (`raised`): the selected session row, a
+person's message, a hover on a control. Regions are separated by one `edge-soft` rule on the side
+they share: `border-r` on the sidebar, `border-l` on the panel and the sheet, `border-t` on the
+status bar. See [theme.md](theme.md).
 
-Every pane wears one frame — `rounded-card`, a 1px `edge-soft` border, and the fill its job picks —
-and a pane's header is one row: a title on the left, its actions on the right, a rule under it. Both
+A box inside a region (a card, a code block, a dialog) wears one frame — a square 1px `edge-soft`
+border, and the fill its job picks — and a pane's header is one row: a title on the left, its actions on the right, a rule under it. Both
 are named once, in `web/src/ui/pane.tsx` (`PANE`, `PaneHeader`); positioning, width, drag and
 animation stay with the caller. The transcript's header and a page's are the other row: the two-line
 `min-h-header` with `py-0.5`.
@@ -191,7 +188,7 @@ The gear at the right end of the status bar opens a sheet from the right edge, o
 sidebar and the conversation keep their width, a scrim (`sunken` at 70%, the dialogs' own) dims them,
 and a click on the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear
 stays raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm`
-up; below `sm` it fills the screen inside the 8px gaps. It is a `Sheet`
+up; below `sm` it fills the screen. It is a `Sheet`
 (`components/ui/sheet.tsx`, over the dialog primitive) that is unmounted when closed, so its sections
 read afresh at each open. Under its sections is a footer row with two icon
 buttons: a puzzle ("Extensions") that opens a modal to turn extensions on and off

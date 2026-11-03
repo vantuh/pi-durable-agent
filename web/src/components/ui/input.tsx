@@ -12,7 +12,7 @@ export function Input({ className, type, ...props }: ComponentProps<"input">) {
             type={type}
             data-slot="input"
             className={cn(
-                "rounded-control border-edge bg-sunken text-ink text-interface placeholder:text-faint focus-visible:ring-accent h-8 w-full min-w-0 border px-2 py-1 outline-none focus-visible:ring-2 disabled:opacity-50",
+                "border-edge bg-sunken text-ink text-interface placeholder:text-faint focus-visible:ring-accent h-8 w-full min-w-0 border px-2 py-1 outline-none focus-visible:ring-2 disabled:opacity-50",
                 "aria-invalid:border-danger aria-invalid:ring-danger/40",
                 className,
             )}

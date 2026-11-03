@@ -211,7 +211,7 @@ function MicButton({ field, setText }: ComposerProps) {
             >
                 <Mic className="size-4" />
                 {mode === "recording" ? (
-                    <span className="rounded-control border-danger pointer-events-none absolute inset-0 animate-ping border motion-reduce:hidden" />
+                    <span className="border-danger pointer-events-none absolute inset-0 animate-ping border motion-reduce:hidden" />
                 ) : null}
             </Button>
         </Hint>

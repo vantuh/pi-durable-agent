@@ -6,7 +6,6 @@ import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
-import { PANE } from "../ui/pane.tsx";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
 import { SessionsStatus } from "./sessions-status.tsx";
 
@@ -57,11 +56,11 @@ export const StatusBar = memo(function StatusBar({
 
     return (
         <footer
-            className={`${PANE} bg-canvas text-meta text-muted grid h-8 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden px-3`}
+            className={`border-edge-soft bg-panel text-meta text-muted grid h-7 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border-t px-3`}
         >
             <div className="flex min-w-0 items-center gap-3">
                 <SessionsStatus sessions={sessions} current={current} onOpen={onOpen}>
-                    <span className={`size-2 rounded-full ${toneOf(tone)}`} />
+                    <span className={`size-2 ${toneOf(tone)}`} />
                     <span className={tone === "danger" ? "text-danger" : "text-ink"}>{label}</span>
                 </SessionsStatus>
 

@@ -55,7 +55,7 @@ export function ScrollBar({
             )}
             {...props}
         >
-            <ScrollAreaPrimitive.ScrollAreaThumb className="bg-edge hover:bg-faint relative flex-1 rounded-full transition-colors" />
+            <ScrollAreaPrimitive.ScrollAreaThumb className="bg-edge hover:bg-faint relative flex-1 transition-colors" />
         </ScrollAreaPrimitive.ScrollAreaScrollbar>
     );
 }

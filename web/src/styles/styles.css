@@ -126,10 +126,6 @@
     --color-code-function: var(--role-code-function);
     --color-code-punctuation: var(--role-code-punctuation);
 
-    --radius-control: 6px;
-    --radius-card: 10px;
-    --radius-mark: 2px;
-
     /* The two lengths more than one component draws: the accent stripe's thickness, and the floor of a pane header. */
     --spacing-stripe: 3px;
     --spacing-header: 45px;
@@ -402,7 +398,6 @@ body {
     flex: none;
     width: 8px;
     height: 8px;
-    border-radius: 1.5px;
 }
 
 .state-mark.idle {
@@ -425,7 +420,6 @@ body {
     left: 0;
     width: var(--q);
     height: var(--q);
-    border-radius: 1px;
 }
 
 /* The four dim quadrants: one square and three shadows of it. */
