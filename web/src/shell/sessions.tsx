@@ -383,7 +383,7 @@ const SessionRow = memo(function SessionRow({
                                 className="text-left"
                             >
                                 <StateMark session={session} working={working} />
-                                <ItemTitle className={`min-w-0 flex-1 ${FADE}`}>
+                                <ItemTitle className={`text-meta min-w-0 flex-1 ${FADE}`}>
                                     {segments(session.title ?? "New session", ranges).map(
                                         (part, index) => (
                                             <span
@@ -1260,7 +1260,7 @@ export const Sessions = memo(function Sessions({
                                 <div key={group}>
                                     <Separator
                                         decorative={false}
-                                        className={`mx-2 mt-1 mb-0.5 w-auto ${FADE} ${FOLD}`}
+                                        className={`mx-2 mt-1 mb-0.5 w-auto [:first-child>&]:hidden ${FADE} ${FOLD}`}
                                     />
                                     <div
                                         className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE} ${FOLD}`}
