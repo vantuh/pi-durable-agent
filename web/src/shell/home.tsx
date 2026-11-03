@@ -86,7 +86,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
     ];
 
     return (
-        <section className="bg-canvas flex min-h-0 flex-1 flex-col font-mono">
+        <section className="bg-canvas flex min-h-0 flex-1 flex-col">
             <PaneHeader className="gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                     <Hint label="Sessions">

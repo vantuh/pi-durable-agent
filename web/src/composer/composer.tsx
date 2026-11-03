@@ -707,7 +707,7 @@ export const Composer = memo(function Composer({
                     />
                 </ScrollArea>
 
-                <div className="mt-1.5 flex items-center gap-1.5 font-mono">
+                <div className="mt-1.5 flex items-center gap-1.5">
                     <Hint label="Attach a file">
                         <Button
                             variant="ghost"

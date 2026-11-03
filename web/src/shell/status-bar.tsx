@@ -56,7 +56,7 @@ export const StatusBar = memo(function StatusBar({
 
     return (
         <footer
-            className={`border-edge-soft bg-panel text-meta text-muted grid h-7 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border-t px-3 font-mono`}
+            className={`border-edge-soft bg-panel text-meta text-muted grid h-7 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border-t px-3`}
         >
             <div className="flex min-w-0 items-center gap-3">
                 <SessionsStatus sessions={sessions} current={current} onOpen={onOpen}>

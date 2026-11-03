@@ -552,7 +552,7 @@ export function Transcript({
 
     return (
         <section className="bg-canvas flex min-h-0 flex-1 flex-col">
-            <header className="border-edge-soft min-h-header flex items-center justify-between gap-3 border-b px-3 py-0.5 font-mono">
+            <header className="border-edge-soft min-h-header flex items-center justify-between gap-3 border-b px-3 py-0.5">
                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                     <Hint label="Sessions">
                         <Button

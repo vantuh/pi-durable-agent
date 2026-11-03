@@ -25,7 +25,7 @@ export const SessionMeta = memo(function SessionMeta({
     openSession: (id: number) => void;
 }) {
     return (
-        <div className="text-meta flex h-6 shrink-0 flex-wrap items-center justify-center gap-x-3 overflow-hidden px-1 font-mono [&>*]:h-6">
+        <div className="text-meta flex h-6 shrink-0 flex-wrap items-center justify-center gap-x-3 overflow-hidden px-1 [&>*]:h-6">
             <StatusItems
                 slot="composer"
                 session={session}

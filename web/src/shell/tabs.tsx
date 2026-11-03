@@ -76,10 +76,7 @@ export function ExtensionTabs({
     onPage: (key: string) => void;
 }): ReactNode {
     return (
-        <nav
-            aria-label="Extensions"
-            className="flex min-w-0 flex-1 gap-1 overflow-x-auto font-mono"
-        >
+        <nav aria-label="Extensions" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
             {panels.map((item) => {
                 const key = panelKey(item);
 
