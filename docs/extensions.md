@@ -157,6 +157,9 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   session, the item does not). That is how an item counts something across sessions, such as the
   working agents of every parent, in the `start`, `center` or `end` slot of the status bar.
 - `component` must be a plain function component; a `memo` or `forwardRef` object is rejected.
+- `order` places an item among the others of its slot: lower first, unset is `0`, and the folder
+  still decides among equals. `extensions/caveman` and `extensions/ponytail` both set `1`, so their
+  two chips stand together at the end of the bar's items, in folder order.
 - Modules load after the first render, each on its own: the app renders while they load. A module that
   throws at top level, fails to import, or has a bad shape is skipped with a `console.error` that
   names the folder; the others still load. A second item with the same `id` in one folder is skipped

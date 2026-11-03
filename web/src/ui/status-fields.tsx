@@ -25,13 +25,17 @@ export const StatusItems = memo(function StatusItems({
 }) {
     const statusItems = useStatusItems();
 
-    return statusItems
-        .filter((item) => item.slot === slot)
-        .map(({ folder, id, component: Item }) => (
-            <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
-                <Item session={session} sessions={sessions} openSession={openSession} />
-            </ItemBoundary>
-        ));
+    return (
+        statusItems
+            .filter((item) => item.slot === slot)
+            // Lower first, and `filter` kept the folders' order for equals: the sort is stable.
+            .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+            .map(({ folder, id, component: Item }) => (
+                <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+                    <Item session={session} sessions={sessions} openSession={openSession} />
+                </ItemBoundary>
+            ))
+    );
 });
 
 /** One field a server half sent. Below `sm` an `end` field is hidden, and a `center` one loses its label. */

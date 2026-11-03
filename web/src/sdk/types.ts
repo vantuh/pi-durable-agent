@@ -29,6 +29,11 @@ export type StatusItem = {
     id: string;
     /** The same places as a server field's `slot`. */
     slot: ClientStatus["slot"];
+    /**
+     * Where it sits among the items of that place: lower first, and the folder still decides among
+     * equals. Unset is `0`, so an item that sets it moves after or before the rest on purpose.
+     */
+    order?: number;
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
     component: ComponentType<StatusItemProps>;
 };
