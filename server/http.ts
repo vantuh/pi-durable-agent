@@ -23,7 +23,18 @@ export type Route = {
     ) => Promise<void> | void;
 };
 
-export function readBytes(request: IncomingMessage): Promise<Buffer> {
+/** A failure that names the status its answer takes; `answerError` answers with it. */
+export class HttpError extends Error {
+    readonly status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+    }
+}
+
+/** The request's body, refused past `limit` bytes: a route that takes a bigger one names its own limit. */
+export function readBytes(request: IncomingMessage, limit = MAX_BODY): Promise<Buffer> {
     return new Promise((done, reject) => {
         const chunks: Buffer[] = [];
         let size = 0;
@@ -31,9 +42,9 @@ export function readBytes(request: IncomingMessage): Promise<Buffer> {
         request.on("data", (chunk: Buffer) => {
             size += chunk.length;
 
-            if (size > MAX_BODY) {
+            if (size > limit) {
                 request.destroy();
-                reject(new Error("body is too large"));
+                reject(new HttpError(413, "body is too large"));
 
                 return;
             }
@@ -50,15 +61,15 @@ export function readBytes(request: IncomingMessage): Promise<Buffer> {
 /** A body is read once per request: a route parses its own, and the caller after the route asks again. */
 const bodies = new WeakMap<IncomingMessage, Promise<unknown>>();
 
-/** The parsed body, or `undefined` for an empty one. */
-export function readJson(request: IncomingMessage): Promise<unknown> {
+/** The parsed body, or `undefined` for an empty one; a body past `limit` bytes is refused unread. */
+export function readJson(request: IncomingMessage, limit = MAX_BODY): Promise<unknown> {
     const known = bodies.get(request);
 
     if (known !== undefined) {
         return known;
     }
 
-    const body = parseJson(request);
+    const body = parseJson(request, limit);
 
     bodies.set(request, body);
 
@@ -70,8 +81,8 @@ export function readBody(request: IncomingMessage): Promise<unknown> | undefined
     return bodies.get(request);
 }
 
-async function parseJson(request: IncomingMessage): Promise<unknown> {
-    const text = (await readBytes(request)).toString("utf8");
+async function parseJson(request: IncomingMessage, limit: number): Promise<unknown> {
+    const text = (await readBytes(request, limit)).toString("utf8");
 
     if (text === "") {
         return undefined;
@@ -80,7 +91,7 @@ async function parseJson(request: IncomingMessage): Promise<unknown> {
     try {
         return JSON.parse(text);
     } catch {
-        throw new Error("body is not JSON");
+        throw new HttpError(400, "body is not JSON");
     }
 }
 
@@ -201,11 +212,13 @@ export function answer(
     response.end(gzipped ?? text);
 }
 
-/** 404 for something unknown, 400 for bad input, 500 for any other failure. */
+/** 404 for something unknown, 400 for bad input, the `HttpError`'s own status, 500 for any other failure. */
 export function answerError(response: ServerResponse, error: unknown, fallback: string): void {
     const message = error instanceof Error ? error.message : fallback;
 
-    if (error instanceof ActionNotFound) {
+    if (error instanceof HttpError) {
+        answer(response, error.status, { error: message });
+    } else if (error instanceof ActionNotFound) {
         answer(response, 404, { error: message });
     } else if (error instanceof ActionError || error instanceof URIError) {
         answer(response, 400, { error: message });

@@ -168,6 +168,43 @@ void describe("parts", () => {
     });
 });
 
+void describe("the routes", () => {
+    void it("answers 400 for a body that is not JSON, the core's reader refusing it", async () => {
+        const dir = await tempDir("dictation-routes");
+        const routes = http(hostOf(dir, []));
+        const server = createServer((request, response) => {
+            void routes({ request, response, path: request.url ?? "/" });
+        });
+
+        await new Promise<void>((resolve) => {
+            server.listen(0, "127.0.0.1", resolve);
+        });
+
+        const address = server.address();
+
+        assert.ok(address !== null && typeof address !== "string");
+
+        try {
+            const response = await fetch(`http://127.0.0.1:${String(address.port)}/audio`, {
+                method: "POST",
+                body: "{not json",
+            });
+            const payload = recordOf(JSON.parse(await response.text()));
+
+            assert.equal(response.status, 400, "a body it cannot read is bad input, not a failure");
+            assert.equal(payload?.["error"], "body is not JSON");
+        } finally {
+            await new Promise<void>((resolve) => {
+                server.close(() => {
+                    resolve();
+                });
+                server.closeAllConnections();
+            });
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+});
+
 void describe("the settings", () => {
     let dir: string;
     let store: DictationStore;

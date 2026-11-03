@@ -99,9 +99,15 @@ not a list of every function in the repository.
 
 ### 5.3 The dictation extension's HTTP helpers
 
-- [ ] `extensions/dictation/http.ts` restates `readJson`, `answer`, and `answerError` from
-      `server/http.ts`, with a 4 MiB body limit and its own `HttpError`. Use the core's through
-      `server/sdk.ts` (a body limit as a parameter if the core needs one), or record why it stays.
+- [x] `extensions/dictation/http.ts` restated `readJson`, `answer`, and `answerError` from
+      `server/http.ts`, with a 4 MiB body limit and its own `HttpError`. Done: the file is gone, and the
+      routes call the core's `readJson` (the limit is now a parameter, `MAX_BODY` staying the 100 MB
+      default), `answer` and `answerError` through `server/sdk.ts`. The one thing the core could not say
+      was a status of someone else's choosing, so `server/http.ts` gained `HttpError` — a message and a
+      status — and `answerError` answers with it ahead of `ActionNotFound` and `ActionError`; a route
+      that catches its own body errors names the status it wants. Dictation's statuses are the ones it
+      had (200, 413, 400, 404, 503); the two body refusals now carry the core's wording, and a test
+      covers the 400 that had none.
 
 ### 5.4 Tokens and cost read the same everywhere → `web/src/lib/format.ts`
 
