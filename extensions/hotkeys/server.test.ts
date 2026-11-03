@@ -4,10 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { parseHTML } from "linkedom";
+
 import {
     COMMANDS,
     DEFAULT_KEYMAP,
     fieldKeeps,
+    inDialog,
     mergeKeymap,
     ownsKeys,
     parseBinding,
@@ -203,6 +206,21 @@ void test("a field that opted into the shell's keys lets the session arrows thro
     // The prefix arms there too, as it does in any other field.
     assert.equal(fieldKeeps(composer, DEFAULT_KEYMAP, ctrlA), false);
     assert.equal(step(DEFAULT_KEYMAP, false, ctrlA).armed, true);
+});
+
+void test("a dialog owns the keyboard, an alert dialog too", () => {
+    const { document } = parseHTML(`
+        <div role="dialog"><button id="in-dialog"></button></div>
+        <div role="alertdialog"><button id="in-alert"></button></div>
+        <button id="outside"></button>
+    `);
+    const at = (id: string) => document.querySelector(`#${id}`);
+
+    assert.equal(inDialog(at("in-dialog")), true);
+    // A confirmation is an alert dialog: the shell's keys must not fire behind one either.
+    assert.equal(inDialog(at("in-alert")), true);
+    assert.equal(inDialog(at("outside")), false);
+    assert.equal(inDialog(null), false);
 });
 
 void test("a held prefix does not arm", () => {

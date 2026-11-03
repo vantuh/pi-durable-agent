@@ -6,7 +6,7 @@ import { callAction } from "@/sdk/actions.ts";
 import { runCommand } from "@/sdk/commands.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { DEFAULT_KEYMAP, fieldKeeps, step, type Keymap } from "./lib.ts";
+import { DEFAULT_KEYMAP, fieldKeeps, inDialog, step, type Keymap } from "./lib.ts";
 import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
@@ -47,8 +47,10 @@ function Hotkeys() {
 
             // A dialog owns the keyboard; a field keeps what it types but not the prefix, which has to
             // reach `step` so the shell arms from anywhere. Only a prefix already pressed carries on.
-            const dialog = focus !== null && focus.closest('[role="dialog"]') !== null;
-            if (!armed && (dialog || (target !== null && fieldKeeps(target, map, event)))) {
+            if (
+                !armed &&
+                (inDialog(focus) || (target !== null && fieldKeeps(target, map, event)))
+            ) {
                 return;
             }
 

@@ -8,10 +8,6 @@ export function AlertDialog(props: ComponentProps<typeof AlertDialogPrimitive.Ro
     return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }
 
-export function AlertDialogTrigger(props: ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
-    return <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />;
-}
-
 /**
  * The dialog's overlay and card, sized to a question: a dialog fills the screen below `sm` because it
  * holds a body, while two answers keep their margins and stay centred at every width.
@@ -27,16 +23,19 @@ export function AlertDialogContent({
                 data-slot="alert-dialog-overlay"
                 className="bg-sunken/70 fixed inset-0 z-50"
             />
-            <AlertDialogPrimitive.Content
-                data-slot="alert-dialog-content"
-                className={cn(
-                    "bg-canvas border-edge-soft text-ink fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[calc(100%-1rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-card border shadow-lg outline-none",
-                    className,
-                )}
-                {...props}
-            >
-                {children}
-            </AlertDialogPrimitive.Content>
+            {/* The card's margins are the frame's: the screen inside one inset, whichever width it is. */}
+            <div className="fixed inset-0 z-50 grid place-items-center p-2">
+                <AlertDialogPrimitive.Content
+                    data-slot="alert-dialog-content"
+                    className={cn(
+                        "bg-canvas border-edge-soft text-ink relative flex max-h-full w-full max-w-md flex-col overflow-y-auto rounded-card border shadow-lg outline-none",
+                        className,
+                    )}
+                    {...props}
+                >
+                    {children}
+                </AlertDialogPrimitive.Content>
+            </div>
         </AlertDialogPrimitive.Portal>
     );
 }

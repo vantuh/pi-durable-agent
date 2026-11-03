@@ -7,10 +7,6 @@ export function Sheet(props: ComponentProps<typeof DialogPrimitive.Root>) {
     return <DialogPrimitive.Root data-slot="sheet" {...props} />;
 }
 
-export function SheetTrigger(props: ComponentProps<typeof DialogPrimitive.Trigger>) {
-    return <DialogPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
-}
-
 /** A close where the caller wants it: the sheet draws no button of its own. */
 export function SheetClose(props: ComponentProps<typeof DialogPrimitive.Close>) {
     return <DialogPrimitive.Close data-slot="sheet-close" {...props} />;

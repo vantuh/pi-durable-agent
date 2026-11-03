@@ -39,6 +39,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Item, ItemTitle } from "@/components/ui/item";
@@ -68,6 +69,7 @@ import { cwdsOf, type FolderRow, folderRows, rowOf } from "../lib/session-folder
 import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
+import { focusComposer } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
@@ -668,6 +670,12 @@ export const Sessions = memo(function Sessions({
         [],
     );
     const [renaming, setRenaming] = useState<number | null>(null);
+    // The rename form lives in the row's popover, so a session the list draws no row for — one started
+    // from another, or one the folder, archive or search filter hides — is renamed in a dialog instead,
+    // and while that dialog is open no row opens its own: one form, one `#rename-session`.
+    const [unanchored, setUnanchored] = useState(false);
+    // The fallback has no trigger, so Radix has nothing to hand the focus back to: it remembers instead.
+    const renameReturn = useRef<HTMLElement | null>(null);
     const shell = useRef<HTMLElement | null>(null);
     // The rows on screen, so `session.rename` can bring its row into view before opening the form.
     const rowNodes = useRef(new Map<number, HTMLDivElement>());
@@ -679,6 +687,7 @@ export const Sessions = memo(function Sessions({
         }
     }, []);
     const startRename = useCallback((target: SessionSummary): void => {
+        setUnanchored(false);
         setRenaming(target.id);
     }, []);
 
@@ -686,7 +695,14 @@ export const Sessions = memo(function Sessions({
         const target = sessions.find((session) => session.id === current);
 
         if (target !== undefined) {
-            rowNodes.current.get(target.id)?.scrollIntoView({ block: "nearest" });
+            const row = rowNodes.current.get(target.id);
+
+            row?.scrollIntoView({ block: "nearest" });
+            renameReturn.current =
+                row === undefined && document.activeElement instanceof HTMLElement
+                    ? document.activeElement
+                    : null;
+            setUnanchored(row === undefined);
             setRenaming(target.id);
         }
     });
@@ -1275,7 +1291,7 @@ export const Sessions = memo(function Sessions({
                                             menu={menu}
                                             running={running}
                                             pending={pending}
-                                            renaming={renaming === session.id}
+                                            renaming={renaming === session.id && !unanchored}
                                             registerRow={registerRow}
                                             onOpen={openRow}
                                             onRunItem={runMenuItem}
@@ -1301,6 +1317,51 @@ export const Sessions = memo(function Sessions({
                     openSession={onSelect}
                 />
             </div>
+
+            {unanchored && renaming !== null ? (
+                <Dialog
+                    open
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            stopRenaming();
+                        }
+                    }}
+                >
+                    <DialogContent
+                        aria-describedby={undefined}
+                        className="bg-panel text-meta sm:max-w-sm"
+                        onCloseAutoFocus={(event) => {
+                            event.preventDefault();
+
+                            const back = renameReturn.current;
+
+                            if (back !== null && back.isConnected) {
+                                back.focus();
+
+                                return;
+                            }
+
+                            // What held it is gone: the composer takes the caret when there is one.
+                            focusComposer();
+                        }}
+                    >
+                        <DialogHeader>
+                            <DialogTitle>Rename session</DialogTitle>
+                        </DialogHeader>
+                        <div className="p-3">
+                            <RenameForm
+                                id={renaming}
+                                name={
+                                    sessions.find((session) => session.id === renaming)?.name ?? ""
+                                }
+                                pending={pending}
+                                onSave={saveName}
+                                onCancel={stopRenaming}
+                            />
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            ) : null}
 
             {collapsed ? null : <ResizeHandle />}
         </aside>

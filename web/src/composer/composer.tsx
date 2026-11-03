@@ -548,7 +548,7 @@ export const Composer = memo(function Composer({
                                     <span className="text-ink shrink-0 font-mono">
                                         {candidate.label}
                                     </span>
-                                    <span className="text-faint min-w-0 truncate text-[11px]">
+                                    <span className="text-faint text-meta min-w-0 truncate">
                                         {candidate.description}
                                     </span>
                                 </CommandItem>

@@ -224,15 +224,18 @@ export function PanelHost({
         setWidth(savedWidth(id), null);
     }, [id]);
 
-    // Escape gives the conversation back, as it does for a dialog. A dialog of its own keeps the key:
-    // one Escape closes one thing.
+    // Escape gives the conversation back, as it does for a dialog. A dialog of its own keeps the key,
+    // a confirmation included: one Escape closes one thing.
     useEffect(() => {
         if (!expanded) {
             return undefined;
         }
 
         const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape" && document.querySelector('[role="dialog"]') === null) {
+            if (
+                event.key === "Escape" &&
+                document.querySelector('[role="dialog"], [role="alertdialog"]') === null
+            ) {
                 setExpanded(false);
             }
         };

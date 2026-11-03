@@ -202,6 +202,14 @@ export function fieldKeeps(target: Field, keymap: Keymap, event: KeyEvent): bool
     return ownsKeys(target) && !arms(keymap, event) && target.closest(SHELL_KEYS) === null;
 }
 
+// A confirmation is an alert dialog, which is a dialog to the keyboard as well as to the screen reader.
+const DIALOG = '[role="dialog"], [role="alertdialog"]';
+
+/** Whether the focus is inside a dialog: the shell's keys must not fire behind one. */
+export function inDialog(focus: { closest(selector: string): object | null } | null): boolean {
+    return focus !== null && focus.closest(DIALOG) !== null;
+}
+
 /** One key press: idle, the prefix arms, and the next key runs a command or cancels. */
 export function step(keymap: Keymap, armed: boolean, event: KeyEvent): Step {
     const prefix = parseBinding(keymap.prefix, "prefix");

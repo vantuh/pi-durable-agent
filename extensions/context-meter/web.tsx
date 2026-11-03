@@ -116,7 +116,7 @@ function Popup({ data }: { data: Breakdown }) {
         <PopoverContent
             side="top"
             aria-label="Context breakdown"
-            className="w-[min(40rem,calc(100vw-1rem))] p-0 font-mono"
+            className="w-160 max-w-(--radix-popper-available-width) p-0 font-mono"
         >
             {/* The cap sits on the viewport: a card capped by max-height gives the area no height to fill. */}
             <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>

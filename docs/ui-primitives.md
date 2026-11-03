@@ -511,8 +511,9 @@ Collision-aware placement, outside-click and Escape, focus return.
       outside click close; focus returns), and no `HoverCard`. Gone: the `onMouseEnter`/`onMouseLeave`
       wrapper, `onFocus`/`onBlur`/`onClick` and the `rect`/`left`/`bottom` math with `POPUP_WIDTH` and
       `GAP`. The frame is the primitive's now, so `bg-canvas` and `rounded-card` went with it and the
-      card is `bg-panel` like the menu family; the width is the caller's
-      (`w-[min(40rem,calc(100vw-1rem))]`) and the rows, the folds and the `max-h-[70vh]` scroll area are
+      card is `bg-panel` like the menu family; the width is the caller's (`w-160`, capped by the
+      primitive's `max-w-(--radix-popper-available-width)`: 40rem on a desktop, the viewport inside the
+      8px collision padding on a phone) and the rows, the folds and the `max-h-[70vh]` scroll area are
       unchanged. The keyboard can reach the folds now: focus enters the popup, whose first stop is the
       first fold.
 - [x] `web/src/shell/sessions.tsx:1130–1182` — rename form. The row is the `PopoverAnchor` and the
@@ -525,7 +526,11 @@ Collision-aware placement, outside-click and Escape, focus return.
       `form.current`, `absolute inset-x-2`, `lg:left-full`, the ref callback that focused on every
       render and the field's own Escape handler. Placement is `bottom`/`start`: under the row, where
       flip can move it above one near the bottom of the window — `right` cannot, because Radix shifts
-      a popover only on its own axis and a row 4px from the screen edge holds no room for 256px.
+      a popover only on its own axis and a row 4px from the screen edge holds no room for 256px. The
+      row is where the form lives, so a session the list draws no row for — one started from another,
+      or one a folder, archive or search filter hides — gets the same `RenameForm` in a `Dialog`
+      instead: `session.rename` anchors the popover when the row is on screen and opens the dialog
+      when it is not, and the id it renames is the open session's, never the parent's.
 - [x] `web/src/composer/composer.tsx:726–739` — the model chip stays a `Button` that opens the dialog,
       and the model menu stays a `Dialog`. It is not a popup: `ModelMenu` is two tabs, a search field,
       a list of every model of every provider, a thinking-level picker and per-row add, remove and
@@ -578,9 +583,11 @@ Collision-aware placement, outside-click and Escape, focus return.
       and `overflow-hidden` and the list scrolls inside it, because the border moved from the
       scrolling element to the frame and the 256px cap had to stay on the frame to keep the height.
       Look: a 15px mono name in a 34.5px row was larger than every other menu's, which is `text-meta`
-      in `px-3 py-2`. The row takes the family's sizes — a 12px mono name, an 11px faint description,
-      `px-3 py-2` — and measures 34px, 12px, 12/8/8 padding, exactly what a `DropdownMenuItem` in the
-      sidebar's row menu measures. The frame and the `max-h-64` cap are unmoved, so 7.5 rows show
+      in `px-3 py-2`. The row takes the family's sizes — a 12px mono name, a 12px faint description
+      (`text-meta`, the smallest size the theme names), `px-3 py-2` — and measures 34px, 12px, 12/8/8
+      padding, exactly what a `DropdownMenuItem` in the sidebar's row menu measures. The description
+      was 11px by hand and is 12px now: its line box grew 1.5px and its baseline stayed where it was,
+      so the row is the same 34. The frame and the `max-h-64` cap are unmoved, so 7.5 rows show
       instead of 7.4.
 
 ### 3.4 AlertDialog (new)
@@ -593,8 +600,8 @@ Collision-aware placement, outside-click and Escape, focus return.
       too. `Action` and `Cancel` are our `Button` through `asChild`, `danger` and `ghost` unless the
       caller says otherwise. A caller whose answer waits calls `event.preventDefault()`: `Action` is
       the primitive's `Close`, so without it the question would close on the click and not on the
-      answer. `Trigger` is exported with the rest of the family; neither site opens one from a
-      trigger.
+      answer. `Trigger` was exported with the rest of the family and had no caller: neither site opens
+      one from a trigger, so it went.
 - [x] `web/src/shell/sessions.tsx:1184–1220` — delete confirmation; keep the pending state. The row
       mounts its own `AlertDialog` beside its rename popover, because the actions trigger that has to
       take the focus back is there: `onCloseAutoFocus` preventDefaults and focuses it, the one line
@@ -617,7 +624,7 @@ Collision-aware placement, outside-click and Escape, focus return.
 
 ### 3.5 Sheet (new)
 
-- [x] Add `components/ui/sheet.tsx` on top of the dialog primitive: `Sheet`, `SheetTrigger`,
+- [x] Add `components/ui/sheet.tsx` on top of the dialog primitive: `Sheet`,
       `SheetClose`, `SheetContent`, `SheetTitle`. The overlay is `dialog.tsx`'s, slot and all, so the
       scrim fades with the 150ms the dialog's does. `SheetContent` draws no button of its own, where
       the shadcn sheet carries an X in a corner: the settings sheet keeps its close in its header
@@ -627,8 +634,9 @@ Collision-aware placement, outside-click and Escape, focus return.
       with `right` only, the one caller's edge; `top`, `bottom` and `left` wait for a caller.
       `SheetHeader`, `SheetDescription` and `SheetFooter` are not exported: the settings header is its
       own row with the close button in it, it has no description, and its footer belongs to
-      `settings-content.tsx`. `SheetTrigger` has no caller yet either — the gear that opens the sheet
-      is outside it, which is why the sheet still states its own return-focus target.
+      `settings-content.tsx`. `SheetTrigger` had no caller either — the gear that opens the sheet
+      is outside it, which is why the sheet still states its own return-focus target — and it went
+      with `AlertDialogTrigger`.
 - [x] `web/src/shell/settings.tsx:20–60` — direct Radix Dialog → Sheet; keep the explicit
       return-focus target. The header's close is a `Button` already, and is a `SheetClose asChild`
       inside the same `Hint`. Unmoved: 360×744 at (912, 8) at 1280×800 and 374×828 at (8, 8) at
@@ -1161,7 +1169,8 @@ Explicit labels instead of placeholders, `aria-invalid` and error text tied to t
       control, `htmlFor` on the label, the `id` on the hint or the error and the `aria-describedby` on
       the control. A `Field` that wired it would have to reach into its children to find the control,
       which is what context is for and what eight call sites do not pay for. `peer-disabled:opacity-50`
-      is on `Label` and applies nowhere yet: no control carries `peer`.
+      was on `Label` and applied nowhere: no control carries `peer`. It went in `737a2e7`, so the
+      dimming is not waiting for a caller that would have to opt in twice.
 - [x] `web/src/composer/composer.tsx:586` — `aria-label="Message"`. The field stays the hand-written
       textarea under [Kept custom](#kept-custom), so a `sr-only` label would add a node to the card
       and say the same word. Unmoved: `289,633.5,974,45`.
