@@ -1,11 +1,21 @@
 import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
 import { Item } from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 import type { NewSessionCollected } from "@/sdk/types.ts";
@@ -242,29 +252,31 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         </Button>
                     </Hint>
 
-                    <div className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2 py-1.5 font-mono">
-                        {trail.map((crumb, at) => (
-                            <span
-                                key={crumb.path}
-                                className="flex shrink-0 items-center gap-1 whitespace-nowrap"
-                            >
-                                {at === 0 ? null : <span className="text-faint">›</span>}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        go(crumb.path);
-                                    }}
-                                    className={
-                                        at === trail.length - 1
-                                            ? "text-ink font-medium"
-                                            : "text-muted hover:text-ink"
-                                    }
-                                >
-                                    {crumb.name}
-                                </button>
-                            </span>
-                        ))}
-                    </div>
+                    <Breadcrumb className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-1.5 font-mono">
+                        <BreadcrumbList>
+                            {trail.map((crumb, at) => (
+                                <Fragment key={crumb.path}>
+                                    {at === 0 ? null : <BreadcrumbSeparator />}
+                                    <BreadcrumbItem>
+                                        {at === trail.length - 1 ? (
+                                            <BreadcrumbPage>{crumb.name}</BreadcrumbPage>
+                                        ) : (
+                                            <BreadcrumbLink asChild>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        go(crumb.path);
+                                                    }}
+                                                >
+                                                    {crumb.name}
+                                                </button>
+                                            </BreadcrumbLink>
+                                        )}
+                                    </BreadcrumbItem>
+                                </Fragment>
+                            ))}
+                        </BreadcrumbList>
+                    </Breadcrumb>
                 </div>
 
                 <div className="flex min-h-0 flex-1 gap-2 px-4">
@@ -330,10 +342,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     ))}
 
                     <div className="flex items-center justify-between gap-3">
-                        <label
-                            htmlFor="folder-picker-show-hidden"
-                            className="text-muted text-meta flex items-center gap-2"
-                        >
+                        <Field orientation="horizontal">
                             <Checkbox
                                 id="folder-picker-show-hidden"
                                 checked={hidden}
@@ -341,8 +350,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                                     setHidden(checked === true);
                                 }}
                             />
-                            Show hidden
-                        </label>
+                            <Label htmlFor="folder-picker-show-hidden">Show hidden</Label>
+                        </Field>
 
                         <div className="flex shrink-0 items-center gap-2">
                             <Button

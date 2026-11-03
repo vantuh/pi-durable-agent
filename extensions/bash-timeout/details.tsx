@@ -7,7 +7,9 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
+import { Field, FieldDescription } from "@/components/ui/field.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
@@ -108,14 +110,15 @@ function Limit() {
 
     return (
         <div className="flex flex-col gap-2">
-            <label className="flex w-[30%] flex-col gap-1" htmlFor="bash-timeout-minutes">
-                <span className="text-meta text-faint">Longest run (minutes)</span>
+            <Field className="w-[30%]">
+                <Label htmlFor="bash-timeout-minutes">Longest run (minutes)</Label>
                 <Input
                     id="bash-timeout-minutes"
                     type="number"
                     min={MIN_MINUTES}
                     max={MAX_MINUTES}
                     value={typed}
+                    aria-describedby="bash-timeout-hint"
                     onChange={(event) => {
                         setTyped(event.target.value);
                     }}
@@ -127,11 +130,11 @@ function Limit() {
                         }
                     }}
                 />
-            </label>
-            <p className="text-meta text-muted">
+            </Field>
+            <FieldDescription id="bash-timeout-hint">
                 Every bash command stops after this long, {MIN_MINUTES} to {MAX_MINUTES} minutes. A
                 command that asks for less keeps its own timeout.
-            </p>
+            </FieldDescription>
             {error === undefined ? null : <Alert>{error}</Alert>}
         </div>
     );

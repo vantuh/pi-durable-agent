@@ -10,6 +10,7 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
 
@@ -582,6 +583,7 @@ export const Composer = memo(function Composer({
                     <textarea
                         rows={2}
                         ref={field}
+                        aria-label="Message"
                         // Opted in: the shell's keys, the session arrows among them, work while typing here.
                         data-shell-keys
                         value={text}
@@ -774,7 +776,10 @@ export const Composer = memo(function Composer({
                             </Hint>
                         ) : null}
                         <div className="flex items-center">
-                            <Hint label={busy ? (how?.label ?? "Send") : "Send"}>
+                            <Hint
+                                label={busy ? (how?.label ?? "Send") : "Send"}
+                                keys={<Kbd>Enter</Kbd>}
+                            >
                                 <Button
                                     size={busy ? "default" : "icon"}
                                     aria-label={busy ? (how?.label ?? "Send") : "Send"}

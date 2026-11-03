@@ -13,7 +13,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
+import { Field, FieldDescription } from "@/components/ui/field.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -234,14 +236,15 @@ function Settings() {
                     No Handy whisper or parakeet GGUF under ~/.cache/huggingface/hub.
                 </p>
             ) : null}
-            <label className="flex w-[30%] flex-col gap-1" htmlFor="dictation-idle-minutes">
-                <span className="text-meta text-faint">Idle time (minutes)</span>
+            <Field className="w-[30%]">
+                <Label htmlFor="dictation-idle-minutes">Idle time (minutes)</Label>
                 <Input
                     id="dictation-idle-minutes"
                     type="number"
                     min={MIN_IDLE_MINUTES}
                     max={MAX_IDLE_MINUTES}
                     value={idle}
+                    aria-describedby="dictation-idle-hint"
                     onChange={(event) => {
                         setIdle(event.target.value);
                     }}
@@ -253,8 +256,10 @@ function Settings() {
                         }
                     }}
                 />
-            </label>
-            <p className="text-meta text-muted">0 lets the model go right after each dictation.</p>
+            </Field>
+            <FieldDescription id="dictation-idle-hint">
+                0 lets the model go right after each dictation.
+            </FieldDescription>
         </div>
     );
 }

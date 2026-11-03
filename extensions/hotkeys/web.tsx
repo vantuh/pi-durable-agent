@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import { runCommand } from "@/sdk/commands.ts";
@@ -9,6 +10,11 @@ import { DEFAULT_KEYMAP, fieldKeeps, step, type Keymap } from "./lib.ts";
 import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
+
+/** `ctrl+a` as the caps it is: one per key, in the order it is pressed, a repeated modifier once. */
+function caps(prefix: string): string[] {
+    return [...new Set(prefix.split("+"))];
+}
 
 function Hotkeys() {
     const [label, setLabel] = useState<string | null>(null);
@@ -87,7 +93,16 @@ function Hotkeys() {
 
     // A readout, not a control: it takes no tab stop, so the hint shows on hover alone.
     return label === null ? null : (
-        <Hint label="Prefix key pressed: waiting for the next key">
+        <Hint
+            label="Prefix key pressed: waiting for the next key"
+            keys={
+                <KbdGroup>
+                    {caps(label).map((key) => (
+                        <Kbd key={key}>{key}</Kbd>
+                    ))}
+                </KbdGroup>
+            }
+        >
             <span className="text-accent font-mono">{label}</span>
         </Hint>
     );

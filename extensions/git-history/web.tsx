@@ -26,8 +26,10 @@ import { Alert } from "@/components/ui/alert.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
+import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Item } from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Hint } from "@/components/ui/tooltip";
 import { ago, MINUTE } from "@/lib/time.ts";
@@ -168,31 +170,35 @@ function RewordForm({
                 <span className="font-mono">{commit.short}</span> and the commits after it get new
                 ids. The files stay as they are.
             </p>
-            <label className="block" htmlFor="reword-title">
-                <span className="text-meta text-muted">Title</span>
+            <Field>
+                <Label htmlFor="reword-title">Title</Label>
                 <Input
                     id="reword-title"
                     ref={titleRef}
                     value={subject}
+                    aria-invalid={error !== null}
+                    aria-describedby={error === null ? undefined : "reword-error"}
                     onChange={(event) => {
                         setSubject(event.target.value);
                     }}
                     onKeyDown={submitOnEnter}
                 />
-            </label>
-            <label className="block" htmlFor="reword-description">
-                <span className="text-meta text-muted">Description</span>
+            </Field>
+            <Field>
+                <Label htmlFor="reword-description">Description</Label>
                 <Textarea
                     id="reword-description"
                     rows={6}
                     value={body}
+                    aria-invalid={error !== null}
+                    aria-describedby={error === null ? undefined : "reword-error"}
                     onChange={(event) => {
                         setBody(event.target.value);
                     }}
                     onKeyDown={submitOnEnter}
                 />
-            </label>
-            {error !== null ? <Alert>{error}</Alert> : null}
+            </Field>
+            {error === null ? null : <FieldError id="reword-error">{error}</FieldError>}
             <div className="flex gap-2">
                 <Button variant="ghost" className={button} disabled={saving} onClick={onClose}>
                     Cancel

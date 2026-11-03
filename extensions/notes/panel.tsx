@@ -272,6 +272,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
                 value={note.text}
                 disabled={note.state === "loading"}
                 spellCheck={false}
+                aria-label="Notes"
                 placeholder="Notes for this repository."
                 onChange={(event) => {
                     note.edit(event.target.value);

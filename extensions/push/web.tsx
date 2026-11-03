@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { SettingsProps, WebExtension } from "@/sdk/types.ts";
@@ -147,10 +149,10 @@ function Notifications(_props: SettingsProps) {
                     : "Get a notification on this device when Pi finishes an answer."}
             </p>
             {on ? null : (
-                <label className="flex flex-col gap-1" htmlFor="push-contact">
-                    <span className="text-meta text-faint">
+                <Field>
+                    <Label htmlFor="push-contact">
                         Contact for the push service (email or https address)
-                    </span>
+                    </Label>
                     <Input
                         id="push-contact"
                         type="text"
@@ -161,7 +163,7 @@ function Notifications(_props: SettingsProps) {
                         placeholder="you@example.com"
                         autoComplete="email"
                     />
-                </label>
+                </Field>
             )}
             <Button
                 variant="ghost"

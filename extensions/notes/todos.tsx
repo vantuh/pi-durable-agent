@@ -238,6 +238,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
                     value={title}
                     disabled={items === null}
                     placeholder="Add a to-do"
+                    aria-label="Add a to-do"
                     onChange={(event) => {
                         setTitle(event.target.value);
                     }}

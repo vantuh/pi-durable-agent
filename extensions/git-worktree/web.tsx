@@ -15,7 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type {
@@ -227,10 +229,7 @@ function Worktree({ use, refused }: NewSessionProps) {
     return (
         <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <label
-                    htmlFor="new-worktree"
-                    className="text-muted text-meta flex items-center gap-2"
-                >
+                <Field orientation="horizontal">
                     <Checkbox
                         id="new-worktree"
                         checked={on}
@@ -238,8 +237,8 @@ function Worktree({ use, refused }: NewSessionProps) {
                             setOn(checked === true);
                         }}
                     />
-                    New worktree
-                </label>
+                    <Label htmlFor="new-worktree">New worktree</Label>
+                </Field>
 
                 {/* In the row from the start, unseen until ticked: none of the rows around it move. */}
                 <Input

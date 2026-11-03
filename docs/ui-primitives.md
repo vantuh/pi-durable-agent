@@ -60,8 +60,11 @@ The largest win. Every later phase uses both.
 
 - [x] Add `components/ui/tooltip.tsx`, one `TooltipProvider` at the root in `main.tsx`.
 - [x] `Hint`: one-line wrapper (trigger as child + content), so call sites stay one element.
-- [ ] Optional content `Kbd` slot inside a tooltip, for the shortcut that triggers the action
-      (see 3.10).
+- [x] Optional content `Kbd` slot inside a tooltip, for the shortcut that triggers the action
+      (see [Kbd](#310-kbd-new)): `Hint`'s `keys`, placed after the label in a row with an 8px gap. A
+      slot rather than a string, because a chord is more than one cap and the caller knows which it
+      has; left out, the label is the tooltip's whole content, as it is for every hint with no key.
+      The composer's Send is the first caller, `extensions/hotkeys` the second.
 
 ### 1.3 Migrate raw buttons and `title=` hints
 
@@ -1111,46 +1114,220 @@ or a drag handle keeps its own box.
 
 ### 3.10 Kbd (new)
 
-Nothing renders a keycap today.
+Nothing rendered a keycap before this.
 
-- [ ] Add `components/ui/kbd.tsx`.
-- [ ] Show the shortcut inside the Tooltip of every action that has one: send (`Enter`), stop
-      (`Esc`), and the bindings in `extensions/hotkeys`.
+- [x] Add `components/ui/kbd.tsx`, with `Kbd`, `KbdGroup` and [Tooltip](#12-tooltip)'s `keys` slot as
+      its first callers. A cap is the theme's 12px mono in `text-muted` on `bg-ink/20` — the text
+      colour at a fifth, so one look reads as a key on the canvas, inside the raised tooltip and
+      inline in text, and no role was added for it. `h-5 min-w-5 px-1.5 rounded-control`: the 6px
+      radius the theme gives a block that is not a card, as [Alert](#37-alert-new) took it, because a
+      4px `rounded` would be a second radius the theme does not name. `KbdGroup` is one row with a
+      4px gap, for a chord; the hotkeys prefix is the caller that shows one. Measured inside a
+      tooltip: a cap 48×20 for `Enter`, and the Send tooltip 102.9×30 where the label alone is 28
+      tall — the row is 2px taller than a 12px line and the label does not move.
+- [x] `web/src/composer/composer.tsx:777–780` — Send, `Enter`, on the hint that already said
+      "Send" and on the mode's own label while a run is going, since `Enter` sends in whichever mode
+      is chosen. The key is the handler's: `:696–702` submits on `Enter` without Shift on a fine
+      pointer. Nothing else in the composer has a key to show. The send-mode trigger and Stop are
+      click handlers, and **no handler stops a run on `Escape`**: the three Escape handlers close
+      search (`web/src/shell/sessions.tsx:1155`), give the conversation back from a full-screen panel
+      (`web/src/shell/panels.tsx:235`) and dismiss the slash list (`composer.tsx:633`). So Stop shows
+      no key, and the `Esc` this plan expected for it is wrong until the shell binds one.
+- [x] `extensions/hotkeys/web.tsx:96–108` — the armed prefix's hint, the extension's one place that
+      names a key: the prefix is split on `+` and drawn as a `KbdGroup`, so the person reads the caps
+      they pressed instead of the string `meta+a`. A modifier written twice in a hand-made keymap is
+      drawn once. Measured: 320×46 where the label alone is 260.5×28, because 242.5 of label plus 8
+      of gap plus 64.8 of caps is wider than the 302 a `max-w-xs` tooltip holds — the label wraps
+      onto two lines and the caps end the second one.
+- [ ] The bindings in `extensions/hotkeys` inside the hints of the core controls they run: New
+      session, the folder picker, search, rename, and the two session arrows. **Left undone on
+      purpose.** Nothing in `web/src/sdk` lets an extension name a key for a shell command:
+      `commands.ts` holds a fixed `ShellCommand` union with `useShellCommand` (the shell's own
+      handler) and `runCommand` (an extension's way to call one), the shell's buttons call their
+      handlers directly, and no registry exists that the core could read a key from. A contract —
+      the extension states `session.new: "prefix+c"` and the core's hint asks for it — is a new
+      cross-cutting mechanism, so it is a follow-up: [4.2](#42-repeated-code-goes-to-one-place).
 
 ### 3.11 Field and Label (new)
 
 Explicit labels instead of placeholders, `aria-invalid` and error text tied to the control.
 
-- [ ] Add `components/ui/field.tsx` and `components/ui/label.tsx`.
-- [ ] `web/src/composer/composer.tsx:571` — accessible name for the composer.
-- [ ] `web/src/shell/folder-picker.tsx:321–331` — "Show hidden".
-- [ ] `extensions/bash-timeout/details.tsx:117–125`.
-- [ ] `extensions/dictation/details.tsx:236–244`.
-- [ ] `extensions/push/web.tsx:147–161`.
-- [ ] `extensions/git-worktree/web.tsx:228–240`.
-- [ ] `extensions/git-history/web.tsx:166–190` — commit form.
-- [ ] `extensions/notes/panel.tsx:253–278`.
+- [x] Add `components/ui/field.tsx` and `components/ui/label.tsx`. `Label` is Radix's (which refuses
+      to select its text on a second click) at `text-meta` in `text-muted`, the size every label here
+      was already drawn at. `Field` is a `div` of `flex`, `orientation="vertical"` for a label over its
+      control (`gap-1`) or `"horizontal"` for a checkbox beside its label (`gap-2`);
+      `FieldDescription` is the hint's `text-meta text-muted`, `FieldError` is `Alert`. **No context
+      and no `id` on `Field`**: a field here holds one control, so the caller writes the `id` on the
+      control, `htmlFor` on the label, the `id` on the hint or the error and the `aria-describedby` on
+      the control. A `Field` that wired it would have to reach into its children to find the control,
+      which is what context is for and what eight call sites do not pay for. `peer-disabled:opacity-50`
+      is on `Label` and applies nowhere yet: no control carries `peer`.
+- [x] `web/src/composer/composer.tsx:586` — `aria-label="Message"`. The field stays the hand-written
+      textarea under [Kept custom](#kept-custom), so a `sr-only` label would add a node to the card
+      and say the same word. Unmoved: `289,633.5,974,45`.
+- [x] `web/src/shell/folder-picker.tsx:335` — "Show hidden". The `<label>` wrapped over the `Checkbox`
+      is a horizontal `Field` whose `Label` names the box by `htmlFor`: unmoved, 273×18 with the box
+      at `273,681.8` and the text at 297, at 1280 and at 390. A click on the text still toggles it
+      (`aria-checked` false → true → false) and focuses the box; the 8px of gap between box and text
+      is no longer a click target, as it already was not on the three sites
+      [Checkbox](#23-checkbox-new) migrated.
+- [x] `extensions/bash-timeout/details.tsx:113` — the limit, in a vertical `Field` 193.8 wide, and its
+      hint a `FieldDescription` the field names in `aria-describedby`. Unmoved: the label's line box
+      `317,252,193.8,18`, the field `317,274`, the hint `317,314,646`. The label's colour changed; see
+      the note under the last box.
+- [x] `extensions/dictation/details.tsx:239` — the idle minutes, the same shape, unmoved at
+      `317,411` (label), `433` (field) and `473` (hint); its label's colour moved with bash-timeout's.
+- [x] `extensions/push/web.tsx:152` — the contact field, a vertical `Field`: the same `flex flex-col
+      gap-1` the wrapper `<label>` had, so nothing moves. Read rather than opened: a dev server has no
+      service worker, so the section shows its "blocked" line and the field is not mounted.
+- [x] `extensions/git-worktree/web.tsx:233` — "New worktree", a horizontal `Field` beside the name
+      field, which keeps its `aria-label` and its existing `aria-describedby`. The row is the old
+      label's rect to the tenth of a pixel (`273,639.5,102.1,18`), and a click on the text ticks the
+      box and puts the caret in the name field, as the wrapped label did.
+- [x] `extensions/git-history/web.tsx:171` — the reword form. Two vertical `Field`s, and the error is a
+      `FieldError` with `id="reword-error"` that both controls name while it shows, marking
+      themselves `aria-invalid` beside it. The form is 6.5px shorter (331 → 324.5) and each label's
+      text 4px higher: the old `block` label inherited the body's 22.5px line and only its `span` was
+      `text-meta`, so `Label` now gives it the 18px line every other form label has, and the two
+      controls sit 0.5 and 1px higher. The label-to-control gap is the theme's 4px on both fields.
+- [x] `extensions/notes/panel.tsx:275` — `aria-label="Notes"` on the editor, which fills the panel and
+      has no visible label; unmoved at 581×649.5 at 1280 and 372×733.5 at 390.
+
+The three labels that were `text-faint` — bash-timeout's, dictation's and push's — are `text-muted`
+now, one palette step (`subtext0` → `subtext1`), because a field's label was drawn lighter than the
+hint under it, while the other three forms in this step labelled in `muted`. Nothing else moved on
+those rows.
 
 ### 3.12 Breadcrumb (new)
 
-- [ ] Add `components/ui/breadcrumb.tsx`.
-- [ ] `web/src/shell/folder-picker.tsx:226–256` — path, current segment as `aria-current`.
+- [x] Add `components/ui/breadcrumb.tsx`. `Breadcrumb` is the `nav aria-label="Breadcrumb"` and
+      nothing else: the box around the trail belongs to the caller. `BreadcrumbList` is an `ol` on one
+      line — shadcn's `flex-wrap` and `break-words` are gone, because a path here is read on one line
+      and the box around it scrolls — with `BreadcrumbItem` an `li` that does not shrink.
+      `BreadcrumbLink` is `text-muted hover:text-ink` and the theme's accent ring, `asChild` over a
+      button; `BreadcrumbPage` is `text-ink font-medium` with `aria-current="page"` and no role: it is
+      where the person is, not a link that cannot be followed. `BreadcrumbSeparator` is a hidden `li`
+      holding `›` in `text-faint`, the glyph the picker drew itself. No `BreadcrumbEllipsis`: the picker
+      scrolls a long path, it never folds it.
+- [x] `web/src/shell/folder-picker.tsx:226–256` — the path. The crumbs are `BreadcrumbLink asChild`
+      over the buttons they already were, click handler and all, and the current folder is the
+      `BreadcrumbPage`. The `div` that was the scroll box is the `nav`, so `rounded-control`,
+      `bg-sunken`, `text-meta`, `px-2 py-1.5`, `font-mono` and `overflow-x-auto` are on it, and the
+      `gap-1` between crumbs moved to the list. Unmoved at 1280×800: `317,143.5,690,30`; at 390×844:
+      `60,62.5,314,30`. Each gap landed where it was: `Users` at 325, the mark at 365, `vantuh` at
+      376.2, `projects` at 434.61, on to the last mark at 1056.3 and its name at 1067.5. An
+      eleven-crumb trail (`/Users/…/data/worktrees/pi-durable-agent/hotkeys/web/src`) is 780 wide
+      inside those same 690 and 314 at `scrollLeft` 0, as before: the picker still does not scroll
+      itself to the end, and a desktop scrollbar still takes its 15px (bar 45 tall where a phone's
+      overlay scrollbars leave it 30). An empty trail, at `/`, is `317,152.5,690,12` in both.
+
+Two differences, both intended by the step. The crumbs draw the theme's 2px accent ring where they
+drew Chromium's own 1px `auto` outline, in the browser's blue rather than the theme's. And the current crumb is no
+control any more: it was a button whose click navigated to the folder already on screen, so its tab
+stop did nothing; it is a span now, and activating a crumb with the keyboard leaves focus on the
+dialog (`role="dialog"`, `tabindex="-1"`) instead of on the now-current crumb, one Tab away from
+Up. The rest of the order is unchanged: Up, then the crumbs, then Home and Computer.
+
+The crumb is still a `<button>`, handed to `BreadcrumbLink` through `asChild`, so the grep above still
+names it: a crumb navigates inside the dialog rather than to an `href`, and the primitive supplies
+the look, the hover and the ring the button used to write itself.
 
 ### 3.13 Table (new)
 
-- [ ] Add `components/ui/table.tsx`.
-- [ ] `web/src/ui/markdown.tsx:204–216` — Markdown tables; keep the overflow wrapper.
+- [x] Add `components/ui/table.tsx`. `Table` is the frame and the table together: the overflow box with the
+      card's radius and an `edge-soft` border, and `w-full border-collapse` at `text-interface` inside it, as
+      the Markdown map drew both. `TableHead` is the header cell — `bg-panel`, `text-ink`, `font-semibold`,
+      `px-3 py-1.5`, `border-b` in `edge-soft` — and `TableCell` the body cell, the same box `align-top`.
+      `TableHeader`, `TableBody` and `TableRow` carry no look: the rule between rows is each cell's bottom
+      border, because a collapsed table draws a border on the row in the same place and stretches it across
+      the width where a row has fewer cells. No `TableFooter` or `TableCaption`: nothing holds a footer or a
+      caption.
+- [x] `web/src/ui/markdown.tsx:204–216` — the map, every element GFM gives a table. One look changed, and it
+      is a fix: GFM states a column's alignment as an inline `text-align`, and the old `th` took only
+      `children`, so a `:---:` or `---:` column was left-aligned with the rest. The style is handed through
+      now, and an aligned column is aligned — the only difference on a throwaway page measured at 1280×800 and
+      390×844, where the columns' own widths follow it. Unmoved: the frame's 1246×151.5 at 1280 and 356 wide at
+      390, the 6px/12px cell padding, the header's `panel` fill at 600 weight, the 15px text, the last row's
+      border sitting under the frame, and the sideways scroll at 390 (356 visible of 473) with the page itself
+      staying at 390. The four tables in session 59543's transcript read as they did, and
+      `test/markdown-table.test.ts` fails on the old map. The sweep for `<table>` in `web/src` and
+      `extensions/` found no other site.
 
 ### 3.14 Card (only where it fits)
 
 The bordered boxes differ in layout; adopt `Card` only where the frame, header, and body really
 match, never to force one look.
 
-- [ ] Candidates to judge one by one: `web/src/transcript/transcript.tsx:352–354` (compaction
-      summary), `web/src/transcript/agent-message.tsx:25–56`, `web/src/ui/quote.tsx:17`,
-      `extensions/git-history/web.tsx:780–782`, `extensions/git-worktree/web.tsx:153–156`.
-      Code block (`markdown.tsx:80`), diff (`diff.tsx:297`), user bubble (`transcript.tsx:389`)
-      and attachments stay as they are.
+- [x] Every candidate judged, and the boxes of the same frame found by grepping `rounded-card` beside
+      a border and a background: **no `Card` is added**. Twelve class strings wear the radius (10px,
+      `rounded-card`) and the border (1px `edge-soft`), and the fill under them splits the hosts into
+      three families that share no header: seven shell regions over `bg-canvas`, three content boxes over
+      `bg-panel`, two code surfaces over `bg-sunken`. Inside each family the header/body split matches
+      nothing twice — three of the seven regions have a header, in two different rows, and one of the
+      three boxes has one. Measured at 1280×800 and 390×844: rendered values where the box was on
+      screen, the class string where its state cannot be produced read-only (a compaction summary, a
+      quote, a review's message, a provider's limits). The repeat goes to
+      [4.2](#42-repeated-code-goes-to-one-place); the frame already reaches every site through the
+      theme's `rounded-card`, `border-edge-soft` and `bg-*` names, so a primitive adds no reach.
+
+**Frames with the radius, the border, and a `canvas` fill** — the shell's regions, one per screen
+part. Measured at 1280×800: the sidebar 264×744, home 992×744, the transcript 992×561 (374×601 at
+390×844, the same 8px inset, radius and roles), the status bar 1264×32. The drawer, the covered panel
+and a page are read from their class string: no panel was opened for this step.
+
+| Box                                            | Radius | Border          | Fill     | Padding | Header                                                                                       | Body                                                                           |
+| ---------------------------------------------- | ------ | --------------- | -------- | ------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `shell/sessions.tsx:991` sidebar               | 10     | 1px `edge-soft` | `canvas` | 0       | its own rows, and the folder bar's folded bottom edge                                        | the session list; 264 wide, 38 folded                                          |
+| `shell/panels.tsx:191` drawer                  | 10     | 1px `edge-soft` | `canvas` | 0       | 47px `justify-between border-b px-3 py-2.5`: title, close                                    | the extension's own body                                                       |
+| `shell/panels.tsx:195` covered panel           | 10     | 1px `edge-soft` | `canvas` | 0       | the same 47px row, over `animate-drop-in`                                                    | the same body, in the conversation's place                                     |
+| `shell/pages.tsx:111` page                     | 10     | 1px `edge-soft` | `canvas` | 0       | the page's own                                                                               | the page, `absolute inset-0`                                                   |
+| `shell/home.tsx:88` home                       | 10     | 1px `edge-soft` | `canvas` | 0       | 47px `justify-between gap-3 border-b px-3 py-2.5`: “Home”, “New session”                     | grouped session rows, 992×744 at 1280                                          |
+| `transcript/transcript.tsx:558` the transcript | 10     | 1px `edge-soft` | `canvas` | 0       | 45px `min-h-[45px] justify-between gap-3 border-b px-3 py-0.5`: a two-line title, then tools | the answers, and the composer card under them; 992×561 at 1280, 374×601 at 390 |
+| `shell/status-bar.tsx:58` status bar           | 10     | 1px `edge-soft` | `canvas` | 0 12    | none: a 32px `grid-cols-[1fr_auto_1fr]` of readouts                                          | —                                                                              |
+
+**Frames with the radius, the border, and a `panel` fill** — the three boxes the plan's candidates
+name. The agent card was measured where a session holds one (736×38 folded, 340 wide at 390); the
+compaction summary and the quote are read from their class string, since neither state is reached
+without writing a message or running a compaction.
+
+| Box                                                | Radius | Border          | Fill    | Padding | Header                                                                                                                                         | Body                                                        |
+| -------------------------------------------------- | ------ | --------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `transcript/transcript.tsx:333` compaction summary | 10     | 1px `edge-soft` | `panel` | 12, 10  | none                                                                                                                                           | Markdown                                                    |
+| `transcript/agent-message.tsx:27` agent card       | 10     | 1px `edge-soft` | `panel` | 0       | 36px `py-1.5 pr-1.5 pl-3`, 12px: chevron, bot, name, one-line preview, and the open-session link as its action, beside a 3px `bg-agent` stripe | `px-3 pb-2.5`: 0/12/10/12, 15px prose, folded by the header |
+| `ui/quote.tsx:19` quote                            | 10     | 1px `edge-soft` | `panel` | 8, 4, 6 | none: one row of quote mark, scrolling text, and remove                                                                                        | —                                                           |
+
+**The same radius and border with another job**, so neither family above can take them: two code
+surfaces over `bg-sunken` (`ui/markdown.tsx:90`, `ui/diff.tsx:299`), each with a 32px `h-8 … border-b`
+header — a language and Copy, a path and its counts — which this step keeps as they are. Two frames
+with no fill at all: the tool fold (`transcript/activity.tsx:392`, 38px closed, the fill left to its
+rows) and the subagent profile card
+(`extensions/subagents/profile-models.tsx:95`: name and actions, then the description, `px-2.5 py-2`).
+And four with a different border or fill: the queued message (`composer/queued.tsx:71`, `edge` over
+`raised`), the composer (`composer/composer.tsx:507`, `edge` over `sunken`, `p-2`, and
+`focus-within:border-accent`), the flavour card (`shell/appearance-dialog.tsx:89`, `edge-soft` over
+`raised`, `p-2`), and a provider's card (`extensions/usage-limits/web.tsx:169`, `rounded-lg` over no
+fill, `raised` only for the reader).
+
+**Why not one `Card`.** A primitive is the frame plus the parts every host repeats. Here the fill is
+the box's own job, so a base can hold only one of the three — `bg-canvas` would make `Card` the
+shell's seven regions by another name, whose positioning, drag, fold and leave animation stay with the
+caller, and `bg-panel` would hold three boxes of which one has a header. The header it would export
+matches nothing twice either: the agent card's is a 36px collapsible trigger with no rule and an
+action in its row, the compaction summary and the quote have none, and the regions' three are the 47px
+row in two places (`home.tsx:89`, `panels.tsx:320` — the second without the `gap-3`) and a 45px
+two-line row in the third (`transcript.tsx:559`). Both halves are the one look this step is told not
+to force.
+
+**The plan's five candidates.** The compaction summary, the agent card, and the quote are the three
+boxes above, untouched. `extensions/git-history/web.tsx:780` was the review's `<pre>` — the code block
+the plan keeps as it is, and one that wears no border at all: it is the `bg-panel rounded-card p-3`
+block at `:790` now, a code surface without the `sunken` fill. `extensions/git-worktree/web.tsx:153`
+was the review dialog's error notice, a `rounded-lg` red wash rather than a box: [Alert](#37-alert-new)
+took it in Phase 3, and it is `<Alert className="mx-3 mb-1">` now. The code block, the diff, the user
+bubble and attachments stay as they are.
+
+Phase 3 ends here. The one box still open is [Kbd](#310-kbd-new)'s key registry, which is a repeat of
+the core's own hints and waits in [4.2](#42-repeated-code-goes-to-one-place), as it says itself.
 
 ## Phase 4: design-system audit
 
@@ -1185,7 +1362,25 @@ finding is fixed in this phase, not just listed.
 - [ ] Known repeats from Phase 3: `CommandEmpty` in `ui/command.tsx` restates `Empty`'s look; the
       browser panel's loading sentence ("Starting the browser…") borrows `Empty` for a state that
       is not empty.
+- [ ] The box frame, counted by [3.14](#314-card-only-where-it-fits): `rounded-card` + `1px edge-soft` + `border` in twelve class strings — seven panes over `bg-canvas` (`shell/sessions.tsx:991`,
+      `shell/panels.tsx:191`, `:195`, `shell/pages.tsx:111`, `shell/home.tsx:88`,
+      `transcript/transcript.tsx:558`, `shell/status-bar.tsx:58`), three boxes over `bg-panel`
+      (`transcript/transcript.tsx:333`, `transcript/agent-message.tsx:27`, `ui/quote.tsx:19`), two
+      code surfaces over `bg-sunken` (`ui/markdown.tsx:90`, `ui/diff.tsx:299`) — and two frames with no
+      fill (`transcript/activity.tsx:392`, `extensions/subagents/profile-models.tsx:95`). The pane
+      header `flex items-center justify-between … border-b px-3 py-2.5` repeats in two
+      (`shell/home.tsx:89`, `shell/panels.tsx:320`). `Card` does not fit here, so the audit settles the
+      repeat instead: one pane primitive for the seven regions if their three header shapes can be
+      one, or the frame left to the theme's three names, and the pane header's two copies folded into
+      one. `transcript/transcript.tsx:558` also states `rounded-card` twice in one string, which the
+      fold must not copy.
 - [ ] Delete the copies; no re-export shims.
+- [ ] A key an extension names for a shell command, so the core's own hints can show it — the
+      follow-up [Kbd](#310-kbd-new) left open. `web/src/sdk/commands.ts` holds the command names and
+      their handlers, not what runs them: a registration beside `useShellCommand`, where the keymap's
+      owner states `session.new: "prefix+c"`, and a reader the core's `Hint` uses, which draws a
+      `Kbd` and nothing else. A contract rather than a repeat, listed here because it belongs with the
+      sdk's other gaps and not to the step that found it.
 
 ### 4.3 The rule, written down
 

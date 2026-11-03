@@ -5,6 +5,14 @@ import remarkGfm from "remark-gfm";
 import type { ThemedToken } from "shiki";
 
 import { Button } from "@/components/ui/button";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -206,19 +214,14 @@ const COMPONENTS: Components = {
         <blockquote className="border-edge text-muted border-l-2 pl-3">{children}</blockquote>
     ),
     hr: () => <hr className="border-edge-soft" />,
-    table: ({ children }) => (
-        <div className="rounded-card border-edge-soft overflow-x-auto border">
-            <table className="text-interface w-full border-collapse">{children}</table>
-        </div>
-    ),
-    th: ({ children }) => (
-        <th className="border-edge-soft bg-panel text-ink border-b px-3 py-1.5 text-left font-semibold">
-            {children}
-        </th>
-    ),
-    td: ({ children }) => (
-        <td className="border-edge-soft text-ink border-b px-3 py-1.5 align-top">{children}</td>
-    ),
+    table: ({ children }) => <Table>{children}</Table>,
+    thead: ({ children }) => <TableHeader>{children}</TableHeader>,
+    tbody: ({ children }) => <TableBody>{children}</TableBody>,
+    tr: ({ children }) => <TableRow>{children}</TableRow>,
+    // GFM states a column's alignment as an inline `text-align`; the header's own `text-left` would win over a
+    // class, so the style is handed through and an aligned column stays aligned.
+    th: ({ style, children }) => <TableHead style={style}>{children}</TableHead>,
+    td: ({ style, children }) => <TableCell style={style}>{children}</TableCell>,
 };
 
 const Blocks = memo(function Blocks({ text }: { text: string }): ReactNode {

@@ -67,20 +67,35 @@ export function TooltipContent({
     );
 }
 
-/** A trigger and its label in one element, so a call site adds a hint instead of three tooltip parts. */
+/**
+ * A trigger and its label in one element, so a call site adds a hint instead of three tooltip parts.
+ * `keys` is the shortcut that runs the same action, placed after the label: a `Kbd`, or a
+ * `KbdGroup` for a chord.
+ */
 export function Hint({
     label,
+    keys,
     side,
     children,
 }: {
     label: ReactNode;
+    keys?: ReactNode;
     side?: ComponentProps<typeof TooltipPrimitive.Content>["side"];
     children: ReactNode;
 }) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>{children}</TooltipTrigger>
-            <TooltipContent side={side}>{label}</TooltipContent>
+            <TooltipContent side={side}>
+                {keys === undefined ? (
+                    label
+                ) : (
+                    <span className="flex items-center gap-2">
+                        <span>{label}</span>
+                        {keys}
+                    </span>
+                )}
+            </TooltipContent>
         </Tooltip>
     );
 }
