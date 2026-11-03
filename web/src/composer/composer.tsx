@@ -488,7 +488,8 @@ export const Composer = memo(function Composer({
     };
 
     return (
-        <div className="px-2 pt-2">
+        // The transcript's column: its width setting plus the px-4 its scroll area pads with, so the edges line up.
+        <div className="mx-auto w-full max-w-[calc(var(--chat-width)+2rem)] px-4 pt-2">
             <DropOverlay dragging={dragging} batch={batch} />
 
             <Queued
