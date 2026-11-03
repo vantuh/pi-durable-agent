@@ -1,4 +1,4 @@
-import { Bone } from "lucide-react";
+import { Stone } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -128,7 +128,7 @@ function Caveman({ session }: StatusItemProps) {
                             mode.on ? "text-accent" : "text-faint/60"
                         }`}
                     >
-                        <Bone className="size-3.5" />
+                        <Stone className="size-3.5" />
                         caveman
                     </Button>
                 </PopoverTrigger>

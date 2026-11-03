@@ -1176,7 +1176,7 @@ status bar, not the chat) and that the phrase in a message which would switch it
 not switch it here. Ponytail's line adds that the level is `full`, because lite and ultra are levels
 a `/ponytail` argument picks and there is no `/ponytail` command here.
 
-- **The switch** is a chip in the status bar's `end` slot, like keep-warm's: a bone for caveman, a
+- **The switch** is a chip in the status bar's `end` slot, like keep-warm's: a stone for caveman, a
   unicorn for ponytail, lit in `text-accent` and `text-ok` when on and faded to `text-faint/60` when
   off. The popover holds one `Switch` and one line saying what the voice changes: caveman — every
   conversation you start, never a subagent; ponytail — every conversation, subagents included.
