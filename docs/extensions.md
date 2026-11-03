@@ -517,7 +517,7 @@ needs its own HTTP endpoints uses the raw HTTP seam ([Raw HTTP and composer draf
 ## Header items and Git statistics
 
 `web.tsx` may export `header: [{ id, component }]`. A header item gets the same `StatusProps`
-as a status item, renders before the panel buttons, follows the extension's enabled switch and
+as a status item, renders before the Extensions toggle, follows the extension's enabled switch and
 has its own error boundary. The shell knows no feature by name.
 
 `extensions/git-stats` uses this slot for a rounded `+added −deleted ↑ahead ↓behind` badge:
@@ -1064,7 +1064,7 @@ panel. The agent never sees them: the extension has no tools, prompt sections or
 - **Conflicts.** `write` carries the content hash it was based on and is refused when the file has
   changed since (another tab or device). The panel then offers to load the newer text or overwrite
   it with yours. A panel with no unsaved edits re-reads the note when the window gets focus.
-- **The badge** on the panel button counts the open to-dos.
+- **The badge** on the Notes tab counts the open to-dos.
 
 ## Hotkeys
 

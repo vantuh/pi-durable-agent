@@ -196,6 +196,7 @@ export function App() {
     const pageOpen = openPageItem !== undefined;
     const panelExpanded =
         panelOpen &&
+        !pageOpen && // a page reached by browser Back while the panel was open is not made inert by it
         expanded !== null &&
         expanded.session === current &&
         expanded.panel === panelShown;
@@ -220,8 +221,9 @@ export function App() {
             dropPage();
         }
     }, [extensionsLoaded, route.page, openPageItem, dropPage]);
-    // The page hides the conversation's controls; on the way out the keyboard goes back to the composer.
-    const pendingFocus = useRef(false);
+    // The page hides the conversation's controls; on the way out the keyboard goes back to the composer,
+    // or, when a panel tab took its place, to that tab.
+    const pendingFocus = useRef<"composer" | "tab" | null>(null);
     const hadPage = useRef(false);
 
     useEffect(() => {
@@ -239,25 +241,36 @@ export function App() {
         const asked = pendingFocus.current;
         const lost = document.activeElement === null || document.activeElement === document.body;
 
-        pendingFocus.current = false;
+        pendingFocus.current = null;
+
+        if (asked === "tab") {
+            document.querySelector<HTMLElement>('[data-slot="panel-host"] [aria-current]')?.focus();
+            return;
+        }
 
         // Back out of the page leaves focus on nothing; a moved-away session keeps its own focus.
-        if (asked || lost) {
+        if (asked === "composer" || lost) {
             focusComposer();
         }
     }, [pageOpen]);
 
     const leavePage = useCallback(() => {
-        pendingFocus.current = true;
+        pendingFocus.current = "composer";
+        // Leaving by the page's own close or the toggle also forgets the panel, so it does not come back under it.
+        closePanel();
         closePage();
-    }, [closePage]);
+    }, [closePanel, closePage]);
     const sidebarOpen = pageOpen || (panelOpen && panel !== undefined);
     const selectPanel = useCallback(
         (key: string) => {
+            if (pageOpen) {
+                pendingFocus.current = "tab";
+            }
+
             closePage();
             setPanelOpen(key);
         },
-        [closePage, setPanelOpen],
+        [pageOpen, closePage, setPanelOpen],
     );
     const selectPage = useCallback(
         (key: string) => {
@@ -271,7 +284,6 @@ export function App() {
     // Closed, it brings back the panel opened last, else the first panel, else the first page.
     const toggleSidebar = (): void => {
         if (sidebarOpen) {
-            closePanel();
             leavePage();
             return;
         }
