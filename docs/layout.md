@@ -189,8 +189,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 The gear at the right end of the status bar opens a sheet from the right edge, over the app: the
 sidebar and the conversation keep their width, a scrim (`sunken` at 70%, the dialogs' own) dims them,
 and a click on the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear
-stays raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm`
-up; below `sm` it fills the screen. It is a `Sheet`
+stays raised while the sheet is open. The sheet is 360px wide from `sm` up, over the status bar too;
+below `sm` it fills the screen. It is a `Sheet`
 (`components/ui/sheet.tsx`, over the dialog primitive) that is unmounted when closed, so its sections
 read afresh at each open. Under its sections is a footer row with two icon
 buttons: a puzzle ("Extensions") that opens a modal to turn extensions on and off

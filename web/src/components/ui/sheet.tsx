@@ -14,11 +14,11 @@ export function SheetClose(props: ComponentProps<typeof DialogPrimitive.Close>) 
 
 /**
  * The edge a sheet comes from, with the geometry of an edge panel: the whole screen below
- * `sm`, and from `sm` up a 360px column that stops above the status bar. A side is added
+ * `sm`, and from `sm` up a 360px column that covers the status bar too. A side is added
  * when a caller slides in from it; today only the right edge has one.
  */
 const SIDES = {
-    right: "inset-0 sm:bottom-7 sm:left-auto sm:w-[360px]",
+    right: "inset-0 sm:left-auto sm:w-[360px]",
 };
 
 type SheetContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
