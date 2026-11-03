@@ -565,6 +565,10 @@ export const Sessions = memo(function Sessions({
     onClose,
 }: Props) {
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
+    const toggleCollapsed = (): void => {
+        localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
+        setCollapsed(!collapsed);
+    };
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
     // What each filter extension keeps, by id; a filter that goes away takes its entry with it.
@@ -1013,12 +1017,29 @@ export const Sessions = memo(function Sessions({
         >
             <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
                 <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-1.5">
+                    {/* The rail has room for one button: there the logo expands, and shows it on hover. */}
+                    <Hint label="Expand sidebar">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Expand sidebar"
+                            onClick={toggleCollapsed}
+                            className="group/logo hidden size-6 shrink-0 lg:group-data-[collapsed]/side:inline-flex"
+                        >
+                            <img
+                                src="/favicon.png"
+                                alt=""
+                                className="size-5 group-hover/logo:hidden group-focus-visible/logo:hidden"
+                            />
+                            <PanelLeftOpen className="hidden size-4 group-hover/logo:block group-focus-visible/logo:block" />
+                        </Button>
+                    </Hint>
                     <Hint label="Home: every session">
                         <Button
                             variant="ghost"
                             size="icon"
                             asChild
-                            className={`-my-1 -ml-1 size-8 shrink-0 lg:group-data-[collapsed]/side:my-0 lg:group-data-[collapsed]/side:ml-0 lg:group-data-[collapsed]/side:size-6 ${current === null ? "bg-raised" : ""}`}
+                            className={`-my-1 -ml-1 size-8 shrink-0 lg:group-data-[collapsed]/side:hidden ${current === null ? "bg-raised" : ""}`}
                         >
                             <a
                                 href={sessionHref(null)}
@@ -1031,11 +1052,7 @@ export const Sessions = memo(function Sessions({
                                 aria-label="Home"
                                 aria-current={current === null ? "page" : undefined}
                             >
-                                <img
-                                    src="/favicon.png"
-                                    alt=""
-                                    className="size-6 lg:group-data-[collapsed]/side:size-5"
-                                />
+                                <img src="/favicon.png" alt="" className="size-6" />
                             </a>
                         </Button>
                     </Hint>
@@ -1045,22 +1062,15 @@ export const Sessions = memo(function Sessions({
                         Sessions
                     </h2>
                     <div className="flex items-center gap-1">
-                        <Hint label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                        <Hint label="Collapse sidebar">
                             <Button
                                 variant="ghost"
                                 size="icon-sm"
-                                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                                onClick={() => {
-                                    localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
-                                    setCollapsed(!collapsed);
-                                }}
-                                className="hidden shrink-0 lg:inline-flex"
+                                aria-label="Collapse sidebar"
+                                onClick={toggleCollapsed}
+                                className="hidden shrink-0 lg:inline-flex lg:group-data-[collapsed]/side:hidden"
                             >
-                                {collapsed ? (
-                                    <PanelLeftOpen className="size-4" />
-                                ) : (
-                                    <PanelLeftClose className="size-4" />
-                                )}
+                                <PanelLeftClose className="size-4" />
                             </Button>
                         </Hint>
                         <Hint label="Close">
