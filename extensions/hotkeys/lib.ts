@@ -144,6 +144,32 @@ export function mergeKeymap(config: unknown): Keymap {
     return merged;
 }
 
+/** The tokens of a binding, read as `parseBinding` reads them: trimmed, lowercase, none empty. */
+function tokens(text: string): string[] {
+    return text
+        .toLowerCase()
+        .split("+")
+        .map((part) => part.trim())
+        .filter((part) => part !== "");
+}
+
+/** `ctrl+a` as the caps it is: one per key, in the order it is pressed, a repeated modifier once. */
+export function caps(text: string): string[] {
+    return [...new Set(tokens(text))];
+}
+
+/**
+ * A binding as the presses it is drawn as: the prefix's own keys, then the key it arms. A binding
+ * without the prefix is one press. Its tokens are normalised as `parseBinding` normalises them, so
+ * `PREFIX + F` and `prefix+f` are one binding drawn one way.
+ */
+export function presses(keymap: Keymap, text: string): string[][] {
+    const parts = tokens(text);
+    const key = parts.filter((part) => part !== "prefix");
+
+    return key.length === parts.length ? [caps(text)] : [caps(keymap.prefix), caps(key.join("+"))];
+}
+
 function matches(binding: Binding | null, event: KeyEvent): boolean {
     return (
         binding !== null &&
@@ -200,6 +226,14 @@ function arms(keymap: Keymap, event: KeyEvent): boolean {
 /** Whether a field keeps the key: everything it types, but neither the prefix nor the keys it opted out of. */
 export function fieldKeeps(target: Field, keymap: Keymap, event: KeyEvent): boolean {
     return ownsKeys(target) && !arms(keymap, event) && target.closest(SHELL_KEYS) === null;
+}
+
+// A confirmation is an alert dialog, which is a dialog to the keyboard as well as to the screen reader.
+const DIALOG = '[role="dialog"], [role="alertdialog"]';
+
+/** Whether the focus is inside a dialog: the shell's keys must not fire behind one. */
+export function inDialog(focus: { closest(selector: string): object | null } | null): boolean {
+    return focus !== null && focus.closest(DIALOG) !== null;
 }
 
 /** One key press: idle, the prefix arms, and the next key runs a command or cancels. */

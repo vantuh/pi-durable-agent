@@ -1,17 +1,24 @@
 import { CircleAlert, FolderGit2, FolderX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type {
     NewSessionCollected,
@@ -26,8 +33,7 @@ const NAME = "name";
 
 // Shown on a phone too, unlike the branch badge: it carries the button that removes a worktree, and
 // a session whose folder is gone cannot work at all.
-const WORKTREE = "inline-flex h-4 max-w-full min-w-0 shrink gap-1 px-1.5 [&>svg]:size-2.5";
-const GONE = `border-danger text-danger ${WORKTREE}`;
+const WORKTREE = "h-4 max-w-full min-w-0 shrink px-1.5 [&>svg]:size-2.5";
 
 function nameOf(collected: NewSessionCollected | null): string {
     const name: unknown = collected?.[NAME];
@@ -91,8 +97,9 @@ function Mark({ session }: StatusProps) {
     if (worktree.gone) {
         return (
             <Badge
+                tone="danger"
                 title={`The worktree ${worktree.name} was deleted: this session's folder is gone`}
-                className={GONE}
+                className={WORKTREE}
             >
                 <FolderX />
                 <span className="truncate">{worktree.name}</span>
@@ -113,22 +120,26 @@ function Mark({ session }: StatusProps) {
                 <FolderGit2 />
                 <span className="truncate">{worktree.name}</span>
                 {worktree.ours ? (
-                    <button
-                        type="button"
-                        title={`Remove the worktree ${worktree.name}`}
-                        aria-label={`Remove the worktree ${worktree.name}`}
-                        onClick={() => {
-                            setFailure(null);
-                            setAsking(true);
-                        }}
-                        className="hover:text-danger -mr-0.5 flex size-3.5 shrink-0 items-center justify-center"
-                    >
-                        <X className="size-3" />
-                    </button>
+                    /* The pill is 16px tall: the × keeps the icon's own 14px box, and the fill stays
+                       off, so nothing paints outside the badge. Badge owns the pill. */
+                    <Hint label={`Remove the worktree ${worktree.name}`}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove the worktree ${worktree.name}`}
+                            onClick={() => {
+                                setFailure(null);
+                                setAsking(true);
+                            }}
+                            className="hover:text-danger -mr-0.5 size-3.5 shrink-0 p-0 hover:bg-transparent"
+                        >
+                            <X className="size-3" />
+                        </Button>
+                    </Hint>
                 ) : null}
             </Badge>
 
-            <Dialog
+            <AlertDialog
                 open={asking}
                 onOpenChange={(open) => {
                     if (!removing) {
@@ -137,41 +148,31 @@ function Mark({ session }: StatusProps) {
                     }
                 }}
             >
-                <DialogContent>
-                    {/* The notice stands in for the line under the header, and keeps the dialog's
-                        own side margins, which the header's do not reach past the close button. */}
-                    <DialogHeader className={failure === null ? undefined : "border-b-0"}>
-                        <DialogTitle>Remove the worktree {worktree.name}?</DialogTitle>
-                        <DialogDescription>
+                <AlertDialogContent>
+                    {/* The notice stands in for the line under the header. */}
+                    <AlertDialogHeader className={failure === null ? undefined : "border-b-0"}>
+                        <AlertDialogTitle>Remove the worktree {worktree.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
                             {worktree.folder} goes, with everything in it that is not committed.
                             What is committed stays on the branch {worktree.name}. The session stays
                             too, but nothing it runs will work until a folder is there again.
-                        </DialogDescription>
-                    </DialogHeader>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
 
                     {failure === null ? null : (
-                        <div className="bg-danger/10 text-meta mx-3 mb-1 flex items-start gap-2 rounded-lg px-3 py-2">
-                            <CircleAlert className="text-danger mt-0.5 size-3.5 shrink-0" />
-                            <span className="text-danger min-w-0 break-words">{failure}</span>
-                        </div>
+                        <Alert className="mx-3 mb-1">
+                            <CircleAlert />
+                            <span className="min-w-0">{failure}</span>
+                        </Alert>
                     )}
 
-                    {/* No first on a phone too: the safe answer is where the thumb lands. */}
-                    <DialogFooter className="flex-col sm:flex-row">
-                        <Button
-                            variant="ghost"
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={removing}>No</AlertDialogCancel>
+                        <AlertDialogAction
                             disabled={removing}
-                            onClick={() => {
-                                setAsking(false);
-                                setFailure(null);
-                            }}
-                        >
-                            No
-                        </Button>
-                        <Button
-                            disabled={removing}
-                            className="bg-danger text-canvas hover:bg-danger/90"
-                            onClick={() => {
+                            onClick={(event) => {
+                                // The answer is the removal: the question closes once it returns.
+                                event.preventDefault();
                                 setRemoving(true);
                                 setFailure(null);
 
@@ -197,10 +198,10 @@ function Mark({ session }: StatusProps) {
                             }}
                         >
                             {removing ? "Removing…" : "Remove worktree"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
@@ -228,16 +229,16 @@ function Worktree({ use, refused }: NewSessionProps) {
     return (
         <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <label className="text-muted text-meta flex items-center gap-2">
-                    <input
-                        type="checkbox"
+                <Field orientation="horizontal">
+                    <Checkbox
+                        id="new-worktree"
                         checked={on}
-                        onChange={(event) => {
-                            setOn(event.target.checked);
+                        onCheckedChange={(checked) => {
+                            setOn(checked === true);
                         }}
                     />
-                    New worktree
-                </label>
+                    <Label htmlFor="new-worktree">New worktree</Label>
+                </Field>
 
                 {/* In the row from the start, unseen until ticked: none of the rows around it move. */}
                 <Input
@@ -254,11 +255,7 @@ function Worktree({ use, refused }: NewSessionProps) {
                 />
             </div>
 
-            {failed ? (
-                <p id="worktree-refused" className="text-meta text-danger">
-                    {refused}
-                </p>
-            ) : null}
+            {failed ? <Alert id="worktree-refused">{refused}</Alert> : null}
         </div>
     );
 }

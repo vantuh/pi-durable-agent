@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
 import { thinkingTab } from "../lib/thinking.ts";
@@ -198,34 +199,38 @@ export function ModelMenu({
                                         {onAddScoped !== undefined &&
                                         tab === "all" &&
                                         !scopedKeys.has(key) ? (
-                                            <button
-                                                type="button"
-                                                title="Add to scoped models"
-                                                aria-label="Add to scoped models"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    onAddScoped(model);
-                                                }}
-                                                className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
-                                            >
-                                                <Plus className="size-4" />
-                                            </button>
+                                            <Hint label="Add to scoped models">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    aria-label="Add to scoped models"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        onAddScoped(model);
+                                                    }}
+                                                    className="text-faint hover:bg-sunken shrink-0"
+                                                >
+                                                    <Plus className="size-4" />
+                                                </Button>
+                                            </Hint>
                                         ) : null}
                                         {onRemoveScoped !== undefined &&
                                         tab === "all" &&
                                         scopedKeys.has(key) ? (
-                                            <button
-                                                type="button"
-                                                title="Remove from scoped models"
-                                                aria-label="Remove from scoped models"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    onRemoveScoped(model);
-                                                }}
-                                                className="rounded-control text-faint hover:bg-sunken hover:text-ink shrink-0 p-1.5"
-                                            >
-                                                <Minus className="size-4" />
-                                            </button>
+                                            <Hint label="Remove from scoped models">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    aria-label="Remove from scoped models"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        onRemoveScoped(model);
+                                                    }}
+                                                    className="text-faint hover:bg-sunken shrink-0"
+                                                >
+                                                    <Minus className="size-4" />
+                                                </Button>
+                                            </Hint>
                                         ) : null}
                                     </CommandItem>
                                 );
@@ -238,19 +243,21 @@ export function ModelMenu({
                     <div className="mb-1 flex items-center justify-between">
                         <span className="text-faint text-meta">Thinking</span>
                         {onMakeDefault === undefined ? null : (
-                            <button
-                                type="button"
-                                disabled={picked === undefined || isDefault}
-                                title="New sessions start with this model and thinking level"
-                                onClick={() => {
-                                    if (picked !== undefined) {
-                                        onMakeDefault(picked, thinkingLevel);
-                                    }
-                                }}
-                                className="rounded-control text-meta text-accent hover:bg-raised disabled:text-faint px-2 py-0.5 disabled:hover:bg-transparent"
-                            >
-                                {isDefault ? "Default for new sessions" : "Make default"}
-                            </button>
+                            <Hint label="New sessions start with this model and thinking level">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={picked === undefined || isDefault}
+                                    onClick={() => {
+                                        if (picked !== undefined) {
+                                            onMakeDefault(picked, thinkingLevel);
+                                        }
+                                    }}
+                                    className="text-accent hover:text-accent disabled:text-faint py-0.5 disabled:opacity-100 disabled:hover:bg-transparent"
+                                >
+                                    {isDefault ? "Default for new sessions" : "Make default"}
+                                </Button>
+                            </Hint>
                         )}
                     </div>
                     <Tabs
@@ -275,7 +282,7 @@ export function ModelMenu({
                 </div>
 
                 <DialogFooter className="border-edge-soft border-t">
-                    <Button variant="ghost" onClick={onClose}>
+                    <Button variant="ghost" className="font-medium" onClick={onClose}>
                         Cancel
                     </Button>
                     <Button

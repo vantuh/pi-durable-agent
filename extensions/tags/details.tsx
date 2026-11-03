@@ -1,9 +1,14 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
+import { Loading } from "@/ui/loading.tsx";
 
 import { createTag, load, recolorTag, removeTag, renameTag, useTags } from "./client.ts";
 import { MAX_NAME, TAG_COLORS, type TagColor, type TagsState } from "./refs.ts";
@@ -40,8 +45,13 @@ function Swatches({
                     onClick={() => {
                         onPick(color);
                     }}
-                    className={`size-4 rounded-full ${TAG_DOT[color]} ${
-                        color === value ? "ring-ink ring-2" : "opacity-50 hover:opacity-100"
+                    // The ring sits 2px out over a `canvas` offset — the hue is the fill, so a ring
+                    // flush with it would read as part of the colour — and the chosen dot's mark is an
+                    // inner ring, so focus and choice show at once.
+                    className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-4 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[color]} ${
+                        color === value
+                            ? "inset-ring-ink inset-ring-2"
+                            : "opacity-50 hover:opacity-100"
                     }`}
                 />
             ))}
@@ -85,7 +95,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     };
 
     if (!active) {
-        return <p className="text-faint text-meta">Turn the extension on to tag sessions.</p>;
+        return <DetailsNote>Turn the extension on to tag sessions.</DetailsNote>;
     }
 
     const add = (event: FormEvent): void => {
@@ -105,12 +115,8 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     };
 
     return (
-        <div className="text-meta flex flex-col gap-2">
-            {error === null ? null : (
-                <p role="alert" className="text-danger break-words">
-                    {error}
-                </p>
-            )}
+        <DetailsColumn>
+            {error === null ? null : <Alert>{error}</Alert>}
             <form onSubmit={add} className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
                     <Input
@@ -133,9 +139,9 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 </div>
             </form>
             {state === undefined ? (
-                <p className="text-faint">Loading…</p>
+                <Loading />
             ) : state.tags.length === 0 ? (
-                <p className="text-faint">No tags yet.</p>
+                <Empty>No tags yet.</Empty>
             ) : (
                 <ul className="flex flex-col">
                     {state.tags.map((tag) => {
@@ -155,17 +161,18 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         }}
                                     />
                                 ) : (
-                                    <button
-                                        type="button"
-                                        aria-label={`Colour of ${tag.name}`}
-                                        title="Change the colour"
-                                        disabled={busy}
-                                        onClick={() => {
-                                            setRenaming(null);
-                                            setEditing(tag.id);
-                                        }}
-                                        className={`size-3 shrink-0 rounded-full ${TAG_DOT[tag.color]}`}
-                                    />
+                                    <Hint label="Change the colour">
+                                        <button
+                                            type="button"
+                                            aria-label={`Colour of ${tag.name}`}
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setRenaming(null);
+                                                setEditing(tag.id);
+                                            }}
+                                            className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-3 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[tag.color]}`}
+                                        />
+                                    </Hint>
                                 )}
                                 {renaming?.id === tag.id ? (
                                     <form
@@ -203,15 +210,16 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         >
                                             Save
                                         </Button>
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={() => {
                                                 setRenaming(null);
                                             }}
-                                            className="text-muted hover:text-ink text-meta shrink-0 px-1"
+                                            className="shrink-0 px-1 py-0"
                                         >
                                             Cancel
-                                        </button>
+                                        </Button>
                                     </form>
                                 ) : (
                                     <span className="text-ink min-w-0 flex-1 truncate">
@@ -223,33 +231,37 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                         {count}
                                     </span>
                                 )}
-                                <button
-                                    type="button"
-                                    aria-label={`Rename ${tag.name}`}
-                                    title="Rename"
-                                    disabled={busy}
-                                    onClick={() => {
-                                        setEditing(null);
-                                        setRenaming({ id: tag.id, name: tag.name });
-                                    }}
-                                    className="text-muted hover:text-ink shrink-0"
-                                >
-                                    <Pencil className="size-3.5" />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label={`Delete ${tag.name}`}
-                                    title={`Delete ${tag.name}`}
-                                    disabled={busy}
-                                    onClick={() => {
-                                        void run(async () => {
-                                            await removeTag(tag.id);
-                                        });
-                                    }}
-                                    className="text-muted hover:text-danger shrink-0"
-                                >
-                                    <Trash2 className="size-3.5" />
-                                </button>
+                                <Hint label="Rename">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Rename ${tag.name}`}
+                                        disabled={busy}
+                                        onClick={() => {
+                                            setEditing(null);
+                                            setRenaming({ id: tag.id, name: tag.name });
+                                        }}
+                                        className="shrink-0"
+                                    >
+                                        <Pencil className="size-3.5" />
+                                    </Button>
+                                </Hint>
+                                <Hint label={`Delete ${tag.name}`}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Delete ${tag.name}`}
+                                        disabled={busy}
+                                        onClick={() => {
+                                            void run(async () => {
+                                                await removeTag(tag.id);
+                                            });
+                                        }}
+                                        className="hover:text-danger shrink-0"
+                                    >
+                                        <Trash2 className="size-3.5" />
+                                    </Button>
+                                </Hint>
                             </li>
                         );
                     })}
@@ -259,6 +271,6 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                 Tags live on the server, so every device sees them. Deleting one takes it off every
                 session that had it. A session's menu puts them on.
             </p>
-        </div>
+        </DetailsColumn>
     );
 }

@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Field } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
 import { type AutoNameSettings, setAuto, settings } from "./refs.ts";
 
@@ -53,17 +56,13 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     }
 
     if (!active) {
-        return <p className="text-faint text-meta">Turn the extension on to name sessions.</p>;
+        return <DetailsNote>Turn the extension on to name sessions.</DetailsNote>;
     }
 
     return (
-        <div className="text-meta flex flex-col gap-2">
-            {error === null ? null : (
-                <p role="alert" className="text-danger break-words">
-                    {error}
-                </p>
-            )}
-            <div className="flex items-center gap-2">
+        <DetailsColumn>
+            {error === null ? null : <Alert>{error}</Alert>}
+            <Field orientation="horizontal">
                 <span id="auto-name-after-run" className="text-ink">
                     Name a session when its run ends
                 </span>
@@ -76,11 +75,11 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                         void toggle(auto);
                     }}
                 />
-            </div>
+            </Field>
             <p className="text-faint">
                 Off by default, so a session keeps the name its first question gives it. A name set
                 by hand is never replaced. The menu on a session row names it either way.
             </p>
-        </div>
+        </DetailsColumn>
     );
 }

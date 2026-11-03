@@ -175,6 +175,14 @@ pnpm fix       # repairs formatting and anything auto-fixable
       even once and not even in dev. A colour that is missing gets a role added to
       `web/src/styles/styles.css` and a palette name in `styles/catppuccin.css` first, then the
       component uses it.
+- [ ] **Every other design value comes from the theme too.** Radius, font size, line height,
+      shadow, and the named spacing (`stripe`, `header`) are theme names (`rounded-card`,
+      `text-meta`, `shadow-float`, `min-h-header`); other spacing is Tailwind's scale. No
+      `rounded-[4px]`, `text-[11px]`, `shadow-lg`, or `px-[7px]`: a value used twice gets a name in
+      `styles.css` (and in `cn`'s merge config), a value used once snaps to the nearest name. An
+      arbitrary value stays only when it is computed (viewport, container, `lh`) or one component's
+      own measured drawing, with the reason beside it. A shared look is a primitive, a variant, or a
+      `web/src/ui/` part — never a class string copied into a second file.
 - [ ] No new dependency without the reason in the commit message.
 - [ ] `@earendil-works/*` packages are pinned exactly: Pi Durable is experimental.
 

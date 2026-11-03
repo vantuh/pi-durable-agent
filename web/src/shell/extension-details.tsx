@@ -1,7 +1,10 @@
 import { type ComponentType, lazy, Suspense } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
+
 import type { ExtensionDetailsProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
+import { Loading } from "../ui/loading.tsx";
 
 function isComponent(value: unknown): value is ComponentType<ExtensionDetailsProps> {
     return typeof value === "function";
@@ -43,13 +46,9 @@ export function ExtensionDetails({ folder, ...props }: ExtensionDetailsProps & {
         <ItemBoundary
             key={`${folder}:${String(props.enabled)}:${String(props.installed)}`}
             name={`${folder}:details`}
-            fallback={
-                <p role="alert" className="text-danger text-meta">
-                    Could not load extension details.
-                </p>
-            }
+            fallback={<Alert>Could not load extension details.</Alert>}
         >
-            <Suspense fallback={<p className="text-faint text-meta">Loading details…</p>}>
+            <Suspense fallback={<Loading className="text-meta">Loading details…</Loading>}>
                 {/* oxlint-disable-next-line react/static-components -- lazy components are cached once in the module-level map */}
                 <Details {...props} />
             </Suspense>

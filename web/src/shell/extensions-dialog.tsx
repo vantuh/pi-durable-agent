@@ -1,6 +1,8 @@
 import { ArrowLeft, ChevronRight, Puzzle } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -10,26 +12,26 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Hint } from "@/components/ui/tooltip";
 
 import { refreshExtensions } from "../extensions.ts";
 import { type ExtensionInfo, listExtensions, setExtensionEnabled } from "../lib/api.ts";
+import { Loading } from "../ui/loading.tsx";
 import { ExtensionDetails, hasExtensionDetails } from "./extension-details.tsx";
 
 /** The icon button for the Settings footer, and the modal it opens. */
 export function ExtensionsButton() {
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <button
-                    type="button"
-                    title="Extensions"
-                    aria-label="Extensions"
-                    className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2"
-                >
-                    <Puzzle className="size-4" />
-                </button>
-            </DialogTrigger>
+            <Hint label="Extensions">
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Extensions">
+                        <Puzzle className="size-4" />
+                    </Button>
+                </DialogTrigger>
+            </Hint>
             <DialogContent className="sm:h-[min(44rem,88dvh)] sm:max-w-2xl">
                 <ExtensionList />
             </DialogContent>
@@ -92,16 +94,16 @@ function ExtensionList() {
     const header = (
         <DialogHeader>
             {current === undefined ? null : (
-                <button
-                    type="button"
-                    className="text-interface text-ink border-edge-soft hover:bg-raised focus-visible:ring-accent rounded-control mb-1 flex w-fit items-center gap-1.5 border px-3 py-1.5 outline-none focus-visible:ring-2"
+                <Button
+                    variant="ghost"
+                    className="border-edge-soft text-ink mb-1 w-fit border"
                     onClick={() => setSelected(undefined)}
                 >
                     <ArrowLeft className="size-4" />
                     Extensions
-                </button>
+                </Button>
             )}
-            <DialogTitle className="text-lg">{current?.title ?? "Extensions"}</DialogTitle>
+            <DialogTitle className="text-heading">{current?.title ?? "Extensions"}</DialogTitle>
             <DialogDescription>
                 {current === undefined
                     ? "Turn a feature on or off. It applies at once."
@@ -114,11 +116,11 @@ function ExtensionList() {
         return (
             <>
                 {header}
-                <p
-                    className={`text-meta animate-drop-in p-3 ${loadError === undefined ? "text-faint" : "text-danger"}`}
-                >
-                    {loadError ?? "Loading…"}
-                </p>
+                {loadError === undefined ? (
+                    <Loading className="text-meta animate-drop-in p-3" />
+                ) : (
+                    <Alert className="animate-drop-in rounded-none p-3">{loadError}</Alert>
+                )}
             </>
         );
     }
@@ -141,12 +143,9 @@ function ExtensionList() {
                                 }}
                             />
                         </div>
-                        {problem === undefined ? null : (
-                            <span role="alert" className="text-meta text-danger break-words">
-                                {problem}
-                            </span>
-                        )}
-                        <div className="border-edge-soft border-t pt-3">
+                        {problem === undefined ? null : <Alert>{problem}</Alert>}
+                        <Separator />
+                        <div>
                             <ExtensionDetails
                                 folder={current.name}
                                 enabled={current.enabled}
@@ -175,14 +174,14 @@ function ExtensionList() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex min-w-0 flex-col gap-0.5">
                                         {hasExtensionDetails(row.name) ? (
-                                            <button
-                                                type="button"
-                                                className="text-interface text-ink focus-visible:ring-accent flex items-center gap-1.5 rounded text-left outline-none after:absolute after:inset-0 focus-visible:ring-2"
+                                            <Button
+                                                variant="ghost"
+                                                className="text-ink justify-start px-0 py-0 text-left after:absolute after:inset-0"
                                                 onClick={() => setSelected(row.name)}
                                             >
                                                 {row.title}
                                                 <ChevronRight className="size-3 shrink-0" />
-                                            </button>
+                                            </Button>
                                         ) : (
                                             <span className="text-interface text-ink">
                                                 {row.title}
@@ -197,13 +196,7 @@ function ExtensionList() {
                                             </span>
                                         )}
                                         {problem === undefined ? null : (
-                                            <span
-                                                id={`${row.name}-problem`}
-                                                role="alert"
-                                                className="text-meta text-danger break-words"
-                                            >
-                                                {problem}
-                                            </span>
+                                            <Alert id={`${row.name}-problem`}>{problem}</Alert>
                                         )}
                                     </div>
                                     <Switch

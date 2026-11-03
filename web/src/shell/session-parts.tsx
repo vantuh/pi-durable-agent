@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
+import { Hint } from "@/components/ui/tooltip";
 import { ago, DAY, MINUTE } from "@/lib/time.ts";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
@@ -32,11 +34,10 @@ export function StateMark({ session, working = 0 }: { session: SessionSummary; w
     const label =
         mark ?? (busy ? "Working" : (note ?? (unseen ? "Finished, not viewed" : undefined)));
 
-    return (
+    const element = (
         <span
             role={label === undefined ? undefined : "status"}
             aria-label={label}
-            title={mark ?? note}
             className={`state-mark ${
                 mark !== undefined
                     ? "held text-warn"
@@ -50,6 +51,10 @@ export function StateMark({ session, working = 0 }: { session: SessionSummary; w
             }`}
         />
     );
+    const tip = mark ?? note;
+
+    // Hover-only: a mark is a readout, and a tab stop before every row's title would be noise.
+    return tip === undefined ? element : <Hint label={tip}>{element}</Hint>;
 }
 
 /** The marks extensions draw on a session row, between the title and the time; nothing when none does. */
@@ -79,14 +84,10 @@ export function SessionRowContent({
     return (
         <>
             <StateMark session={session} />
-            <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-sidebar text-ink truncate">
-                    {session.title ?? "New session"}
-                </span>
-                <span className="text-meta text-faint truncate font-mono">
-                    {folderName(session.cwd)}
-                </span>
-            </span>
+            <ItemContent>
+                <ItemTitle>{session.title ?? "New session"}</ItemTitle>
+                <ItemDescription className="font-mono">{folderName(session.cwd)}</ItemDescription>
+            </ItemContent>
             {trailing}
             <span className="text-meta text-faint min-w-7 shrink-0 text-right">
                 {session.activeAt === null ? null : ago(session.activeAt, now)}

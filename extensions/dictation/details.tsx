@@ -13,10 +13,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
+import { Field, FieldDescription } from "@/components/ui/field.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsNote } from "@/ui/details.tsx";
 
 import { messageOf } from "./record.ts";
 import {
@@ -90,7 +94,7 @@ function Picker({
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     // Actions come from the server half, which is not there while the folder is off or failed.
     if (!enabled) {
-        return <p className="text-meta text-muted">Turn Dictation on to change these settings.</p>;
+        return <DetailsNote>Turn Dictation on to change these settings.</DetailsNote>;
     }
 
     if (!installed) {
@@ -233,13 +237,15 @@ function Settings() {
                     No Handy whisper or parakeet GGUF under ~/.cache/huggingface/hub.
                 </p>
             ) : null}
-            <label className="flex w-[30%] flex-col gap-1">
-                <span className="text-meta text-faint">Idle time (minutes)</span>
-                <input
+            <Field className="w-[30%]">
+                <Label htmlFor="dictation-idle-minutes">Idle time (minutes)</Label>
+                <Input
+                    id="dictation-idle-minutes"
                     type="number"
                     min={MIN_IDLE_MINUTES}
                     max={MAX_IDLE_MINUTES}
                     value={idle}
+                    aria-describedby="dictation-idle-hint"
                     onChange={(event) => {
                         setIdle(event.target.value);
                     }}
@@ -250,10 +256,11 @@ function Settings() {
                             commitIdle();
                         }
                     }}
-                    className={FIELD}
                 />
-            </label>
-            <p className="text-meta text-muted">0 lets the model go right after each dictation.</p>
+            </Field>
+            <FieldDescription id="dictation-idle-hint">
+                0 lets the model go right after each dictation.
+            </FieldDescription>
         </div>
     );
 }

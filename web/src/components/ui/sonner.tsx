@@ -36,7 +36,7 @@ export function Toaster() {
                 unstyled: true,
                 classNames: {
                     // The right inset belongs to the close button, which a waiting toast does not show.
-                    toast: "app-toast rounded-card border-edge bg-panel text-ink text-meta flex w-full items-center gap-3 border px-4 py-3 shadow-lg has-[[data-close-button]]:pr-10",
+                    toast: "app-toast rounded-card border-edge bg-panel text-ink text-meta flex w-full items-center gap-3 border px-4 py-3 shadow-float has-[[data-close-button]]:pr-10",
                     title: "font-medium",
                     description: "text-muted mt-0.5",
                     content: "min-w-0 flex-1",

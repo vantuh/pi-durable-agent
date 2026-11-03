@@ -1,9 +1,13 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import { type Note, read, write } from "./refs.ts";
 import { flushed, trackFlush } from "./store.ts";
@@ -212,7 +216,7 @@ export function NotesPanel({ session }: PanelProps) {
     const [tab, setTab] = useState("todos");
 
     if (session === null || session.cwd === null) {
-        return <p className="text-faint text-interface p-3">This session has no folder.</p>;
+        return <Empty className="text-interface p-3">This session has no folder.</Empty>;
     }
 
     const tabs = (
@@ -236,7 +240,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="border-edge-soft text-meta flex items-center justify-between gap-2 border-b px-3 py-1.5">
+            <Toolbar className="text-meta justify-between">
                 {tabs}
                 <span
                     title={note.error ?? undefined}
@@ -248,12 +252,12 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
                 >
                     {LABEL[note.state]}
                 </span>
-            </div>
+            </Toolbar>
             {note.other === null ? null : (
                 <div className="border-edge-soft text-interface flex flex-col gap-2 border-b px-3 py-2">
                     <p className="text-ink">This note changed on another device or tab.</p>
                     <div className="flex gap-2">
-                        <Button variant="ghost" onClick={note.loadNewer}>
+                        <Button variant="ghost" className="font-medium" onClick={note.loadNewer}>
                             Load newer
                         </Button>
                         <Button onClick={note.overwrite}>Overwrite with mine</Button>
@@ -262,18 +266,19 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
             )}
 
             {note.state === "error" && note.error !== null ? (
-                <p className="text-danger text-interface px-3 py-2">{note.error}</p>
+                <Alert className="text-interface rounded-none">{note.error}</Alert>
             ) : null}
 
-            <textarea
+            <Textarea
                 value={note.text}
                 disabled={note.state === "loading"}
                 spellCheck={false}
+                aria-label="Notes"
                 placeholder="Notes for this repository."
                 onChange={(event) => {
                     note.edit(event.target.value);
                 }}
-                className="text-prose text-ink placeholder:text-faint min-h-0 flex-1 resize-none bg-transparent px-3 py-2 outline-none"
+                className="min-h-0 flex-1 resize-none border-transparent bg-transparent px-3 py-2 focus-visible:ring-0"
             />
         </div>
     );

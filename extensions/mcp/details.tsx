@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
 import { type McpState, state, toggle } from "./refs.ts";
 
@@ -56,24 +59,25 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     };
 
     if (!active) {
-        return <p className="text-faint text-meta">Turn the extension on to see its servers.</p>;
+        return <DetailsNote>Turn the extension on to see its servers.</DetailsNote>;
     }
 
     if (current === undefined) {
-        return error === undefined ? (
-            <Spinner className="text-faint" />
-        ) : (
-            <p className="text-meta text-danger">{error}</p>
-        );
+        return error === undefined ? <Spinner className="text-faint" /> : <Alert>{error}</Alert>;
     }
 
     return (
-        <div className="flex flex-col gap-2">
+        <DetailsColumn>
             {current.problem === undefined ? null : (
-                <p className="text-meta text-danger">{current.problem}</p>
+                <Alert
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a config file's problem is not one
+                    role="status"
+                >
+                    {current.problem}
+                </Alert>
             )}
             {current.servers.length === 0 && current.problem === undefined ? (
-                <p className="text-meta text-muted">No servers in mcp.json.</p>
+                <Empty className="text-muted">No servers in mcp.json.</Empty>
             ) : null}
             {current.servers.map((server) => (
                 <div key={server.name} className="flex items-center gap-3">
@@ -105,7 +109,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                     />
                 </div>
             ))}
-            {error === undefined ? null : <p className="text-meta text-danger">{error}</p>}
-        </div>
+            {error === undefined ? null : <Alert>{error}</Alert>}
+        </DetailsColumn>
     );
 }

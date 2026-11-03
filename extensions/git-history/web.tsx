@@ -22,11 +22,21 @@ import {
     useState,
 } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { Field, FieldError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Item } from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Hint } from "@/components/ui/tooltip";
 import { ago, MINUTE } from "@/lib/time.ts";
 import { callAction } from "@/sdk/actions.ts";
 import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { PageProps, WebExtension } from "@/sdk/types.ts";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import {
     UNTRACKED_FILE_CAP,
@@ -58,8 +68,9 @@ const WORKING = "working";
 const reported = new Set<string>();
 const HASH = /^[0-9a-f]{4,64}$/i;
 
+/** The page's outline action: ghost's hover fill inside a border, with the ink the page's text has. */
 const button =
-    "rounded-control border-edge hover:bg-raised text-interface border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
+    "border-edge text-ink border px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed";
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 // A commit row counts from now; this is the same instant spelled out in the reader's own zone.
 const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
@@ -72,9 +83,6 @@ const EXACT_TIME = new Intl.DateTimeFormat(undefined, {
 });
 const running = (value: ReviewState | null) =>
     value?.state === "starting" || value?.state === "running";
-
-const fieldClass =
-    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent w-full border px-2 py-1.5 outline-none focus-visible:ring-2";
 
 /** A place in the page: the list, one commit (or the working tree), or a review of it. */
 type Place =
@@ -163,46 +171,46 @@ function RewordForm({
                 <span className="font-mono">{commit.short}</span> and the commits after it get new
                 ids. The files stay as they are.
             </p>
-            <label className="block">
-                <span className="text-meta text-muted">Title</span>
-                <input
+            <Field>
+                <Label htmlFor="reword-title">Title</Label>
+                <Input
+                    id="reword-title"
                     ref={titleRef}
                     value={subject}
+                    aria-invalid={error !== null}
+                    aria-describedby={error === null ? undefined : "reword-error"}
                     onChange={(event) => {
                         setSubject(event.target.value);
                     }}
                     onKeyDown={submitOnEnter}
-                    className={fieldClass}
                 />
-            </label>
-            <label className="block">
-                <span className="text-meta text-muted">Description</span>
-                <textarea
+            </Field>
+            <Field>
+                <Label htmlFor="reword-description">Description</Label>
+                <Textarea
+                    id="reword-description"
                     rows={6}
                     value={body}
+                    aria-invalid={error !== null}
+                    aria-describedby={error === null ? undefined : "reword-error"}
                     onChange={(event) => {
                         setBody(event.target.value);
                     }}
                     onKeyDown={submitOnEnter}
-                    className={fieldClass}
                 />
-            </label>
-            {error !== null ? (
-                <p role="alert" className="text-danger text-meta">
-                    {error}
-                </p>
-            ) : null}
+            </Field>
+            {error === null ? null : <FieldError id="reword-error">{error}</FieldError>}
             <div className="flex gap-2">
-                <button type="button" className={button} disabled={saving} onClick={onClose}>
+                <Button variant="ghost" className={button} disabled={saving} onClick={onClose}>
                     Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                     type="submit"
-                    className="rounded-control bg-accent text-on-accent text-interface px-4 py-1.5 font-medium disabled:opacity-40"
+                    className="px-4 py-1.5 disabled:opacity-40"
                     disabled={saving || subject.trim() === ""}
                 >
                     {saving ? "Saving…" : "Save"}
-                </button>
+                </Button>
             </div>
         </form>
     );
@@ -345,9 +353,7 @@ function ChangesView({
     if (error !== null) {
         return (
             <PendingPane header={header}>
-                <p role="alert" className="text-danger p-3">
-                    {error}
-                </p>
+                <Alert className="text-interface rounded-none p-3">{error}</Alert>
             </PendingPane>
         );
     }
@@ -432,44 +438,50 @@ function HistoryRow({
 }) {
     return (
         <li className="border-edge-soft border-b">
-            <button
-                ref={rowRef}
-                type="button"
-                onClick={() => {
-                    onOpen(target);
-                }}
-                onPointerEnter={() => {
-                    onPrefetch(target === WORKING ? undefined : target);
-                }}
-                onPointerLeave={() => {
-                    onPrefetch(undefined);
-                }}
-                onFocus={() => {
-                    onPrefetch(target === WORKING ? undefined : target);
-                }}
-                className="hover:bg-raised focus-visible:ring-accent flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
-            >
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
-                        {marker === "local" ? (
-                            <ArrowUp className="text-ok size-3 shrink-0" aria-label="Not pushed" />
-                        ) : marker === "remote" ? (
-                            <ArrowDown
-                                className="text-info size-3 shrink-0"
-                                aria-label="Not pulled"
-                            />
-                        ) : null}
-                        <span className="truncate">{title}</span>
+            <Item asChild>
+                <Button
+                    ref={rowRef}
+                    variant="ghost"
+                    onClick={() => {
+                        onOpen(target);
+                    }}
+                    onPointerEnter={() => {
+                        onPrefetch(target === WORKING ? undefined : target);
+                    }}
+                    onPointerLeave={() => {
+                        onPrefetch(undefined);
+                    }}
+                    onFocus={() => {
+                        onPrefetch(target === WORKING ? undefined : target);
+                    }}
+                    className="w-full min-w-0 justify-start rounded-none px-3 py-2 text-left focus-visible:ring-inset"
+                >
+                    {/* Spans, not the primitive's parts: a `<button>` takes phrasing content only. */}
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-interface text-ink flex items-center gap-1.5 leading-tight font-medium">
+                            {marker === "local" ? (
+                                <ArrowUp
+                                    className="text-ok size-3 shrink-0"
+                                    aria-label="Not pushed"
+                                />
+                            ) : marker === "remote" ? (
+                                <ArrowDown
+                                    className="text-info size-3 shrink-0"
+                                    aria-label="Not pulled"
+                                />
+                            ) : null}
+                            <span className="truncate">{title}</span>
+                        </span>
+                        <span
+                            className="text-meta text-faint block truncate font-mono leading-tight"
+                            title={at === undefined ? undefined : EXACT_TIME.format(at)}
+                        >
+                            {detail}
+                        </span>
                     </span>
-                    <span
-                        className="text-meta text-faint block truncate font-mono leading-tight"
-                        title={at === undefined ? undefined : EXACT_TIME.format(at)}
-                    >
-                        {detail}
-                    </span>
-                </span>
-                <ChevronRight className="text-faint size-4 shrink-0" />
-            </button>
+                    <ChevronRight className="text-faint size-4 shrink-0" />
+                </Button>
+            </Item>
         </li>
     );
 }
@@ -626,29 +638,29 @@ function CommitDetail({
                 {broken ? null : (
                     <div className="flex shrink-0 flex-wrap gap-2">
                         {rewritable ? (
-                            <button
-                                type="button"
-                                className={`${button} flex items-center gap-1.5`}
+                            <Button
+                                variant="ghost"
+                                className={button}
                                 onClick={() => {
                                     setEditing((old) => !old);
                                 }}
                             >
                                 <Pencil className="size-3.5" /> Reword
-                            </button>
+                            </Button>
                         ) : null}
                         {mine && running(reviewState) ? (
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 className={button}
                                 onClick={() => {
                                     onReviewAgain(target);
                                 }}
                             >
                                 Resume review
-                            </button>
+                            </Button>
                         ) : (
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 className={button}
                                 disabled={starting || running(reviewState)}
                                 onClick={() => {
@@ -656,7 +668,7 @@ function CommitDetail({
                                 }}
                             >
                                 Review
-                            </button>
+                            </Button>
                         )}
                     </div>
                 )}
@@ -680,14 +692,16 @@ function CommitDetail({
 
         return (
             <PendingPane header={header}>
-                <p
-                    role={failure === null ? undefined : "alert"}
-                    className={`text-interface p-3 ${failure === null ? "text-muted" : "text-danger"}`}
-                >
-                    {failure === null
-                        ? "Nothing in this folder's history has that id. Open the history to pick a commit."
-                        : `${failure} Refresh the history to try again.`}
-                </p>
+                {failure === null ? (
+                    <Empty className="text-muted text-interface p-3">
+                        Nothing in this folder's history has that id. Open the history to pick a
+                        commit.
+                    </Empty>
+                ) : (
+                    <Alert className="text-interface rounded-none p-3">
+                        {failure} Refresh the history to try again.
+                    </Alert>
+                )}
             </PendingPane>
         );
     }
@@ -729,28 +743,25 @@ function ReviewView({
             aria-label="Plannotator review"
             className="flex min-h-0 flex-1 flex-col outline-none"
         >
-            <div className="border-edge-soft flex items-center gap-2 border-b px-3 py-1.5">
+            <Toolbar>
                 <span className="text-meta text-muted">Plannotator review</span>
                 {running(state) ? (
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         className={`${button} ml-auto`}
                         onClick={() => {
                             void onCancel();
                         }}
                     >
                         Cancel review
-                    </button>
+                    </Button>
                 ) : null}
-            </div>
+            </Toolbar>
 
             {issue !== null ? (
-                <p
-                    role="alert"
-                    className="text-danger text-interface border-edge-soft border-b px-3 py-2"
-                >
+                <Alert className="text-interface border-edge-soft rounded-none border-b">
                     {issue}
-                </p>
+                </Alert>
             ) : null}
 
             {starting || state?.state === "starting" ? (
@@ -781,20 +792,20 @@ function ReviewView({
                             {state.message}
                         </pre>
                     ) : null}
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         className={`${button} self-start`}
                         onClick={() => {
                             onClose();
                         }}
                     >
                         Return to conversation
-                    </button>
+                    </Button>
                 </div>
             ) : state?.state === "failed" ? (
-                <p role="alert" className="text-danger text-interface p-4">
+                <Alert className="text-interface rounded-none p-4">
                     {state.error ?? "Review failed."}
-                </p>
+                </Alert>
             ) : state?.state === "cancelled" ? (
                 <p className="text-muted text-interface p-4">Review was cancelled.</p>
             ) : (
@@ -1054,7 +1065,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
             : data?.commits.find((candidate) => candidate.hash === shownTarget);
     const detail = shownTarget === undefined ? undefined : detailOf(shownTarget, listed, looked);
     const toolbar = (
-        <div className="border-edge-soft flex min-h-[35px] flex-wrap items-center gap-2 border-b px-3 py-1.5">
+        <Toolbar className="min-h-9 flex-wrap">
+            {/* 36px is the step the row already measured: a 16px pill in py-1.5 beside the 24px actions is 37 with its
+                border, so the 35px floor this was had never bound. */}
             {data?.branch ? (
                 <Badge
                     title={`${data.branch} in ${session.cwd ?? "this folder"}`}
@@ -1065,18 +1078,15 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 </Badge>
             ) : null}
             {data?.upstream ? (
-                <span
-                    className="text-meta text-muted shrink-0"
-                    title={`${data.upstream} as of the last fetch`}
-                >
-                    ↑{data.ahead} ↓{data.behind}
-                </span>
+                <Badge className="h-4 px-1.5" title={`${data.upstream} as of the last fetch`}>
+                    {`↑${String(data.ahead)} ↓${String(data.behind)}`}
+                </Badge>
             ) : null}
             <div className="ml-auto flex shrink-0 items-center gap-2">
                 {running(state) ? (
                     <>
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             className={button}
                             onClick={() => {
                                 if (state !== null) {
@@ -1085,36 +1095,38 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                             }}
                         >
                             Resume review
-                        </button>
-                        <button
-                            type="button"
+                        </Button>
+                        <Button
+                            variant="ghost"
                             className={button}
                             onClick={() => {
                                 void stopReview();
                             }}
                         >
                             Cancel review
-                        </button>
+                        </Button>
                     </>
                 ) : null}
-                <button
-                    type="button"
-                    title="Refresh history"
-                    aria-label="Refresh history"
-                    disabled={loading}
-                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center disabled:opacity-40"
-                    onClick={() => {
-                        setLoading(true);
-                        forgetPatches();
-                        // A read that failed, and a commit a reword moved, are both read again here.
-                        setLooked(null);
-                        setRefresh((value) => value + 1);
-                    }}
-                >
-                    <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-                </button>
+                <Hint label="Refresh history">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Refresh history"
+                        disabled={loading}
+                        className="disabled:opacity-40"
+                        onClick={() => {
+                            setLoading(true);
+                            forgetPatches();
+                            // A read that failed, and a commit a reword moved, are both read again here.
+                            setLooked(null);
+                            setRefresh((value) => value + 1);
+                        }}
+                    >
+                        <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                    </Button>
+                </Hint>
             </div>
-        </div>
+        </Toolbar>
     );
 
     return (
@@ -1127,12 +1139,9 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 {toolbar}
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     {issue !== null ? (
-                        <p
-                            role="alert"
-                            className="text-danger text-interface border-edge-soft border-b px-3 py-2"
-                        >
+                        <Alert className="text-interface border-edge-soft rounded-none border-b">
                             {issue}
-                        </p>
+                        </Alert>
                     ) : null}
                     {data === null && loading ? (
                         <p className="text-muted p-4">Reading Git history…</p>
@@ -1189,14 +1198,14 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                 ))}
                             </ol>
                             {data.commits.length === 0 && data.changes === 0 ? (
-                                <p className="text-muted p-4">
+                                <Empty className="text-muted text-interface p-4">
                                     No commits or uncommitted changes yet.
-                                </p>
+                                </Empty>
                             ) : null}
                             {data.more ? (
                                 <div className="p-3">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="ghost"
                                         className={button}
                                         disabled={limit >= 200 || loading}
                                         onClick={() => {
@@ -1207,7 +1216,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                         {limit >= 200
                                             ? "Showing the newest 200 commits"
                                             : "Load older commits"}
-                                    </button>
+                                    </Button>
                                 </div>
                             ) : null}
                         </>

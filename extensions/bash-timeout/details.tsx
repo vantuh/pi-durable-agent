@@ -6,15 +6,16 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
+import { Field, FieldDescription } from "@/components/ui/field.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsNote } from "@/ui/details.tsx";
 
 import { MAX_MINUTES, MIN_MINUTES, saveSettings, settings } from "./refs.ts";
-
-/** The same box the shell draws its own fields with. */
-const FIELD =
-    "rounded-control border-edge bg-sunken text-ink text-interface focus-visible:ring-accent border px-2 py-1.5 outline-none focus-visible:ring-2";
 
 function messageOf(failure: unknown): string {
     return failure instanceof Error ? failure.message : "Something went wrong.";
@@ -23,7 +24,7 @@ function messageOf(failure: unknown): string {
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     // Actions come from the server half, which is not there while the folder is off or failed.
     if (!enabled) {
-        return <p className="text-meta text-muted">Turn Bash timeout on to change its limit.</p>;
+        return <DetailsNote>Turn Bash timeout on to change its limit.</DetailsNote>;
     }
 
     if (!installed) {
@@ -105,22 +106,20 @@ function Limit() {
     };
 
     if (current === undefined) {
-        return error === undefined ? (
-            <Spinner className="text-faint" />
-        ) : (
-            <p className="text-meta text-danger">{error}</p>
-        );
+        return error === undefined ? <Spinner className="text-faint" /> : <Alert>{error}</Alert>;
     }
 
     return (
         <div className="flex flex-col gap-2">
-            <label className="flex w-[30%] flex-col gap-1">
-                <span className="text-meta text-faint">Longest run (minutes)</span>
-                <input
+            <Field className="w-[30%]">
+                <Label htmlFor="bash-timeout-minutes">Longest run (minutes)</Label>
+                <Input
+                    id="bash-timeout-minutes"
                     type="number"
                     min={MIN_MINUTES}
                     max={MAX_MINUTES}
                     value={typed}
+                    aria-describedby="bash-timeout-hint"
                     onChange={(event) => {
                         setTyped(event.target.value);
                     }}
@@ -131,14 +130,13 @@ function Limit() {
                             commit();
                         }
                     }}
-                    className={FIELD}
                 />
-            </label>
-            <p className="text-meta text-muted">
+            </Field>
+            <FieldDescription id="bash-timeout-hint">
                 Every bash command stops after this long, {MIN_MINUTES} to {MAX_MINUTES} minutes. A
                 command that asks for less keeps its own timeout.
-            </p>
-            {error === undefined ? null : <p className="text-meta text-danger">{error}</p>}
+            </FieldDescription>
+            {error === undefined ? null : <Alert>{error}</Alert>}
         </div>
     );
 }

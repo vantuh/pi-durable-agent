@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
 import { callAction } from "@/sdk/actions.ts";
 
 import { account, type AccountResult } from "./account-refs.ts";
@@ -46,42 +49,45 @@ export function AccountDetails() {
         >
             <div className="flex items-center justify-between gap-3">
                 <span className="text-ink">Subscription account</span>
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={busy}
                     onClick={() => {
                         void check();
                     }}
-                    className="rounded-control border-edge-soft text-ink hover:bg-raised focus-visible:ring-accent border px-2 py-1 outline-none focus-visible:ring-2 disabled:opacity-50"
+                    className="border-edge-soft text-ink border"
                 >
                     {busy ? "Checking…" : "Check subscription"}
-                </button>
+                </Button>
             </div>
-            <label className="text-muted flex items-center gap-2">
-                <input
-                    type="checkbox"
+            <label
+                htmlFor="account-include-identity"
+                className="text-muted flex items-center gap-2"
+            >
+                <Checkbox
+                    id="account-include-identity"
                     checked={includeIdentity}
                     disabled={busy}
-                    onChange={(event) => {
-                        setIncludeIdentity(event.target.checked);
+                    onCheckedChange={(checked) => {
+                        setIncludeIdentity(checked === true);
                         setResult(null);
                     }}
-                    className="accent-accent"
                 />
                 Include email and organization
             </label>
-            {error ? (
-                <p role="alert" className="text-danger">
-                    Could not check the account. Please try again.
-                </p>
-            ) : null}
+            {error ? <Alert>Could not check the account. Please try again.</Alert> : null}
             {result?.kind === "not-oauth" ? (
                 <p className="text-muted">No Anthropic OAuth authorization configured.</p>
             ) : null}
             {result?.kind === "unavailable" ? (
-                <p role="alert" className="text-warn">
+                <Alert
+                    tone="warn"
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a provider's state is not one
+                    role="status"
+                >
                     Account unavailable: {result.reason}
-                </p>
+                </Alert>
             ) : null}
             {profile === null ? null : (
                 <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">

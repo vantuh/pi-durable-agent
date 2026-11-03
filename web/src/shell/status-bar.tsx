@@ -1,8 +1,12 @@
 import { Settings } from "lucide-react";
 import { memo, type RefObject } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
+import { PANE } from "../ui/pane.tsx";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
 import { SessionsStatus } from "./sessions-status.tsx";
 
@@ -52,7 +56,9 @@ export const StatusBar = memo(function StatusBar({
     const at = (slot: ClientStatus["slot"]) => status.filter((field) => field.slot === slot);
 
     return (
-        <footer className="rounded-card border-edge-soft bg-canvas text-meta text-muted grid h-8 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border px-3">
+        <footer
+            className={`${PANE} bg-canvas text-meta text-muted grid h-8 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden px-3`}
+        >
             <div className="flex min-w-0 items-center gap-3">
                 <SessionsStatus sessions={sessions} current={current} onOpen={onOpen}>
                     <span className={`size-2 rounded-full ${toneOf(tone)}`} />
@@ -92,17 +98,19 @@ export const StatusBar = memo(function StatusBar({
                 {at("end").map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
-                <button
-                    ref={settingsGear}
-                    type="button"
-                    title="Settings"
-                    aria-label="Settings"
-                    aria-pressed={settingsOpen}
-                    onClick={onSettings}
-                    className={`rounded-control hover:bg-raised hover:text-ink focus-visible:ring-accent flex size-6 shrink-0 items-center justify-center outline-none focus-visible:ring-2 ${settingsOpen ? "bg-raised text-ink" : "text-muted"}`}
-                >
-                    <Settings className="size-4" />
-                </button>
+                <Hint label="Settings">
+                    <Button
+                        ref={settingsGear}
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Settings"
+                        aria-pressed={settingsOpen}
+                        onClick={onSettings}
+                        className={`shrink-0 ${settingsOpen ? "bg-raised text-ink" : ""}`}
+                    >
+                        <Settings className="size-4" />
+                    </Button>
+                </Hint>
             </div>
         </footer>
     );

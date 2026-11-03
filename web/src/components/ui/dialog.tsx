@@ -1,7 +1,9 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
@@ -33,13 +35,18 @@ export function DialogContent({
                 {...props}
             >
                 {children}
-                <DialogPrimitive.Close
-                    title="Close"
-                    aria-label="Close"
-                    className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent absolute top-2.5 right-3 flex size-6 items-center justify-center outline-none focus-visible:ring-2"
-                >
-                    <X className="size-4" />
-                </DialogPrimitive.Close>
+                <Hint label="Close">
+                    <DialogPrimitive.Close asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Close"
+                            className="absolute top-2.5 right-3"
+                        >
+                            <X className="size-4" />
+                        </Button>
+                    </DialogPrimitive.Close>
+                </Hint>
             </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
     );

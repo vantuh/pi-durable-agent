@@ -1,6 +1,10 @@
 import { Bot, Clock, Paperclip, Pencil, X, Zap } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Item, ItemActions, ItemContent } from "@/components/ui/item";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { ClientQueued } from "../../../shared/protocol.ts";
 import { splitQuote } from "../lib/quote.ts";
 import { QuoteCard } from "../ui/quote.tsx";
@@ -60,83 +64,92 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                 const body = written?.rest ?? item.text;
 
                 return (
-                    <li
+                    <Item
                         key={item.id}
-                        className="rounded-card border-edge bg-raised relative flex items-start gap-1.5 overflow-hidden border py-1.5 pr-1 pl-3"
+                        asChild
+                        size="sm"
+                        className="rounded-card border-edge bg-raised relative items-start gap-1.5 overflow-hidden border pr-1 pl-3"
                     >
-                        <span
-                            aria-hidden
-                            className={`absolute inset-y-0 left-0 w-[3px] ${look.stripe}`}
-                        />
-                        <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="text-meta flex items-center gap-1">
-                                <Icon className={`size-3 shrink-0 ${look.tone}`} />
-                                <span className={`font-medium ${look.tone}`}>
-                                    {item.author === undefined
-                                        ? mode.label
-                                        : `${item.author.name} · ${mode.label.toLowerCase()}`}
-                                </span>
-                                <span className="text-faint hidden sm:inline">· {mode.hint}</span>
-                            </span>
-                            {written === undefined
-                                ? null
-                                : written.quotes.map((quote) => (
-                                      <QuoteCard key={quote} text={quote} />
-                                  ))}
-                            {body === "" ? null : (
-                                <button
-                                    type="button"
-                                    // The queue is a draft waiting for a boundary: reading it is the one thing a tap does.
-                                    onClick={() => {
-                                        setOpen((current) =>
-                                            current === item.id ? null : item.id,
-                                        );
-                                    }}
-                                    className={`text-prose text-ink mt-0.5 text-left break-words whitespace-pre-wrap ${
-                                        open === item.id ? "" : "line-clamp-2"
-                                    }`}
-                                >
-                                    {body}
-                                </button>
-                            )}
-                            {item.files === undefined ? null : (
-                                <span className="text-meta text-faint mt-1 flex min-w-0 items-center gap-1">
-                                    <Paperclip className="size-3 shrink-0" />
-                                    <span className="min-w-0 truncate">
-                                        {item.files.map((file) => file.name).join(", ")}
+                        <li>
+                            <span
+                                aria-hidden
+                                className={`w-stripe absolute inset-y-0 left-0 ${look.stripe}`}
+                            />
+                            <ItemContent>
+                                <span className="text-meta flex items-center gap-1">
+                                    <Icon className={`size-3 shrink-0 ${look.tone}`} />
+                                    <span className={`font-medium ${look.tone}`}>
+                                        {item.author === undefined
+                                            ? mode.label
+                                            : `${item.author.name} · ${mode.label.toLowerCase()}`}
+                                    </span>
+                                    <span className="text-faint hidden sm:inline">
+                                        · {mode.hint}
                                     </span>
                                 </span>
-                            )}
-                        </div>
+                                {written === undefined
+                                    ? null
+                                    : written.quotes.map((quote) => (
+                                          <QuoteCard key={quote} text={quote} />
+                                      ))}
+                                {body === "" ? null : (
+                                    <Button
+                                        variant="ghost"
+                                        // The queue is a draft waiting for a boundary: reading it is the one thing a tap does.
+                                        onClick={() => {
+                                            setOpen((current) =>
+                                                current === item.id ? null : item.id,
+                                            );
+                                        }}
+                                        className={`text-prose text-ink mt-0.5 p-0 text-left break-words whitespace-pre-wrap hover:bg-transparent ${
+                                            open === item.id ? "block" : "line-clamp-2"
+                                        }`}
+                                    >
+                                        {body}
+                                    </Button>
+                                )}
+                                {item.files === undefined ? null : (
+                                    <span className="text-meta text-faint mt-1 flex min-w-0 items-center gap-1">
+                                        <Paperclip className="size-3 shrink-0" />
+                                        <span className="min-w-0 truncate">
+                                            {item.files.map((file) => file.name).join(", ")}
+                                        </span>
+                                    </span>
+                                )}
+                            </ItemContent>
 
-                        <div className="flex shrink-0 items-center">
-                            {/* Editing puts the text in the composer as the person's own; an agent's is not theirs to resend. */}
-                            {item.author !== undefined ? null : (
-                                <button
-                                    type="button"
-                                    title="Edit and send again"
-                                    aria-label="Edit and send again"
-                                    onClick={() => {
-                                        onEdit(item);
-                                    }}
-                                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 items-center justify-center"
-                                >
-                                    <Pencil className="size-3.5" />
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                title="Remove from the queue"
-                                aria-label="Remove from the queue"
-                                onClick={() => {
-                                    onWithdraw(item);
-                                }}
-                                className="rounded-control text-muted hover:bg-raised hover:text-danger flex size-7 items-center justify-center"
-                            >
-                                <X className="size-4" />
-                            </button>
-                        </div>
-                    </li>
+                            <ItemActions>
+                                {/* Editing puts the text in the composer as the person's own; an agent's is not theirs to resend. */}
+                                {item.author !== undefined ? null : (
+                                    <Hint label="Edit and send again">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Edit and send again"
+                                            onClick={() => {
+                                                onEdit(item);
+                                            }}
+                                        >
+                                            <Pencil className="size-3.5" />
+                                        </Button>
+                                    </Hint>
+                                )}
+                                <Hint label="Remove from the queue">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label="Remove from the queue"
+                                        onClick={() => {
+                                            onWithdraw(item);
+                                        }}
+                                        className="hover:text-danger"
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                </Hint>
+                            </ItemActions>
+                        </li>
+                    </Item>
                 );
             })}
         </ul>

@@ -8,11 +8,18 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 import { langOfPath } from "@/lib/highlight.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { Loading } from "@/ui/loading.tsx";
 import { CodeBlock } from "@/ui/markdown.tsx";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import { type File, type Folder, list, read } from "./refs.ts";
 
@@ -103,34 +110,40 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
 
                     return (
                         <div key={path}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (entry.dir) {
-                                        toggle(path);
-                                    } else {
-                                        onOpen(path);
-                                    }
-                                }}
-                                className="hover:bg-raised text-ink rounded-control flex w-full items-center gap-1.5 py-1 pr-2 text-left"
-                                style={{ paddingLeft: depth * 12 + 8 }}
+                            {/* The row is the indent: `paddingLeft` is the depth, and its corners are the panel's. */}
+                            <Item
+                                asChild
+                                size="sm"
+                                className="hover:bg-raised text-ink w-full gap-1.5 py-1 text-left focus-visible:ring-inset"
                             >
-                                {entry.dir ? (
-                                    expanded ? (
-                                        <ChevronDown className="text-faint size-3.5 shrink-0" />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (entry.dir) {
+                                            toggle(path);
+                                        } else {
+                                            onOpen(path);
+                                        }
+                                    }}
+                                    style={{ paddingLeft: depth * 12 + 8 }}
+                                >
+                                    {entry.dir ? (
+                                        expanded ? (
+                                            <ChevronDown className="text-faint size-3.5 shrink-0" />
+                                        ) : (
+                                            <ChevronRight className="text-faint size-3.5 shrink-0" />
+                                        )
                                     ) : (
-                                        <ChevronRight className="text-faint size-3.5 shrink-0" />
-                                    )
-                                ) : (
-                                    <span className="size-3.5 shrink-0" />
-                                )}
-                                {entry.dir ? (
-                                    <FolderIcon className="text-info size-3.5 shrink-0" />
-                                ) : (
-                                    <FileIcon className="text-faint size-3.5 shrink-0" />
-                                )}
-                                <span className="truncate">{entry.name}</span>
-                            </button>
+                                        <span className="size-3.5 shrink-0" />
+                                    )}
+                                    {entry.dir ? (
+                                        <FolderIcon className="text-info size-3.5 shrink-0" />
+                                    ) : (
+                                        <FileIcon className="text-faint size-3.5 shrink-0" />
+                                    )}
+                                    <span className="truncate">{entry.name}</span>
+                                </button>
+                            </Item>
                             {entry.dir && expanded ? (
                                 <div className="animate-drop-in">{rows(path, depth + 1)}</div>
                             ) : null}
@@ -148,22 +161,26 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
 
     return (
         <>
-            <div className="border-edge-soft flex items-center justify-between border-b px-3 py-1.5">
+            <Toolbar className="justify-between">
                 <span className="text-faint text-meta">Session folder</span>
-                <button
-                    type="button"
-                    title="Reload"
-                    onClick={() => {
-                        setFolders({});
-                        setOpen(new Set([""]));
-                        void load("");
-                    }}
-                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                >
-                    <RotateCw className="size-3.5" />
-                </button>
-            </div>
-            {error === null ? null : <p className="text-danger text-interface p-3">{error}</p>}
+                <Hint label="Reload">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Reload"
+                        onClick={() => {
+                            setFolders({});
+                            setOpen(new Set([""]));
+                            void load("");
+                        }}
+                    >
+                        <RotateCw className="size-3.5" />
+                    </Button>
+                </Hint>
+            </Toolbar>
+            {error === null ? null : (
+                <Alert className="text-interface rounded-none p-3">{error}</Alert>
+            )}
             <ScrollArea className="min-h-0 flex-1">
                 <div className="text-interface p-1 font-mono">{rows("", 0)}</div>
             </ScrollArea>
@@ -199,25 +216,28 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
 
     return (
         <>
-            <div className="border-edge-soft flex items-center gap-1 border-b p-2">
-                <button
-                    type="button"
-                    title="Back to the tree"
-                    onClick={onBack}
-                    className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-7 shrink-0 items-center justify-center"
-                >
-                    <ArrowLeft className="size-4" />
-                </button>
+            <Toolbar className="gap-1 p-2">
+                <Hint label="Back to the tree">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Back to the tree"
+                        onClick={onBack}
+                        className="shrink-0"
+                    >
+                        <ArrowLeft className="size-4" />
+                    </Button>
+                </Hint>
                 <span className="text-interface text-ink min-w-0 flex-1 truncate font-mono">
                     {path}
                 </span>
-            </div>
+            </Toolbar>
             <ScrollArea className="min-h-0 flex-1">
                 <div className="p-3">
                     {error !== null ? (
-                        <p className="text-danger text-interface">{error}</p>
+                        <Alert className="text-interface">{error}</Alert>
                     ) : file === undefined ? (
-                        <p className="text-faint text-interface">Loading…</p>
+                        <Loading className="text-interface" />
                     ) : file.kind === "text" ? (
                         <div className="flex flex-col gap-2">
                             <CodeBlock
@@ -254,7 +274,7 @@ export function FilesPanel({ session }: PanelProps) {
     const [entered, setEntered] = useState(false);
 
     if (id === null || session?.cwd === null) {
-        return <p className="text-faint text-interface p-3">Open a session to browse its files.</p>;
+        return <Empty className="text-interface p-3">Open a session to browse its files.</Empty>;
     }
 
     const swap = entered

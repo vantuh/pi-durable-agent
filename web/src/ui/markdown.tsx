@@ -4,10 +4,21 @@ import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown"
 import remarkGfm from "remark-gfm";
 import type { ThemedToken } from "shiki";
 
+import { Button } from "@/components/ui/button";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { classOf, tokensOf } from "../lib/highlight.ts";
 import { splitStable } from "../lib/markdown-split.ts";
+import { PANE } from "./pane.tsx";
 
 type Highlighted = { code: string; lines: ThemedToken[][] };
 
@@ -77,34 +88,37 @@ export function CodeBlock({ code, lang, title }: { code: string; lang: string; t
     const fresh = shown !== undefined && code.startsWith(shown.code) ? shown : undefined;
 
     return (
-        <div className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border">
+        <div className={`${PANE} bg-sunken min-w-0 overflow-hidden`}>
             <div className="border-edge-soft text-meta text-faint flex h-8 items-center justify-between border-b pr-1.5 pl-3 font-mono">
                 <span className="truncate">{title ?? (lang === "" ? "text" : lang)}</span>
-                <button
-                    type="button"
-                    title={copied ? "Copied" : "Copy"}
-                    onClick={() => {
-                        const copy = async () => {
-                            try {
-                                await navigator.clipboard.writeText(code);
-                                setCopied(true);
-                            } catch {
-                                // No clipboard (an insecure origin): the icon stays as it was.
-                            }
-                        };
+                <Hint label={copied ? "Copied" : "Copy"}>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={copied ? "Copied" : "Copy"}
+                        onClick={() => {
+                            const copy = async () => {
+                                try {
+                                    await navigator.clipboard.writeText(code);
+                                    setCopied(true);
+                                } catch {
+                                    // No clipboard (an insecure origin): the icon stays as it was.
+                                }
+                            };
 
-                        void copy();
-                    }}
-                    className="rounded-control hover:bg-raised hover:text-ink flex size-6 items-center justify-center"
-                >
-                    {copied ? (
-                        <Check className="text-ok size-3.5" />
-                    ) : (
-                        <Copy className="size-3.5" />
-                    )}
-                </button>
+                            void copy();
+                        }}
+                        className="text-faint"
+                    >
+                        {copied ? (
+                            <Check className="text-ok size-3.5" />
+                        ) : (
+                            <Copy className="size-3.5" />
+                        )}
+                    </Button>
+                </Hint>
             </div>
-            <pre className="text-ink overflow-x-auto px-3 py-2.5 font-mono text-[12.5px] leading-relaxed">
+            <pre className="text-ink text-code overflow-x-auto px-3 py-2.5 font-mono leading-relaxed">
                 <code>
                     {fresh === undefined
                         ? code
@@ -147,8 +161,9 @@ function langOf(className: unknown): string {
     return found === undefined ? "" : found.slice("language-".length);
 }
 
+// A link in prose is a mark, not a control: the theme's smallest radius, and the ring around it.
 const LINK_CLASS =
-    "text-info decoration-info/40 hover:decoration-info underline underline-offset-2";
+    "text-info decoration-info/40 focus-visible:ring-accent rounded-mark underline underline-offset-2 outline-none hover:decoration-info focus-visible:ring-2";
 
 const COMPONENTS: Components = {
     pre({ node }) {
@@ -167,6 +182,7 @@ const COMPONENTS: Components = {
     },
     code({ children }) {
         return (
+            // A relative size, not a step: inline code sits in prose of any size and stays just under it.
             <code className="rounded-control bg-raised border-edge-soft border px-1 py-px font-mono text-[0.88em]">
                 {children}
             </code>
@@ -187,8 +203,10 @@ const COMPONENTS: Components = {
             </a>
         ) : null;
     },
-    h1: ({ children }) => <h3 className="text-ink mt-2 text-lg font-semibold">{children}</h3>,
-    h2: ({ children }) => <h3 className="text-ink mt-2 text-base font-semibold">{children}</h3>,
+    h1: ({ children }) => <h3 className="text-ink text-heading mt-2 font-semibold">{children}</h3>,
+    h2: ({ children }) => (
+        <h3 className="text-ink text-subheading mt-2 font-semibold">{children}</h3>
+    ),
     h3: ({ children }) => <h4 className="text-ink mt-1 font-semibold">{children}</h4>,
     h4: ({ children }) => <h5 className="text-ink font-semibold">{children}</h5>,
     ul: ({ children }) => (
@@ -201,19 +219,14 @@ const COMPONENTS: Components = {
         <blockquote className="border-edge text-muted border-l-2 pl-3">{children}</blockquote>
     ),
     hr: () => <hr className="border-edge-soft" />,
-    table: ({ children }) => (
-        <div className="rounded-card border-edge-soft overflow-x-auto border">
-            <table className="text-interface w-full border-collapse">{children}</table>
-        </div>
-    ),
-    th: ({ children }) => (
-        <th className="border-edge-soft bg-panel text-ink border-b px-3 py-1.5 text-left font-semibold">
-            {children}
-        </th>
-    ),
-    td: ({ children }) => (
-        <td className="border-edge-soft text-ink border-b px-3 py-1.5 align-top">{children}</td>
-    ),
+    table: ({ children }) => <Table>{children}</Table>,
+    thead: ({ children }) => <TableHeader>{children}</TableHeader>,
+    tbody: ({ children }) => <TableBody>{children}</TableBody>,
+    tr: ({ children }) => <TableRow>{children}</TableRow>,
+    // GFM states a column's alignment as an inline `text-align`; the header's own `text-left` would win over a
+    // class, so the style is handed through and an aligned column stays aligned.
+    th: ({ style, children }) => <TableHead style={style}>{children}</TableHead>,
+    td: ({ style, children }) => <TableCell style={style}>{children}</TableCell>,
 };
 
 const Blocks = memo(function Blocks({ text }: { text: string }): ReactNode {

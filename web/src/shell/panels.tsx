@@ -8,10 +8,15 @@ import {
     useState,
 } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
 import type { PanelProps, StatusProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
+import { PANE, PaneHeader } from "../ui/pane.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 
@@ -64,27 +69,32 @@ export function PanelButtons({
 }) {
     return panels.map((panel) => {
         const key = panelKey(panel);
-        const Badge = panel.badge;
+        const Count = panel.badge;
 
         return (
-            <button
-                key={key}
-                type="button"
-                title={panel.title}
-                onClick={() => {
-                    onToggle(key);
-                }}
-                className={`rounded-control hover:bg-raised hover:text-ink relative flex size-6 items-center justify-center ${open === key ? "bg-raised text-ink" : "text-muted"}`}
-            >
-                {panel.icon}
-                {Badge === undefined ? null : (
-                    <span className="bg-accent text-on-accent text-meta pointer-events-none absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 leading-none empty:hidden">
-                        <ItemBoundary name={`${key}:badge`}>
-                            <Badge session={session} />
-                        </ItemBoundary>
-                    </span>
-                )}
-            </button>
+            <Hint key={key} label={panel.title}>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={panel.title}
+                    onClick={() => {
+                        onToggle(key);
+                    }}
+                    className={`relative ${open === key ? "bg-raised text-ink" : ""}`}
+                >
+                    {panel.icon}
+                    {Count === undefined ? null : (
+                        <Badge
+                            tone="accent"
+                            className="pointer-events-none absolute -top-1 -right-1 h-3.5 min-w-3.5 justify-center px-1 leading-none empty:hidden"
+                        >
+                            <ItemBoundary name={`${key}:badge`}>
+                                <Count session={session} />
+                            </ItemBoundary>
+                        </Badge>
+                    )}
+                </Button>
+            </Hint>
         );
     });
 }
@@ -173,17 +183,16 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
             }}
             className="group absolute inset-y-0 -left-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
+            {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
             <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
         </button>
     );
 }
 
-const DRAWER =
-    "rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]";
+const DRAWER = `${PANE} bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
 // Expanded, the panel takes the conversation's place, exactly the box the page frame takes, and the same
 // fade. The drawer's width no longer applies: the row's own left offset does.
-const OVER =
-    "rounded-card border-edge-soft bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col border animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto";
+const OVER = `${PANE} bg-canvas fixed inset-2 z-20 flex min-w-0 flex-col animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto`;
 const COLUMN = "lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0";
 
 /**
@@ -215,15 +224,18 @@ export function PanelHost({
         setWidth(savedWidth(id), null);
     }, [id]);
 
-    // Escape gives the conversation back, as it does for a dialog. A dialog of its own keeps the key:
-    // one Escape closes one thing.
+    // Escape gives the conversation back, as it does for a dialog. A dialog of its own keeps the key,
+    // a confirmation included: one Escape closes one thing.
     useEffect(() => {
         if (!expanded) {
             return undefined;
         }
 
         const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape" && document.querySelector('[role="dialog"]') === null) {
+            if (
+                event.key === "Escape" &&
+                document.querySelector('[role="dialog"], [role="alertdialog"]') === null
+            ) {
                 setExpanded(false);
             }
         };
@@ -308,17 +320,19 @@ export function PanelHost({
             {/* Pinned to the right edge while the panel widens: it comes in like a drawer, not a squashed card. */}
             <div className="flex min-h-0 flex-1 justify-end overflow-hidden">
                 <div className={`flex w-full min-w-0 flex-col ${expanded ? "" : COLUMN}`}>
-                    <header className="border-edge-soft flex items-center justify-between border-b px-3 py-2.5">
+                    <PaneHeader>
                         <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            title="Close"
-                            className="rounded-control text-muted hover:bg-raised flex size-6 items-center justify-center"
-                        >
-                            <X className="size-4" />
-                        </button>
-                    </header>
+                        <Hint label="Close">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close"
+                                onClick={onClose}
+                            >
+                                <X className="size-4" />
+                            </Button>
+                        </Hint>
+                    </PaneHeader>
 
                     <div className="flex min-h-0 flex-1 flex-col">
                         <ItemBoundary name={panelKey(panel)}>

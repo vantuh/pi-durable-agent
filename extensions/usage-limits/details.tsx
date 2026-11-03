@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Field } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
 import { PROVIDERS, SETTINGS_CHANGED, setShown, settings, type Settings } from "./refs.ts";
 
@@ -54,21 +57,17 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     }
 
     if (!active) {
-        return <p className="text-faint text-meta">Turn the extension on to choose providers.</p>;
+        return <DetailsNote>Turn the extension on to choose providers.</DetailsNote>;
     }
 
     return (
-        <div className="text-meta flex flex-col gap-2">
-            {error === null ? null : (
-                <p role="alert" className="text-danger break-words">
-                    {error}
-                </p>
-            )}
+        <DetailsColumn>
+            {error === null ? null : <Alert>{error}</Alert>}
             <p className="text-faint">
                 Providers to show. A hidden provider is not asked for its limits.
             </p>
             {PROVIDERS.map((provider) => (
-                <div key={provider.id} className="flex items-center gap-2 pl-3">
+                <Field key={provider.id} orientation="horizontal" className="pl-3">
                     <span id={`usage-${provider.id}`} className="text-ink w-28">
                         {provider.name}
                     </span>
@@ -81,8 +80,8 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                             void toggle(provider.id, shown);
                         }}
                     />
-                </div>
+                </Field>
             ))}
-        </div>
+        </DetailsColumn>
     );
 }

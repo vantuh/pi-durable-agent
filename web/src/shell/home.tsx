@@ -1,12 +1,17 @@
 import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions } from "../lib/session-nesting.ts";
 import { MINUTE } from "../lib/time.ts";
+import { PANE, PaneHeader } from "../ui/pane.tsx";
 import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
@@ -33,23 +38,24 @@ function Row({
     onOpen: (id: number) => void;
 }) {
     return (
-        <a
-            href={sessionHref(session.id)}
-            title={session.cwd ?? undefined}
-            onClick={(event) => {
-                if (isPlainClick(event)) {
-                    event.preventDefault();
-                    onOpen(session.id);
-                }
-            }}
-            className="rounded-control hover:bg-raised/50 flex items-center gap-3 px-2 py-2"
-        >
-            <SessionRowContent
-                session={session}
-                now={now}
-                trailing={<SessionMarks session={session} />}
-            />
-        </a>
+        <Item asChild className="hover:bg-raised/50">
+            <a
+                href={sessionHref(session.id)}
+                title={session.cwd ?? undefined}
+                onClick={(event) => {
+                    if (isPlainClick(event)) {
+                        event.preventDefault();
+                        onOpen(session.id);
+                    }
+                }}
+            >
+                <SessionRowContent
+                    session={session}
+                    now={now}
+                    trailing={<SessionMarks session={session} />}
+                />
+            </a>
+        </Item>
     );
 }
 
@@ -80,36 +86,33 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
     ];
 
     return (
-        <section className="rounded-card border-edge-soft bg-canvas flex min-h-0 flex-1 flex-col border">
-            <header className="border-edge-soft flex items-center justify-between gap-3 border-b px-3 py-2.5">
+        <section className={`${PANE} bg-canvas flex min-h-0 flex-1 flex-col`}>
+            <PaneHeader className="gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                    <button
-                        type="button"
-                        title="Sessions"
-                        onClick={onSessions}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center lg:hidden"
-                    >
-                        <PanelLeft className="size-4" />
-                    </button>
+                    <Hint label="Sessions">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Sessions"
+                            onClick={onSessions}
+                            className="shrink-0 lg:hidden"
+                        >
+                            <PanelLeft className="size-4" />
+                        </Button>
+                    </Hint>
                     <h1 className="text-interface text-ink truncate font-medium">Home</h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onNew}
-                        className="rounded-control text-meta text-muted hover:bg-raised hover:text-ink flex items-center gap-1.5 px-2 py-1"
-                    >
+                    <Button variant="ghost" size="sm" onClick={onNew}>
                         <Plus className="size-3.5" />
                         New session
-                    </button>
+                    </Button>
                 </div>
-            </header>
+            </PaneHeader>
 
             <ScrollArea className="min-h-0 flex-1">
                 <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 py-4">
-                    {listed.length === 0 ? (
-                        <p className="text-meta text-faint px-2">No sessions yet</p>
-                    ) : null}
+                    {listed.length === 0 ? <Empty className="px-2">No sessions yet</Empty> : null}
                     {groups.map((group) =>
                         group.rows.length === 0 ? null : (
                             <div key={group.name}>

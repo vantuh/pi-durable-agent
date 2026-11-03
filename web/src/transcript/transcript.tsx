@@ -9,11 +9,16 @@ import {
     useRef,
 } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientEntry, ClientLive } from "../../../shared/protocol.ts";
 import { readProviderError } from "../lib/provider-error.ts";
@@ -23,6 +28,7 @@ import { cn } from "../lib/utils.ts";
 import { addComposerQuote, focusComposer } from "../sdk/composer.ts";
 import { Attachments } from "../ui/attachments.tsx";
 import { Markdown } from "../ui/markdown.tsx";
+import { PANE } from "../ui/pane.tsx";
 import { QuoteCard } from "../ui/quote.tsx";
 import { ActivityGroup, formatDuration, useNow } from "./activity.tsx";
 import { AgentMessage } from "./agent-message.tsx";
@@ -42,7 +48,7 @@ function WithFiles({ text }: { text: string }) {
 
         parts.push(text.slice(at, start));
         parts.push(
-            <Badge key={start} className="border-info/40 bg-info/15 text-info align-middle">
+            <Badge key={start} tone="info" className="align-middle">
                 <File />
                 {match[2]}
             </Badge>,
@@ -66,7 +72,7 @@ function MessageBody({ text }: { text: string }) {
 
     return (
         <div className="flex flex-col items-start gap-1.5">
-            <Badge className="border-warn/40 bg-warn/15 text-warn">
+            <Badge tone="warn">
                 <Lightbulb />
                 {match[1]}
             </Badge>
@@ -176,7 +182,7 @@ const dollars = (cost: number): string => `$${cost.toFixed(cost < 1 ? 3 : 2)}`;
 
 /**
  * The answer's statistics, above it: model and thinking level, then context, output, cost and time. Context is the
- * newest response's prompt; output and cost add up every response of the turn. Its title says it in full.
+ * newest response's prompt; output and cost add up every response of the turn. Its hint says it in full.
  */
 function AnswerHeader({ turn }: { turn: Turn }) {
     const now = useNow(turn.live);
@@ -197,7 +203,7 @@ function AnswerHeader({ turn }: { turn: Turn }) {
                   `↑${tokens(stats.context)} ↓${tokens(stats.output)}`,
                   ...(stats.cost > 0 ? [dollars(stats.cost)] : []),
               ];
-    const title =
+    const hint =
         stats === undefined
             ? undefined
             : [
@@ -212,11 +218,8 @@ function AnswerHeader({ turn }: { turn: Turn }) {
                   ...(stats.cost > 0 ? [`cost ${dollars(stats.cost)}`] : []),
               ].join(" · ");
 
-    return (
-        <div
-            title={title}
-            className="text-meta text-faint flex min-w-0 items-center gap-2 font-mono"
-        >
+    const row = (
+        <div className="text-meta text-faint flex min-w-0 items-center gap-2 font-mono">
             {turn.live ? <Spinner className="size-3 shrink-0" /> : null}
             <span className="text-muted truncate">
                 {stats === undefined ? "working" : stats.model}
@@ -227,69 +230,46 @@ function AnswerHeader({ turn }: { turn: Turn }) {
             </span>
         </div>
     );
+
+    return hint === undefined ? row : <Hint label={hint}>{row}</Hint>;
 }
 
 function ErrorNotice({ text }: { text: string }) {
     const { title, detail, requestId } = readProviderError(text);
 
     return (
-        <div className="bg-danger/10 text-meta flex items-start gap-2 rounded-lg px-3 py-2">
-            <CircleAlert className="text-danger mt-0.5 size-3.5 shrink-0" />
+        <Alert>
+            <CircleAlert />
             <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-danger break-words">{title}</span>
+                <span>{title}</span>
                 {detail === undefined && requestId === undefined ? null : (
                     <span className="text-faint font-mono break-all">
                         {[detail, requestId].filter((part) => part !== undefined).join(" · ")}
                     </span>
                 )}
             </div>
-        </div>
+        </Alert>
     );
 }
 
-const Rule = () => <span aria-hidden="true" className="bg-edge-soft h-px flex-1" />;
-
-/** The mark's pill, in the tone of what it says: a chip on the line between messages. */
-const PILL_TONES = {
-    raised: "border-edge bg-raised text-ink",
-    warn: "border-warn/30 bg-warn/10 text-warn",
-    danger: "border-danger/30 bg-danger/10 text-danger",
-} as const;
-
-function CompactionPill({
-    children,
-    tone = "raised",
-    interactive,
-}: {
-    children: ReactNode;
-    tone?: keyof typeof PILL_TONES;
-    interactive?: boolean;
-}) {
-    return (
-        <span
-            className={cn(
-                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1",
-                PILL_TONES[tone],
-                interactive === true && "hover:border-muted",
-            )}
-        >
-            {children}
-        </span>
-    );
-}
+/** The line beside a compaction pill: a span, because two of its hosts are collapsible triggers, which are buttons. */
+const Rule = () => (
+    <Separator asChild className="flex-1">
+        <span />
+    </Separator>
+);
 
 /** A compaction that is running now, at the end of the transcript: where its marker lands once it is done. */
 function CompactingMark({ retrying }: { retrying: boolean }) {
     return (
         <div className="flex items-center gap-3">
             <Rule />
-            <CompactionPill tone={retrying ? "warn" : "raised"}>
-                <Layers className="size-3.5 shrink-0" />
-                <span className="text-meta">
-                    {retrying ? "compaction failed, retrying" : "compacting earlier messages"}
-                </span>
-                <Spinner className="size-3 shrink-0" />
-            </CompactionPill>
+            {/* Sans, unlike the badges that hold a value: this one holds a sentence. */}
+            <Badge tone={retrying ? "warn" : "raised"} className="font-sans">
+                <Layers />
+                {retrying ? "compaction failed, retrying" : "compacting earlier messages"}
+                <Spinner />
+            </Badge>
             <Rule />
         </div>
     );
@@ -301,15 +281,15 @@ function CompactionFailedMark({ error }: { error: string }) {
         <Collapsible className="group/failed flex flex-col gap-2">
             <CollapsibleTrigger className="flex items-center gap-3 text-left">
                 <Rule />
-                <CompactionPill tone="danger">
-                    <CircleAlert className="size-3.5 shrink-0" />
-                    <span className="text-meta">compaction failed</span>
-                    <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/failed:rotate-90" />
-                </CompactionPill>
+                <Badge tone="danger" className="font-sans">
+                    <CircleAlert />
+                    compaction failed
+                    <ChevronRight className="transition-transform group-data-[state=open]/failed:rotate-90" />
+                </Badge>
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>
-                <p className="text-meta text-danger text-center break-words">{error}</p>
+                <Alert className="justify-center text-center">{error}</Alert>
             </CollapsibleContent>
         </Collapsible>
     );
@@ -320,15 +300,17 @@ function CompactionFailedMark({ error }: { error: string }) {
  * The messages above stay on screen — they are the conversation, they are just no longer what is sent.
  */
 function CompactionMark({ summary }: { summary?: string }) {
-    const label = <span className="text-meta text-ink">earlier messages were compacted</span>;
     const pill = (
-        <CompactionPill interactive={summary !== undefined}>
-            <Layers className="size-3.5 shrink-0" />
-            {label}
+        <Badge
+            tone="raised"
+            className={cn("font-sans", summary !== undefined && "hover:border-muted")}
+        >
+            <Layers />
+            earlier messages were compacted
             {summary === undefined ? null : (
-                <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/fold:rotate-90" />
+                <ChevronRight className="transition-transform group-data-[state=open]/fold:rotate-90" />
             )}
-        </CompactionPill>
+        </Badge>
     );
 
     if (summary === undefined) {
@@ -349,7 +331,7 @@ function CompactionMark({ summary }: { summary?: string }) {
                 <Rule />
             </CollapsibleTrigger>
             <CollapsibleContent>
-                <div className="rounded-card border-edge-soft bg-panel border px-3 py-2.5">
+                <div className={`${PANE} bg-panel px-3 py-2.5`}>
                     <Markdown text={summary} />
                 </div>
             </CollapsibleContent>
@@ -574,17 +556,20 @@ export function Transcript({
     }, []);
 
     return (
-        <section className="rounded-card border-edge-soft bg-canvas rounded-card flex min-h-0 flex-1 flex-col border">
-            <header className="border-edge-soft flex min-h-[45px] items-center justify-between gap-3 border-b px-3 py-0.5">
+        <section className={`${PANE} bg-canvas flex min-h-0 flex-1 flex-col`}>
+            <header className="border-edge-soft min-h-header flex items-center justify-between gap-3 border-b px-3 py-0.5">
                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                    <button
-                        type="button"
-                        title="Sessions"
-                        onClick={onSessions}
-                        className="rounded-control text-muted hover:bg-raised hover:text-ink flex size-6 shrink-0 items-center justify-center lg:hidden"
-                    >
-                        <PanelLeft className="size-4" />
-                    </button>
+                    <Hint label="Sessions">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Sessions"
+                            onClick={onSessions}
+                            className="shrink-0 lg:hidden"
+                        >
+                            <PanelLeft className="size-4" />
+                        </Button>
+                    </Hint>
                     <div className="flex min-w-0 flex-col gap-0.5">
                         <h1 className="text-interface text-ink truncate leading-5 font-medium">
                             {title ?? "New session"}
@@ -691,9 +676,7 @@ export function Transcript({
                                 <output className="sr-only">Opening the session…</output>
                             </>
                         ) : (
-                            <p className="text-prose text-faint">
-                                Nothing here yet. Ask something.
-                            </p>
+                            <Empty className="text-prose">Nothing here yet. Ask something.</Empty>
                         )
                     ) : null}
                 </div>

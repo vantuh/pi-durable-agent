@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
+import { DetailsColumn } from "@/ui/details.tsx";
 
 import { AccountDetails } from "./account-details.tsx";
 import { DEFAULT_VERSION, type Diagnostics, diagnostics, outcomes } from "./refs.ts";
@@ -43,14 +45,10 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     }, [active]);
 
     return (
-        <div className="text-meta flex flex-col gap-2">
+        <DetailsColumn>
             {active ? (
                 <>
-                    {error === null ? null : (
-                        <p role="alert" className="text-danger break-words">
-                            {error}
-                        </p>
-                    )}
+                    {error === null ? null : <Alert>{error}</Alert>}
                     {state === null ? (
                         <p className="text-faint">
                             {error === null ? "Loading diagnostics…" : "Diagnostics unavailable."}
@@ -110,9 +108,13 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                         </dl>
                     )}
                     {state?.versionError === undefined || state.versionError === null ? null : (
-                        <p role="alert" className="text-warn break-words">
+                        <Alert
+                            tone="warn"
+                            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a provider's warning is not one
+                            role="status"
+                        >
                             {state.versionError.hint}
-                        </p>
+                        </Alert>
                     )}
                     <AccountDetails />
                     {error !== null && state !== null ? (
@@ -142,6 +144,6 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
             <p className="text-faint">
                 Shaping does not confirm that a request was charged to subscription limits.
             </p>
-        </div>
+        </DetailsColumn>
     );
 }

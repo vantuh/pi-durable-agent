@@ -1,7 +1,11 @@
 import { Check, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import { toast } from "@/lib/toast.ts";
 import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/types.ts";
 
@@ -24,13 +28,15 @@ function SessionTags({ session }: SessionItemProps) {
     return (
         <span className="flex min-w-0 shrink items-center gap-1">
             {shown.map((tag) => (
-                <span
+                <Badge
                     key={tag.id}
                     title={tag.name}
-                    className={`rounded-control text-meta max-w-20 truncate px-1 py-0.5 ${TAG_TONE[tag.color]}`}
+                    className={`rounded-control h-auto max-w-20 truncate border-0 px-1 py-0.5 font-sans ${TAG_TONE[tag.color]}`}
                 >
-                    {tag.name}
-                </span>
+                    {/* The name is its own box, because `truncate` clips a badge's anonymous text child
+                        without an ellipsis; the badge keeps its own so `max-w-20` still wins. */}
+                    <span className="truncate">{tag.name}</span>
+                </Badge>
             ))}
             {tags.length === shown.length ? null : (
                 <span
@@ -53,9 +59,7 @@ function TagsMenu({ session }: SessionItemProps) {
     const held = new Set(state?.sessions[String(session.id)] ?? []);
 
     if (tags.length === 0) {
-        return (
-            <p className="text-faint text-meta px-2 py-1.5">No tags yet. Add them in Extensions.</p>
-        );
+        return <Empty className="px-2 py-1.5">No tags yet. Add them in Extensions.</Empty>;
     }
 
     return tags.map((tag) => (
@@ -114,39 +118,50 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                 const on = live.includes(tag.id);
 
                 return (
-                    <button
+                    <Hint
                         key={tag.id}
-                        type="button"
-                        aria-pressed={on}
-                        title={
+                        label={
                             on ? `${tag.name}: shown, click to stop` : `${tag.name}: click to show`
                         }
-                        onClick={() => {
-                            setChosen((held) =>
-                                held.includes(tag.id)
-                                    ? held.filter((each) => each !== tag.id)
-                                    : [...held, tag.id],
-                            );
-                        }}
-                        className={`rounded-control text-meta inline-flex max-w-24 min-w-0 items-center gap-0.5 px-1.5 py-0.5 hover:brightness-110 ${TAG_TONE[tag.color]}`}
                     >
-                        <span className="truncate">{tag.name}</span>
-                        {on ? <X aria-hidden className="size-2.5 shrink-0" /> : null}
-                    </button>
+                        {/* A wash of the tag's own hue is the pill, and it stays on hover: ghost's raised fill
+                            would replace it. The focus ring is the app's, not the browser's. */}
+                        <Badge
+                            asChild
+                            className={`rounded-control focus-visible:ring-accent h-auto max-w-24 min-w-0 gap-0.5 border-0 px-1.5 py-0.5 font-sans outline-none hover:brightness-110 focus-visible:ring-2 [&>svg]:size-2.5 ${TAG_TONE[tag.color]}`}
+                        >
+                            <button
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => {
+                                    setChosen((held) =>
+                                        held.includes(tag.id)
+                                            ? held.filter((each) => each !== tag.id)
+                                            : [...held, tag.id],
+                                    );
+                                }}
+                            >
+                                <span className="truncate">{tag.name}</span>
+                                {on ? <X aria-hidden /> : null}
+                            </button>
+                        </Badge>
+                    </Hint>
                 );
             })}
             {live.length === 0 ? null : (
-                <button
-                    type="button"
-                    aria-label="Show every tag"
-                    title="Show every tag"
-                    onClick={() => {
-                        setChosen([]);
-                    }}
-                    className="text-muted hover:text-ink text-meta shrink-0 px-1 underline-offset-2 hover:underline"
-                >
-                    clear
-                </button>
+                <Hint label="Show every tag">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Show every tag"
+                        onClick={() => {
+                            setChosen([]);
+                        }}
+                        className="shrink-0 px-1 py-0 underline-offset-2 hover:underline"
+                    >
+                        clear
+                    </Button>
+                </Hint>
             )}
         </div>
     );

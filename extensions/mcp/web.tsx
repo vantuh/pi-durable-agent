@@ -1,10 +1,15 @@
 import { Plug } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
+import { Item, ItemActions, ItemContent, ItemTitle } from "@/components/ui/item.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
@@ -73,80 +78,37 @@ function detail(server: ServerInfo): string {
     return server.status === "error" ? (server.error ?? "failed") : "connecting…";
 }
 
-function Popover({
-    anchor,
+function Panel({
     servers,
     problem,
     busy,
     onToggle,
-    onClose,
 }: {
-    anchor: HTMLElement;
     servers: ServerInfo[];
     problem: string | undefined;
     busy: string | undefined;
     onToggle: (name: string, on: boolean) => void;
-    onClose: () => void;
 }) {
-    const ref = useRef<HTMLDialogElement>(null);
-    // Above the button, since the status bar is at the bottom; kept inside the window on a phone.
-    const [place] = useState(() => {
-        const box = anchor.getBoundingClientRect();
-        const width = Math.min(288, innerWidth - 16);
-        const left = Math.min(
-            Math.max(8, box.left + box.width / 2 - width / 2),
-            innerWidth - width - 8,
-        );
-
-        return { bottom: innerHeight - box.top + 8, left };
-    });
-
-    useEffect(() => {
-        const away = (event: PointerEvent) => {
-            if (
-                event.target instanceof Node &&
-                !ref.current?.contains(event.target) &&
-                !anchor.contains(event.target)
-            ) {
-                onClose();
-            }
-        };
-        const escape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        };
-
-        document.addEventListener("pointerdown", away);
-        document.addEventListener("keydown", escape);
-
-        return () => {
-            document.removeEventListener("pointerdown", away);
-            document.removeEventListener("keydown", escape);
-        };
-    }, [anchor, onClose]);
-
-    return createPortal(
-        <dialog
-            ref={ref}
-            open
-            aria-label="MCP servers"
-            style={place}
-            className="border-edge-soft bg-panel text-meta text-ink rounded-control fixed top-auto right-auto z-50 m-0 w-72 max-w-[calc(100vw-1rem)] border p-1 shadow-lg"
-        >
-            {problem === undefined ? null : <p className="text-danger px-2 py-1.5">{problem}</p>}
+    return (
+        <PopoverContent size="menu" side="top" aria-label="MCP servers" className="text-meta">
+            {problem === undefined ? null : (
+                <Alert
+                    className="px-2 py-1.5"
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `output` is a calculation's result, and a config file's problem is not one
+                    role="status"
+                >
+                    {problem}
+                </Alert>
+            )}
             {servers.length === 0 && problem === undefined ? (
-                <p className="text-faint px-2 py-1.5">No servers in mcp.json.</p>
+                <Empty className="px-2 py-1.5">No servers in mcp.json.</Empty>
             ) : null}
             {/* Three rows of h-11 show; more scroll. */}
             <ScrollArea viewportProps={{ className: "max-h-33" }}>
                 {servers.map((server) => (
-                    <div
-                        key={server.name}
-                        className="hover:bg-raised rounded-control flex h-11 items-center gap-2 px-2"
-                    >
-                        <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="text-ink truncate">{server.name}</span>
+                    <Item key={server.name} className="hover:bg-raised h-11 py-0">
+                        <ItemContent>
+                            <ItemTitle className="text-meta">{server.name}</ItemTitle>
                             <span className="truncate">
                                 <span
                                     className={
@@ -159,21 +121,22 @@ function Popover({
                                     <span className="text-faint font-mono"> · {server.target}</span>
                                 )}
                             </span>
-                        </div>
-                        {busy === server.name ? <Spinner className="text-faint" /> : null}
-                        <Switch
-                            checked={server.status !== "off"}
-                            disabled={busy !== undefined}
-                            aria-label={server.name}
-                            onCheckedChange={(on) => {
-                                onToggle(server.name, on);
-                            }}
-                        />
-                    </div>
+                        </ItemContent>
+                        <ItemActions className="gap-2">
+                            {busy === server.name ? <Spinner className="text-faint" /> : null}
+                            <Switch
+                                checked={server.status !== "off"}
+                                disabled={busy !== undefined}
+                                aria-label={server.name}
+                                onCheckedChange={(on) => {
+                                    onToggle(server.name, on);
+                                }}
+                            />
+                        </ItemActions>
+                    </Item>
                 ))}
             </ScrollArea>
-        </dialog>,
-        document.body,
+        </PopoverContent>
     );
 }
 
@@ -182,10 +145,6 @@ function McpStatus() {
     const [busy, setBusy] = useState<string | undefined>();
     const [failure, setFailure] = useState<string | undefined>();
     const [open, setOpen] = useState(false);
-    const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
-    const close = useCallback(() => {
-        setOpen(false);
-    }, []);
 
     if (current === undefined) {
         return null;
@@ -208,37 +167,32 @@ function McpStatus() {
     const title = `MCP: ${String(on.length)} of ${String(current.servers.length)} servers on`;
 
     return (
-        <>
-            <button
-                ref={setAnchor}
-                type="button"
-                title={title}
-                aria-label={title}
-                aria-expanded={open}
-                onClick={() => {
-                    setOpen((previous) => !previous);
+        <Popover open={open} onOpenChange={setOpen}>
+            <Hint label={title}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={title}
+                        className="hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5"
+                    >
+                        <Plug className={`size-3.5 ${toneOf(on)}`} />
+                        <span className="text-ink">MCP</span>
+                        <span className="text-muted font-mono tabular-nums">
+                            {String(on.length)}/{String(current.servers.length)}
+                        </span>
+                    </Button>
+                </PopoverTrigger>
+            </Hint>
+            <Panel
+                servers={current.servers}
+                problem={failure ?? current.problem}
+                busy={busy}
+                onToggle={(name, wanted) => {
+                    void change(name, wanted);
                 }}
-                className="hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5"
-            >
-                <Plug className={`size-3.5 ${toneOf(on)}`} />
-                <span className="text-ink">MCP</span>
-                <span className="font-mono tabular-nums">
-                    {String(on.length)}/{String(current.servers.length)}
-                </span>
-            </button>
-            {open && anchor !== null ? (
-                <Popover
-                    anchor={anchor}
-                    servers={current.servers}
-                    problem={failure ?? current.problem}
-                    busy={busy}
-                    onToggle={(name, wanted) => {
-                        void change(name, wanted);
-                    }}
-                    onClose={close}
-                />
-            ) : null}
-        </>
+            />
+        </Popover>
     );
 }
 

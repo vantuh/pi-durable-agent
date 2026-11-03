@@ -2,7 +2,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, type KeyboardEvent } from "react";
 import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Hint } from "@/components/ui/tooltip";
 
 export type Shot = { src: string | undefined; name: string };
 
@@ -19,20 +21,22 @@ function StepButton({
     const label = side === "previous" ? "Previous photo" : "Next photo";
 
     return (
-        <button
-            type="button"
-            title={label}
-            aria-label={label}
-            aria-disabled={disabled}
-            onClick={() => {
-                if (!disabled) {
-                    onClick();
-                }
-            }}
-            className={`rounded-control bg-sunken/30 text-muted focus-visible:ring-accent hover:bg-sunken/60 hover:text-ink focus-visible:bg-sunken/60 focus-visible:text-ink aria-disabled:bg-sunken/30 aria-disabled:text-muted absolute top-1/2 flex size-8 -translate-y-1/2 items-center justify-center opacity-70 outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 aria-disabled:cursor-default aria-disabled:opacity-30 ${side === "previous" ? "left-1.5" : "right-1.5"}`}
-        >
-            <Icon className="size-5" />
-        </button>
+        <Hint label={label}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label={label}
+                aria-disabled={disabled}
+                onClick={() => {
+                    if (!disabled) {
+                        onClick();
+                    }
+                }}
+                className={`bg-sunken/30 focus-visible:bg-sunken/60 focus-visible:text-ink aria-disabled:bg-sunken/30 aria-disabled:text-muted hover:bg-sunken/60 absolute top-1/2 size-8 -translate-y-1/2 opacity-70 hover:opacity-100 focus-visible:opacity-100 aria-disabled:cursor-default aria-disabled:opacity-30 ${side === "previous" ? "left-1.5" : "right-1.5"}`}
+            >
+                <Icon className="size-5" />
+            </Button>
+        </Hint>
     );
 }
 

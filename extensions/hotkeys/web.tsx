@@ -1,10 +1,21 @@
 import { useEffect, useState } from "react";
 
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
-import { runCommand } from "@/sdk/commands.ts";
+import { runCommand, setCommandKeys } from "@/sdk/commands.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { DEFAULT_KEYMAP, fieldKeeps, step, type Keymap } from "./lib.ts";
+import {
+    caps,
+    COMMANDS,
+    DEFAULT_KEYMAP,
+    fieldKeeps,
+    inDialog,
+    presses,
+    step,
+    type Keymap,
+} from "./lib.ts";
 import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
@@ -40,8 +51,10 @@ function Hotkeys() {
 
             // A dialog owns the keyboard; a field keeps what it types but not the prefix, which has to
             // reach `step` so the shell arms from anywhere. Only a prefix already pressed carries on.
-            const dialog = focus !== null && focus.closest('[role="dialog"]') !== null;
-            if (!armed && (dialog || (target !== null && fieldKeeps(target, map, event)))) {
+            if (
+                !armed &&
+                (inDialog(focus) || (target !== null && fieldKeeps(target, map, event)))
+            ) {
                 return;
             }
 
@@ -72,6 +85,13 @@ function Hotkeys() {
 
             if (alive) {
                 map = found;
+
+                for (const command of COMMANDS) {
+                    // A command with several bindings shows the first: one sequence is what a hint holds.
+                    const binding = found.keys[command][0];
+
+                    setCommandKeys(command, binding === undefined ? null : presses(found, binding));
+                }
             }
         })();
 
@@ -81,16 +101,28 @@ function Hotkeys() {
             alive = false;
             clearTimeout(timer);
             window.removeEventListener("keydown", onKey, { capture: true });
+
+            // Off, the folder leaves no label in the core's hints.
+            for (const command of COMMANDS) {
+                setCommandKeys(command, null);
+            }
         };
     }, []);
 
+    // A readout, not a control: it takes no tab stop, so the hint shows on hover alone.
     return label === null ? null : (
-        <span
-            title="Prefix key pressed: waiting for the next key"
-            className="text-accent font-mono"
+        <Hint
+            label="Prefix key pressed: waiting for the next key"
+            keys={
+                <KbdGroup>
+                    {caps(label).map((key) => (
+                        <Kbd key={key}>{key}</Kbd>
+                    ))}
+                </KbdGroup>
+            }
         >
-            {label}
-        </span>
+            <span className="text-accent font-mono">{label}</span>
+        </Hint>
     );
 }
 

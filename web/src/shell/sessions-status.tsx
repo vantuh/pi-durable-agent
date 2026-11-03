@@ -1,6 +1,10 @@
 import { House } from "lucide-react";
 import { type ReactNode, useRef, useState, useSyncExternalStore } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { Hint } from "@/components/ui/tooltip";
+
 import type { SessionSummary } from "../../../shared/protocol.ts";
 import {
     DropdownMenu,
@@ -29,7 +33,8 @@ type Props = {
     children: ReactNode;
 };
 
-const ROW = "gap-3 px-2 py-1.5";
+/** The padding only: the gap, the hover fill and the open look are the menu item's, which is the row. */
+const ROW = "px-2 py-1.5";
 
 type RowProps = {
     session: SessionSummary;
@@ -242,27 +247,29 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
 
     return (
         <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
-            <DropdownMenuTrigger asChild>
-                <button
-                    type="button"
-                    title="Sessions at work"
-                    className="rounded-control hover:bg-sunken aria-expanded:bg-sunken -mx-1.5 flex shrink-0 items-center gap-1.5 px-1.5 py-0.5"
-                >
-                    {children}
-                    {working.length === 0 ? null : (
-                        <span className="text-accent">
-                            · {working.length}
-                            <CountSuffix>{" working"}</CountSuffix>
-                        </span>
-                    )}
-                    {unseen.length === 0 ? null : (
-                        <span className="text-ok">
-                            · {unseen.length}
-                            <CountSuffix>{" new"}</CountSuffix>
-                        </span>
-                    )}
-                </button>
-            </DropdownMenuTrigger>
+            <Hint label="Sessions at work">
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-sunken aria-expanded:bg-sunken -mx-1.5 shrink-0 px-1.5 py-0.5"
+                    >
+                        {children}
+                        {working.length === 0 ? null : (
+                            <span className="text-accent">
+                                · {working.length}
+                                <CountSuffix>{" working"}</CountSuffix>
+                            </span>
+                        )}
+                        {unseen.length === 0 ? null : (
+                            <span className="text-ok">
+                                · {unseen.length}
+                                <CountSuffix>{" new"}</CountSuffix>
+                            </span>
+                        )}
+                    </Button>
+                </DropdownMenuTrigger>
+            </Hint>
             <DropdownMenuContent
                 side="top"
                 align="start"
@@ -282,7 +289,7 @@ export function SessionsStatus({ sessions, current, onOpen, children }: Props) {
                     }}
                 />
                 {active === undefined && working.length + marked.length + unseen.length === 0 ? (
-                    <p className="text-meta text-faint px-2 py-1.5">No session is working</p>
+                    <Empty className="px-2 py-1.5">No session is working</Empty>
                 ) : null}
                 <DropdownMenuItem
                     className="text-muted mt-1 gap-2 px-2 py-1.5"

@@ -1,20 +1,29 @@
 import { Gauge, LoaderCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
+import { Alert } from "@/components/ui/alert.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Empty } from "@/components/ui/empty.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
+import { Progress } from "@/components/ui/progress.tsx";
+import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+import { Loading } from "@/ui/loading.tsx";
+import { PANE } from "@/ui/pane.tsx";
 
 import { providers, readerFor, SETTINGS_CHANGED, type Bucket, type UsageResult } from "./refs.ts";
 
 const REFRESH_MS = 5 * 60_000;
-const POPOVER_WIDTH = 288;
 const WARN_ABOVE = 70;
 const DANGER_ABOVE = 90;
 
-function tone(pct: number): string {
-    return pct > DANGER_ABOVE ? "bg-danger" : pct > WARN_ABOVE ? "bg-warn" : "bg-accent";
+function toneOf(pct: number): "accent" | "warn" | "danger" {
+    return pct > DANGER_ABOVE ? "danger" : pct > WARN_ABOVE ? "warn" : "accent";
 }
+
+/** The bar's fill, 0 to 100: the rounded percentage beside it, which is what the width used to be. */
+const fillOf = (pct: number): number => Math.min(100, Math.max(0, Math.round(pct)));
 
 /** "resets in 2d 3h", as the terminal's `/usage` says it. */
 /** The status bar is narrow: long window labels shrink there; the popover keeps them whole. */
@@ -39,17 +48,6 @@ function until(resetsAt: number | null, now: number): string {
     }
 
     return `resets in ${parts.join(" ")}`;
-}
-
-function Bar({ pct, className }: { pct: number; className: string }) {
-    return (
-        <span className={`bg-raised overflow-hidden rounded-full ${className}`}>
-            <span
-                className={`${tone(pct)} h-full`}
-                style={{ width: `${String(Math.min(100, Math.max(0, Math.round(pct))))}%` }}
-            />
-        </span>
-    );
 }
 
 /** Every provider's limits, read on a slow timer and when the popover opens; a session switch only picks another row. */
@@ -125,121 +123,70 @@ function Row({ bucket, now }: { bucket: Bucket; now: number }) {
                 <span className="text-muted">{bucket.label}</span>
                 <span className="text-ink font-mono tabular-nums">{Math.round(bucket.pct)}%</span>
             </div>
-            <Bar pct={bucket.pct} className="my-1 flex h-1.5 w-full" />
+            <Progress
+                value={fillOf(bucket.pct)}
+                tone={toneOf(bucket.pct)}
+                className="my-1 h-1.5 w-full"
+                aria-label={bucket.label}
+            />
             {reset === "" ? null : <div className="text-faint">{reset}</div>}
         </div>
     );
 }
 
-function Popover({
-    anchor,
+function Panel({
     reader,
     result,
     onRefresh,
-    onClose,
 }: {
-    anchor: HTMLElement;
     reader: string | null;
     result: { data: UsageResult | null; loading: boolean; failure: string | null };
     onRefresh: () => void;
-    onClose: () => void;
 }) {
-    const ref = useRef<HTMLDialogElement>(null);
-    // Above the button, since the status bar is at the bottom; kept inside the window on a phone.
-    const [place] = useState(() => {
-        const box = anchor.getBoundingClientRect();
-        const width = Math.min(POPOVER_WIDTH, innerWidth - 16);
-        const left = Math.min(
-            Math.max(8, box.left + box.width / 2 - width / 2),
-            innerWidth - width - 8,
-        );
-
-        return { bottom: innerHeight - box.top + 8, left };
-    });
-
-    useEffect(() => {
-        const away = (event: PointerEvent) => {
-            if (
-                event.target instanceof Node &&
-                !ref.current?.contains(event.target) &&
-                !anchor.contains(event.target)
-            ) {
-                onClose();
-            }
-        };
-        const escape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        };
-
-        document.addEventListener("pointerdown", away);
-        document.addEventListener("keydown", escape);
-
-        return () => {
-            document.removeEventListener("pointerdown", away);
-            document.removeEventListener("keydown", escape);
-        };
-    }, [anchor, onClose]);
-
-    return createPortal(
-        <dialog
-            ref={ref}
-            open
+    return (
+        <PopoverContent
+            side="top"
             aria-label="Provider usage"
-            style={place}
-            className="border-edge bg-panel text-meta text-ink fixed top-auto right-auto z-50 m-0 max-h-[70vh] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border p-3 shadow-lg"
+            size="panel"
+            className="text-meta max-h-[70vh] w-72 overflow-y-auto"
         >
             <div className="mb-2 flex items-center justify-between">
                 <span className="text-ink font-medium">Provider usage</span>
-                <button
-                    type="button"
-                    title="Refresh"
-                    aria-label="Refresh"
-                    onClick={onRefresh}
-                    className="text-muted hover:text-ink"
-                >
-                    {result.loading ? (
-                        <LoaderCircle className="size-3.5 animate-spin" />
-                    ) : (
-                        <RefreshCw className="size-3.5" />
-                    )}
-                </button>
+                <Hint label="Refresh">
+                    <Button variant="ghost" size="icon-sm" aria-label="Refresh" onClick={onRefresh}>
+                        {result.loading ? (
+                            <LoaderCircle className="size-3.5 animate-spin" />
+                        ) : (
+                            <RefreshCw className="size-3.5" />
+                        )}
+                    </Button>
+                </Hint>
             </div>
-            {result.failure === null ? null : <p className="text-danger mb-2">{result.failure}</p>}
+            {result.failure === null ? null : <Alert className="mb-2">{result.failure}</Alert>}
             {result.data?.providers.length === 0 ? (
-                <p className="text-faint">No signed-in provider reports limits.</p>
+                <Empty>No signed-in provider reports limits.</Empty>
             ) : null}
             {result.data?.providers.map((provider) => (
                 <section
                     key={provider.id}
-                    className={`border-edge-soft mb-3 rounded-lg border p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
+                    className={`${PANE} mb-3 p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
                 >
                     <h4 className="text-ink mb-1.5 font-medium">{provider.name}</h4>
-                    {provider.error === undefined ? null : (
-                        <p className="text-danger">{provider.error}</p>
-                    )}
+                    {provider.error === undefined ? null : <Alert>{provider.error}</Alert>}
                     {provider.buckets.map((bucket) => (
                         <Row key={bucket.label} bucket={bucket} now={result.data?.at ?? 0} />
                     ))}
                 </section>
             ))}
-            {result.data === null && result.failure === null ? (
-                <p className="text-faint">Loading…</p>
-            ) : null}
-        </dialog>,
-        document.body,
+            {result.data === null && result.failure === null ? <Loading /> : null}
+        </PopoverContent>
     );
 }
 
 function UsageLimits({ session }: StatusProps) {
     const usage = useUsage();
     const [open, setOpen] = useState(false);
-    const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
     const reader = readerFor(session?.model ?? null);
-    const close = useCallback(() => {
-        setOpen(false);
-    }, []);
 
     if (session === null) {
         return null;
@@ -253,44 +200,50 @@ function UsageLimits({ session }: StatusProps) {
             : `${provider?.name ?? ""}: ${String(Math.round(bucket.pct))}% used (${bucket.label}). ${until(bucket.resetsAt, usage.data?.at ?? 0)}`;
 
     return (
-        <>
-            <button
-                ref={setAnchor}
-                type="button"
-                title={title}
-                aria-label={title}
-                aria-expanded={open}
-                onClick={() => {
-                    if (!open) {
-                        usage.refresh();
-                    }
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                // Opening asks the provider again, and only opening: a phone that closes a popup has spent nothing.
+                if (next) {
+                    usage.refresh();
+                }
 
-                    setOpen((previous) => !previous);
+                setOpen(next);
+            }}
+        >
+            <Hint label={title}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={title}
+                        className="text-faint hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono"
+                    >
+                        {bucket === undefined ? (
+                            <Gauge className="size-3.5" />
+                        ) : (
+                            <>
+                                <span>{SHORT[bucket.label] ?? bucket.label}</span>
+                                <Progress
+                                    value={fillOf(bucket.pct)}
+                                    tone={toneOf(bucket.pct)}
+                                    className="w-9"
+                                    aria-label={bucket.label}
+                                />
+                                {String(Math.round(bucket.pct))}%
+                            </>
+                        )}
+                    </Button>
+                </PopoverTrigger>
+            </Hint>
+            <Panel
+                reader={reader}
+                result={usage}
+                onRefresh={() => {
+                    usage.refresh();
                 }}
-                className="text-faint hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono"
-            >
-                {bucket === undefined ? (
-                    <Gauge className="size-3.5" />
-                ) : (
-                    <>
-                        <span>{SHORT[bucket.label] ?? bucket.label}</span>
-                        <Bar pct={bucket.pct} className="flex h-1 w-9" />
-                        {String(Math.round(bucket.pct))}%
-                    </>
-                )}
-            </button>
-            {open && anchor !== null ? (
-                <Popover
-                    anchor={anchor}
-                    reader={reader}
-                    result={usage}
-                    onRefresh={() => {
-                        usage.refresh();
-                    }}
-                    onClose={close}
-                />
-            ) : null}
-        </>
+            />
+        </Popover>
     );
 }
 

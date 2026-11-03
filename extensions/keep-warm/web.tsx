@@ -1,8 +1,11 @@
 import { Flame, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Hint } from "@/components/ui/tooltip";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -18,7 +21,6 @@ import {
 } from "./refs.ts";
 
 const POLL_MS = 60_000;
-const POPOVER_WIDTH = 256;
 
 const tokens = (count = 0) =>
     count >= 1000 ? `${String(Math.round(count / 1000))}k` : String(count);
@@ -80,7 +82,6 @@ function Panel({
     warm,
     rows,
     current,
-    anchor,
     now,
     onToggle,
     onStop,
@@ -92,60 +93,20 @@ function Panel({
     rows: WarmSession[];
     /** The conversation the user is in: listed, but not a link. */
     current: number;
-    anchor: HTMLElement;
     now: number;
     onToggle: (on: boolean) => void;
     onStop: (session: number, label: string) => void;
     onOpen: (session: number) => void;
     onClose: () => void;
 }) {
-    const ref = useRef<HTMLDialogElement>(null);
-    // Above the button, since the status bar is at the bottom; kept inside the window on a phone.
-    const [place] = useState(() => {
-        const box = anchor.getBoundingClientRect();
-        const width = Math.min(POPOVER_WIDTH, innerWidth - 16);
-        const left = Math.min(
-            Math.max(8, box.left + box.width / 2 - width / 2),
-            innerWidth - width - 8,
-        );
-
-        return { bottom: innerHeight - box.top + 8, left };
-    });
-
-    useEffect(() => {
-        const away = (event: PointerEvent) => {
-            if (
-                event.target instanceof Node &&
-                !ref.current?.contains(event.target) &&
-                !anchor.contains(event.target)
-            ) {
-                onClose();
-            }
-        };
-        const escape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        };
-
-        document.addEventListener("pointerdown", away);
-        document.addEventListener("keydown", escape);
-
-        return () => {
-            document.removeEventListener("pointerdown", away);
-            document.removeEventListener("keydown", escape);
-        };
-    }, [anchor, onClose]);
-
     const failed = warm.last?.error !== undefined;
 
-    return createPortal(
-        <dialog
-            ref={ref}
-            open
+    return (
+        <PopoverContent
+            side="top"
             aria-label="Keep warm"
-            style={place}
-            className="border-edge bg-panel text-meta text-ink fixed top-auto right-auto z-50 m-0 max-h-[70vh] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border p-3 font-mono shadow-lg"
+            size="panel"
+            className="text-meta max-h-[70vh] overflow-y-auto font-mono"
         >
             <div className="flex items-center justify-between gap-3">
                 <span className="text-ink">Keep this context warm</span>
@@ -155,7 +116,8 @@ function Panel({
                     aria-label="Keep this context warm"
                 />
             </div>
-            <div className="border-edge-soft text-faint mt-2 space-y-1 border-t pt-2">
+            <Separator className="mt-2" />
+            <div className="text-faint space-y-1 pt-2">
                 <div className="text-muted">{cacheLine(warm, now)}</div>
                 <div>{nextLine(warm, now)}</div>
                 {warm.last === undefined ? null : (
@@ -171,60 +133,65 @@ function Panel({
                 </div>
             </div>
             {rows.length === 0 ? null : (
-                <div className="border-edge-soft mt-2 border-t pt-2">
-                    <div className="text-faint mb-1">Warming</div>
-                    {rows.map((row) => (
-                        <div key={row.id} className="flex items-center gap-2">
-                            {row.id === current ? (
-                                <span
-                                    aria-current="true"
-                                    className="text-ink min-w-0 flex-1 truncate"
-                                >
-                                    {row.label}
+                <>
+                    <Separator className="mt-2" />
+                    <div className="pt-2">
+                        <div className="text-faint mb-1">Warming</div>
+                        {rows.map((row) => (
+                            <div key={row.id} className="flex items-center gap-2">
+                                {row.id === current ? (
+                                    <span
+                                        aria-current="true"
+                                        className="text-ink min-w-0 flex-1 truncate"
+                                    >
+                                        {row.label}
+                                    </span>
+                                ) : (
+                                    <a
+                                        href={sessionHref(row.id)}
+                                        onClick={(event) => {
+                                            // A modified click is the browser's: a new tab, and the popover stays.
+                                            if (isPlainClick(event)) {
+                                                event.preventDefault();
+                                                onOpen(row.id);
+                                                onClose();
+                                            }
+                                        }}
+                                        className="text-muted hover:text-ink rounded-control focus-visible:ring-accent min-w-0 flex-1 truncate outline-none hover:underline focus-visible:ring-2"
+                                    >
+                                        {row.label}
+                                    </a>
+                                )}
+                                <span className="text-faint shrink-0 text-right tabular-nums">
+                                    {clock(row.nextAt)}
                                 </span>
-                            ) : (
-                                <a
-                                    href={sessionHref(row.id)}
-                                    onClick={(event) => {
-                                        // A modified click is the browser's: a new tab, and the popover stays.
-                                        if (isPlainClick(event)) {
-                                            event.preventDefault();
-                                            onOpen(row.id);
-                                            onClose();
-                                        }
-                                    }}
-                                    className="text-muted hover:text-ink min-w-0 flex-1 truncate hover:underline"
+                                <Hint
+                                    label={`Stop warming ${row.label} until you write in it again`}
                                 >
-                                    {row.label}
-                                </a>
-                            )}
-                            <span className="text-faint shrink-0 text-right tabular-nums">
-                                {clock(row.nextAt)}
-                            </span>
-                            <button
-                                type="button"
-                                aria-label={`Stop warming ${row.label}`}
-                                title={`Stop warming ${row.label} until you write in it again`}
-                                onClick={() => {
-                                    onStop(row.id, row.label);
-                                }}
-                                className="text-faint hover:text-ink shrink-0"
-                            >
-                                <X className="size-3" />
-                            </button>
-                        </div>
-                    ))}
-                </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Stop warming ${row.label}`}
+                                        onClick={() => {
+                                            onStop(row.id, row.label);
+                                        }}
+                                        className="text-faint shrink-0"
+                                    >
+                                        <X className="size-3" />
+                                    </Button>
+                                </Hint>
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
-        </dialog>,
-        document.body,
+        </PopoverContent>
     );
 }
 
 function KeepWarm({ session, openSession }: StatusItemProps) {
     const [warm, setWarm] = useState<WarmState | null>(null);
     const [open, setOpen] = useState(false);
-    const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
     const [now, setNow] = useState(() => Date.now());
     const id = session?.id ?? null;
 
@@ -283,38 +250,42 @@ function KeepWarm({ session, openSession }: StatusItemProps) {
     };
 
     return (
-        <>
-            <button
-                ref={setAnchor}
-                type="button"
-                title={`Keep warm: ${cacheLine(warm, now).toLowerCase()}`}
-                aria-label="Keep warm"
-                aria-expanded={open}
-                onClick={() => {
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                if (next) {
                     setNow(Date.now());
-                    setOpen((previous) => !previous);
-                }}
-                className={`hover:text-ink hover:bg-sunken aria-expanded:bg-sunken flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono ${
-                    warm.on ? "text-ember" : "text-faint/60"
-                }`}
-            >
-                <Flame className="size-3.5" />
-                warm
-            </button>
-            {open && anchor !== null ? (
-                <Panel
-                    warm={warm}
-                    rows={warm.sessions}
-                    current={session.id}
-                    anchor={anchor}
-                    now={now}
-                    onToggle={toggle}
-                    onStop={stopWarming}
-                    onOpen={openSession}
-                    onClose={close}
-                />
-            ) : null}
-        </>
+                }
+
+                setOpen(next);
+            }}
+        >
+            <Hint label={`Keep warm: ${cacheLine(warm, now).toLowerCase()}`}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Keep warm"
+                        className={`hover:bg-sunken aria-expanded:bg-sunken shrink-0 px-1.5 py-0.5 font-mono ${
+                            warm.on ? "text-ember" : "text-faint/60"
+                        }`}
+                    >
+                        <Flame className="size-3.5" />
+                        warm
+                    </Button>
+                </PopoverTrigger>
+            </Hint>
+            <Panel
+                warm={warm}
+                rows={warm.sessions}
+                current={session.id}
+                now={now}
+                onToggle={toggle}
+                onStop={stopWarming}
+                onOpen={openSession}
+                onClose={close}
+            />
+        </Popover>
     );
 }
 

@@ -15,6 +15,7 @@ import {
     piecesOf,
 } from "../lib/diff.ts";
 import { classOf, tokensOf } from "../lib/highlight.ts";
+import { PANE } from "./pane.tsx";
 
 const ROW = {
     add: "bg-ok/10",
@@ -29,8 +30,8 @@ const SIGN = {
 } as const;
 
 const CHANGED = {
-    add: "bg-ok/25 rounded-[2px]",
-    del: "bg-danger/25 rounded-[2px]",
+    add: "bg-ok/25 rounded-mark",
+    del: "bg-danger/25 rounded-mark",
     ctx: "",
 } as const;
 
@@ -294,17 +295,14 @@ export function DiffCard({ diff, path, lang }: { diff: string; path?: string; la
     ).length;
 
     return (
-        <div
-            ref={root}
-            className="rounded-card border-edge-soft bg-sunken min-w-0 overflow-hidden border"
-        >
+        <div ref={root} className={`${PANE} bg-sunken min-w-0 overflow-hidden`}>
             {path === undefined ? null : (
                 <div className="border-edge-soft text-meta text-muted flex h-8 items-center gap-3 border-b px-3 font-mono">
                     <span className="min-w-0 flex-1 truncate">{path}</span>
                     <Counts {...diffCounts(diff)} />
                 </div>
             )}
-            <div className="py-1 font-mono text-[12.5px] leading-relaxed">
+            <div className="text-code py-1 font-mono leading-relaxed">
                 {split ? (
                     <SplitBody rows={rows} tokens={tokens} width={width} />
                 ) : (

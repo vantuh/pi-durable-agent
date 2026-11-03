@@ -1,8 +1,23 @@
 import { ArrowUp, Folder, House, Laptop, Star } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
+import { Item } from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 import type { NewSessionCollected } from "@/sdk/types.ts";
 
 import { type FolderNewSessionItem, useNewSessionItems } from "../extensions.ts";
@@ -223,40 +238,45 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 </DialogHeader>
 
                 <div className="flex items-center gap-2 px-4 py-3">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            go(page?.parent);
-                        }}
-                        title="Up"
-                        className="rounded-control bg-raised text-ink flex size-9 items-center justify-center"
-                    >
-                        <ArrowUp className="size-4" />
-                    </button>
+                    <Hint label="Up">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Up"
+                            onClick={() => {
+                                go(page?.parent);
+                            }}
+                            className="bg-raised text-ink size-9"
+                        >
+                            <ArrowUp className="size-4" />
+                        </Button>
+                    </Hint>
 
-                    <div className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2 py-1.5 font-mono">
-                        {trail.map((crumb, at) => (
-                            <span
-                                key={crumb.path}
-                                className="flex shrink-0 items-center gap-1 whitespace-nowrap"
-                            >
-                                {at === 0 ? null : <span className="text-faint">›</span>}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        go(crumb.path);
-                                    }}
-                                    className={
-                                        at === trail.length - 1
-                                            ? "text-ink font-medium"
-                                            : "text-muted hover:text-ink"
-                                    }
-                                >
-                                    {crumb.name}
-                                </button>
-                            </span>
-                        ))}
-                    </div>
+                    <Breadcrumb className="rounded-control bg-sunken text-meta flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-1.5 font-mono">
+                        <BreadcrumbList>
+                            {trail.map((crumb, at) => (
+                                <Fragment key={crumb.path}>
+                                    {at === 0 ? null : <BreadcrumbSeparator />}
+                                    <BreadcrumbItem>
+                                        {at === trail.length - 1 ? (
+                                            <BreadcrumbPage>{crumb.name}</BreadcrumbPage>
+                                        ) : (
+                                            <BreadcrumbLink asChild>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        go(crumb.path);
+                                                    }}
+                                                >
+                                                    {crumb.name}
+                                                </button>
+                                            </BreadcrumbLink>
+                                        )}
+                                    </BreadcrumbItem>
+                                </Fragment>
+                            ))}
+                        </BreadcrumbList>
+                    </Breadcrumb>
                 </div>
 
                 <div className="flex min-h-0 flex-1 gap-2 px-4">
@@ -282,25 +302,28 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     <ScrollArea className="rounded-control border-edge-soft min-h-0 flex-1 border">
                         <div className="p-1">
                             {error ? (
-                                <p className="text-danger text-meta p-2">
-                                    Cannot read that folder.
-                                </p>
+                                <Alert>Cannot read that folder.</Alert>
                             ) : (
                                 (page?.dirs ?? []).map((dir) => (
-                                    <button
+                                    <Item
                                         key={dir.path}
-                                        type="button"
-                                        onDoubleClick={() => {
-                                            go(dir.path);
-                                        }}
-                                        onClick={() => {
-                                            go(dir.path);
-                                        }}
-                                        className="rounded-control text-ink hover:bg-raised text-interface flex w-full items-center gap-2 px-2 py-1.5 text-left"
+                                        asChild
+                                        size="sm"
+                                        className="text-ink hover:bg-raised text-interface w-full text-left"
                                     >
-                                        <Folder className="text-info size-4 shrink-0" />
-                                        <span className="truncate">{dir.name}</span>
-                                    </button>
+                                        <button
+                                            type="button"
+                                            onDoubleClick={() => {
+                                                go(dir.path);
+                                            }}
+                                            onClick={() => {
+                                                go(dir.path);
+                                            }}
+                                        >
+                                            <Folder className="text-info size-4 shrink-0" />
+                                            <span className="truncate">{dir.name}</span>
+                                        </button>
+                                    </Item>
                                 ))
                             )}
                         </div>
@@ -319,40 +342,38 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     ))}
 
                     <div className="flex items-center justify-between gap-3">
-                        <label className="text-muted text-meta flex items-center gap-2">
-                            <input
-                                type="checkbox"
+                        <Field orientation="horizontal">
+                            <Checkbox
+                                id="folder-picker-show-hidden"
                                 checked={hidden}
-                                onChange={(event) => {
-                                    setHidden(event.target.checked);
+                                onCheckedChange={(checked) => {
+                                    setHidden(checked === true);
                                 }}
                             />
-                            Show hidden
-                        </label>
+                            <Label htmlFor="folder-picker-show-hidden">Show hidden</Label>
+                        </Field>
 
                         <div className="flex shrink-0 items-center gap-2">
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
+                                className="bg-raised text-ink"
                                 onClick={() => {
                                     leave(onClose);
                                 }}
-                                className="rounded-control bg-raised text-ink text-interface px-3 py-1.5"
                             >
                                 Cancel
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 ref={openRef}
-                                type="button"
                                 disabled={held}
                                 onClick={() => {
                                     setOpening(true);
                                     setProblem(null);
                                     void startIn(picked);
                                 }}
-                                className="rounded-control bg-accent text-on-accent text-interface px-3 py-1.5 font-medium disabled:opacity-50"
                             >
                                 Open
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </footer>
@@ -375,22 +396,32 @@ function Row({
     onClick: () => void;
 }) {
     return (
-        <div
-            className={`rounded-control text-interface flex items-center gap-2 px-2 py-1.5 ${
-                active === true ? "bg-raised text-ink" : "text-muted hover:bg-raised"
-            }`}
+        <Item
+            size="sm"
+            className={`text-interface ${active === true ? "bg-raised text-ink" : "text-muted hover:bg-raised"}`}
         >
             {onIcon === undefined ? (
                 icon
             ) : (
-                <button type="button" onClick={onIcon} title="Favourite" className="hover:text-ink">
-                    {icon}
-                </button>
+                <Hint label="Favourite">
+                    <Button
+                        variant="ghost"
+                        aria-label="Favourite"
+                        onClick={onIcon}
+                        className="size-4 shrink-0 p-0 hover:bg-transparent"
+                    >
+                        {icon}
+                    </Button>
+                </Hint>
             )}
-            <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left">
+            <button
+                type="button"
+                onClick={onClick}
+                className="rounded-control focus-visible:ring-accent min-w-0 flex-1 text-left outline-none focus-visible:ring-2"
+            >
                 <span className="block truncate">{label}</span>
             </button>
-        </div>
+        </Item>
     );
 }
 

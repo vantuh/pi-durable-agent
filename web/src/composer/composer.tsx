@@ -1,7 +1,18 @@
-import { ArrowUp, Check, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Command, CommandItem, CommandList } from "@/components/ui/command";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
 import {
@@ -201,7 +212,6 @@ export const Composer = memo(function Composer({
     // Position in history while browsing with the arrows (null: not browsing) and the draft to come back to.
     const browse = useRef<{ at: number; draft: string } | null>(null);
     const [mode, setMode] = useState<SendMode>("steer");
-    const [modesOpen, setModesOpen] = useState(false);
     const picker = useRef<HTMLInputElement>(null);
     const field = useRef<HTMLTextAreaElement>(null);
     // App keys the composer by session, so this runs on every session switch.
@@ -303,10 +313,6 @@ export const Composer = memo(function Composer({
     // An Interrupt is for the run it was chosen in; the next run starts on Steer again.
     if (!busy && mode === "interrupt") {
         setMode("steer");
-    }
-
-    if (!busy && modesOpen) {
-        setModesOpen(false);
     }
 
     const how = MODES.find((option) => option.mode === mode);
@@ -509,12 +515,23 @@ export const Composer = memo(function Composer({
                 }}
             >
                 {matches.length === 0 ? null : (
-                    <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full left-0 mb-1.5 flex max-h-64 flex-col overflow-y-auto border p-1 shadow-lg">
-                        {matches.map((candidate, index) => (
-                            <li key={candidate.insert}>
-                                <button
-                                    type="button"
-                                    aria-current={index === marked}
+                    <Command
+                        label="Completions"
+                        shouldFilter={false}
+                        // A hover paints a row and nothing else: the mark moves on an arrow key or a click.
+                        disablePointerSelection
+                        value={matches[Math.min(marked, matches.length - 1)]?.insert ?? ""}
+                        // Keep focus in the textarea, the popup's own box included.
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                        }}
+                        className="rounded-control border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border"
+                    >
+                        <CommandList label="Completions" className="min-h-0 overflow-y-auto p-1">
+                            {matches.map((candidate, index) => (
+                                <CommandItem
+                                    key={candidate.insert}
+                                    value={candidate.insert}
                                     // Arrow keys move the mark past the visible part of the list: follow it.
                                     ref={
                                         index === marked
@@ -523,27 +540,21 @@ export const Composer = memo(function Composer({
                                               }
                                             : undefined
                                     }
-                                    // Keep focus in the textarea.
-                                    onMouseDown={(event) => {
-                                        event.preventDefault();
-                                    }}
-                                    onClick={() => {
+                                    onSelect={() => {
                                         pick(candidate);
                                     }}
-                                    className={`rounded-control hover:bg-raised flex w-full min-w-0 items-baseline gap-2 px-2 py-1.5 text-left ${
-                                        index === marked ? "bg-raised" : ""
-                                    }`}
+                                    className="text-meta hover:bg-raised items-baseline px-3 py-2"
                                 >
-                                    <span className="text-interface text-ink shrink-0 font-mono">
+                                    <span className="text-ink shrink-0 font-mono">
                                         {candidate.label}
                                     </span>
-                                    <span className="text-meta text-faint min-w-0 truncate">
+                                    <span className="text-faint text-meta min-w-0 truncate">
                                         {candidate.description}
                                     </span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                                </CommandItem>
+                            ))}
+                        </CommandList>
+                    </Command>
                 )}
 
                 <Attachments
@@ -572,6 +583,7 @@ export const Composer = memo(function Composer({
                     <textarea
                         rows={2}
                         ref={field}
+                        aria-label="Message"
                         // Opted in: the shell's keys, the session arrows among them, work while typing here.
                         data-shell-keys
                         value={text}
@@ -695,16 +707,18 @@ export const Composer = memo(function Composer({
                 </ScrollArea>
 
                 <div className="mt-1.5 flex items-center gap-1.5">
-                    <button
-                        type="button"
-                        title="Attach a file"
-                        onClick={() => {
-                            picker.current?.click();
-                        }}
-                        className="text-muted hover:text-ink rounded-control hover:bg-raised flex size-7 items-center justify-center"
-                    >
-                        <Paperclip className="size-4" />
-                    </button>
+                    <Hint label="Attach a file">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Attach a file"
+                            onClick={() => {
+                                picker.current?.click();
+                            }}
+                        >
+                            <Paperclip className="size-4" />
+                        </Button>
+                    </Hint>
 
                     <input
                         ref={picker}
@@ -724,20 +738,18 @@ export const Composer = memo(function Composer({
                         }}
                     />
 
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
                         onClick={onToggleMenu}
-                        className={`text-interface flex min-w-0 items-center gap-1.5 rounded-full px-2 py-1 ${
-                            menuOpen ? "bg-raised text-ink" : "text-muted hover:bg-raised"
-                        }`}
+                        className={`min-w-0 rounded-full px-2 py-1 ${menuOpen ? "bg-raised text-ink" : ""}`}
                     >
                         <Sparkles className="text-accent size-3.5" />
-                        <span className="max-w-[12rem] min-w-0 truncate font-mono">{model}</span>
+                        <span className="max-w-48 min-w-0 truncate font-mono">{model}</span>
                         {level === null ? null : (
                             <span className={`shrink-0 ${thinkingText(level)}`}>{level}</span>
                         )}
                         <ChevronDown className="size-3.5 shrink-0" />
-                    </button>
+                    </Button>
 
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
                         <ComposerItems
@@ -751,84 +763,96 @@ export const Composer = memo(function Composer({
                             onSent={onSent}
                         />
                         {busy ? (
-                            <button
-                                type="button"
-                                onClick={onStop}
-                                title="Stop"
-                                className="rounded-control bg-danger/20 text-danger hover:bg-danger/30 flex size-7 items-center justify-center"
-                            >
-                                <Square className="size-3 fill-current" />
-                            </button>
-                        ) : null}
-                        <div
-                            className="relative flex items-center"
-                            onBlur={(event) => {
-                                if (!event.currentTarget.contains(event.relatedTarget)) {
-                                    setModesOpen(false);
-                                }
-                            }}
-                        >
-                            {modesOpen ? (
-                                <ul className="rounded-control border-edge bg-panel absolute right-0 bottom-full mb-1.5 flex w-64 flex-col border p-1 shadow-lg">
-                                    {MODES.map((option) => (
-                                        <li key={option.mode}>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setMode(option.mode);
-                                                    setModesOpen(false);
-                                                }}
-                                                className="rounded-control hover:bg-raised flex w-full items-start gap-2 px-2 py-1.5 text-left"
-                                            >
-                                                <Check
-                                                    className={`text-accent mt-0.5 size-3.5 shrink-0 ${
-                                                        option.mode === mode ? "" : "invisible"
-                                                    }`}
-                                                />
-                                                <span className="flex flex-col">
-                                                    <span className="text-interface text-ink">
-                                                        {option.label}
-                                                    </span>
-                                                    <span className="text-meta text-faint">
-                                                        {option.hint}
-                                                    </span>
-                                                </span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={submit}
-                                // Keep focus in the textarea so the phone keyboard stays put and the tap is not lost.
-                                onMouseDown={(event) => {
-                                    event.preventDefault();
-                                }}
-                                title={busy ? (how?.label ?? "Send") : "Send"}
-                                className={`bg-accent text-on-accent relative flex h-7 items-center justify-center gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
-                                    busy
-                                        ? "rounded-l-control text-interface pr-1.5 pl-2"
-                                        : "rounded-control w-7"
-                                }`}
-                                disabled={empty || uploading}
-                            >
-                                <ArrowUp className="size-4" />
-                                {busy ? <span>{how?.label}</span> : null}
-                            </button>
-                            {busy ? (
-                                <button
-                                    type="button"
-                                    title="How to send"
-                                    aria-haspopup="menu"
-                                    aria-expanded={modesOpen}
-                                    onClick={() => {
-                                        setModesOpen((open) => !open);
-                                    }}
-                                    className="rounded-r-control bg-accent text-on-accent border-on-accent/30 flex h-7 w-6 items-center justify-center border-l"
+                            <Hint label="Stop">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Stop"
+                                    onClick={onStop}
+                                    className="bg-danger/20 text-danger hover:bg-danger/30 hover:text-danger"
                                 >
-                                    <ChevronDown className="size-3.5" />
-                                </button>
+                                    <Square className="size-3 fill-current" />
+                                </Button>
+                            </Hint>
+                        ) : null}
+                        <div className="flex items-center">
+                            <Hint
+                                label={busy ? (how?.label ?? "Send") : "Send"}
+                                keys={<Kbd>Enter</Kbd>}
+                            >
+                                <Button
+                                    size={busy ? "default" : "icon"}
+                                    aria-label={busy ? (how?.label ?? "Send") : "Send"}
+                                    onClick={submit}
+                                    // Keep focus in the textarea so the phone keyboard stays put and the tap is not lost.
+                                    onMouseDown={(event) => {
+                                        event.preventDefault();
+                                    }}
+                                    className={`relative gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
+                                        busy
+                                            ? "rounded-l-control h-7 w-auto rounded-r-none pr-1.5 pl-2"
+                                            : ""
+                                    }`}
+                                    disabled={empty || uploading}
+                                >
+                                    <ArrowUp className="size-4" />
+                                    {busy ? <span>{how?.label}</span> : null}
+                                </Button>
+                            </Hint>
+                            {busy ? (
+                                <DropdownMenu>
+                                    <Hint label="How to send">
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                size="icon"
+                                                aria-label="How to send"
+                                                className="rounded-r-control border-on-accent/30 w-6 rounded-l-none border-l"
+                                            >
+                                                <ChevronDown className="size-3.5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                    </Hint>
+                                    <DropdownMenuContent
+                                        side="top"
+                                        align="end"
+                                        sideOffset={6}
+                                        className="w-64"
+                                        // The mode belongs to the message being typed: the caret goes back where it was.
+                                        onCloseAutoFocus={(event) => {
+                                            event.preventDefault();
+                                            field.current?.focus({ preventScroll: true });
+                                        }}
+                                    >
+                                        <DropdownMenuRadioGroup
+                                            value={mode}
+                                            onValueChange={(value) => {
+                                                const chosen = MODES.find(
+                                                    (option) => option.mode === value,
+                                                );
+
+                                                if (chosen !== undefined) {
+                                                    setMode(chosen.mode);
+                                                }
+                                            }}
+                                        >
+                                            {MODES.map((option) => (
+                                                <DropdownMenuRadioItem
+                                                    key={option.mode}
+                                                    value={option.mode}
+                                                >
+                                                    <span className="flex flex-col">
+                                                        <span className="text-interface text-ink">
+                                                            {option.label}
+                                                        </span>
+                                                        <span className="text-meta text-faint">
+                                                            {option.hint}
+                                                        </span>
+                                                    </span>
+                                                </DropdownMenuRadioItem>
+                                            ))}
+                                        </DropdownMenuRadioGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             ) : null}
                         </div>
                     </div>

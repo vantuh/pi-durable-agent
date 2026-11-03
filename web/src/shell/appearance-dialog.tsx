@@ -1,6 +1,7 @@
 import { Palette } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -10,6 +11,8 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { DiffLayout } from "../lib/diff-layout.ts";
 import { DIFF_LAYOUTS, applyDiffLayout, currentDiffLayout } from "../lib/diff-layout.ts";
@@ -17,6 +20,7 @@ import type { Flavour } from "../lib/flavour.ts";
 import { FLAVOURS, applyFlavour, currentFlavour } from "../lib/flavour.ts";
 import type { Width } from "../lib/width.ts";
 import { WIDTH_NAMES, applyWidth, currentWidth } from "../lib/width.ts";
+import { PANE } from "../ui/pane.tsx";
 
 const DOTS = ["red", "yellow", "green", "pink", "blue", "mauve"] as const;
 
@@ -26,21 +30,20 @@ export function AppearanceButton() {
 
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <button
-                    type="button"
-                    title="Appearance: theme"
-                    aria-label="Appearance: theme"
-                    className="rounded-control text-muted hover:bg-raised focus-visible:ring-accent flex size-7 items-center justify-center outline-none focus-visible:ring-2"
-                >
-                    <Palette className="size-4" />
-                </button>
-            </DialogTrigger>
+            <Hint label="Appearance: theme">
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Appearance: theme">
+                        <Palette className="size-4" />
+                    </Button>
+                </DialogTrigger>
+            </Hint>
             <DialogContent
                 ref={content}
                 onOpenAutoFocus={(event) => {
                     event.preventDefault();
-                    content.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus();
+                    content.current
+                        ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+                        ?.focus();
                 }}
             >
                 <DialogHeader>
@@ -62,20 +65,32 @@ function FlavourGrid() {
 
     return (
         <ScrollArea className="min-h-0 flex-1">
-            <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-4">
+            <ToggleGroup
+                type="single"
+                value={active}
+                aria-label="Theme"
+                onValueChange={(value) => {
+                    // A single group lets its pressed item be pressed off; a flavour always stays chosen.
+                    const flavour = FLAVOURS.find((name) => name === value);
+
+                    if (flavour === undefined) {
+                        return;
+                    }
+
+                    applyFlavour(flavour);
+                    setActive(flavour);
+                }}
+                className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
+            >
                 {FLAVOURS.map((flavour) => (
-                    <button
+                    // A chosen card wears an accent ring inside its own border; focus draws the theme's ring
+                    // 2px outside it. Two rings on different properties, so a card reads as chosen and as
+                    // focused at once, and neither state can hide the other.
+                    <ToggleGroupItem
                         key={flavour}
-                        type="button"
-                        aria-pressed={flavour === active}
+                        value={flavour}
                         aria-label={flavour}
-                        onClick={() => {
-                            applyFlavour(flavour);
-                            setActive(flavour);
-                        }}
-                        className={`rounded-card border-edge-soft bg-raised focus-visible:outline-ink flex flex-col gap-2 border p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                            flavour === active ? "ring-accent ring-2" : ""
-                        }`}
+                        className={`${PANE} bg-raised text-ink data-[state=on]:inset-ring-accent focus-visible:ring-offset-canvas flex flex-col gap-2 p-2 text-left focus-visible:ring-offset-2 data-[state=on]:inset-ring-2`}
                     >
                         <Preview flavour={flavour} />
                         <span className="text-interface text-ink capitalize">{flavour}</span>
@@ -87,9 +102,9 @@ function FlavourGrid() {
                                 />
                             ))}
                         </span>
-                    </button>
+                    </ToggleGroupItem>
                 ))}
-            </div>
+            </ToggleGroup>
         </ScrollArea>
     );
 }
@@ -105,24 +120,29 @@ function WidthPicker() {
                     Wide screens: how much room the conversation takes.
                 </span>
             </div>
-            <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
+            <ToggleGroup
+                type="single"
+                value={active}
+                aria-label="Width"
+                onValueChange={(value) => {
+                    // A single group lets its pressed item be pressed off; a width always stays chosen.
+                    const width = WIDTH_NAMES.find((name) => name === value);
+
+                    if (width === undefined) {
+                        return;
+                    }
+
+                    applyWidth(width);
+                    setActive(width);
+                }}
+                className="rounded-control bg-sunken flex shrink-0 p-0.5"
+            >
                 {WIDTH_NAMES.map((width) => (
-                    <button
-                        key={width}
-                        type="button"
-                        aria-pressed={width === active}
-                        onClick={() => {
-                            applyWidth(width);
-                            setActive(width);
-                        }}
-                        className={`rounded-control text-interface px-2 py-1 capitalize ${
-                            width === active ? "bg-raised text-ink" : "text-muted"
-                        }`}
-                    >
+                    <ToggleGroupItem key={width} value={width} className="px-2 py-1 capitalize">
                         {width}
-                    </button>
+                    </ToggleGroupItem>
                 ))}
-            </div>
+            </ToggleGroup>
         </div>
     );
 }
@@ -138,24 +158,29 @@ function DiffLayoutPicker() {
                     An edit's changes: one column, or the old file beside the new.
                 </span>
             </div>
-            <div className="rounded-control bg-sunken flex shrink-0 p-0.5">
+            <ToggleGroup
+                type="single"
+                value={active}
+                aria-label="Diffs"
+                onValueChange={(value) => {
+                    // A single group lets its pressed item be pressed off; a layout always stays chosen.
+                    const layout = DIFF_LAYOUTS.find((name) => name === value);
+
+                    if (layout === undefined) {
+                        return;
+                    }
+
+                    applyDiffLayout(layout);
+                    setActive(layout);
+                }}
+                className="rounded-control bg-sunken flex shrink-0 p-0.5"
+            >
                 {DIFF_LAYOUTS.map((layout) => (
-                    <button
-                        key={layout}
-                        type="button"
-                        aria-pressed={layout === active}
-                        onClick={() => {
-                            applyDiffLayout(layout);
-                            setActive(layout);
-                        }}
-                        className={`rounded-control text-interface px-2 py-1 ${
-                            layout === active ? "bg-raised text-ink" : "text-muted"
-                        }`}
-                    >
+                    <ToggleGroupItem key={layout} value={layout} className="px-2 py-1">
                         {layout === "split" ? "Side by side" : "Unified"}
-                    </button>
+                    </ToggleGroupItem>
                 ))}
-            </div>
+            </ToggleGroup>
         </div>
     );
 }

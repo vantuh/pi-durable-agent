@@ -1,6 +1,8 @@
 import { Mic } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import { toast } from "@/lib/toast.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
@@ -23,12 +25,11 @@ type Mode = "idle" | "recording" | "transcribing";
 /** Idle is the plain mic; recording says so in red with the ring; transcribing or loading the model waits in yellow. */
 function lookOf(mode: Mode, loading: boolean): string {
     if (mode === "recording") {
-        return "bg-danger/20 text-danger";
+        // Ghost's hover would repaint the state, so each state names its own hover too.
+        return "bg-danger/20 text-danger hover:bg-danger/20 hover:text-danger";
     }
 
-    return mode === "transcribing" || loading
-        ? "text-warn"
-        : "text-muted hover:text-ink hover:bg-raised";
+    return mode === "transcribing" || loading ? "text-warn hover:text-warn" : "";
 }
 
 function MicButton({ field, setText }: ComposerProps) {
@@ -195,23 +196,25 @@ function MicButton({ field, setText }: ComposerProps) {
               : "Dictate on this machine";
 
     return (
-        <button
-            type="button"
-            aria-label="Dictate"
-            aria-pressed={mode === "recording"}
-            title={loading ? `${said} (loading the model)` : said}
-            // Keep focus in the textarea so words go in at the caret and the phone keyboard stays put.
-            onMouseDown={(event) => {
-                event.preventDefault();
-            }}
-            onClick={toggle}
-            className={`rounded-control relative mr-1 flex size-7 items-center justify-center ${lookOf(mode, loading)}`}
-        >
-            <Mic className="size-4" />
-            {mode === "recording" ? (
-                <span className="rounded-control border-danger pointer-events-none absolute inset-0 animate-ping border motion-reduce:hidden" />
-            ) : null}
-        </button>
+        <Hint label={loading ? `${said} (loading the model)` : said}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Dictate"
+                aria-pressed={mode === "recording"}
+                // Keep focus in the textarea so words go in at the caret and the phone keyboard stays put.
+                onMouseDown={(event) => {
+                    event.preventDefault();
+                }}
+                onClick={toggle}
+                className={`relative mr-1 ${lookOf(mode, loading)}`}
+            >
+                <Mic className="size-4" />
+                {mode === "recording" ? (
+                    <span className="rounded-control border-danger pointer-events-none absolute inset-0 animate-ping border motion-reduce:hidden" />
+                ) : null}
+            </Button>
+        </Hint>
     );
 }
 

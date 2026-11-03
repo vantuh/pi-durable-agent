@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { ItemActions, ItemContent, ItemTitle } from "@/components/ui/item";
 import { ModelMenu } from "@/composer/model-menu.tsx";
 import { listModels, type Models } from "@/lib/api.ts";
 import { callAction } from "@/sdk/actions.ts";
+import { DetailsColumn } from "@/ui/details.tsx";
+import { Loading } from "@/ui/loading.tsx";
+import { PANE } from "@/ui/pane.tsx";
 
 import { profiles as profilesRef, setModel, type ProfileRow } from "./refs.ts";
 
@@ -74,47 +80,41 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
     };
 
     return (
-        <div className="text-meta flex flex-col gap-2">
-            {error === null ? null : (
-                <p role="alert" className="text-danger break-words">
-                    {error}
-                </p>
-            )}
+        <DetailsColumn>
+            {error === null ? null : <Alert>{error}</Alert>}
 
-            {rows === null ? <p className="text-faint">Loading…</p> : null}
+            {rows === null ? <Loading /> : null}
             {rows?.length === 0 ? (
-                <p className="text-faint">
+                <Empty>
                     No profiles yet: add a Markdown file with a name, a description and a model to
                     ~/.pi/agent/agents, or to the project&apos;s .pi/agents.
-                </p>
+                </Empty>
             ) : null}
 
             <ul className={`flex flex-col ${compact ? "gap-1" : "gap-2"}`}>
                 {(rows ?? []).map((row) => (
                     <li
                         key={row.name}
-                        className={`border-edge-soft rounded-card flex flex-col border ${compact ? "gap-0.5 px-2 py-1" : "gap-1.5 px-2.5 py-2"}`}
+                        className={`${PANE} flex flex-col ${compact ? "gap-0.5 px-2 py-1" : "gap-1.5 px-2.5 py-2"}`}
                     >
                         <div
                             className={`flex justify-between gap-2 ${compact ? "items-center" : "items-start"}`}
                         >
-                            <div className="min-w-0">
-                                <span className="text-ink text-interface block truncate">
-                                    {row.name}
-                                </span>
+                            <ItemContent>
+                                <ItemTitle className="text-interface">{row.name}</ItemTitle>
                                 {compact ? null : (
                                     <span className="text-muted block break-words">
                                         {row.description}
                                     </span>
                                 )}
-                            </div>
-                            <div className="flex shrink-0 items-center">
+                            </ItemContent>
+                            <ItemActions>
                                 <Button
                                     variant="ghost"
                                     className={
                                         compact
-                                            ? "text-meta h-6 px-1.5 py-0"
-                                            : "text-meta px-2 py-1"
+                                            ? "text-meta h-6 px-1.5 py-0 font-medium"
+                                            : "text-meta px-2 py-1 font-medium"
                                     }
                                     disabled={saving}
                                     onClick={() => {
@@ -123,7 +123,7 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                                 >
                                     {compact ? "Change" : "Change model"}
                                 </Button>
-                            </div>
+                            </ItemActions>
                         </div>
                         <span className={`text-faint font-mono ${compact ? "truncate" : ""}`}>
                             {row.model ?? "no model: agent_spawn refuses this profile"}
@@ -147,6 +147,6 @@ export function ProfileModels({ compact = false }: { compact?: boolean }) {
                     }}
                 />
             )}
-        </div>
+        </DetailsColumn>
     );
 }

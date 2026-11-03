@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Item } from "@/components/ui/item";
 import { cn } from "@/lib/utils";
 
 import { FileMark } from "./icons.tsx";
@@ -56,49 +57,60 @@ function Rows({
                 const open = folded[branch.path] !== true;
                 return (
                     <li key={branch.path}>
+                        {/* The row is the indent: `paddingLeft` is the depth, and a tree of 22px rows keeps square corners. */}
                         {file === undefined ? (
-                            <button
-                                type="button"
-                                aria-expanded={open}
-                                onClick={() => {
-                                    onFold(branch.path);
-                                }}
-                                className="text-muted hover:bg-raised flex w-full items-center gap-1 py-0.5 pr-2 text-left"
-                                style={{ paddingLeft: `${String(depth * 10 + 6)}px` }}
+                            <Item
+                                asChild
+                                size="sm"
+                                className="text-muted hover:bg-raised w-full gap-1 rounded-none py-0.5 text-left focus-visible:ring-inset"
                             >
-                                <ChevronRight
-                                    className={cn(
-                                        "size-3 shrink-0 transition-transform",
-                                        open && "rotate-90",
-                                    )}
-                                />
-                                <span className="truncate">{branch.name}</span>
-                            </button>
+                                <button
+                                    type="button"
+                                    aria-expanded={open}
+                                    onClick={() => {
+                                        onFold(branch.path);
+                                    }}
+                                    style={{ paddingLeft: `${String(depth * 10 + 6)}px` }}
+                                >
+                                    <ChevronRight
+                                        className={cn(
+                                            "size-3 shrink-0 transition-transform",
+                                            open && "rotate-90",
+                                        )}
+                                    />
+                                    <span className="truncate">{branch.name}</span>
+                                </button>
+                            </Item>
                         ) : (
-                            <button
-                                type="button"
-                                title={branch.path}
-                                onClick={() => {
-                                    onPick(file);
-                                }}
-                                className="hover:bg-raised flex w-full items-center gap-1.5 py-0.5 pr-2 text-left"
-                                style={{ paddingLeft: `${String(depth * 10 + 6 + 16)}px` }}
+                            <Item
+                                asChild
+                                size="sm"
+                                className="hover:bg-raised w-full gap-1.5 rounded-none py-0.5 text-left focus-visible:ring-inset"
                             >
-                                <FileMark name={branch.name} />
-                                <span className="text-ink min-w-0 flex-1 truncate font-mono">
-                                    {branch.name}
-                                </span>
-                                {file.added > 0 ? (
-                                    <span className="text-ok shrink-0 tabular-nums">
-                                        +{file.added}
+                                <button
+                                    type="button"
+                                    title={branch.path}
+                                    onClick={() => {
+                                        onPick(file);
+                                    }}
+                                    style={{ paddingLeft: `${String(depth * 10 + 6 + 16)}px` }}
+                                >
+                                    <FileMark name={branch.name} />
+                                    <span className="text-ink min-w-0 flex-1 truncate font-mono">
+                                        {branch.name}
                                     </span>
-                                ) : null}
-                                {file.deleted > 0 ? (
-                                    <span className="text-danger shrink-0 tabular-nums">
-                                        −{file.deleted}
-                                    </span>
-                                ) : null}
-                            </button>
+                                    {file.added > 0 ? (
+                                        <span className="text-ok shrink-0 tabular-nums">
+                                            +{file.added}
+                                        </span>
+                                    ) : null}
+                                    {file.deleted > 0 ? (
+                                        <span className="text-danger shrink-0 tabular-nums">
+                                            −{file.deleted}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            </Item>
                         )}
                         {/* A path can be both a folder and a file: the file then keeps its children. */}
                         {open ? (

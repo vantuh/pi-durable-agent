@@ -1,5 +1,7 @@
 import { memo } from "react";
 
+import { Hint } from "@/components/ui/tooltip";
+
 import type { ClientStatus, ClientUsage, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
@@ -53,12 +55,11 @@ export const SessionMeta = memo(function SessionMeta({
                 .map((field) => (
                     <StatusField key={field.source} field={field} />
                 ))}
-            <span
-                title={`${String(usage.input)} tokens in, ${String(usage.output)} out`}
-                className="text-faint flex shrink-0 items-center font-mono"
-            >
-                ↑{compact(usage.input)} ↓{compact(usage.output)} · {money(usage.cost)}
-            </span>
+            <Hint label={`${String(usage.input)} tokens in, ${String(usage.output)} out`}>
+                <span className="text-faint flex shrink-0 items-center font-mono">
+                    ↑{compact(usage.input)} ↓{compact(usage.output)} · {money(usage.cost)}
+                </span>
+            </Hint>
         </div>
     );
 });

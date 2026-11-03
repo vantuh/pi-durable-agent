@@ -1,4 +1,5 @@
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { Check } from "lucide-react";
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
@@ -23,7 +24,7 @@ export function DropdownMenuContent({
                 sideOffset={sideOffset}
                 collisionPadding={8}
                 className={cn(
-                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-lg outline-none",
+                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-float outline-none",
                     className,
                 )}
                 {...props}
@@ -44,6 +45,40 @@ export function DropdownMenuItem({
             )}
             {...props}
         />
+    );
+}
+
+export function DropdownMenuRadioGroup(
+    props: ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>,
+) {
+    return <DropdownMenuPrimitive.RadioGroup {...props} />;
+}
+
+/**
+ * The mark sits in a gutter of its own, `pl-9` = the item's `px-3`, a 16px mark and the family's
+ * `gap-2`, so a label with a description under it keeps the item's whole width.
+ */
+export function DropdownMenuRadioItem({
+    className,
+    children,
+    ...props
+}: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+    return (
+        <DropdownMenuPrimitive.RadioItem
+            data-slot="dropdown-menu-radio-item"
+            className={cn(
+                "rounded-control text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 py-2 pr-3 pl-9 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                className,
+            )}
+            {...props}
+        >
+            <span className="absolute top-2 left-3 flex size-4 items-center justify-center">
+                <DropdownMenuPrimitive.ItemIndicator>
+                    <Check className="text-accent size-3.5" />
+                </DropdownMenuPrimitive.ItemIndicator>
+            </span>
+            {children}
+        </DropdownMenuPrimitive.RadioItem>
     );
 }
 
@@ -89,7 +124,7 @@ export function DropdownMenuSubContent({
                 sideOffset={4}
                 collisionPadding={8}
                 className={cn(
-                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-lg outline-none",
+                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-float outline-none",
                     className,
                 )}
                 {...props}

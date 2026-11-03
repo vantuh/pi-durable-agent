@@ -1,7 +1,10 @@
 import { Bot } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge.tsx";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
+import { Item, ItemTitle } from "@/components/ui/item.tsx";
+import { Progress } from "@/components/ui/progress.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -99,52 +102,57 @@ function Chip({
     const elsewhere = agent.cwd !== null && trimmed(agent.cwd) !== trimmed(folder);
 
     return (
-        <a
-            href={href}
-            title={hover(agent)}
-            aria-label={`Open ${agent.name}'s conversation`}
-            onClick={(event) => {
-                if (isPlainClick(event)) {
-                    event.preventDefault();
-                    onOpen();
-                }
-            }}
-            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:border-agent rounded-control flex shrink-0 items-center gap-2 border px-2 py-1 no-underline`}
+        <Badge
+            asChild
+            className={`${ROW} border-edge-soft bg-panel hover:border-agent focus-visible:ring-accent rounded-control gap-2 py-1 font-sans no-underline outline-none focus-visible:ring-2`}
         >
-            <span className="state-mark working text-warn" aria-hidden />
-            <span className="text-ink text-meta max-w-[120px] truncate">{agent.name}</span>
-            {agent.model === "" ? null : (
-                <span className="text-faint max-w-[84px] truncate text-[10px]">
-                    {shortModel(agent.model)}
-                </span>
-            )}
-            {elsewhere ? (
-                <span
-                    className="text-faint bg-raised border-edge-soft rounded-control hidden max-w-[70px] truncate border px-1 text-[10px] sm:inline"
-                    aria-hidden
-                >
-                    {agent.cwd
-                        ?.split("/")
-                        .filter((part) => part !== "")
-                        .at(-1) ?? agent.cwd}
-                </span>
-            ) : null}
-            <span className="text-faint flex items-center gap-1.5 font-mono text-[11px]">
-                {agent.window > 0 ? (
-                    <>
-                        <span className="bg-raised flex h-1 w-7 overflow-hidden rounded-full">
-                            <span
-                                className={agent.fill > WARN_ABOVE ? "bg-warn" : "bg-accent"}
-                                style={{ width: `${String(agent.fill)}%` }}
-                            />
-                        </span>
-                        {`${String(agent.fill)}%`}
-                    </>
-                ) : (
-                    "—"
+            <a
+                href={href}
+                title={hover(agent)}
+                aria-label={`Open ${agent.name}'s conversation`}
+                onClick={(event) => {
+                    if (isPlainClick(event)) {
+                        event.preventDefault();
+                        onOpen();
+                    }
+                }}
+            >
+                <span className="state-mark working text-warn" aria-hidden />
+                <span className="text-ink text-meta max-w-30 truncate">{agent.name}</span>
+                {agent.model === "" ? null : (
+                    <span className="text-faint text-micro max-w-21 truncate">
+                        {shortModel(agent.model)}
+                    </span>
                 )}
-            </span>
-        </a>
+                {/* Not a step: 70px holds a folder's last segment, and keeps it shorter than the name beside it. */}
+                {elsewhere ? (
+                    <span
+                        className="text-faint bg-raised border-edge-soft rounded-control text-micro hidden max-w-[70px] truncate border px-1 sm:inline"
+                        aria-hidden
+                    >
+                        {agent.cwd
+                            ?.split("/")
+                            .filter((part) => part !== "")
+                            .at(-1) ?? agent.cwd}
+                    </span>
+                ) : null}
+                <span className="text-faint text-micro flex items-center gap-1.5 font-mono">
+                    {agent.window > 0 ? (
+                        <>
+                            <Progress
+                                value={agent.fill}
+                                tone={agent.fill > WARN_ABOVE ? "warn" : "accent"}
+                                className="w-7"
+                                aria-label={`${agent.name} context`}
+                            />
+                            {`${String(agent.fill)}%`}
+                        </>
+                    ) : (
+                        "—"
+                    )}
+                </span>
+            </a>
+        </Badge>
     );
 }
 
@@ -156,18 +164,22 @@ function Agents({ session, openSession }: AboveComposerProps) {
         const { parent } = data;
 
         return (
-            <a
-                href={sessionHref(parent.id)}
-                onClick={(event) => {
-                    if (isPlainClick(event)) {
-                        event.preventDefault();
-                        openSession(parent.id);
-                    }
-                }}
-                className={`${ROW} text-agent text-sidebar rounded-control border-edge-soft bg-panel mx-1.5 my-0.5 flex shrink-0 items-center truncate border px-3`}
+            <Item
+                asChild
+                className={`${ROW} text-agent text-sidebar border-edge-soft bg-panel mx-1.5 my-0.5 shrink-0 truncate border px-3`}
             >
-                <span className="truncate">← Back to {parent.title}</span>
-            </a>
+                <a
+                    href={sessionHref(parent.id)}
+                    onClick={(event) => {
+                        if (isPlainClick(event)) {
+                            event.preventDefault();
+                            openSession(parent.id);
+                        }
+                    }}
+                >
+                    <span className="truncate">← Back to {parent.title}</span>
+                </a>
+            </Item>
         );
     }
 
@@ -270,34 +282,36 @@ function AgentRow({
 
     return (
         <li>
-            <a
-                href={sessionHref(kid.id)}
-                data-session={kid.id}
-                title={[name, profile, status].filter((part) => part !== undefined).join(" · ")}
-                aria-current={current ? "page" : undefined}
-                onClick={(event) => {
-                    if (isPlainClick(event)) {
-                        event.preventDefault();
-                        openSession(kid.id);
-                    }
-                }}
-                className={`rounded-control flex h-8 items-center gap-2 px-2 no-underline max-lg:h-11 ${current ? "bg-raised" : "hover:bg-raised/50"}`}
+            <Item
+                asChild
+                className={`h-8 px-2 no-underline max-lg:h-11 ${current ? "bg-raised" : "hover:bg-raised/50"}`}
             >
-                <span
-                    className={`state-mark ${kid.busy ? "working text-warn" : kid.unseen ? "fresh text-ok" : "idle text-faint"}`}
-                    aria-hidden
-                />
-                <span
-                    className={`text-sidebar min-w-0 flex-1 truncate ${kid.busy ? "text-ink" : "text-muted"}`}
+                <a
+                    href={sessionHref(kid.id)}
+                    data-session={kid.id}
+                    title={[name, profile, status].filter((part) => part !== undefined).join(" · ")}
+                    aria-current={current ? "page" : undefined}
+                    onClick={(event) => {
+                        if (isPlainClick(event)) {
+                            event.preventDefault();
+                            openSession(kid.id);
+                        }
+                    }}
                 >
-                    {name}
-                </span>
-                <span
-                    className={`text-meta shrink-0 whitespace-nowrap ${kid.busy ? "text-muted" : "text-faint"}`}
-                >
-                    {status}
-                </span>
-            </a>
+                    <span
+                        className={`state-mark ${kid.busy ? "working text-warn" : kid.unseen ? "fresh text-ok" : "idle text-faint"}`}
+                        aria-hidden
+                    />
+                    <ItemTitle className={`min-w-0 flex-1 ${kid.busy ? "text-ink" : "text-muted"}`}>
+                        {name}
+                    </ItemTitle>
+                    <span
+                        className={`text-meta shrink-0 whitespace-nowrap ${kid.busy ? "text-muted" : "text-faint"}`}
+                    >
+                        {status}
+                    </span>
+                </a>
+            </Item>
         </li>
     );
 }
@@ -394,7 +408,7 @@ function WorkingAgents({
                     }}
                 >
                     <span className="state-mark working text-warn" aria-hidden />
-                    <span className="text-sidebar text-ink min-w-0 flex-1 truncate">{name}</span>
+                    <ItemTitle className="min-w-0 flex-1">{name}</ItemTitle>
                 </a>
             </DropdownMenuItem>
         );

@@ -19,9 +19,16 @@ import {
     useState,
 } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { PanelProps } from "@/sdk/types.ts";
+import { Loading } from "@/ui/loading.tsx";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import {
     type BrowserState,
@@ -37,9 +44,9 @@ import {
 
 const sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 const PRESETS = [
-    { name: "mobile", icon: Smartphone },
-    { name: "tablet", icon: Tablet },
-    { name: "desktop", icon: Monitor },
+    { name: "mobile", hint: "Mobile", icon: Smartphone },
+    { name: "tablet", hint: "Tablet", icon: Tablet },
+    { name: "desktop", hint: "Desktop", icon: Monitor },
 ] as const;
 const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta"]);
 
@@ -290,7 +297,7 @@ function Stage({
                     dy: event.deltaY,
                 });
             }}
-            className="bg-sunken flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden outline-none select-none"
+            className="bg-sunken focus-visible:ring-accent flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden outline-none select-none focus-visible:ring-2 focus-visible:ring-inset"
         >
             <img
                 ref={image}
@@ -352,8 +359,7 @@ function Console({ id, count }: { id: number | null; count: number }) {
 }
 
 function IconButton({
-    title,
-    label,
+    hint,
     onClick,
     disabled,
     active,
@@ -361,9 +367,8 @@ function IconButton({
     className = "",
     children,
 }: {
-    title: string;
-    /** The name a tooltip does not carry on its own; a toggle passes it to say what the press did. */
-    label?: string;
+    /** The action, which is also the name: the toolbar holds no text a screen reader could read. */
+    hint: string;
     onClick: () => void;
     disabled?: boolean;
     active?: boolean;
@@ -373,17 +378,19 @@ function IconButton({
     children: React.ReactNode;
 }) {
     return (
-        <button
-            type="button"
-            title={title}
-            aria-label={label}
-            aria-pressed={pressed}
-            disabled={disabled === true}
-            onClick={onClick}
-            className={`rounded-control hover:bg-raised hover:text-ink flex size-7 shrink-0 items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : "text-muted"} ${className}`}
-        >
-            {children}
-        </button>
+        <Hint label={hint}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label={hint}
+                aria-pressed={pressed}
+                disabled={disabled === true}
+                onClick={onClick}
+                className={`shrink-0 disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : ""} ${className}`}
+            >
+                {children}
+            </Button>
+        </Hint>
     );
 }
 
@@ -398,7 +405,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
     const address = draft ?? (page === undefined || page.url === "about:blank" ? "" : page.url);
 
     if (id === null) {
-        return <p className="text-faint text-interface p-3">Open a session to use the browser.</p>;
+        return <Empty className="text-interface p-3">Open a session to use the browser.</Empty>;
     }
 
     if (page?.available === false) {
@@ -414,23 +421,23 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
 
     return (
         <>
-            <div className="border-edge-soft flex items-center gap-1 border-b p-2">
+            <Toolbar className="gap-1 p-2">
                 <IconButton
-                    title="Back"
+                    hint="Back"
                     disabled={page?.canGoBack !== true}
                     onClick={() => void run({ op: "back" })}
                 >
                     <ArrowLeft className="size-4" />
                 </IconButton>
                 <IconButton
-                    title="Forward"
+                    hint="Forward"
                     disabled={page?.canGoForward !== true}
                     onClick={() => void run({ op: "forward" })}
                 >
                     <ArrowRight className="size-4" />
                 </IconButton>
                 <IconButton
-                    title={page?.loading === true ? "Stop" : "Reload"}
+                    hint={page?.loading === true ? "Stop" : "Reload"}
                     disabled={page?.open !== true}
                     onClick={() => void run({ op: page?.loading === true ? "stop" : "reload" })}
                 >
@@ -452,7 +459,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                         }
                     }}
                 >
-                    <input
+                    <Input
                         value={address}
                         title={
                             page?.open === true
@@ -466,13 +473,13 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                         onBlur={() => {
                             setDraft(null);
                         }}
-                        className="rounded-control bg-sunken text-interface text-ink placeholder:text-faint w-full min-w-0 px-2.5 py-1 font-mono outline-none"
+                        className="border-transparent px-2.5 font-mono"
                     />
                 </form>
-                {PRESETS.map(({ name, icon: Icon }) => (
+                {PRESETS.map(({ name, hint, icon: Icon }) => (
                     <IconButton
                         key={name}
-                        title={name}
+                        hint={hint}
                         active={page?.preset === name}
                         onClick={() => void run({ op: "viewport", viewport: name })}
                     >
@@ -480,7 +487,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                     </IconButton>
                 ))}
                 <IconButton
-                    title="Console"
+                    hint="Console"
                     active={showConsole}
                     onClick={() => {
                         setShowConsole((open) => !open);
@@ -490,8 +497,7 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                 </IconButton>
                 {/* Below `lg` the drawer is already the screen, so there is nothing to fill. */}
                 <IconButton
-                    title={expanded ? "Exit full screen" : "Full screen"}
-                    label={expanded ? "Exit full screen" : "Full screen"}
+                    hint={expanded ? "Exit full screen" : "Full screen"}
                     pressed={expanded}
                     className="max-lg:hidden"
                     onClick={() => {
@@ -503,25 +509,30 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                 {page !== undefined && page.errors > 0 ? (
                     <span className="text-meta text-danger">{page.errors}</span>
                 ) : null}
-            </div>
+            </Toolbar>
 
             {problem === null ? null : (
-                <p className="text-meta text-danger px-3 py-1.5">{problem}</p>
+                <Alert className="rounded-none px-3 py-1.5">{problem}</Alert>
             )}
 
             {page?.open === true ? (
                 <Stage id={id} shot={shot} onError={setError} />
+            ) : page?.loading === true ? (
+                // Not an empty state: the toolbar's Stop is the only action while the browser starts.
+                <div className="flex flex-1 items-center justify-center p-4">
+                    <Loading className="text-interface text-center">Starting the browser…</Loading>
+                </div>
             ) : (
-                <div className="text-faint text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-                    <p>{page?.loading === true ? "Starting the browser…" : "Nothing is open."}</p>
-                    <button
-                        type="button"
+                <Empty className="text-interface flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
+                    <p>Nothing is open.</p>
+                    <Button
+                        variant="ghost"
                         onClick={() => void run({ op: "open" })}
-                        className="rounded-control bg-raised text-ink hover:bg-edge-soft px-3 py-1"
+                        className="bg-raised text-ink py-1"
                     >
                         Open the browser
-                    </button>
-                </div>
+                    </Button>
+                </Empty>
             )}
 
             {showConsole ? <Console id={id} count={page?.logs ?? 0} /> : null}

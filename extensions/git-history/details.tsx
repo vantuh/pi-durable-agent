@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from "react";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { DetailsColumn } from "@/ui/details.tsx";
 
 import { diffStyle, setDiffStyle, subscribeDiffStyle } from "./preferences.ts";
 
 export default function Details() {
     const style = useSyncExternalStore(subscribeDiffStyle, diffStyle);
     return (
-        <div className="text-meta flex flex-col gap-2">
+        <DetailsColumn>
             <div className="flex flex-wrap items-center gap-3">
                 <span className="text-ink">Diff layout</span>
                 <Tabs
@@ -27,6 +28,6 @@ export default function Details() {
             <p className="text-faint">
                 History preview only; Plannotator has its own layout setting. Saved in this browser.
             </p>
-        </div>
+        </DetailsColumn>
     );
 }

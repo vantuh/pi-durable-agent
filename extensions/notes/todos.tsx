@@ -24,11 +24,17 @@ import {
     useState,
 } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast.ts";
 import { cn } from "@/lib/utils";
 import { callAction } from "@/sdk/actions.ts";
+import { Toolbar } from "@/ui/pane.tsx";
 
 import type { ActionRef } from "../../shared/extension-api.ts";
 import {
@@ -212,9 +218,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="border-edge-soft text-meta flex items-center gap-2 border-b px-3 py-1.5">
-                {tabs}
-            </div>
+            <Toolbar className="text-meta">{tabs}</Toolbar>
 
             <form
                 className="px-3 pt-2 pb-1"
@@ -233,6 +237,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
                     value={title}
                     disabled={items === null}
                     placeholder="Add a to-do"
+                    aria-label="Add a to-do"
                     onChange={(event) => {
                         setTitle(event.target.value);
                     }}
@@ -240,12 +245,12 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
             </form>
 
             {error === null ? null : (
-                <p className="text-danger text-interface px-3 py-1">{error}</p>
+                <Alert className="text-interface rounded-none px-3 py-1">{error}</Alert>
             )}
 
             <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
                 {items?.length === 0 ? (
-                    <p className="text-faint text-interface px-2 py-2">Nothing to do.</p>
+                    <Empty className="text-interface px-2 py-2">Nothing to do.</Empty>
                 ) : null}
 
                 <DndContext
@@ -316,16 +321,17 @@ function SortableRow(props: RowProps) {
                 transition,
             }}
             handle={
-                <button
+                <Button
                     ref={setActivatorNodeRef}
-                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Drag to reorder"
-                    className="text-faint hover:text-muted mt-0.75 shrink-0 cursor-grab touch-none"
+                    className="text-faint hover:text-muted shrink-0 cursor-grab touch-none"
                     {...attributes}
                     {...listeners}
                 >
                     <GripVertical className="size-4" />
-                </button>
+                </Button>
             }
         />
     );
@@ -355,40 +361,41 @@ function Row({
         >
             <div className="flex items-start gap-2 px-2 py-1">
                 {handle ?? <span className="size-4 shrink-0" />}
-                <input
-                    type="checkbox"
+                <Checkbox
                     checked={todo.done}
                     aria-label={todo.done ? "Mark as not done" : "Mark as done"}
-                    onChange={(event) => {
-                        onChange({ done: event.target.checked });
+                    onCheckedChange={(checked) => {
+                        onChange({ done: checked === true });
                     }}
-                    className="accent-accent mt-0.75 size-4 shrink-0"
+                    className="mt-0.75"
                 />
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="sm"
                     aria-expanded={expanded}
                     onClick={onExpand}
                     className={cn(
-                        "text-interface min-w-0 flex-1 text-left break-words",
+                        "text-interface min-w-0 flex-1 justify-start break-words px-0 py-0 text-left",
                         todo.done ? "text-faint line-through" : "text-ink",
                     )}
                 >
                     {todo.title}
-                </button>
+                </Button>
                 {todo.description === "" ? null : (
                     <Text
                         aria-label="Has a description"
                         className="text-faint mt-1 size-3.5 shrink-0"
                     />
                 )}
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Delete"
                     onClick={onRemove}
-                    className="text-faint hover:text-danger mt-1 shrink-0 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                    className="text-faint hover:text-danger shrink-0 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
                 >
                     <Trash2 className="size-3.5" />
-                </button>
+                </Button>
             </div>
             {expanded ? <Details todo={todo} onChange={onChange} /> : null}
         </li>
@@ -444,7 +451,7 @@ function Details({ todo, onChange }: { todo: Todo; onChange: (patch: Patch) => v
                     }
                 }}
             />
-            <textarea
+            <Textarea
                 value={description}
                 rows={4}
                 placeholder="Description"
@@ -455,7 +462,7 @@ function Details({ todo, onChange }: { todo: Todo; onChange: (patch: Patch) => v
                     timer.current = setTimeout(flush, DEBOUNCE_MS);
                 }}
                 onBlur={flush}
-                className="rounded-control border-edge bg-sunken text-interface text-ink placeholder:text-faint focus-visible:ring-accent resize-y border px-2 py-1 outline-none focus-visible:ring-2"
+                className="resize-y"
             />
         </div>
     );

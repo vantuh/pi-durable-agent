@@ -25,6 +25,12 @@ The roles, top down: page `sunken`, panels `canvas`, anything inside a panel tha
 (`raised`): the selected session row, a person's message, a hover on a control. Borders are
 `edge-soft` inside a panel and never on the page. See [theme.md](theme.md).
 
+Every pane wears one frame — `rounded-card`, a 1px `edge-soft` border, and the fill its job picks —
+and a pane's header is one row: a title on the left, its actions on the right, a rule under it. Both
+are named once, in `web/src/ui/pane.tsx` (`PANE`, `PaneHeader`); positioning, width, drag and
+animation stay with the caller. The transcript's header and a page's are the other row: the two-line
+`min-h-header` with `py-0.5`.
+
 ## Home
 
 `/` is the home page, in place of the conversation and composer: every session from every folder
@@ -182,11 +188,12 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 ## Settings
 
 The gear at the right end of the status bar opens a sheet from the right edge, over the app: the
-sidebar and the conversation keep their width, a scrim (`sunken` at 40%) dims them, and a click on
-the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear stays
-raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm` up;
-below `sm` it fills the screen inside the 8px gaps. It is a Radix dialog that is unmounted when
-closed, so its sections read afresh at each open. Under its sections is a footer row with two icon
+sidebar and the conversation keep their width, a scrim (`sunken` at 70%, the dialogs' own) dims them,
+and a click on the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear
+stays raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm`
+up; below `sm` it fills the screen inside the 8px gaps. It is a `Sheet`
+(`components/ui/sheet.tsx`, over the dialog primitive) that is unmounted when closed, so its sections
+read afresh at each open. Under its sections is a footer row with two icon
 buttons: a puzzle ("Extensions") that opens a modal to turn extensions on and off
 ([extensions.md](extensions.md)), and a palette ("Appearance: theme") that opens a modal with one
 card per flavour ([theme.md](theme.md)). Both modals are full screen below `sm` and a centred card

@@ -4,13 +4,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { parseHTML } from "linkedom";
+
 import {
+    caps,
     COMMANDS,
     DEFAULT_KEYMAP,
     fieldKeeps,
+    inDialog,
     mergeKeymap,
     ownsKeys,
     parseBinding,
+    presses,
     step,
     type KeyEvent,
 } from "./lib.ts";
@@ -205,6 +210,21 @@ void test("a field that opted into the shell's keys lets the session arrows thro
     assert.equal(step(DEFAULT_KEYMAP, false, ctrlA).armed, true);
 });
 
+void test("a dialog owns the keyboard, an alert dialog too", () => {
+    const { document } = parseHTML(`
+        <div role="dialog"><button id="in-dialog"></button></div>
+        <div role="alertdialog"><button id="in-alert"></button></div>
+        <button id="outside"></button>
+    `);
+    const at = (id: string) => document.querySelector(`#${id}`);
+
+    assert.equal(inDialog(at("in-dialog")), true);
+    // A confirmation is an alert dialog: the shell's keys must not fire behind one either.
+    assert.equal(inDialog(at("in-alert")), true);
+    assert.equal(inDialog(at("outside")), false);
+    assert.equal(inDialog(null), false);
+});
+
 void test("a held prefix does not arm", () => {
     const result = step(DEFAULT_KEYMAP, false, key("KeyA", { ctrlKey: true, repeat: true }));
 
@@ -256,4 +276,41 @@ void test("readKeymap reads hotkeys.json from the given directory", async () => 
 
     await writeFile(join(dir, "hotkeys.json"), "{ not json");
     assert.deepEqual(await readKeymap(dir), DEFAULT_KEYMAP);
+});
+
+void test("a binding is drawn as the presses it is, prefix first", () => {
+    assert.deepEqual(presses(DEFAULT_KEYMAP, "prefix+c"), [["ctrl", "a"], ["c"]]);
+    assert.deepEqual(presses(DEFAULT_KEYMAP, "shift+left"), [["shift", "left"]]);
+    assert.deepEqual(presses(DEFAULT_KEYMAP, "prefix+,"), [["ctrl", "a"], [","]]);
+    assert.deepEqual(presses({ ...DEFAULT_KEYMAP, prefix: "meta+a" }, "prefix+n"), [
+        ["meta", "a"],
+        ["n"],
+    ]);
+});
+
+void test("a binding parseBinding accepts is drawn with its tokens normalised", () => {
+    assert.notEqual(parseBinding("PREFIX + F"), null);
+    assert.deepEqual(presses(DEFAULT_KEYMAP, "PREFIX + F"), [["ctrl", "a"], ["f"]]);
+    assert.notEqual(parseBinding("SHIFT + Left"), null);
+    assert.deepEqual(presses(DEFAULT_KEYMAP, "SHIFT + Left"), [["shift", "left"]]);
+    assert.deepEqual(presses(DEFAULT_KEYMAP, " Prefix + , "), [["ctrl", "a"], [","]]);
+    assert.deepEqual(presses({ ...DEFAULT_KEYMAP, prefix: "Meta + A" }, "prefix+n"), [
+        ["meta", "a"],
+        ["n"],
+    ]);
+    assert.deepEqual(caps("SHIFT + SHIFT + Left"), ["shift", "left"]);
+});
+
+void test("a key written twice is drawn once, and every command of the default keymap is drawable", () => {
+    assert.deepEqual(caps("shift+shift+left"), ["shift", "left"]);
+    assert.deepEqual(caps("prefix+a"), ["prefix", "a"]);
+
+    for (const command of COMMANDS) {
+        for (const binding of DEFAULT_KEYMAP.keys[command]) {
+            const drawn = presses(DEFAULT_KEYMAP, binding).flat();
+
+            assert.ok(drawn.length >= 2, `${binding} of ${command} drew ${drawn.join("+")}`);
+            assert.ok(!drawn.includes("prefix"), `${binding} of ${command} kept its prefix word`);
+        }
+    }
 });

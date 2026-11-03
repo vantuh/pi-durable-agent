@@ -3,6 +3,8 @@ import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { EMPTY } from "./empty.tsx";
+
 /**
  * shadcn's Command, after cmdk: the root handles the arrow keys, Home/End and Enter, and the input
  * names the marked row through `aria-activedescendant`. Filtering is the caller's: `shouldFilter`.
@@ -24,7 +26,7 @@ export function CommandInput({
         <div className="px-3 py-2">
             <CommandPrimitive.Input
                 className={cn(
-                    "rounded-control border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint w-full border px-2.5 py-1.5 outline-none",
+                    "rounded-control border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint focus-visible:ring-accent w-full border px-2.5 py-1.5 outline-none focus-visible:ring-2",
                     className,
                 )}
                 {...props}
@@ -38,13 +40,12 @@ export function CommandList({ className, ...props }: ComponentProps<typeof Comma
     return <CommandPrimitive.List className={cn("w-full", className)} {...props} />;
 }
 
+/** cmdk's own empty element, which it shows and hides itself, in `Empty`'s look and the list's padding. */
 export function CommandEmpty({
     className,
     ...props
 }: ComponentProps<typeof CommandPrimitive.Empty>) {
-    return (
-        <CommandPrimitive.Empty className={cn("text-faint text-meta p-2", className)} {...props} />
-    );
+    return <CommandPrimitive.Empty className={cn(EMPTY, "p-2", className)} {...props} />;
 }
 
 export function CommandItem({ className, ...props }: ComponentProps<typeof CommandPrimitive.Item>) {
