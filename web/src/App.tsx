@@ -28,6 +28,7 @@ import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
 import { useShellCommand } from "./sdk/commands.ts";
 import { focusComposer } from "./sdk/composer.ts";
+import { useEdgeSwipe } from "./shell/edge-swipe.ts";
 import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
@@ -305,6 +306,12 @@ export function App() {
     const closeSheet = useCallback(() => {
         setSheet(false);
     }, []);
+
+    const openSheet = useCallback(() => {
+        setSheet(true);
+    }, []);
+
+    useEdgeSwipe(openSheet);
 
     // A new session in `path`, opened at once.
     const openSession = useCallback(
