@@ -54,10 +54,12 @@ Colours stay the Catppuccin roles; only which role a surface uses changed.
   row the footer follows, so no height is written down (390 and 820: panel 0–816, footer 816–844).
   At `lg` and in full screen the panel already ends at the footer's top. A sheet is a dialog and
   still covers the footer, on purpose.
+- A phone keeps the status bar's state cell and the settings: below `sm` the `end` items are hidden,
+  as a server `end` field already was. Five chips in a 171px cell drew over `ready`.
+- No `key` warning: the unicorn in `extensions/ponytail/icon.tsx` had nodes without keys, and lucide
+  builds its `svg` children from them. It was the only icon written by hand here.
 
 ## Open
 
 - Two bottom bars: the session meta row under the composer (context, cache, tok/s, cost) and the
   status bar. The row stays as it is: it was tried and kept.
-- Older bugs seen on the way, not caused by this work: on a phone the status bar's start and centre
-  cells overlap; React warns about a missing `key` in a `ForwardRef` list when a panel mounts.
