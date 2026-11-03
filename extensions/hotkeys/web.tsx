@@ -3,18 +3,22 @@ import { useEffect, useState } from "react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
-import { runCommand } from "@/sdk/commands.ts";
+import { runCommand, setCommandKeys } from "@/sdk/commands.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { DEFAULT_KEYMAP, fieldKeeps, inDialog, step, type Keymap } from "./lib.ts";
+import {
+    caps,
+    COMMANDS,
+    DEFAULT_KEYMAP,
+    fieldKeeps,
+    inDialog,
+    presses,
+    step,
+    type Keymap,
+} from "./lib.ts";
 import { keymap } from "./refs.ts";
 
 const ARMED_MS = 1500;
-
-/** `ctrl+a` as the caps it is: one per key, in the order it is pressed, a repeated modifier once. */
-function caps(prefix: string): string[] {
-    return [...new Set(prefix.split("+"))];
-}
 
 function Hotkeys() {
     const [label, setLabel] = useState<string | null>(null);
@@ -81,6 +85,13 @@ function Hotkeys() {
 
             if (alive) {
                 map = found;
+
+                for (const command of COMMANDS) {
+                    // A command with several bindings shows the first: one sequence is what a hint holds.
+                    const binding = found.keys[command][0];
+
+                    setCommandKeys(command, binding === undefined ? null : presses(found, binding));
+                }
             }
         })();
 
@@ -90,6 +101,11 @@ function Hotkeys() {
             alive = false;
             clearTimeout(timer);
             window.removeEventListener("keydown", onKey, { capture: true });
+
+            // Off, the folder leaves no label in the core's hints.
+            for (const command of COMMANDS) {
+                setCommandKeys(command, null);
+            }
         };
     }, []);
 

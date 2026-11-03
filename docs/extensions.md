@@ -299,6 +299,37 @@ held, so a refusal worth another try can be retried; changing the option's value
 `extensions/git-worktree` makes the worktree there, so the session starts in it without the core
 knowing what a worktree is (see [Git worktrees](#git-worktrees)).
 
+### Keys for a shell command
+
+`web/src/sdk/commands.ts` holds the shell's commands and, beside them, the keys that run each one.
+An extension that binds a key states it there; the core's hints draw it, and the core names no
+folder to do so.
+
+```ts
+import { setCommandKeys } from "@/sdk/commands.ts";
+
+setCommandKeys("session.new", [["ctrl", "a"], ["c"]]); // ctrl+a, then c
+setCommandKeys("session.new", null); // the command shows no key again
+```
+
+- **The extension states the caps, the core draws them.** A sequence is one entry per press, and an
+  entry is the keys of that press as they are drawn: `[["ctrl","a"],["c"]]` is two presses, and
+  `[["shift","left"]]` is one. The core never parses a binding string; a keymap with its own
+  grammar stays in the folder that owns it, as `extensions/hotkeys` keeps `prefix+c`.
+- **One owner per command.** The last extension to state a command's keys keeps them, and
+  `null` clears them, whoever stated them last. A folder states its keys from an effect and clears
+  them in that effect's cleanup, so a folder that is turned off or deleted leaves no label behind.
+- **Stating the same sequence again wakes nobody**: the store compares what it holds, so an effect
+  that runs on every render does not loop the hints that read it.
+- **Reading them:** `useCommandKeys(command)` in a component (it re-renders when the keys change),
+  `commandKeys(command)` for the value alone, or `subscribeCommandKeys(listener)` for a store of your
+  own. The core's own renderer is `CommandKeys` in `web/src/ui/command-keys.tsx`: one `Kbd` per key
+  in a `KbdGroup`, and nothing at all while no extension states any, for
+  [Tooltip](ui-primitives.md#12-tooltip)'s `keys` slot.
+- `extensions/hotkeys` is the one extension that states keys today: the first binding of each
+  command, its prefix's own keys first, so the sidebar's search hint reads `meta` `a` `f` under
+  `data/hotkeys.json`'s prefix.
+
 ## The host
 
 `host` is what an extension knows about the process. It grows only when a feature needs more:
@@ -1033,7 +1064,7 @@ panel. The agent never sees them: the extension has no tools, prompt sections or
 
 ## Hotkeys
 
-`extensions/hotkeys` binds keys to the shell's commands (`session.new`, `folder.pick`, from `@/sdk/commands.ts`) and to stepping through the sidebar's sessions; the defaults and `data/hotkeys.json` are described in its `lib.ts`. Keys bind by physical position (`event.code`), so a binding works on any keyboard layout. A field keeps the keys typed into it; a field inside `[data-shell-keys]` — the composer's textarea carries it — keeps only its typing, and the shell's keys (the session arrows) still reach it.
+`extensions/hotkeys` binds keys to the shell's commands (`session.new`, `folder.pick`, from `@/sdk/commands.ts`) and to stepping through the sidebar's sessions; the defaults and `data/hotkeys.json` are described in its `lib.ts`. Keys bind by physical position (`event.code`), so a binding works on any keyboard layout. A field keeps the keys typed into it; a field inside `[data-shell-keys]` — the composer's textarea carries it — keeps only its typing, and the shell's keys (the session arrows) still reach it. The keymap is also stated to the core ([keys for a shell command](#keys-for-a-shell-command)): each command's first binding, so a core hint shows what runs it, and the folder's unmount clears them.
 
 ## Image limit
 

@@ -71,6 +71,7 @@ import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
 import { focusComposer } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
+import { CommandKeys } from "../ui/command-keys.tsx";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { PANE } from "../ui/pane.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
@@ -1194,7 +1195,7 @@ export const Sessions = memo(function Sessions({
                             </Hint>
                         </div>
                     </div>
-                    <Hint label="Search sessions">
+                    <Hint label="Search sessions" keys={<CommandKeys command="session.search" />}>
                         <Button
                             ref={searchTrigger}
                             variant="ghost"

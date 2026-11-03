@@ -1148,14 +1148,22 @@ Nothing rendered a keycap before this.
       drawn once. Measured: 320×46 where the label alone is 260.5×28, because 242.5 of label plus 8
       of gap plus 64.8 of caps is wider than the 302 a `max-w-xs` tooltip holds — the label wraps
       onto two lines and the caps end the second one.
-- [ ] The bindings in `extensions/hotkeys` inside the hints of the core controls they run: New
-      session, the folder picker, search, rename, and the two session arrows. **Left undone on
-      purpose.** Nothing in `web/src/sdk` lets an extension name a key for a shell command:
-      `commands.ts` holds a fixed `ShellCommand` union with `useShellCommand` (the shell's own
-      handler) and `runCommand` (an extension's way to call one), the shell's buttons call their
-      handlers directly, and no registry exists that the core could read a key from. A contract —
-      the extension states `session.new: "prefix+c"` and the core's hint asks for it — is a new
-      cross-cutting mechanism, so it is a follow-up: [4.2](#42-repeated-code-goes-to-one-place).
+- [x] The bindings in `extensions/hotkeys` inside the hints of the core controls they run. Built as
+      the sdk contract [4.2](#42-repeated-code-goes-to-one-place) asked for: `web/src/sdk/commands.ts`
+      holds `setCommandKeys(command, presses | null)` beside `useShellCommand`, where a press is the
+      keys of one keystroke as they are drawn (`[["meta","a"],["f"]]` is meta+a, then f), and
+      `useCommandKeys(command)` reads it through `useSyncExternalStore`. The extension states the
+      caps and the core never parses a binding: `extensions/hotkeys/lib.ts:148–161` turns `prefix+f`
+      into the prefix's own keys and the key it arms, so `data/hotkeys.json`'s `meta+a` reads
+      `meta` `a` `f`. The core's renderer is `web/src/ui/command-keys.tsx`, one `Kbd` per key in a
+      `KbdGroup`, drawn for [Tooltip](#12-tooltip)'s `keys` slot and nothing at all while no
+      extension states keys — the search hint's tooltip is 206.4×30 with them and 109.6×30, its label
+      alone, without. **One caller today:** of the core's controls that run a `ShellCommand`, only
+      `web/src/shell/sessions.tsx:1198` (Search sessions) has a hint; New session and the folder
+      scope are text buttons whose label the hint would repeat, rename is a row's menu item, and
+      the two session arrows have no button at all. `extensions/hotkeys/web.tsx:86–95` states its
+      keymap on load and `:104–108` clears it on unmount, so a folder that is turned off leaves no
+      stale label.
 
 ### 3.11 Field and Label (new)
 
@@ -1641,12 +1649,15 @@ finding is fixed in this phase, not just listed.
       `extensions/bash-timeout/details.tsx`'s and `extensions/dictation/details.tsx`'s
       `flex flex-col gap-2` control columns, which hold fields that state their own sizes and are not
       the details wrapper.
-- [ ] A key an extension names for a shell command, so the core's own hints can show it — the
-      follow-up [Kbd](#310-kbd-new) left open. `web/src/sdk/commands.ts` holds the command names and
-      their handlers, not what runs them: a registration beside `useShellCommand`, where the keymap's
-      owner states `session.new: "prefix+c"`, and a reader the core's `Hint` uses, which draws a
-      `Kbd` and nothing else. A contract rather than a repeat, listed here because it belongs with the
-      sdk's other gaps and not to the step that found it.
+- [x] A key an extension names for a shell command, so the core's own hints can show it — the
+      follow-up [Kbd](#310-kbd-new) left open. Done as `setCommandKeys` / `useCommandKeys` in
+      `web/src/sdk/commands.ts` and `CommandKeys` in `web/src/ui/command-keys.tsx`, with
+      `extensions/hotkeys` as the first and only writer; the whole of it is under
+      [Kbd](#310-kbd-new)'s last box and in
+      [extensions.md](extensions.md#keys-for-a-shell-command). Two decisions worth the line: the
+      extension passes the caps, not a binding string, so the keymap's grammar stays in the folder
+      that owns it; and a command has one owner — the last writer — so a folder that unloads clears
+      what it stated and the core is left with no label rather than a stale one.
 
 ### 4.3 The rule, written down
 
@@ -1687,8 +1698,8 @@ finding is fixed in this phase, not just listed.
 What to expect: the app looks almost the same — most screens moved by no pixel at all. The visible
 differences are the themed tooltips and focus rings, slightly darker scrims and shadows in the dark
 flavours, a few error lines that became soft red boxes, and the rename form sitting under the row.
-Still open: showing the `hotkeys` bindings in the core's own hints needs a small contract in the sdk
-(4.2's last box), a decision left for later.
+The shortcuts now show where they run: the hint of the search button ends with the keys you bound,
+and a button whose action has no shortcut shows no key at all.
 
 ## Repeated elements this plan unifies
 
