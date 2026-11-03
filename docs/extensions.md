@@ -193,26 +193,27 @@ data it receives, because it runs outside the page.
 
 ### Panels
 
-`web.tsx` may also export `panels: [{ id, title, icon, component }]`. Each adds a button to the
-conversation header; the open panel sits to the right of the transcript (a full-screen overlay
-below `lg`). The component gets `{ session, onClose, expanded, setExpanded }`: a panel that draws its
+`web.tsx` may also export `panels: [{ id, title, icon, component }]`. Each adds a tab to the
+right sidebar, opened by the one "Extensions" button in the conversation header; the open panel sits
+to the right of the transcript (a full-screen overlay below `lg`). The button remembers the panel
+opened last, per session, and brings it back. The component gets `{ session, onClose, expanded, setExpanded }`: a panel that draws its
 own control may ask to fill the conversation instead of the drawer, and the shell places it there
 (the same frame and box an extension's page takes) with the transcript and composer hidden and inert
 under it. The body stays mounted across the toggle, so a live view inside it keeps its state; Escape,
-closing the panel and changing session all return it to the drawer. The core draws no button of its
-own: a panel that does not ask never expands. `extensions/browser` is the example: its
+closing the panel and changing session all return it to the drawer. The core draws no expand button of
+its own: a panel that does not ask never expands. `extensions/browser` is the example: its
 frames travel as base64 through an action that waits for the next one, as extensions have no
 routes of their own. A panel may add `badge`, a component that gets `StatusProps` and returns a
-number (or text) for a small count on the corner of its button, or `null` for none; the core draws
+number (or text) for a small count on its tab, or `null` for none; the core draws
 the pill and hides it when the component returns nothing. `extensions/notes` is the example.
 
 ### Pages
 
-`web.tsx` may also export `pages: [{ id, title, icon, component, badge? }]`. Each adds a button to the
-conversation header; it opens the page in place of the conversation — the transcript and composer
-make way for a frame with the page's title and a close button; a sub-location adds a back arrow to
-its parent. The page's body fills the rest. The sidebar, an extension's panel and the status bar
-stay as they are. The transcript and composer stay mounted out of sight, so a draft, a scroll
+`web.tsx` may also export `pages: [{ id, title, icon, component, badge? }]`. Each adds a tab beside the panels' in the right sidebar; it opens the page in place of the
+conversation — the transcript and composer make way for a frame with the same tab strip (the page's
+tab active) and a close button; a sub-location adds a back arrow to its parent. The page's body fills
+the rest. The right sidebar is closed while a page is open; the left sidebar and the status bar stay
+as they are. The transcript and composer stay mounted out of sight, so a draft, a scroll
 position and a running answer survive the visit.
 
 - **The address carries it**: `/?session=N&page=<folder>:<id>&sub=<sub>`. Opening a page adds a
@@ -226,9 +227,8 @@ position and a running answer survive the visit.
   only when the address has a sub-location, and goes to its parent — the sub without its last
   segment, or the page root. That step uses the history entry behind it only when that entry is the
   parent; from a deep link it replaces its own entry instead of leaving the app. The frame focuses
-  its title on entry unless the page's body claimed the keyboard (a detail's heading, a review
-  layer), and closing restores focus to the header button that opened the page, or to the composer
-  after `close("composer")`.
+  its active tab on entry unless the page's body claimed the keyboard (a detail's heading, a review
+  layer), and closing puts the caret in the composer.
 - **The body does not scroll for you.** The frame fills the area and clips; the page's component
   owns its one scroll, so a page with two views keeps each view's position.
 - **A badge** works as a panel's does: a component fed `StatusProps`, returning a count or nothing.

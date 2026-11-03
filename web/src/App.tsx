@@ -1,4 +1,8 @@
+import { PanelRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientQueued, ClientStatus } from "../../shared/protocol.ts";
 import { AboveComposerItems } from "./composer/above-items.tsx";
@@ -33,12 +37,13 @@ import { useFinishedToasts } from "./shell/finished-toasts.tsx";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { Home } from "./shell/home.tsx";
-import { PageButtons, PageHost, pageKey } from "./shell/pages.tsx";
-import { PanelButtons, PanelHost, panelKey, useOpenPanel } from "./shell/panels.tsx";
+import { PageHost, pageKey } from "./shell/pages.tsx";
+import { PanelHost, panelKey, useOpenPanel } from "./shell/panels.tsx";
 import { showSessionAlert } from "./shell/session-alert.tsx";
 import { Sessions } from "./shell/sessions.tsx";
 import { Settings } from "./shell/settings.tsx";
 import { StatusBar } from "./shell/status-bar.tsx";
+import { ExtensionTabs } from "./shell/tabs.tsx";
 import { Transcript } from "./transcript/transcript.tsx";
 import { StatusItems } from "./ui/status-fields.tsx";
 
@@ -91,6 +96,7 @@ export function App() {
     const { state, send, stop, loadOlder } = useConversation(current);
     const {
         shown: panelShown,
+        last: panelLast,
         open: panelOpen,
         setOpen: setPanelOpen,
         forget: forgetPanel,
@@ -214,10 +220,8 @@ export function App() {
             dropPage();
         }
     }, [extensionsLoaded, route.page, openPageItem, dropPage]);
-    // The page hides the conversation's controls; on the way out the keyboard goes back to the button
-    // that opened it, or to the composer when a review closed itself with a draft.
-    const opener = useRef<HTMLButtonElement | null>(null);
-    const pendingFocus = useRef<"opener" | "composer" | null>(null);
+    // The page hides the conversation's controls; on the way out the keyboard goes back to the composer.
+    const pendingFocus = useRef(false);
     const hadPage = useRef(false);
 
     useEffect(() => {
@@ -232,37 +236,64 @@ export function App() {
 
         hadPage.current = false;
 
-        const target = pendingFocus.current;
+        const asked = pendingFocus.current;
         const lost = document.activeElement === null || document.activeElement === document.body;
 
-        pendingFocus.current = null;
+        pendingFocus.current = false;
 
         // Back out of the page leaves focus on nothing; a moved-away session keeps its own focus.
-        if (target === null && !lost) {
-            return;
-        }
-
-        if (target === "composer" || opener.current === null || !opener.current.isConnected) {
+        if (asked || lost) {
             focusComposer();
-            return;
         }
-
-        opener.current.focus();
     }, [pageOpen]);
 
-    const openFrom = useCallback(
-        (key: string, element: HTMLButtonElement) => {
-            opener.current = element;
-            openPage(key);
-        },
-        [openPage],
-    );
-    const leavePage = useCallback(
-        (focus?: "composer") => {
-            pendingFocus.current = focus ?? "opener";
+    const leavePage = useCallback(() => {
+        pendingFocus.current = true;
+        closePage();
+    }, [closePage]);
+    const sidebarOpen = pageOpen || (panelOpen && panel !== undefined);
+    const selectPanel = useCallback(
+        (key: string) => {
             closePage();
+            setPanelOpen(key);
         },
-        [closePage],
+        [closePage, setPanelOpen],
+    );
+    const selectPage = useCallback(
+        (key: string) => {
+            if (route.page?.key !== key) {
+                closePanel();
+                openPage(key);
+            }
+        },
+        [route.page?.key, closePanel, openPage],
+    );
+    // Closed, it brings back the panel opened last, else the first panel, else the first page.
+    const toggleSidebar = (): void => {
+        if (sidebarOpen) {
+            closePanel();
+            leavePage();
+            return;
+        }
+
+        const first = panels.find((candidate) => panelKey(candidate) === panelLast) ?? panels[0];
+
+        if (first !== undefined) {
+            setPanelOpen(panelKey(first));
+        } else if (pages[0] !== undefined) {
+            openPage(pageKey(pages[0]));
+        }
+    };
+    const tabs = (
+        <ExtensionTabs
+            panels={panels}
+            pages={pages}
+            session={activeSession}
+            panel={pageOpen ? null : panelShown}
+            page={openPageItem === undefined ? null : pageKey(openPageItem)}
+            onPanel={selectPanel}
+            onPage={selectPage}
+        />
     );
 
     const select = useCallback(
@@ -416,24 +447,22 @@ export function App() {
                                     tools={
                                         <>
                                             <HeaderItems session={activeSession} />
-                                            <PageButtons
-                                                pages={pages}
-                                                session={activeSession}
-                                                open={route.page?.key ?? null}
-                                                onOpen={openFrom}
-                                            />
-                                            <PanelButtons
-                                                panels={panels}
-                                                session={activeSession}
-                                                open={panelShown}
-                                                onToggle={(key) => {
-                                                    if (panelOpen && panelShown === key) {
-                                                        closePanel();
-                                                    } else {
-                                                        setPanelOpen(key);
-                                                    }
-                                                }}
-                                            />
+                                            {panels.length + pages.length === 0 ? null : (
+                                                <Hint label="Extensions">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        aria-label="Extensions"
+                                                        aria-pressed={sidebarOpen}
+                                                        onClick={toggleSidebar}
+                                                        className={
+                                                            sidebarOpen ? "bg-raised text-ink" : ""
+                                                        }
+                                                    >
+                                                        <PanelRight className="size-4" />
+                                                    </Button>
+                                                </Hint>
+                                            )}
                                         </>
                                     }
                                     onSessions={() => {
@@ -531,6 +560,7 @@ export function App() {
                                 <PageHost
                                     key={pageKey(openPageItem)}
                                     page={openPageItem}
+                                    tabs={tabs}
                                     session={activeSession}
                                     sub={route.page?.sub}
                                     onSub={setPageSub}
@@ -542,9 +572,10 @@ export function App() {
                     )}
                 </main>
 
-                {panel === undefined ? null : (
+                {panel === undefined || (pageOpen && panelOpen) ? null : (
                     <PanelHost
                         panel={panel}
+                        tabs={tabs}
                         session={knownSession}
                         open={panelOpen}
                         expanded={panelExpanded}

@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import {
     type PointerEvent as ReactPointerEvent,
+    type ReactNode,
     useEffect,
     useLayoutEffect,
     useReducer,
@@ -8,22 +9,23 @@ import {
     useState,
 } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { FolderPanel } from "../extensions.ts";
 import { clampPanelWidth } from "../lib/panel-width.ts";
-import type { PanelProps, StatusProps } from "../sdk/types.ts";
+import type { PanelProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { PaneHeader } from "../ui/pane.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 
 /** Which panel is open, remembered per session. The closed one stays as `shown` until `forget`, so it can
- * be seen leaving; nothing is remembered across a change of session, where the panel was never open. */
+ * be seen leaving; nothing is remembered across a change of session, where the panel was never open.
+ * `last` is the panel opened most recently, kept after it closes, for the toggle to bring back. */
 export function useOpenPanel(session: number | null): {
     shown: string | null;
+    last: string | null;
     open: boolean;
     setOpen: (key: string | null) => void;
     forget: () => void;
@@ -33,6 +35,7 @@ export function useOpenPanel(session: number | null): {
     const storageKey = `panel:${String(session)}`;
     const stored = session === null ? null : localStorage.getItem(storageKey);
     const shown = stored ?? (kept?.session === session ? kept.key : null);
+    const lastKey = `panelLast:${String(session)}`;
 
     const setOpen = (key: string | null): void => {
         if (key === null) {
@@ -40,6 +43,7 @@ export function useOpenPanel(session: number | null): {
             setKept({ session, key: stored });
         } else {
             localStorage.setItem(storageKey, key);
+            localStorage.setItem(lastKey, key);
         }
 
         rerender();
@@ -47,56 +51,13 @@ export function useOpenPanel(session: number | null): {
 
     return {
         shown,
+        last: session === null ? null : localStorage.getItem(lastKey),
         open: stored !== null,
         setOpen,
         forget: () => {
             setKept(null);
         },
     };
-}
-
-/** One header button per panel; the open one stays raised. */
-export function PanelButtons({
-    panels,
-    session,
-    open,
-    onToggle,
-}: {
-    panels: readonly FolderPanel[];
-    session: StatusProps["session"];
-    open: string | null;
-    onToggle: (key: string) => void;
-}) {
-    return panels.map((panel) => {
-        const key = panelKey(panel);
-        const Count = panel.badge;
-
-        return (
-            <Hint key={key} label={panel.title}>
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={panel.title}
-                    onClick={() => {
-                        onToggle(key);
-                    }}
-                    className={`relative ${open === key ? "bg-raised text-ink" : ""}`}
-                >
-                    {panel.icon}
-                    {Count === undefined ? null : (
-                        <Badge
-                            tone="accent"
-                            className="pointer-events-none absolute -top-1 -right-1 h-3.5 min-w-3.5 justify-center px-1 leading-none empty:hidden"
-                        >
-                            <ItemBoundary name={`${key}:badge`}>
-                                <Count session={session} />
-                            </ItemBoundary>
-                        </Badge>
-                    )}
-                </Button>
-            </Hint>
-        );
-    });
 }
 
 const widthKey = (session: number | undefined): string => `panelWidth:${String(session)}`;
@@ -203,6 +164,7 @@ const COLUMN = "lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrin
  */
 export function PanelHost({
     panel,
+    tabs,
     session,
     open,
     expanded,
@@ -211,6 +173,7 @@ export function PanelHost({
     onLeft,
 }: PanelProps & {
     panel: FolderPanel;
+    tabs: ReactNode;
     open: boolean;
     onLeft: () => void;
 }) {
@@ -320,8 +283,8 @@ export function PanelHost({
             {/* Pinned to the right edge while the panel widens: it comes in like a drawer, not a squashed card. */}
             <div className="flex min-h-0 flex-1 justify-end overflow-hidden">
                 <div className={`flex w-full min-w-0 flex-col ${expanded ? "" : COLUMN}`}>
-                    <PaneHeader>
-                        <h2 className="text-interface text-ink font-medium">{panel.title}</h2>
+                    <PaneHeader className="gap-2">
+                        {tabs}
                         <Hint label="Close">
                             <Button
                                 variant="ghost"

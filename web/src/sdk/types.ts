@@ -88,12 +88,12 @@ export type PanelProps = StatusProps & {
     setExpanded: (value: boolean) => void;
 };
 
-/** A side panel: a button in the conversation header opens it to the right of the transcript. */
+/** A side panel: a tab in the right sidebar opens it to the right of the transcript. */
 export type PanelItem = {
     id: string;
     title: string;
     icon: ReactNode;
-    /** A count on the button's corner: return the number (or text), or null for none. Needs only a session. */
+    /** A count on the tab: return the number (or text), or null for none. Needs only a session. */
     badge?: ComponentType<StatusProps>;
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
     component: ComponentType<PanelProps>;
@@ -110,12 +110,12 @@ export type PageProps = {
     close: (focus?: "composer") => void;
 };
 
-/** A page an extension puts in place of the conversation: a header button opens it at `?page=` in the address. */
+/** A page an extension puts in place of the conversation: a tab in the right sidebar opens it at `?page=` in the address. */
 export type PageItem = {
     id: string;
     title: string;
     icon: ReactNode;
-    /** A count on the button's corner: return the number (or text), or null for none. Needs only a session. */
+    /** A count on the tab: return the number (or text), or null for none. Needs only a session. */
     badge?: ComponentType<StatusProps>;
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
     component: ComponentType<PageProps>;

@@ -86,23 +86,25 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 ## Conversation
 
 - **Header**: the session title, the `title` slot in a small line under it (the branch badge of
-  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. The mockup's other three
-  buttons (file browser, web, subagents) arrive with their extensions and take this same row.
+  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. One "Extensions" button
+  at the right of this row toggles the right sidebar: its top row is a tab strip, one tab per extension
+  panel and then one per page. A panel tab shows the panel there; a page tab opens the page in place
+  of the conversation, under the same strip, and the sidebar closes.
 - **A panel may fill the conversation**: the right drawer becomes the same box a page takes —
   everything but the sidebar and the status bar — while the transcript and composer stay mounted
   behind it, hidden and inert, and the panel itself stays mounted too, so a live browser view inside
   it is not reloaded by the move. It is a mode of the panel, not a route: the address does not carry
   it, Escape, the panel's own button, closing the panel and switching session all return it to the
-  drawer. The button is the panel's own, drawn in its toolbar from `lg` up; below that the drawer
+  drawer. The expand button is the panel's own, drawn in its toolbar from `lg` up; below that the drawer
   already covers the screen.
 - **A page replaces the conversation**: an extension's page fills the conversation column in place
-  of the transcript and composer, with its own header row: the page's title, a close button that
-  always returns to the conversation, and — only inside a sub-location — a back arrow to its parent.
-  The sidebar, the right panel and the status bar stay. The transcript and composer stay mounted
+  of the transcript and composer, with its own header row: the extension tab strip (the page's tab
+  active), a close button that always returns to the conversation, and — only inside a sub-location — a back arrow to its parent.
+  The sidebar and the status bar stay; the right sidebar is closed. The transcript and composer stay mounted
   behind it, so a draft, the scroll position and a running answer survive. `?page=` in the address is
   the page and `&sub=` its own place inside it; Back returns to the conversation. The frame focuses
-  its title on arrival, the page's own layer takes focus when it shows a detail, and closing returns
-  focus to the button that opened it (or the composer after a review adds a draft). The page's body
+  its active tab on arrival, the page's own layer takes focus when it shows a detail, and closing
+  returns focus to the composer. The page's body
   does not scroll by itself: the page owns its one scroll.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - **What is loaded**: the event stream carries the active view, which starts at the newest
