@@ -153,6 +153,6 @@ function Ponytail({ session }: StatusItemProps) {
 }
 
 export default {
-    // After the bar's other items, beside its sibling: the two voices read as one pair.
-    status: [{ id: "ponytail", slot: "end", order: 1, component: Ponytail }],
+    // Ahead of the bar's other items, beside its sibling: the two voices read as one pair.
+    status: [{ id: "ponytail", slot: "end", order: -1, component: Ponytail }],
 } satisfies WebExtension;

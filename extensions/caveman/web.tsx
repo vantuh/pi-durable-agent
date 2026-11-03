@@ -153,6 +153,6 @@ function Caveman({ session }: StatusItemProps) {
 }
 
 export default {
-    // After the bar's other items, beside its sibling: the two voices read as one pair.
-    status: [{ id: "caveman", slot: "end", order: 1, component: Caveman }],
+    // Ahead of the bar's other items, beside its sibling: the two voices read as one pair.
+    status: [{ id: "caveman", slot: "end", order: -1, component: Caveman }],
 } satisfies WebExtension;
