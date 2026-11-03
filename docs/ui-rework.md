@@ -9,19 +9,20 @@ Colours stay the Catppuccin roles; only which role a surface uses changed.
 
 ## Decisions
 
-| Area             | Decision                                                                                                                                                                                                         |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Corners          | None. The `--radius-*` tokens and every `rounded-*` class are gone, dots and switches included.                                                                                                                  |
-| Panels           | Flush: no gaps, no outer padding. One 1px `border-edge-soft` rule between regions. Sidebar, right panel, settings and status bar are `bg-panel`; the conversation is `bg-canvas`.                                |
-| Status bar       | A flat footer across the whole width: `bg-panel`, `border-t`, `h-7`.                                                                                                                                             |
-| Shadows          | Only on things that float: menus, popovers, tooltips, toasts, dialogs.                                                                                                                                           |
-| Header           | The session title, the extension `header` items (git stats), and one `Extensions` toggle.                                                                                                                        |
-| Right sidebar    | One tab per extension panel, then one per page (`web/src/shell/tabs.tsx`). A panel opens in the sidebar; a page fills the conversation area with the same tabs above it and keeps its `?page=` address and Back. |
-| Composer         | Follows the transcript's width setting (`--chat-width`: comfortable, wide, full), so their edges line up.                                                                                                        |
-| Person's message | A full-width block, `bg-panel`, with the accent stripe on the left, not a right-aligned bubble.                                                                                                                  |
-| Sidebar top      | Row 1: title, new session, search, collapse. Row 2: folder, tag filter, archive. No rule above the first date group.                                                                                             |
-| Fonts            | Sans for everything; JetBrains Mono only for code, diffs, paths, model ids and numbers. Mono chrome was tried and reverted: Cyrillic in JetBrains Mono reads wide and heavy.                                     |
-| Text sizes       | Theme tokens in `web/src/styles/styles.css`: `meta` 12px, `ui` 14px (chrome: session titles, lists, tool rows), `interface`/`prose` 15px. `text-ui` replaced `text-sidebar` and `text-tool`.                     |
+| Area             | Decision                                                                                                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Corners          | None. The `--radius-*` tokens and every `rounded-*` class are gone, dots and switches included.                                                                                                                                 |
+| Panels           | Flush: no gaps, no outer padding. One 1px `border-edge-soft` rule between regions. Sidebar, right panel, settings and status bar are `bg-panel`; the conversation is `bg-canvas`.                                               |
+| Status bar       | A flat footer across the whole width: `bg-panel`, `border-t`, `h-7`.                                                                                                                                                            |
+| Shadows          | Only on things that float: menus, popovers, tooltips, toasts, dialogs.                                                                                                                                                          |
+| Header           | The session title, the extension `header` items (git stats), and one `Extensions` toggle.                                                                                                                                       |
+| Right sidebar    | One tab per extension panel, then one per page (`web/src/shell/tabs.tsx`). A panel opens in the sidebar; a page fills the conversation area with the same tabs above it and keeps its `?page=` address and Back.                |
+| Composer         | Follows the transcript's width setting (`--chat-width`: comfortable, wide, full), so their edges line up.                                                                                                                       |
+| Person's message | A full-width block, `bg-panel`, with the accent stripe on the left, not a right-aligned bubble.                                                                                                                                 |
+| Sidebar top      | Row 1: title, new session, search, collapse. Row 2: folder, tag filter, archive. No rule above the first date group.                                                                                                            |
+| Fonts            | Sans for everything; JetBrains Mono only for code, diffs, paths, model ids and numbers. Mono chrome was tried and reverted: Cyrillic in JetBrains Mono reads wide and heavy.                                                    |
+| Text sizes       | Three, from `web/src/styles/styles.css`: `meta` 12px, `ui` 14px (chrome: session titles, lists, tool rows), `interface` 15px (body and prose). `text-ui` replaced `text-sidebar` and `text-tool`; `micro` and `prose` are gone. |
+| Tags             | A tag is its hue as text, no wash under the name: a row of filled chips shouted over the title beside them.                                                                                                                     |
 
 ## Commits
 
@@ -38,15 +39,24 @@ Colours stay the Catppuccin roles; only which role a surface uses changed.
 | `ac71dfa` | Session titles back in sans (folded into `9d87dae`)                         |
 | `9d87dae` | Chrome back in sans; mono only for code                                     |
 | `4fa92d0` | One `text-ui` size (14px) for the chrome                                    |
+| `6af35bb` | Tag chips as coloured text, no wash                                         |
+| `60c19c4` | Four text sizes: `micro` into `meta`, `prose` into `interface`              |
+
+## Checked
+
+- The 12px that replaced `micro` fits its tight places: the tag filter's count in a 14px square, the
+  tool row's duration, the subagent chips' `max-w` boxes (they truncate, they do not spill).
+- Latte: home, transcript, right panel, settings, the git history page and its diff all read. The
+  diff's added and removed washes are light there but the change marks carry the signal.
+- Tablet 820: no sidebar, the sheet opens from the header, the composer follows the width, the
+  status bar holds. Below `lg` the right panel is a full-screen drawer (`fixed inset-0`), so it
+  covers the status bar along with the conversation.
 
 ## Open
 
 - Two bottom bars: the session meta row under the composer (context, cache, tok/s, cost) and the
-  status bar. Merging them touches the status items extensions contribute.
-- Tag badges (`bugfix`, `unfinished`) are filled and loud in the session list; coloured text or a
-  square dot would be quieter.
-- The text scale could shrink to three sizes: `micro` into `meta`, `interface` and `prose` into one
-  name. `micro` sits in tight places (a 14px count badge), so it needs checking first.
-- Not checked: the Latte (light) flavour and tablet width.
+  status bar. The row stays as it is: it was tried and kept.
+- The panel drawer below `lg` hides the status bar: either the drawer stops above the footer, or the
+  footer is drawn inside it.
 - Older bugs seen on the way, not caused by this work: on a phone the status bar's start and centre
   cells overlap; React warns about a missing `key` in a `ForwardRef` list when a panel mounts.
