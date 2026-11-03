@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 /** Listing untracked files costs a Git process each, so a preview stops here and says it did. */
 export const UNTRACKED_FILE_CAP = 500;
@@ -34,14 +35,11 @@ export type ReviewState = {
     url?: string;
 };
 
-function object(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 const number = (value: unknown): value is number =>
     typeof value === "number" && Number.isFinite(value) && value >= 0;
 function isCommit(value: unknown): value is Commit {
     return (
-        object(value) &&
+        isRecord(value) &&
         typeof value["hash"] === "string" &&
         typeof value["short"] === "string" &&
         typeof value["subject"] === "string" &&
@@ -54,7 +52,7 @@ function isCommit(value: unknown): value is Commit {
 }
 function parseHistory(value: unknown): History {
     if (
-        object(value) &&
+        isRecord(value) &&
         typeof value["branch"] === "string" &&
         (value["upstream"] === null || typeof value["upstream"] === "string") &&
         number(value["ahead"]) &&
@@ -78,7 +76,7 @@ function parseHistory(value: unknown): History {
 }
 function isFile(value: unknown): value is ChangedFile {
     return (
-        object(value) &&
+        isRecord(value) &&
         typeof value["path"] === "string" &&
         number(value["added"]) &&
         number(value["deleted"]) &&
@@ -87,7 +85,7 @@ function isFile(value: unknown): value is ChangedFile {
 }
 function parseChanges(value: unknown): Changes {
     if (
-        object(value) &&
+        isRecord(value) &&
         typeof value["patch"] === "string" &&
         typeof value["truncated"] === "boolean" &&
         Array.isArray(value["files"]) &&
@@ -105,7 +103,11 @@ export function parseReview(value: unknown): ReviewState | null {
     if (value === null) {
         return null;
     }
-    if (!object(value) || typeof value["id"] !== "string" || typeof value["target"] !== "string") {
+    if (
+        !isRecord(value) ||
+        typeof value["id"] !== "string" ||
+        typeof value["target"] !== "string"
+    ) {
         throw new Error("Invalid review response");
     }
     const state = value["state"];
@@ -136,7 +138,7 @@ export function parseReview(value: unknown): ReviewState | null {
 }
 export type Reword = { hash: string };
 function parseReword(value: unknown): Reword {
-    if (object(value) && typeof value["hash"] === "string") {
+    if (isRecord(value) && typeof value["hash"] === "string") {
         return { hash: value["hash"] };
     }
     throw new Error("Invalid reword response");

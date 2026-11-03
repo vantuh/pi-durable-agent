@@ -3,6 +3,7 @@
  * input, and the last ping. Browser-safe: no imports.
  */
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 /** One keep-warm request: when, on which model, what it read from and wrote to the cache, or why it failed. */
 export type Ping = { at: number; model: string; read?: number; write?: number; error?: string };
@@ -22,10 +23,6 @@ export type WarmState = {
     /** Every conversation a ping is coming for, the one asked last first. */
     sessions: WarmSession[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 
 function optionalNumber(source: Record<string, unknown>, key: string): number | undefined {
     const value = source[key];

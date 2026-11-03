@@ -11,6 +11,7 @@ import {
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 import { buildTitleTranscript, parseGeneratedSessionTitle } from "./lib.ts";
 import { readAuto, writeAuto } from "./store.ts";
 
@@ -112,10 +113,6 @@ async function generateTitle(host: Host, session: number): Promise<string> {
     }
 }
 
-function errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-}
-
 /** The live instance: whether automatic naming is on, and who is naming now. A reload starts from the file. */
 let auto = false;
 const naming = new Set<number>();
@@ -202,7 +199,7 @@ export const actions = (host: Host): Record<string, Action> => {
 
                 return { title };
             } catch (error) {
-                throw new ActionError(errorMessage(error));
+                throw new ActionError(messageOf(error));
             }
         },
     };

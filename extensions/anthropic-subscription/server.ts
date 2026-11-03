@@ -3,8 +3,9 @@ import { createHash } from "node:crypto";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
+import { isRecord } from "../../shared/guards.ts";
 import { lookupAccount } from "./account.ts";
-import { DEFAULT_VERSION, type Diagnostics, MARKER, record } from "./refs.ts";
+import { DEFAULT_VERSION, type Diagnostics, MARKER } from "./refs.ts";
 import { oauthTransport } from "./transport.ts";
 
 const states = new WeakMap<Host, Diagnostics>();
@@ -12,10 +13,10 @@ const states = new WeakMap<Host, Diagnostics>();
 export const actions = (host: Host): Record<string, Action> => ({
     diagnostics: () => states.get(host),
     account: ({ args }) => {
-        const includeIdentity: unknown = record(args) ? args["includeIdentity"] : undefined;
+        const includeIdentity: unknown = isRecord(args) ? args["includeIdentity"] : undefined;
         if (
             args !== undefined &&
-            (!record(args) ||
+            (!isRecord(args) ||
                 (includeIdentity !== undefined && typeof includeIdentity !== "boolean"))
         ) {
             throw new ActionError("includeIdentity must be a boolean");
@@ -32,14 +33,14 @@ export const meta = {
 
 /** Billing recipe used by pi-anthropic-auth and Pi Pocket; this is not a real Claude Code client. */
 export function shapeRequest(payload: unknown, version: string): unknown {
-    if (!record(payload) || !Array.isArray(payload["system"])) {
+    if (!isRecord(payload) || !Array.isArray(payload["system"])) {
         return undefined;
     }
     const system: unknown[] = payload["system"];
     if (
         system.some(
             (block) =>
-                record(block) &&
+                isRecord(block) &&
                 typeof block["text"] === "string" &&
                 block["text"].startsWith(MARKER),
         )
@@ -50,18 +51,19 @@ export function shapeRequest(payload: unknown, version: string): unknown {
         return undefined;
     }
     const messages: unknown[] = payload["messages"];
-    const first = messages.find((message) => record(message) && message["role"] === "user");
-    if (!record(first)) {
+    const first = messages.find((message) => isRecord(message) && message["role"] === "user");
+    if (!isRecord(first)) {
         return undefined;
     }
     const content: unknown = first["content"];
     const block: unknown = Array.isArray(content)
         ? content.find(
               (item: unknown) =>
-                  record(item) && item["type"] === "text" && typeof item["text"] === "string",
+                  isRecord(item) && item["type"] === "text" && typeof item["text"] === "string",
           )
         : undefined;
-    const text = typeof content === "string" ? content : record(block) ? block["text"] : undefined;
+    const text =
+        typeof content === "string" ? content : isRecord(block) ? block["text"] : undefined;
     if (typeof text !== "string" || text === "") {
         return undefined;
     }

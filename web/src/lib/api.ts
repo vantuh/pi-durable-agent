@@ -1,3 +1,4 @@
+import { recordOf } from "../../../shared/guards.ts";
 import type {
     ClientHistory,
     CommandResult,
@@ -29,14 +30,6 @@ export type FolderPage = {
     dirs: { name: string; path: string }[];
 };
 
-function record(value: unknown): Record<string, unknown> | undefined {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        return undefined;
-    }
-
-    return Object.fromEntries(Object.entries(value));
-}
-
 function str(value: unknown, fallback: string): string {
     return typeof value === "string" ? value : fallback;
 }
@@ -61,7 +54,7 @@ async function json(path: string, init?: RequestInit): Promise<unknown> {
 
 export async function getHealth(): Promise<Health | undefined> {
     try {
-        const body = record(await json("/api/health"));
+        const body = recordOf(await json("/api/health"));
 
         if (body === undefined) {
             return undefined;
@@ -82,7 +75,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
 
 /** The rows of a list answer or of a `sessions` event; both carry them as `sessions`. */
 export function sessionsOf(value: unknown): SessionSummary[] {
-    return rowsOf(record(value)?.["sessions"]);
+    return rowsOf(recordOf(value)?.["sessions"]);
 }
 
 /**
@@ -90,7 +83,7 @@ export function sessionsOf(value: unknown): SessionSummary[] {
  * gone, or a session's own notice. Anything else is read as a whole list, which replaces whatever the screen holds.
  */
 export function sessionsEventOf(value: unknown): SessionsEvent {
-    const body = record(value);
+    const body = recordOf(value);
 
     if (body?.["type"] === "extension-notice") {
         const notice = noticeOf(body["notice"]);
@@ -113,7 +106,7 @@ export function sessionsEventOf(value: unknown): SessionsEvent {
 }
 
 function noticeOf(value: unknown): ExtensionNotice | undefined {
-    const notice = record(value);
+    const notice = recordOf(value);
     const level = notice?.["level"];
     const message = notice?.["message"];
 
@@ -135,7 +128,7 @@ function rowsOf(value: unknown): SessionSummary[] {
     const rows: SessionSummary[] = [];
 
     for (const raw of list(value)) {
-        const row = record(raw);
+        const row = recordOf(raw);
         const id = num(row?.["id"], 0);
 
         if (id === 0) {
@@ -197,7 +190,7 @@ export async function deleteSession(session: number): Promise<void> {
 }
 
 export async function createSession(cwd: string): Promise<number> {
-    const body = record(
+    const body = recordOf(
         await json("/api/sessions", {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -222,10 +215,10 @@ export type SkillInfo = { name: string; description: string };
 
 /** The skills a session can run with `/skill:name`. */
 export async function listSkills(session: number): Promise<SkillInfo[]> {
-    const body = record(await json(`/api/skills?session=${String(session)}`));
+    const body = recordOf(await json(`/api/skills?session=${String(session)}`));
 
     return list(body?.["skills"]).flatMap((item) => {
-        const skill = record(item);
+        const skill = recordOf(item);
 
         return skill === undefined
             ? []
@@ -236,12 +229,12 @@ export async function listSkills(session: number): Promise<SkillInfo[]> {
 /** The files of the session's folder, as paths relative to it. */
 export async function listProjectFiles(session: number): Promise<string[]> {
     return list(
-        record(await json(`/api/project-files?session=${String(session)}`))?.["files"],
+        recordOf(await json(`/api/project-files?session=${String(session)}`))?.["files"],
     ).filter((path): path is string => typeof path === "string");
 }
 
 export async function getFavourites(): Promise<string[]> {
-    return list(record(await json("/api/favourites"))?.["folders"]).filter(
+    return list(recordOf(await json("/api/favourites"))?.["folders"]).filter(
         (entry): entry is string => typeof entry === "string",
     );
 }
@@ -261,8 +254,8 @@ export type Models = {
 };
 
 export async function listModels(): Promise<Models> {
-    const body = record(await json("/api/models"));
-    const stored = record(body?.["default"]);
+    const body = recordOf(await json("/api/models"));
+    const stored = recordOf(body?.["default"]);
     const provider = str(stored?.["provider"], "");
     const modelId = str(stored?.["modelId"], "");
 
@@ -307,7 +300,7 @@ function choices(value: unknown): ModelChoice[] {
     const out: ModelChoice[] = [];
 
     for (const raw of list(value)) {
-        const model = record(raw);
+        const model = recordOf(raw);
         const provider = str(model?.["provider"], "");
         const id = str(model?.["id"], "");
 
@@ -389,7 +382,7 @@ export async function withdrawQueued(
     id: number,
 ): Promise<"aborted" | "already_placed" | "settled" | "not_found" | undefined> {
     try {
-        const body = record(
+        const body = recordOf(
             await json("/api/queued/withdraw", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
@@ -424,7 +417,7 @@ export async function restartServer(): Promise<void> {
 
 /** Rebuilds `dist/` in place; the next reload loads the new shell. `log` is Vite's failure output. */
 export async function rebuildShell(): Promise<{ ok: boolean; log: string }> {
-    const body = record(await json("/api/build", { method: "POST" }));
+    const body = recordOf(await json("/api/build", { method: "POST" }));
 
     return { ok: body?.["ok"] === true, log: str(body?.["log"], "") };
 }
@@ -441,7 +434,7 @@ export async function uploadFile(file: File): Promise<UploadedFile | undefined> 
             return undefined;
         }
 
-        const body = record(await response.json());
+        const body = recordOf(await response.json());
         const path = str(body?.["path"], "");
 
         if (path === "") {
@@ -462,11 +455,11 @@ export async function uploadFile(file: File): Promise<UploadedFile | undefined> 
 export async function listFolders(path: string, hidden: boolean): Promise<FolderPage | undefined> {
     try {
         const query = new URLSearchParams({ path, hidden: hidden ? "1" : "0" });
-        const body = record(await json(`/api/fs?${query.toString()}`));
+        const body = recordOf(await json(`/api/fs?${query.toString()}`));
         const dirs: { name: string; path: string }[] = [];
 
         for (const raw of list(body?.["dirs"])) {
-            const dir = record(raw);
+            const dir = recordOf(raw);
             const name = str(dir?.["name"], "");
             const full = str(dir?.["path"], "");
 
@@ -496,7 +489,7 @@ export type ExtensionInfo = {
 };
 
 function extensionInfo(value: unknown): ExtensionInfo | undefined {
-    const row = record(value);
+    const row = recordOf(value);
     const name = str(row?.["name"], "");
 
     if (row === undefined || name === "" || typeof row["enabled"] !== "boolean") {
@@ -516,7 +509,7 @@ function extensionInfo(value: unknown): ExtensionInfo | undefined {
 }
 
 export async function listExtensions(): Promise<ExtensionInfo[]> {
-    const body = record(await json("/api/extensions"));
+    const body = recordOf(await json("/api/extensions"));
 
     return list(body?.["extensions"]).flatMap((raw) => extensionInfo(raw) ?? []);
 }
@@ -528,7 +521,7 @@ export async function setExtensionEnabled(name: string, enabled: boolean): Promi
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ enabled }),
     });
-    const body = record(await response.json().catch(() => undefined));
+    const body = recordOf(await response.json().catch(() => undefined));
 
     if (!response.ok) {
         throw new Error(str(body?.["error"], String(response.status)));

@@ -13,6 +13,8 @@ import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import TurndownService from "turndown";
 
+import { messageOf } from "../../shared/guards.ts";
+
 /** The most Markdown one call returns; the tool pages with `offset` beyond it. */
 export const MAX_CHARS = 40_000;
 
@@ -88,7 +90,7 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
         if (timeout.signal.aborted) {
             return error(`the page did not answer within ${TIMEOUT_MS / 1000} seconds`);
         }
-        return error(`fetch failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+        return error(`fetch failed: ${messageOf(cause)}`);
     } finally {
         clearTimeout(timer);
     }

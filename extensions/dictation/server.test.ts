@@ -9,7 +9,7 @@ import { beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import type { Host } from "../../server/sdk.ts";
-import { record } from "./http.ts";
+import { recordOf } from "../../shared/guards.ts";
 import { MAX_BYTES, Parts, toSamples } from "./parts.ts";
 import dictation, { actions, candidates, Dictation, http, models } from "./server.ts";
 import { DictationStore } from "./store.ts";
@@ -416,7 +416,7 @@ void describe("a model the settings no longer name", () => {
             const warm = async () => {
                 const response = await fetch(`${base}/warm`, { method: "POST", body: "{}" });
                 const body: unknown = JSON.parse(await response.text());
-                const error = record(body)?.["error"];
+                const error = recordOf(body)?.["error"];
 
                 return { status: response.status, error: typeof error === "string" ? error : "" };
             };

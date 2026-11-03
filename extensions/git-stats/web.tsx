@@ -9,6 +9,7 @@ import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
+import { messageOf } from "../../shared/guards.ts";
 import { push, stats, type GitStats } from "./refs.ts";
 
 // The numbers change when the agent works (the effect below re-reads on that), so a slow poll is enough, and a hidden
@@ -38,7 +39,7 @@ function GitBadge({ session }: StatusProps) {
                 }
             } catch (error) {
                 if (alive) {
-                    setIssue(error instanceof Error ? error.message : String(error));
+                    setIssue(messageOf(error));
                 }
             }
             if (alive) {
@@ -84,7 +85,7 @@ function GitBadge({ session }: StatusProps) {
             const found = await callAction(push, undefined, id);
             setData(found === null ? null : { id, stats: found });
         } catch (error) {
-            setIssue(error instanceof Error ? error.message : String(error));
+            setIssue(messageOf(error));
         } finally {
             setPushing(false);
             setRefresh((previous) => previous + 1);

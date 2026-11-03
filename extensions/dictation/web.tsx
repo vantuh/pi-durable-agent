@@ -6,10 +6,10 @@ import { Hint } from "@/components/ui/tooltip";
 import { toast } from "@/lib/toast.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
+import { messageOf } from "../../shared/guards.ts";
 import { beep } from "./beep.ts";
 import { insert } from "./insert.ts";
 import {
-    messageOf,
     microphone,
     recorderType,
     supportsRecording,

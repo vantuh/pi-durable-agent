@@ -25,17 +25,30 @@ not a list of every function in the repository.
 
 ### 5.1 Unknown values and error text → `shared/`
 
-- [ ] `isRecord` (a non-null, non-array object) has about fifteen copies: `server/http.ts` (`record`),
+- [x] `isRecord` (a non-null, non-array object) had twenty-four copies: `server/http.ts` (`record`),
       `server/projection.ts` (`recordOf`), `server/extensions.ts` (`isRecord`, accepts arrays),
       `web/src/lib/api.ts` (`record`), and the extensions' own — `usage-limits` (readers, refs),
       `dictation/store`, `push` (store, completion, subscription, refs), `keep-warm/refs`,
       `web-search/wire`, `mcp/connections`, `anthropic-subscription` (account-refs, refs); `files/refs`,
-      `browser/refs`, `subagents/refs` accept arrays. One `isRecord` in `shared/`, every copy replaced;
-      the array-accepting ones checked at their call sites first.
-- [ ] Error to text (`error instanceof Error ? error.message : String(error)`): `server/extensions.ts`
-      (`reasonOf`), `extensions/browser/lib/errors.ts` (`describe`), `extensions/git-history/web.tsx`
-      (`errorText`), and the same expression inline across server and extension catch sites. One
-      `messageOf` in `shared/`; a call site with its own fallback text keeps it.
+      `browser/refs`, `subagents/refs` accept arrays. Done: `isRecord` and its value form `recordOf` live
+      in `shared/guards.ts`, and all twenty-four call them — the audit missed `web/src/lib/provider-error.ts`
+      (`record`), `dictation/http.ts` (`record`), `usage-limits/readers.ts`'s second copy, and the throwing
+      `object` of `mcp/refs.ts` and `git-history/refs.ts`. The ones that accepted arrays now refuse them,
+      which changed nothing: every call site reads keys an array does not have. The five that returned a
+      copy of the object no longer do, because no caller mutates what it is handed. `web-search/wire.ts`
+      keeps its `record` as a one-line adapter over `isRecord`: it answers `{}` rather than `undefined`,
+      and twenty-four call sites read through it.
+- [x] Error to text (`error instanceof Error ? error.message : String(error)`) had twenty-three copies:
+      `server/extensions.ts` (`reasonOf`), `extensions/browser/lib/errors.ts` (`describe`; the file is
+      gone), `extensions/git-history/web.tsx` (`errorText`), and the same expression inline across server
+      and extension catch sites — plus, missed by the audit, `mcp/connections.ts` (`errorText`),
+      `auto-session-name/server.ts` (`errorMessage`), `dictation/record.ts` (`messageOf`, exported to two
+      browser files) and `files/panel.tsx` (`message`). Done: `shared/guards.ts` holds one `messageOf`
+      beside `isRecord`, since both read an `unknown`, and every copy calls it. `git-history/git.ts` and
+      `web-search/chain.ts` keep their helper — `gitMessage` prefers Git's stderr, `reasonOf` cuts to one
+      line first — and take the text from `messageOf`. The thirty-one call sites whose fallback names the
+      failure (`"the request failed"`, `"Something went wrong."`, a `fallback` parameter) keep their own
+      expression, and so does `git-worktree`'s `describe`, which prefers Git's stderr to the message.
 
 ### 5.2 JSON files through the core's atomic writer
 

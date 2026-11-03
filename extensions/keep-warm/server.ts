@@ -8,6 +8,7 @@ import type { Message } from "@earendil-works/pi-ai";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host, type SessionRequest } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 import { due, IDLE_STOP, LEAD, PROVIDER } from "./due.ts";
 import { type Ping, type WarmSession, type WarmState } from "./refs.ts";
 import { readStore, writeStore } from "./store.ts";
@@ -101,7 +102,7 @@ async function ping(
         await remember(host, session, {
             at,
             model,
-            error: error instanceof Error ? error.message : String(error),
+            error: messageOf(error),
         });
     }
 }

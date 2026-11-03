@@ -9,6 +9,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type { ResolveModelAuth } from "../../server/sdk.ts";
+import { recordOf } from "../../shared/guards.ts";
 import { PROVIDERS, type Bucket, type ProviderUsage } from "./refs.ts";
 
 /** Anthropic reports limit resets only to the Claude Code CLI surface. */
@@ -16,14 +17,6 @@ const CLAUDE_CLI_UA = "claude-cli/2.19.1 (external, cli)";
 const TIMEOUT_MS = 15_000;
 
 export type Fetch = typeof globalThis.fetch;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function record(value: unknown): Record<string, unknown> | undefined {
-    return isRecord(value) ? value : undefined;
-}
 
 async function getJson(
     fetch: Fetch,
@@ -42,7 +35,7 @@ async function getJson(
         throw new Error(`HTTP ${String(response.status)}`);
     }
 
-    const body = record(await response.json());
+    const body = recordOf(await response.json());
 
     if (body === undefined) {
         throw new Error("Unexpected response");
@@ -123,7 +116,7 @@ export async function readAnthropic(
     const buckets: Bucket[] = [];
 
     for (const [id, label] of ANTHROPIC_WINDOWS) {
-        const window = record(body[id]);
+        const window = recordOf(body[id]);
 
         add(buckets, label, id === "five_hour", window?.["utilization"], window?.["resets_at"]);
     }
@@ -156,9 +149,9 @@ export async function readOpencodeGo(
     );
     const buckets: Bucket[] = [];
 
-    for (const [id, value] of Object.entries(record(body["usage"]) ?? {})) {
+    for (const [id, value] of Object.entries(recordOf(body["usage"]) ?? {})) {
         const [label, session] = OPENCODE_WINDOWS[id] ?? [id, false];
-        const window = record(value);
+        const window = recordOf(value);
 
         add(buckets, label, session, window?.["percent"], window?.["resetsAt"]);
     }
@@ -167,7 +160,7 @@ export async function readOpencodeGo(
 }
 
 function codexWindow(buckets: Bucket[], label: string, session: boolean, value: unknown): void {
-    const window = record(value);
+    const window = recordOf(value);
 
     add(buckets, label, session, window?.["used_percent"], window?.["reset_at"]);
 }
@@ -184,8 +177,8 @@ export async function readCodex(
     let tokens: Record<string, unknown> | undefined;
 
     try {
-        tokens = record(
-            record(JSON.parse(await readFile(join(home, "auth.json"), "utf8")))?.["tokens"],
+        tokens = recordOf(
+            recordOf(JSON.parse(await readFile(join(home, "auth.json"), "utf8")))?.["tokens"],
         );
     } catch {
         return undefined;
@@ -209,7 +202,7 @@ export async function readCodex(
         { authorization: `Bearer ${access}`, "chatgpt-account-id": account },
         signal,
     );
-    const limit = record(body["rate_limit"]);
+    const limit = recordOf(body["rate_limit"]);
     const buckets: Bucket[] = [];
 
     codexWindow(buckets, "5 hours", true, limit?.["primary_window"]);

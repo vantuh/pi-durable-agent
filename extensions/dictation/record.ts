@@ -4,6 +4,8 @@
  * `local-dictation/index.js` (MIT).
  */
 
+import { messageOf } from "../../shared/guards.ts";
+
 /** Where `server.ts` mounts its routes. */
 const ROUTE = "/api/extensions/dictation/http";
 
@@ -18,10 +20,6 @@ const MIN_SECONDS = 0.35;
 
 /** A recorder's type, in the order the browsers name them: Chrome and Safari differ. */
 const TYPES = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"];
-
-export function messageOf(failure: unknown): string {
-    return failure instanceof Error ? failure.message : String(failure);
-}
 
 /** Whether the mic can work here: a recorder, the microphone API, and a page browsers give it to. */
 export function supportsRecording(): boolean {

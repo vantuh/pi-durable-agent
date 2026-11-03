@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 export type AccountProfile = {
     organizationType: string | null;
@@ -14,9 +15,6 @@ export type AccountResult =
     | { kind: "unavailable"; reason: string }
     | { kind: "profile"; checkedAt: number; profile: AccountProfile };
 
-function record(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 function nullableText(value: unknown): string | null {
     if (value === null || typeof value === "string") {
         return value;
@@ -28,7 +26,7 @@ export const account = actionRef<{ includeIdentity: boolean }, AccountResult>(
     "anthropic-subscription",
     "account",
     (value) => {
-        if (!record(value)) {
+        if (!isRecord(value)) {
             throw new Error("Invalid account result");
         }
         if (value["kind"] === "not-oauth") {
@@ -41,7 +39,7 @@ export const account = actionRef<{ includeIdentity: boolean }, AccountResult>(
         const checkedAt = value["checkedAt"];
         if (
             value["kind"] !== "profile" ||
-            !record(profile) ||
+            !isRecord(profile) ||
             typeof checkedAt !== "number" ||
             !Number.isFinite(checkedAt)
         ) {

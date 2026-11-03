@@ -22,7 +22,7 @@ import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 import { DetailsNote } from "@/ui/details.tsx";
 
-import { messageOf } from "./record.ts";
+import { messageOf } from "../../shared/guards.ts";
 import {
     isLanguage,
     LANGUAGES,

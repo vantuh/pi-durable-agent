@@ -52,14 +52,6 @@ export function readJson(request: IncomingMessage): Promise<unknown> {
     });
 }
 
-export function record(value: unknown): Record<string, unknown> | undefined {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        return undefined;
-    }
-
-    return Object.fromEntries(Object.entries(value));
-}
-
 export function answer(response: ServerResponse, status: number, payload: unknown): void {
     response.writeHead(status, { "content-type": "application/json" });
     response.end(JSON.stringify(payload));

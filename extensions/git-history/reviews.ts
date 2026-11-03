@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
 import { ActionError } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 import { readChanges, resolveCommit, rootOf } from "./git.ts";
 import type { ReviewState } from "./refs.ts";
 
@@ -52,9 +53,7 @@ export class Reviews {
         job.timer = setTimeout(() => {
             void this.fail(job, "Plannotator did not become ready within 45 seconds.");
         }, 45000);
-        void this.launch(job, cwd).catch((error: unknown) =>
-            this.fail(job, error instanceof Error ? error.message : String(error)),
-        );
+        void this.launch(job, cwd).catch((error: unknown) => this.fail(job, messageOf(error)));
         return job.view;
     }
     async launch(job: ReviewJob, cwd: string): Promise<void> {

@@ -116,9 +116,9 @@ convention, not an authentication or trust boundary, and folding a card does not
 
 ## One guarded door
 
-Every value taken from a document is `unknown` until narrowed. `recordOf()` in `projection.ts` is
-the only assertion on stored data, and it is written down as such: a document that an older version
-of this file wrote must not crash the process. The other assertion is in `server/main.ts`: a session id from the browser (a plain number) becomes
+Every value taken from a document is `unknown` until narrowed. `recordOf()` in `shared/guards.ts` is the
+one way to take a record out of it, so a document that an older version of this file wrote cannot
+crash the process. The other assertion is in `server/main.ts`: a session id from the browser (a plain number) becomes
 a `ConversationId`, with a disable comment that says why. Anything else that needs an `as` is a design smell.
 
 ## Running it

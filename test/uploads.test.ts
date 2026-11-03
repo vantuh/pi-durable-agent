@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, it } from "node:test";
 
-import { record } from "../server/http.ts";
 import { fileRoutes } from "../server/routes/files.ts";
+import { recordOf } from "../shared/guards.ts";
 
 void describe("GET /api/uploads", () => {
     void it("serves an uploaded file and nothing beside the uploads folder", async () => {
@@ -91,7 +91,7 @@ void describe("POST /api/files", () => {
                 headers: { "x-filename": encodeURIComponent("image.png") },
                 body,
             });
-            const path = record(await response.json())?.["path"];
+            const path = recordOf(await response.json())?.["path"];
 
             assert.equal(response.status, 201);
             assert.ok(typeof path === "string");

@@ -4,6 +4,8 @@
  * Ported in part from pi-web-search (MIT, ttttmr) `src/providers/sse.ts`.
  */
 
+import { isRecord } from "../../shared/guards.ts";
+
 export type Source = { readonly url: string; readonly title: string };
 
 export type Found = {
@@ -12,10 +14,6 @@ export type Found = {
     /** The model that answered, for the "Searched with" line. */
     readonly model: string;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** The object, or an empty one: a missing field then reads as undefined without a check at each step. */
 export function record(value: unknown): Record<string, unknown> {

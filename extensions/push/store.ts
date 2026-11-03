@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { writeJsonFile } from "../../server/sdk.ts";
+import { isRecord } from "../../shared/guards.ts";
 import type { DeviceSubscription } from "./refs.ts";
 
 export type Vapid = { publicKey: string; privateKey: string };
@@ -49,10 +50,6 @@ function queues(): Queues {
 
 /** One device per endpoint; a flood of subscriptions must not grow the file without bound. */
 const MAX_DEVICES = 20;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 
 function parseFile(text: string): PushFile {
     const raw: unknown = JSON.parse(text);

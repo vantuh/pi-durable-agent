@@ -10,16 +10,13 @@ import {
     type Tool,
 } from "@earendil-works/pi-mcp";
 
+import { isRecord, messageOf } from "../../shared/guards.ts";
 import type { McpState, ServerInfo } from "./refs.ts";
 
 const run = promisify(execFile);
 
 type Raw = Record<string, unknown>;
 type Live = { client: McpClient; status: ServerInfo["status"]; error?: string; tools: Tool[] };
-
-function isRecord(value: unknown): value is Raw {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** Undefined for a missing file; a broken one throws. */
 function readJson(file: string): unknown {
@@ -180,7 +177,7 @@ export class Connections {
                 }),
             };
         } catch (error) {
-            return { servers: [], problem: `${this.#config}: ${errorText(error)}` };
+            return { servers: [], problem: `${this.#config}: ${messageOf(error)}` };
         }
     }
 
@@ -239,7 +236,7 @@ export class Connections {
             });
         } catch (error) {
             live.status = "error";
-            live.error = errorText(error);
+            live.error = messageOf(error);
 
             // Switched off while connecting: the failure is the switch, not news.
             if (this.#live.get(name) === live) {
@@ -249,8 +246,4 @@ export class Connections {
             await client.close().catch(() => undefined);
         }
     }
-}
-
-function errorText(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
 }

@@ -1,3 +1,5 @@
+import { isRecord } from "../../shared/guards.ts";
+
 /** The part of a commit that matters here; a `CommitView` fits it. */
 export type CommitSlice = {
     readonly session: { readonly id: number };
@@ -8,10 +10,6 @@ export type CommitSlice = {
     }[];
     readonly busy: boolean;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
 
 /**
  * Finds the end of a turn in the commits of a conversation. A conversation has a settled point: the

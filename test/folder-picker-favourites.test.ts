@@ -16,7 +16,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createServer as createViteServer } from "vite";
 
 import type { Chromium } from "../extensions/browser/lib/cdp.ts";
-import { answer, readJson, record, writeEvent } from "../server/http.ts";
+import { answer, readJson, writeEvent } from "../server/http.ts";
+import { recordOf } from "../shared/guards.ts";
 import type { SessionsEvent } from "../shared/protocol.ts";
 
 const SESSION = 1;
@@ -173,7 +174,7 @@ async function withApp(
         if (url.pathname === "/api/favourites") {
             if (request.method === "PUT") {
                 void (async () => {
-                    const body = record(await readJson(request));
+                    const body = recordOf(await readJson(request));
                     const folders = body?.["folders"];
 
                     saved.push(

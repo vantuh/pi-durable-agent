@@ -6,6 +6,7 @@
 
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
+import { recordOf } from "../shared/guards.ts";
 import type {
     ClientAnswerStats,
     ClientAttachment,
@@ -21,19 +22,6 @@ import type {
 
 /** Tool output reaches the browser cut; a tool that prints a megabyte must not close a socket. */
 const OUTPUT_LIMIT = 4000;
-
-/**
- * The one guarded door in the server: `unknown` in, a record out. Values are read by key and narrowed
- * again, so a document an older version wrote cannot crash the process.
- */
-function recordOf(value: unknown): Record<string, unknown> | undefined {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        return undefined;
-    }
-
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- typeof checked above; a record is read by key only
-    return value as Record<string, unknown>;
-}
 
 function stringOf(record: Record<string, unknown> | undefined, key: string): string | undefined {
     const value = record?.[key];

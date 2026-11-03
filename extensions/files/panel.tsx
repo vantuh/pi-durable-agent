@@ -21,11 +21,10 @@ import { Loading } from "@/ui/loading.tsx";
 import { CodeBlock } from "@/ui/markdown.tsx";
 import { Toolbar } from "@/ui/pane.tsx";
 
+import { messageOf } from "../../shared/guards.ts";
 import { type File, type Folder, list, read } from "./refs.ts";
 
 const join = (dir: string, name: string) => (dir === "" ? name : `${dir}/${name}`);
-const message = (failure: unknown) =>
-    failure instanceof Error ? failure.message : String(failure);
 
 function size(bytes: number): string {
     return bytes < 1024 ? `${String(bytes)} B` : `${(bytes / 1024).toFixed(1)} KB`;
@@ -47,7 +46,7 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
                 setFolders((all) => ({ ...all, [path]: folder }));
                 setError(null);
             } catch (failure) {
-                setError(message(failure));
+                setError(messageOf(failure));
             }
         },
         [id],
@@ -65,7 +64,7 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
                 }
             } catch (failure) {
                 if (alive) {
-                    setError(message(failure));
+                    setError(messageOf(failure));
                 }
             }
         })();
@@ -204,7 +203,7 @@ function Viewer({ id, path, onBack }: { id: number; path: string; onBack: () => 
                 }
             } catch (failure) {
                 if (alive) {
-                    setError(message(failure));
+                    setError(messageOf(failure));
                 }
             }
         })();

@@ -12,6 +12,7 @@ import { isDeepStrictEqual } from "node:util";
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 
 import { ActionError, writeFileAtomic } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 
 /** What to write; null removes the line, so the profile names neither. */
 export type ProfileModel = {
@@ -76,9 +77,7 @@ export async function writeProfileModel(filePath: string, edit: ProfileModel): P
     try {
         frontmatter = parseFrontmatter(content).frontmatter;
     } catch (error) {
-        throw new ActionError(
-            `The profile's frontmatter does not parse: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        throw new ActionError(`The profile's frontmatter does not parse: ${messageOf(error)}`);
     }
 
     const expected = { ...frontmatter };

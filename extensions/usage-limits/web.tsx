@@ -12,6 +12,7 @@ import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 import { Loading } from "@/ui/loading.tsx";
 import { PANE } from "@/ui/pane.tsx";
 
+import { messageOf } from "../../shared/guards.ts";
 import { providers, readerFor, SETTINGS_CHANGED, type Bucket, type UsageResult } from "./refs.ts";
 
 const REFRESH_MS = 5 * 60_000;
@@ -75,7 +76,7 @@ function useUsage() {
                 }
             } catch (error) {
                 if (alive) {
-                    setFailure(error instanceof Error ? error.message : String(error));
+                    setFailure(messageOf(error));
                 }
             }
 

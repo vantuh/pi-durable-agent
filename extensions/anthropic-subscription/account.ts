@@ -3,8 +3,8 @@
  * Copyright (c) 2026 Christopher D. Lasher. MIT; see LICENSE.pi-anthropic-auth.
  */
 import type { ModelFetch, ResolveModelAuth } from "../../server/sdk.ts";
+import { isRecord } from "../../shared/guards.ts";
 import type { AccountResult } from "./account-refs.ts";
-import { record } from "./refs.ts";
 
 function text(source: Record<string, unknown>, key: string): string | null {
     return typeof source[key] === "string" ? source[key] : null;
@@ -41,11 +41,11 @@ export async function lookupAccount(
             return { kind: "unavailable", reason: `HTTP ${response.status}` };
         }
         const body: unknown = await response.json();
-        if (!record(body) || !record(body["organization"])) {
+        if (!isRecord(body) || !isRecord(body["organization"])) {
             return { kind: "unavailable", reason: "Unexpected profile response" };
         }
         const organization = body["organization"];
-        const identity = record(body["account"]) ? body["account"] : {};
+        const identity = isRecord(body["account"]) ? body["account"] : {};
         return {
             kind: "profile",
             checkedAt: Date.now(),

@@ -5,7 +5,8 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve, sep } from "node:path";
 
-import { answer, readBytes, readJson, record, type Route } from "../http.ts";
+import { recordOf } from "../../shared/guards.ts";
+import { answer, readBytes, readJson, type Route } from "../http.ts";
 
 export const IMAGE_TYPES: Record<string, string> = {
     ".png": "image/png",
@@ -43,7 +44,7 @@ export function fileRoutes({ dataDir }: { dataDir: string }): Route[] {
             method: "PUT",
             path: /^\/api\/favourites$/,
             handle: async (request, response) => {
-                const raw = record(await readJson(request))?.["folders"];
+                const raw = recordOf(await readJson(request))?.["folders"];
                 const folders = Array.isArray(raw)
                     ? raw.filter((entry): entry is string => typeof entry === "string")
                     : [];

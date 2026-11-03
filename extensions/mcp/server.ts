@@ -14,6 +14,7 @@ import { toLlmContent } from "@earendil-works/pi-mcp";
 import { Type } from "typebox";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 import { Connections } from "./connections.ts";
 
 export const meta = {
@@ -56,7 +57,7 @@ export const actions = (host: Host): Record<string, Action> => ({
         try {
             await connections.setEnabled(args.name, args.enabled);
         } catch (error) {
-            throw new ActionError(error instanceof Error ? error.message : String(error));
+            throw new ActionError(messageOf(error));
         }
 
         return connections.list();
@@ -74,7 +75,7 @@ export default function createMcp(host: Host) {
     host.onDispose(() => connections.close());
     // A server may take long to start (a command may fetch its package): do not hold the install.
     void connections.start().catch((error: unknown) => {
-        host.log(`mcp: ${error instanceof Error ? error.message : String(error)}`);
+        host.log(`mcp: ${messageOf(error)}`);
     });
 
     const mcp = defineTool({

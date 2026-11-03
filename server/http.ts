@@ -84,14 +84,6 @@ async function parseJson(request: IncomingMessage): Promise<unknown> {
     }
 }
 
-export function record(value: unknown): Record<string, unknown> | undefined {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        return undefined;
-    }
-
-    return Object.fromEntries(Object.entries(value));
-}
-
 export function string(value: unknown): string | undefined {
     return typeof value === "string" ? value : undefined;
 }

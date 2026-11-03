@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 /** What the browser sends for one device; the server checks every field again. */
 export type DeviceSubscription = {
@@ -60,10 +61,6 @@ export function normalizeContact(value: unknown): string {
     }
 
     return url.href;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
 }
 
 function parseState(value: unknown): PushState {

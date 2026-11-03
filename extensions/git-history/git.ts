@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError } from "../../server/sdk.ts";
+import { messageOf } from "../../shared/guards.ts";
 import {
     UNTRACKED_FILE_CAP,
     type ChangedFile,
@@ -63,7 +64,7 @@ function gitMessage(error: unknown): string {
             return stderr.trim();
         }
     }
-    return error instanceof Error ? error.message : String(error);
+    return messageOf(error);
 }
 
 /** A Git command whose failure is the person's answer, with Git's own words. */
