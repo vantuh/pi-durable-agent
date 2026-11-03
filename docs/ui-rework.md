@@ -49,14 +49,15 @@ Colours stay the Catppuccin roles; only which role a surface uses changed.
 - Latte: home, transcript, right panel, settings, the git history page and its diff all read. The
   diff's added and removed washes are light there but the change marks carry the signal.
 - Tablet 820: no sidebar, the sheet opens from the header, the composer follows the width, the
-  status bar holds. Below `lg` the right panel is a full-screen drawer (`fixed inset-0`), so it
-  covers the status bar along with the conversation.
+  status bar holds.
+- A panel below `lg` ends at the status bar instead of covering it: the drawer is `absolute` in the
+  row the footer follows, so no height is written down (390 and 820: panel 0–816, footer 816–844).
+  At `lg` and in full screen the panel already ends at the footer's top. A sheet is a dialog and
+  still covers the footer, on purpose.
 
 ## Open
 
 - Two bottom bars: the session meta row under the composer (context, cache, tok/s, cost) and the
   status bar. The row stays as it is: it was tried and kept.
-- The panel drawer below `lg` hides the status bar: either the drawer stops above the footer, or the
-  footer is drawn inside it.
 - Older bugs seen on the way, not caused by this work: on a phone the status bar's start and centre
   cells overlap; React warns about a missing `key` in a `ForwardRef` list when a panel mounts.
