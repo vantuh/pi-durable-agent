@@ -1008,7 +1008,7 @@ export const Sessions = memo(function Sessions({
         <aside
             ref={shell}
             data-collapsed={collapsed ? "" : undefined}
-            className={`group/side border-edge-soft bg-panel shrink-0 flex-col border-r in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[37px] ${
+            className={`group/side border-edge-soft bg-panel shrink-0 flex-col border-r font-mono in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[37px] ${
                 sheet ? "fixed inset-0 z-30 flex" : "hidden"
             }`}
         >

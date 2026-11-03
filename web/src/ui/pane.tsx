@@ -20,7 +20,7 @@ export function PaneHeader({ className, ...props }: ComponentProps<"header">) {
         <header
             data-slot="pane-header"
             className={cn(
-                "border-edge-soft flex items-center justify-between border-b px-3 py-2.5",
+                "border-edge-soft flex items-center justify-between border-b px-3 py-2.5 font-mono",
                 className,
             )}
             {...props}
