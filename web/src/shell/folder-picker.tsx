@@ -210,7 +210,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         >
             <DialogContent
                 aria-describedby={undefined}
-                className="sm:max-w-3xl"
+                className="sm:h-[min(44rem,88dvh)] sm:max-w-3xl"
                 onAnimationEnd={(event) => {
                     if (!open && event.target === event.currentTarget) {
                         after.current?.();
@@ -280,24 +280,26 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 </div>
 
                 <div className="flex min-h-0 flex-1 gap-2 px-4">
-                    <nav className="flex min-h-0 w-44 shrink-0 flex-col gap-0.5 overflow-y-auto">
-                        <Row
-                            icon={<House className="size-4" />}
-                            label="Home"
-                            onClick={() => {
-                                go(page?.home);
-                            }}
-                        />
-                        <Row
-                            icon={<Laptop className="size-4" />}
-                            label="Computer"
-                            onClick={() => {
-                                go("/");
-                            }}
-                        />
-                        {section("Favourites", favourites)}
-                        {section("Recent", recents)}
-                    </nav>
+                    <ScrollArea className="w-44 shrink-0">
+                        <nav className="flex flex-col gap-0.5 pr-1">
+                            <Row
+                                icon={<House className="size-4" />}
+                                label="Home"
+                                onClick={() => {
+                                    go(page?.home);
+                                }}
+                            />
+                            <Row
+                                icon={<Laptop className="size-4" />}
+                                label="Computer"
+                                onClick={() => {
+                                    go("/");
+                                }}
+                            />
+                            {section("Favourites", favourites)}
+                            {section("Recent", recents)}
+                        </nav>
+                    </ScrollArea>
 
                     <ScrollArea className="rounded-control border-edge-soft min-h-0 flex-1 border">
                         <div className="p-1">
