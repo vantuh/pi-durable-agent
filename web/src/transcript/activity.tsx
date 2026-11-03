@@ -350,7 +350,7 @@ function StepRow({
                     <span
                         {...(took === undefined ? {} : { title: `took ${formatDuration(took)}` })}
                         className={cn(
-                            "max-w-[40%] shrink-0 truncate font-mono text-micro tabular-nums",
+                            "max-w-[40%] shrink-0 truncate font-mono text-meta tabular-nums",
                             outcome.tone === "ok"
                                 ? "text-ok"
                                 : outcome.tone === "danger"
@@ -405,7 +405,7 @@ export function ActivityGroup({ item }: { item: Extract<Item, { type: "activity"
                     {item.startedAt === undefined || until === undefined ? null : (
                         <span
                             className={cn(
-                                "shrink-0 font-mono text-micro tabular-nums",
+                                "shrink-0 font-mono text-meta tabular-nums",
                                 item.live ? "text-accent" : "text-faint",
                             )}
                         >

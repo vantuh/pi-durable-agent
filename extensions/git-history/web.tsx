@@ -603,7 +603,7 @@ function CommitDetail({
                         <h3
                             ref={takeTitle}
                             tabIndex={-1}
-                            className="text-interface text-ink text-prose leading-snug font-medium outline-none"
+                            className="text-interface text-ink text-interface leading-snug font-medium outline-none"
                         >
                             {shown.commit.subject || "(no message)"}
                         </h3>

@@ -135,7 +135,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                     >
                         <ListFilter className="size-4" />
                         {live.length === 0 ? null : (
-                            <span className="bg-accent text-on-accent text-micro absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center leading-none">
+                            <span className="bg-accent text-on-accent text-meta absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center leading-none">
                                 {live.length}
                             </span>
                         )}

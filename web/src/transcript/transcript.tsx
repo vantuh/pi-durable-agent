@@ -364,7 +364,7 @@ const TurnItem = memo(TurnItemView, (before, after) => sameItem(before.item, aft
  */
 const UserMessage = memo(function UserMessage({ user }: { user: NonNullable<Turn["user"]> }) {
     return (
-        <div className="bg-panel text-prose text-ink relative flex min-w-0 flex-col gap-1.5 py-2 pr-3 pl-4">
+        <div className="bg-panel text-interface text-ink relative flex min-w-0 flex-col gap-1.5 py-2 pr-3 pl-4">
             <span aria-hidden className="bg-accent w-stripe absolute inset-y-0 left-0" />
             <Attachments
                 files={(user.files ?? []).map((file, index) => ({
@@ -671,7 +671,9 @@ export function Transcript({
                                 <output className="sr-only">Opening the session…</output>
                             </>
                         ) : (
-                            <Empty className="text-prose">Nothing here yet. Ask something.</Empty>
+                            <Empty className="text-interface">
+                                Nothing here yet. Ask something.
+                            </Empty>
                         )
                     ) : null}
                 </div>

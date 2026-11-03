@@ -116,7 +116,7 @@ export function DropOverlay({ dragging, batch }: { dragging: boolean; batch: Pen
                     <Paperclip className="size-5" />
                 </div>
 
-                <p className="text-prose text-ink font-medium">
+                <p className="text-interface text-ink font-medium">
                     {dragging ? "Drop to attach" : busy ? "Attaching…" : "Attached"}
                 </p>
 

@@ -101,7 +101,7 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                                                 current === item.id ? null : item.id,
                                             );
                                         }}
-                                        className={`text-prose text-ink mt-0.5 p-0 text-left break-words whitespace-pre-wrap hover:bg-transparent ${
+                                        className={`text-interface text-ink mt-0.5 p-0 text-left break-words whitespace-pre-wrap hover:bg-transparent ${
                                             open === item.id ? "block" : "line-clamp-2"
                                         }`}
                                     >

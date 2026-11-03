@@ -254,7 +254,7 @@ export const Markdown = memo(function Markdown({
     return (
         <div
             className={cn(
-                "text-prose text-ink flex min-w-0 flex-col gap-3 leading-relaxed break-words",
+                "text-interface text-ink flex min-w-0 flex-col gap-3 leading-relaxed break-words",
                 streaming && "streaming",
             )}
         >

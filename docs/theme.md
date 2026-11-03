@@ -103,11 +103,12 @@ In `styles.css`, next to the roles, so no component invents its own:
   Every other length of the spacing scale is Tailwind's own step, `calc(var(--spacing) * n)` at 4px
   a step, and a length that belongs to one component's own drawing — a timeline mark, a rail, a
   chip's cap — stays a number in that component, with the reason beside it;
-- text sizes, one name per job, smallest first: `--text-micro: 11px` (an annotation inside a dense
-  row — a duration, a file's size, a chip's model name or folder), `--text-meta: 12px` (metadata),
-  `--text-code: 12.5px` (monospace lines: code blocks, diffs, tool names and their arguments),
-  `--text-ui: 14px` (the chrome: session titles, the sidebar heading, list items, tool group
-  headings), `--text-interface: 15px`, `--text-prose: 15px`, `--text-subheading: 16px` (a Markdown
+- text sizes, one name per job, smallest first: `--text-meta: 12px` (metadata, and an annotation
+  inside a dense row — a duration, a file's size, a chip's model name or folder), `--text-code:
+  12.5px` (monospace lines: code blocks, diffs, tool names and their arguments), `--text-ui: 14px`
+  (the chrome: session titles, the sidebar heading, list items, tool group headings),
+  `--text-interface: 15px` (the body, the conversation's prose, and the chrome that matches it),
+  `--text-subheading: 16px` (a Markdown
   answer's `h2`) and `--text-heading: 18px` (its `h1`, and the extensions dialog's title);
 - `--text-heading` and `--text-subheading` carry a `--text-*-line-height` (1.75rem, 1.5rem): both
   replaced one of Tailwind's own steps, which brought a line box with it, and the line box stays as

@@ -133,12 +133,10 @@
     /* Tailwind's lg geometry (10px/15px blur, 6px/4px spread), in the theme's shadow ink instead of black. */
     --shadow-float: 0 10px 15px -3px var(--role-shadow), 0 4px 6px -4px var(--role-shadow);
 
-    --text-micro: 11px;
     --text-meta: 12px;
     --text-code: 12.5px;
     --text-ui: 14px;
     --text-interface: 15px;
-    --text-prose: 15px;
     --text-subheading: 16px;
     --text-subheading--line-height: 1.5rem;
     --text-heading: 18px;

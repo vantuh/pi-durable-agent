@@ -580,7 +580,7 @@ export const Composer = memo(function Composer({
                     </div>
                 )}
 
-                <ScrollArea viewportProps={{ className: "text-prose max-h-[10lh]" }}>
+                <ScrollArea viewportProps={{ className: "text-interface max-h-[10lh]" }}>
                     <textarea
                         rows={2}
                         ref={field}
@@ -593,7 +593,7 @@ export const Composer = memo(function Composer({
                                 ? `${how.label}: ${how.hint}…`
                                 : "Ask the agent to change something…"
                         }
-                        className="text-prose text-ink placeholder:text-faint block [field-sizing:content] min-h-[2lh] w-full resize-none bg-transparent outline-none"
+                        className="text-interface text-ink placeholder:text-faint block [field-sizing:content] min-h-[2lh] w-full resize-none bg-transparent outline-none"
                         onChange={(event) => {
                             const value = event.target.value;
 

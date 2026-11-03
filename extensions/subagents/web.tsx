@@ -117,14 +117,14 @@ function Chip({
                 <span className="state-mark working text-warn" aria-hidden />
                 <span className="text-ink text-meta max-w-30 truncate">{agent.name}</span>
                 {agent.model === "" ? null : (
-                    <span className="text-faint text-micro max-w-21 truncate">
+                    <span className="text-faint text-meta max-w-21 truncate">
                         {shortModel(agent.model)}
                     </span>
                 )}
                 {/* Not a step: 70px holds a folder's last segment, and keeps it shorter than the name beside it. */}
                 {elsewhere ? (
                     <span
-                        className="text-faint bg-raised border-edge-soft text-micro hidden max-w-[70px] truncate border px-1 sm:inline"
+                        className="text-faint bg-raised border-edge-soft text-meta hidden max-w-[70px] truncate border px-1 sm:inline"
                         aria-hidden
                     >
                         {agent.cwd
@@ -133,7 +133,7 @@ function Chip({
                             .at(-1) ?? agent.cwd}
                     </span>
                 ) : null}
-                <span className="text-faint text-micro flex items-center gap-1.5 font-mono">
+                <span className="text-faint text-meta flex items-center gap-1.5 font-mono">
                     {agent.window > 0 ? (
                         <>
                             <Progress

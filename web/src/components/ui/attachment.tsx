@@ -68,7 +68,7 @@ export function AttachmentDescription({ className, ...props }: ComponentProps<"s
         <span
             data-slot="attachment-description"
             className={cn(
-                "text-faint block min-w-0 truncate text-micro group-data-[state=error]/attachment:text-danger",
+                "text-faint block min-w-0 truncate text-meta group-data-[state=error]/attachment:text-danger",
                 className,
             )}
             {...props}

@@ -23,7 +23,7 @@ export function QuoteCard({ text, onRemove }: Props) {
             <ScrollArea
                 className="min-w-0 flex-1"
                 // Room on the right so a long line never ends under the scrollbar's thumb.
-                viewportProps={{ className: "text-prose text-muted max-h-[10lh] pr-2" }}
+                viewportProps={{ className: "text-interface text-muted max-h-[10lh] pr-2" }}
             >
                 <p className="break-words whitespace-pre-wrap">{text}</p>
             </ScrollArea>

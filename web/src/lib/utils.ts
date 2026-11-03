@@ -8,7 +8,7 @@ import { extendTailwindMerge } from "tailwind-merge";
 const twMerge = extendTailwindMerge({
     extend: {
         theme: {
-            text: ["micro", "meta", "code", "ui", "interface", "prose", "subheading", "heading"],
+            text: ["meta", "code", "ui", "interface", "subheading", "heading"],
             shadow: ["float"],
             spacing: ["stripe", "header"],
         },

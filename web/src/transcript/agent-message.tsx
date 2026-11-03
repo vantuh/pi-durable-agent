@@ -55,7 +55,7 @@ export function AgentMessage({ text, author, onOpenSession }: Props) {
                     </Hint>
                 )}
             </div>
-            <CollapsibleContent className="text-prose px-3 pb-2.5">
+            <CollapsibleContent className="text-interface px-3 pb-2.5">
                 <Markdown text={text} />
             </CollapsibleContent>
         </Collapsible>
