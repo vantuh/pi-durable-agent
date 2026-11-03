@@ -150,10 +150,10 @@ function ResizeHandle({ storageKey }: { storageKey: string }) {
     );
 }
 
-const DRAWER = `border-edge-soft bg-panel fixed inset-0 border-l z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
+const DRAWER = `border-edge-soft bg-panel absolute inset-0 border-l z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
 // Expanded, the panel takes the conversation's place, exactly the box the page frame takes, and the same
 // fade. The drawer's width no longer applies: the row's own left offset does.
-const OVER = `border-edge-soft bg-panel fixed inset-0 border-l z-20 flex min-w-0 flex-col animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto`;
+const OVER = `border-edge-soft bg-panel absolute inset-0 border-l z-20 flex min-w-0 flex-col animate-drop-in lg:absolute lg:inset-y-0 lg:right-0 lg:left-[var(--conversation-x,0px)] lg:z-30 lg:w-auto`;
 const COLUMN = "lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))] lg:shrink-0";
 
 /**
