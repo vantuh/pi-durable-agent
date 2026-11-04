@@ -1,0 +1,8 @@
+{
+    "name": "@pi-durable-agent/tokens-per-second",
+    "private": true,
+    "type": "module",
+    "peerDependencies": {
+        "@earendil-works/pi-durable": "1.4.0"
+    }
+}

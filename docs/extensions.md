@@ -9,6 +9,7 @@ extension by name; the loader only knows folders.
 extensions/git-branch/
   server.ts       default export (host) => Extension | undefined; may export `status` and `actions`
   server.test.ts  its tests, run by `pnpm test`; never loaded
+  package.json    private workspace package: own dependencies and shared host peers
   refs.ts         action refs and types shared with `web.tsx`
   web.tsx         status items and settings sections (the browser loads it)
   sw.js           optional: plain script the build appends to the production service worker
@@ -42,6 +43,30 @@ Rules the loader enforces, and why:
 | A folder without `server.ts` is skipped    | The server installs nothing for it, and `GET /api/extensions` does not list it. The browser still loads its `web.tsx` |
 | Names starting with `_` or `.` are skipped | A place to park a folder under construction                                                                           |
 | A failed folder keeps its last version     | A typo must not take a working feature away                                                                           |
+
+## Package dependencies
+
+The root package describes the core and its shared build/check tools. Each extension declares its
+own external imports in a private `package.json` with `"type": "module"`. A package used only by
+extensions belongs in their `dependencies`, even when several extensions use it. Test-only packages
+and package-specific type declarations belong in the consuming package's `devDependencies`.
+
+React, React DOM, Lucide and the Pi host packages already used by the core are shared through
+`peerDependencies`. Extensions use the core's UI components directly; they do not install another
+UI stack. A direct package import must be declared even when a transitive dependency already
+installs that package. The root may also declare an extension's runtime dependency as a dev
+dependency when core tests need it, such as `linkedom`.
+
+`extensions/*` are pnpm workspace packages with one root `pnpm-lock.yaml`. Run `pnpm install` from
+the root to install the whole application, including extensions; `pnpm check`, `pnpm test` and
+`pnpm build` still cover the whole checkout. To add an extension's own dependency, use
+`pnpm --filter @pi-durable-agent/<folder> add <package>` and commit the shared lockfile with its
+manifest. Keep `@earendil-works/*` versions pinned exactly.
+
+This records dependency ownership, not isolation or optional installation. Node can still resolve
+packages from ancestor `node_modules` directories, and disabled extensions still need their
+packages for the full check and build. Package updates require an install and a server restart;
+source hot reload does not reload package instances.
 
 ## Name, description, on and off
 
@@ -698,10 +723,15 @@ and toggles apply live to new requests.
 ## Kiro ACP models
 
 `extensions/kiro-acp` adds the local `kiro-cli`'s models as provider `kiro-acp`, through
-`@vantuh/pi-kiro-acp` from the checkout beside this one (`file:../pi-kiro-acp`). The dependency is
+`@vantuh/pi-kiro-acp` from the checkout beside this one
+(`file:../../../pi-kiro-acp` in the extension's manifest). The dependency is
 installed _injected_, so the package shares this app's `@earendil-works/pi-ai` instead of loading a
 second copy; build it once there with `npm run build`, which is what writes the `dist/` the
-`./provider` subpath points at. Pi keeps the conversation and the tools: Kiro sees the session's
+`./provider` subpath points at. A Git worktree needs that built sibling beside the worktree being
+installed, not just beside the primary checkout. A successful frozen install alone does not prove
+that this optional local provider is available; its import must succeed too.
+
+Pi keeps the conversation and the tools: Kiro sees the session's
 tools over an in-process MCP server, and its own built-ins are refused at the permission gate.
 `provider.close()` stops the `kiro-cli` processes it started, on reload, off, removal and shutdown.
 

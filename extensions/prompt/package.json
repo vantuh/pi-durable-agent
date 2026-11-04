@@ -1,0 +1,9 @@
+{
+    "name": "@pi-durable-agent/prompt",
+    "private": true,
+    "type": "module",
+    "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "1.4.0",
+        "@earendil-works/pi-durable": "1.4.0"
+    }
+}

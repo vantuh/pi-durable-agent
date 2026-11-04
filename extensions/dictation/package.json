@@ -1,0 +1,13 @@
+{
+    "name": "@pi-durable-agent/dictation",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "transcribe-cpp": "0.3.1"
+    },
+    "peerDependencies": {
+        "@earendil-works/pi-durable": "1.4.0",
+        "lucide-react": "^1.61.0",
+        "react": "^19.3.1"
+    }
+}

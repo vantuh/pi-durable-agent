@@ -1,0 +1,16 @@
+{
+    "name": "@pi-durable-agent/subagents",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "typebox": "1.3.27"
+    },
+    "peerDependencies": {
+        "@earendil-works/chord": "1.4.0",
+        "@earendil-works/pi-ai": "1.4.0",
+        "@earendil-works/pi-coding-agent": "1.4.0",
+        "@earendil-works/pi-durable": "1.4.0",
+        "lucide-react": "^1.61.0",
+        "react": "^19.3.1"
+    }
+}

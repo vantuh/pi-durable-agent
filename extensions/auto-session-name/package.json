@@ -1,0 +1,11 @@
+{
+    "name": "@pi-durable-agent/auto-session-name",
+    "private": true,
+    "type": "module",
+    "peerDependencies": {
+        "@earendil-works/pi-ai": "1.4.0",
+        "@earendil-works/pi-durable": "1.4.0",
+        "lucide-react": "^1.61.0",
+        "react": "^19.3.1"
+    }
+}

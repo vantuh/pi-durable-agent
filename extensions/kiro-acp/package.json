@@ -1,0 +1,13 @@
+{
+    "name": "@pi-durable-agent/kiro-acp",
+    "private": true,
+    "type": "module",
+    "dependenciesMeta": {
+        "@vantuh/pi-kiro-acp": {
+            "injected": true
+        }
+    },
+    "optionalDependencies": {
+        "@vantuh/pi-kiro-acp": "file:../../../pi-kiro-acp"
+    }
+}

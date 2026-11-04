@@ -1,0 +1,14 @@
+{
+    "name": "@pi-durable-agent/git-history",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "@pierre/diffs": "1.5.2"
+    },
+    "peerDependencies": {
+        "@earendil-works/pi-durable": "1.4.0",
+        "lucide-react": "^1.61.0",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1"
+    }
+}

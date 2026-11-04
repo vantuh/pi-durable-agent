@@ -1,0 +1,15 @@
+{
+    "name": "@pi-durable-agent/mcp",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "@earendil-works/pi-mcp": "1.4.0",
+        "typebox": "1.3.27"
+    },
+    "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "1.4.0",
+        "@earendil-works/pi-durable": "1.4.0",
+        "lucide-react": "^1.61.0",
+        "react": "^19.3.1"
+    }
+}

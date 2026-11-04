@@ -1,0 +1,12 @@
+{
+    "name": "@pi-durable-agent/hotkeys",
+    "private": true,
+    "type": "module",
+    "devDependencies": {
+        "linkedom": "0.18.14"
+    },
+    "peerDependencies": {
+        "@earendil-works/pi-durable": "1.4.0",
+        "react": "^19.3.1"
+    }
+}

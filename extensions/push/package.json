@@ -1,0 +1,15 @@
+{
+    "name": "@pi-durable-agent/push",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "web-push": "3.6.7"
+    },
+    "devDependencies": {
+        "@types/web-push": "3.6.4"
+    },
+    "peerDependencies": {
+        "@earendil-works/pi-durable": "1.4.0",
+        "react": "^19.3.1"
+    }
+}

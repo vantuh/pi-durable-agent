@@ -1,0 +1,9 @@
+{
+    "name": "@pi-durable-agent/finished",
+    "private": true,
+    "type": "module",
+    "peerDependencies": {
+        "@earendil-works/pi-durable": "1.4.0",
+        "react": "^19.3.1"
+    }
+}
