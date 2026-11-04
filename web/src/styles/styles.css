@@ -344,6 +344,24 @@ body {
     animation: drop-in 150ms ease-out;
 }
 
+/*
+ * Full screen is another placement, not a width: the drawer is a flex child and this is an absolute
+ * box, so nothing can be interpolated between them. A short fade and a step in from the edge cover
+ * the jump without pretending to be a resize.
+ */
+@keyframes panel-widen {
+    from {
+        opacity: 0.4;
+        translate: 16px 0;
+    }
+}
+
+/* On the body, not the frame: the frame's own animation is the one a mount plays, and a second name
+   on it would replay that animation from `width: 0` when the panel goes back into the drawer. */
+[data-slot="panel-host"][data-expanded] > div {
+    animation: panel-widen 160ms ease-out;
+}
+
 /* Forwards: the panel keeps the end of its exit until the frame it is dropped from. */
 [data-slot="panel-host"][data-leaving] {
     animation: panel-out 200ms ease-out forwards;
@@ -374,6 +392,7 @@ body {
     [data-slot="sheet-content"],
     [data-slot="sheet-content"][data-state="closed"],
     [data-slot="panel-host"],
+    [data-slot="panel-host"][data-expanded] > div,
     [data-slot="panel-host"][data-leaving],
     [data-slot="page-host"] {
         animation-duration: 1ms;

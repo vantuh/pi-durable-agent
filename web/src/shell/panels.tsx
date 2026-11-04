@@ -269,6 +269,7 @@ export function PanelHost({
         <aside
             ref={frame}
             data-slot="panel-host"
+            data-expanded={expanded ? "" : undefined}
             data-leaving={open ? undefined : ""}
             onAnimationEnd={(event) => {
                 // A child's own animation bubbles through here; only the panel's own end means it has left.
