@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -84,12 +84,12 @@ void describe("git-branch branch action", () => {
     });
 
     void describe("switching", () => {
-        const call = async (name: string, args: unknown) => {
-            const action = actions(testHost())[name];
+        const call = async (name: string, args: unknown, host = testHost(), cwd = dir) => {
+            const action = actions(host)[name];
 
             assert.ok(action);
 
-            return await action({ args, session: { id: 1, cwd: dir } });
+            return await action({ args, session: { id: 1, cwd } });
         };
 
         beforeEach(async () => {
@@ -99,7 +99,10 @@ void describe("git-branch branch action", () => {
         });
 
         void it("lists the local branches", async () => {
-            assert.deepEqual(await call("branches", undefined), ["other", "topic"]);
+            assert.deepEqual(await call("branches", undefined), [
+                { name: "other", worktree: null },
+                { name: "topic", worktree: null },
+            ]);
         });
 
         void it("switches to a local branch", async () => {
@@ -111,6 +114,72 @@ void describe("git-branch branch action", () => {
             await assert.rejects(call("checkout", { branch: "nope" }));
             await assert.rejects(call("checkout", { branch: "--detach" }));
             assert.deepEqual(await branch(dir), { branch: "topic" });
+        });
+
+        void it("does not switch while the session is working", async () => {
+            const host = testHost({ sessionWorking: () => Promise.resolve(true) });
+
+            await assert.rejects(call("checkout", { branch: "other" }, host));
+            assert.deepEqual(await branch(dir), { branch: "topic" });
+        });
+
+        void describe("with a worktree", () => {
+            let linked: string;
+
+            beforeEach(async () => {
+                linked = join(dir, "linked");
+                await run("git", ["worktree", "add", linked, "other"], { cwd: dir });
+            });
+
+            void it("says where another worktree has a branch", async () => {
+                const found = await call("branches", undefined);
+
+                assert.ok(Array.isArray(found));
+                assert.deepEqual(
+                    found.map((each) => each.name),
+                    ["other", "topic"],
+                );
+                assert.equal(await realpath(found[0].worktree), await realpath(linked));
+                assert.equal(found[1].worktree, null);
+            });
+
+            void it("moves the session to the worktree that has the branch", async () => {
+                const moves: string[] = [];
+                const host = testHost({
+                    setSessionCwd: (_session, cwd) => {
+                        moves.push(cwd);
+
+                        return Promise.resolve();
+                    },
+                });
+
+                assert.deepEqual(await call("checkout", { branch: "other" }, host), {
+                    branch: "other",
+                });
+                const [moved] = moves;
+
+                assert.equal(moves.length, 1);
+                assert.ok(moved);
+                assert.equal(await realpath(moved), await realpath(linked));
+                assert.deepEqual(await branch(dir), { branch: "topic" });
+            });
+
+            void it("switches in place for a branch that no other worktree has", async () => {
+                const moves: string[] = [];
+                const host = testHost({
+                    setSessionCwd: (_session, cwd) => {
+                        moves.push(cwd);
+
+                        return Promise.resolve();
+                    },
+                });
+
+                await run("git", ["branch", "free"], { cwd: dir });
+                await call("checkout", { branch: "free" }, host);
+
+                assert.deepEqual(moves, []);
+                assert.deepEqual(await branch(dir), { branch: "free" });
+            });
         });
     });
 
