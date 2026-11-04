@@ -39,7 +39,7 @@ import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import { answer, openEventStream, readBody, type Route, sessionIdOf, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
-import { blocksSince, queuedSince, statusSince } from "./live-delta.ts";
+import { blocksSince, listSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
@@ -380,8 +380,8 @@ function sendLive(id: number): void {
     for (const client of clients) {
         if (client.session === id) {
             const { blocks, queued, status, ...rest } = live;
-            const changed = queuedSince(client.heldQueued, queued);
-            const changedStatus = statusSince(client.heldStatus, status);
+            const changed = listSince(client.heldQueued, queued);
+            const changedStatus = listSince(client.heldStatus, status);
 
             send(client, {
                 type: "live",

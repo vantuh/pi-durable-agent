@@ -6,7 +6,7 @@
  * harness has to be known here.
  */
 
-import type { ClientBlock, ClientQueued, ClientStatus } from "../shared/protocol.ts";
+import type { ClientBlock } from "../shared/protocol.ts";
 
 export function blocksSince(
     held: readonly ClientBlock[],
@@ -39,28 +39,12 @@ export function blocksSince(
 }
 
 /**
- * The queue a live frame must carry, or `undefined` when the client already holds it. A queue that emptied is `[]`,
- * never absent, or the client would keep showing a withdrawn message. An absent queue and `[]` are the same queue.
+ * The list a live frame must carry (the queue, the extension status fields), or `undefined` when the client already
+ * holds it. A list that emptied is `[]`, never absent, or the client would keep showing a withdrawn item. An absent
+ * list and `[]` are the same list.
  */
-export function queuedSince(
-    held: readonly ClientQueued[],
-    queued: readonly ClientQueued[] | undefined,
-): ClientQueued[] | undefined {
-    const now = queued ?? [];
-
-    return JSON.stringify(held) === JSON.stringify(now) ? undefined : [...now];
-}
-
-/**
- * The extension status fields a live frame must carry, or `undefined` when the client already holds them. Fields
- * that emptied are `[]`, never absent, or the client would keep showing a withdrawn field. An absent status and `[]`
- * are the same status.
- */
-export function statusSince(
-    held: readonly ClientStatus[],
-    status: readonly ClientStatus[] | undefined,
-): ClientStatus[] | undefined {
-    const now = status ?? [];
+export function listSince<T>(held: readonly T[], list: readonly T[] | undefined): T[] | undefined {
+    const now = list ?? [];
 
     return JSON.stringify(held) === JSON.stringify(now) ? undefined : [...now];
 }

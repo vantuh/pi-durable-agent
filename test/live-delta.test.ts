@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { blocksSince, queuedSince, statusSince } from "../server/live-delta.ts";
+import { blocksSince, listSince } from "../server/live-delta.ts";
 import type { ClientBlock, ClientQueued, ClientStatus } from "../shared/protocol.ts";
 import { START, withEvent } from "../web/src/lib/conversation-state.ts";
 
@@ -158,7 +158,7 @@ void describe("the queue of a live frame cut to what a client holds", () => {
         const sent: (ClientQueued[] | undefined)[] = [];
 
         for (const queue of queues) {
-            const changed = queuedSince(held, queue);
+            const changed = listSince(held, queue);
 
             held = queue ?? [];
             sent.push(changed);
@@ -192,8 +192,8 @@ void describe("the queue of a live frame cut to what a client holds", () => {
     });
 
     void it("treats an absent queue and [] as the same queue", () => {
-        assert.equal(queuedSince([], undefined), undefined);
-        assert.equal(queuedSince([], []), undefined);
+        assert.equal(listSince([], undefined), undefined);
+        assert.equal(listSince([], []), undefined);
     });
 
     void it("sends a replaced message whole", () => {
@@ -244,7 +244,7 @@ void describe("the status of a live frame cut to what a client holds", () => {
         const sent: (ClientStatus[] | undefined)[] = [];
 
         for (const status of statuses) {
-            const changed = statusSince(held, status);
+            const changed = listSince(held, status);
 
             held = status ?? [];
             sent.push(changed);
@@ -278,8 +278,8 @@ void describe("the status of a live frame cut to what a client holds", () => {
     });
 
     void it("treats absent status and [] as the same status", () => {
-        assert.equal(statusSince([], undefined), undefined);
-        assert.equal(statusSince([], []), undefined);
+        assert.equal(listSince([], undefined), undefined);
+        assert.equal(listSince([], []), undefined);
     });
 
     void it("sends a changed field whole", () => {
