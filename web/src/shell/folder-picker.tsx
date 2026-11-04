@@ -74,11 +74,19 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         setCollected((all) => ({ ...all, [id]: value }));
     }, []);
     const options = useNewSessionItems();
+    /** Folders an option keeps out of the lists: a worktree, whose main checkout is the folder to pick. */
+    const [leftOut, setLeftOut] = useState<ReadonlySet<string>>(new Set());
     const [favourites, setFavourites] = useState<string[]>([]);
     /** The stored list is here: a star pressed before it would save one folder over all of them. */
     const [favouritesLoaded, setFavouritesLoaded] = useState(false);
     const openRef = useRef<HTMLButtonElement>(null);
     const recents = [...new Set(recent)].filter((folder) => !favourites.includes(folder));
+    // One key for everything the lists hold, so the options are asked when a list changes and not on
+    // every render: a folder that is a worktree keeps its place in the stored favourites. `recent` is a
+    // new array at each render of the app, and a NUL is the one byte a folder's name cannot hold.
+    const lists = [
+        ...new Set([...favourites, ...recent, ...(page?.dirs ?? []).map((dir) => dir.path)]),
+    ].join("\0");
 
     const toggle = (folder: string): void => {
         const next = favourites.includes(folder)
@@ -114,6 +122,29 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
             alive = false;
         };
     }, [path, hidden]);
+
+    useEffect(() => {
+        const folders = lists === "" ? [] : lists.split("\0");
+        let alive = true;
+
+        void (async () => {
+            const out = await Promise.all(
+                options.flatMap((option) =>
+                    option.omit === undefined ? [] : [option.omit(folders).catch(() => [])],
+                ),
+            );
+
+            if (alive) {
+                setLeftOut(new Set(out.flat()));
+            }
+        })();
+
+        return () => {
+            alive = false;
+        };
+    }, [lists, options]);
+
+    const offered = (folder: string): boolean => !leftOut.has(folder);
 
     const go = (next: string | null | undefined): void => {
         if (typeof next === "string" && next !== "") {
@@ -302,8 +333,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                                     go("/");
                                 }}
                             />
-                            {section("Favourites", favourites)}
-                            {section("Recent", recents)}
+                            {section("Favourites", favourites.filter(offered))}
+                            {section("Recent", recents.filter(offered))}
                         </nav>
                     </ScrollArea>
 
@@ -312,27 +343,29 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             {error ? (
                                 <Alert>Cannot read that folder.</Alert>
                             ) : (
-                                (page?.dirs ?? []).map((dir) => (
-                                    <Item
-                                        key={dir.path}
-                                        asChild
-                                        size="sm"
-                                        className="text-ink hover:bg-raised text-interface w-full text-left"
-                                    >
-                                        <button
-                                            type="button"
-                                            onDoubleClick={() => {
-                                                go(dir.path);
-                                            }}
-                                            onClick={() => {
-                                                go(dir.path);
-                                            }}
+                                (page?.dirs ?? [])
+                                    .filter((dir) => offered(dir.path))
+                                    .map((dir) => (
+                                        <Item
+                                            key={dir.path}
+                                            asChild
+                                            size="sm"
+                                            className="text-ink hover:bg-raised text-interface w-full text-left"
                                         >
-                                            <Folder className="text-info size-4 shrink-0" />
-                                            <span className="truncate">{dir.name}</span>
-                                        </button>
-                                    </Item>
-                                ))
+                                            <button
+                                                type="button"
+                                                onDoubleClick={() => {
+                                                    go(dir.path);
+                                                }}
+                                                onClick={() => {
+                                                    go(dir.path);
+                                                }}
+                                            >
+                                                <Folder className="text-info size-4 shrink-0" />
+                                                <span className="truncate">{dir.name}</span>
+                                            </button>
+                                        </Item>
+                                    ))
                             )}
                         </div>
                     </ScrollArea>

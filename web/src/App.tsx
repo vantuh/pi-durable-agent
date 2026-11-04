@@ -672,8 +672,11 @@ export function App() {
 
             {picker ? (
                 <FolderPicker
-                    start={folder ?? health?.home ?? "/"}
-                    recent={sessions.map((session) => session.cwd).filter((cwd) => cwd !== null)}
+                    // A session in a worktree offers its repository's folder, as the sidebar shows it.
+                    start={(active ?? last)?.under ?? folder ?? health?.home ?? "/"}
+                    recent={sessions
+                        .map((session) => session.under ?? session.cwd)
+                        .filter((cwd) => cwd !== null)}
                     onClose={() => {
                         setPicker(false);
                     }}

@@ -16,6 +16,8 @@ import {
     removeWorktree,
     slugOf,
     worktreeOf,
+    worktreesAmong,
+    worktreesOf,
 } from "./worktree.ts";
 
 const run = promisify(execFile);
@@ -326,6 +328,54 @@ void describe("git-worktree mainCheckoutOf", () => {
             await rm(at, { recursive: true, force: true });
         }
     });
+
+    void it("keeps a worktree of a bare repository linked, and under nobody", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-bare-main-"));
+
+        try {
+            const repo = join(at, "repo");
+            const outer = join(at, "outer");
+            // Inside another repository's root: the folder around it is no checkout of this one.
+            const bare = join(outer, "bare.git");
+            const linked = join(outer, "outside");
+            const git = (cwd: string, args: string[]) =>
+                run(
+                    "git",
+                    [
+                        "-c",
+                        "user.name=t",
+                        "-c",
+                        "user.email=t@t",
+                        "-c",
+                        "commit.gpgsign=false",
+                        ...args,
+                    ],
+                    { cwd },
+                );
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
+            await run("git", ["init", "-q", "-b", "main", outer]);
+            await git(outer, ["commit", "-q", "--allow-empty", "-m", "outer"]);
+            await run("git", ["clone", "-q", "--bare", repo, bare]);
+            await git(bare, ["worktree", "add", "-q", "-b", "choice", linked]);
+
+            // A bare repository has no checkout, so the worktree stands under nobody — although the
+            // folder around it is a repository of its own.
+            assert.equal(await mainCheckoutOf(linked), undefined);
+            assert.equal(await groupOf(at, linked), undefined);
+
+            // It is a linked worktree all the same: its badge stays, and the picker keeps offering it,
+            // since there is no main checkout to pick instead.
+            assert.deepEqual(await linkedWorktreeOf(linked), {
+                name: "outside",
+                folder: await realpath(linked),
+            });
+            assert.deepEqual(await worktreesAmong([linked]), [], "and is never left out of a list");
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
 });
 
 void describe("git-worktree groupOf", () => {
@@ -380,6 +430,333 @@ void describe("git-worktree groupOf", () => {
         assert.equal(mainOfRemembered(rows, "/data/worktrees/repo/one/src"), "/repo");
         assert.equal(mainOfRemembered(rows, "/data/worktrees/repo"), undefined);
         assert.equal(mainOfRemembered(new Map(), "/repo"), undefined);
+    });
+});
+
+void describe("git-worktree worktreesOf", () => {
+    void it("offers the main checkout first, then the worktrees made here and elsewhere", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-choices-"));
+
+        try {
+            const repo = join(at, "repo");
+            const data = join(at, "data");
+            const theirs = join(at, "theirs");
+            const git = (cwd: string, args: string[]) =>
+                run(
+                    "git",
+                    [
+                        "-c",
+                        "user.name=t",
+                        "-c",
+                        "user.email=t@t",
+                        "-c",
+                        "commit.gpgsign=false",
+                        ...args,
+                    ],
+                    { cwd },
+                );
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await mkdir(join(repo, "src"));
+            await writeFile(join(repo, "src", "file"), "first\n");
+            await git(repo, ["add", "src"]);
+            await git(repo, ["commit", "-q", "-m", "first"]);
+
+            const ours = await makeWorktree(data, repo, "ours");
+
+            await mkdir(theirs);
+            await git(repo, ["worktree", "add", "-q", "-b", "theirs", theirs]);
+
+            const choices = await worktreesOf(join(repo, "src"));
+
+            // git answers with the paths it resolved, and /var is a link to /private/var; a session in
+            // the repository's `src` starts in the `src` of the worktree it is given.
+            assert.deepEqual(choices[0], {
+                name: "main",
+                path: join(await realpath(repo), "src"),
+                main: true,
+                current: true,
+            });
+            // git lists them by folder, and the worktrees this server makes sit under its data folder.
+            assert.deepEqual(
+                choices.slice(1).map((choice) => [choice.name, choice.path, choice.main]),
+                [
+                    ["ours", join(await realpath(ours.worktree), "src"), false],
+                    ["theirs", join(await realpath(theirs), "src"), false],
+                ],
+            );
+
+            // The checkout the picked folder is in is the one marked, wherever it is.
+            const fromOurs = await worktreesOf(ours.worktree);
+
+            assert.deepEqual(
+                fromOurs.filter((choice) => choice.current).map((choice) => choice.name),
+                ["ours"],
+            );
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+
+    void it("names a worktree on no branch after its folder", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-detached-"));
+
+        try {
+            const repo = join(at, "repo");
+            const fresh = join(at, "fresh-clone");
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "first",
+                ],
+                { cwd: repo },
+            );
+            await run("git", ["worktree", "add", "-q", "--detach", fresh], { cwd: repo });
+
+            assert.deepEqual(
+                (await worktreesOf(repo)).map((choice) => choice.name),
+                ["main", "fresh-clone"],
+            );
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+
+    void it("lists a worktree whose folder holds a newline", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-newline-"));
+
+        try {
+            const repo = join(at, "repo");
+            const odd = join(at, "with\nbreak");
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "first",
+                ],
+                { cwd: repo },
+            );
+            await run("git", ["worktree", "add", "-q", "-b", "odd", odd], { cwd: repo });
+
+            // The path is one line of git's own output unless it is read as NUL-terminated.
+            assert.deepEqual(
+                (await worktreesOf(repo)).map((choice) => [choice.name, choice.path]),
+                [
+                    ["main", await realpath(repo)],
+                    ["odd", await realpath(odd)],
+                ],
+            );
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+
+    void it("starts in the worktree's matching folder only while it is a folder", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-file-"));
+
+        try {
+            const repo = join(at, "repo");
+            const data = join(at, "data");
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await mkdir(join(repo, "src"));
+            await writeFile(join(repo, "src", "file"), "first\n");
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "add",
+                    "src",
+                ],
+                { cwd: repo },
+            );
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "first",
+                ],
+                { cwd: repo },
+            );
+
+            const made = await makeWorktree(data, repo, "ours");
+
+            // The branch is free to replace the folder with a file: as a session's folder it is no use.
+            await rm(join(made.worktree, "src"), { recursive: true, force: true });
+            await writeFile(join(made.worktree, "src"), "not a folder\n");
+
+            assert.deepEqual(
+                (await worktreesOf(join(repo, "src"))).map((choice) => [choice.name, choice.path]),
+                [
+                    ["main", join(await realpath(repo), "src")],
+                    ["ours", await realpath(made.worktree)],
+                ],
+            );
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+
+    void it("leaves a bare repository out and keeps main on the main checkout", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-bare-"));
+
+        try {
+            const repo = join(at, "repo");
+            const outer = join(at, "outer");
+            // Inside another repository's root: the folder around it is no checkout of this one.
+            const bare = join(outer, "bare.git");
+            const linked = join(outer, "outside");
+            const git = (cwd: string, args: string[]) =>
+                run(
+                    "git",
+                    [
+                        "-c",
+                        "user.name=t",
+                        "-c",
+                        "user.email=t@t",
+                        "-c",
+                        "commit.gpgsign=false",
+                        ...args,
+                    ],
+                    { cwd },
+                );
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
+            await run("git", ["init", "-q", "-b", "main", outer]);
+            await git(outer, ["commit", "-q", "--allow-empty", "-m", "outer"]);
+            await run("git", ["clone", "-q", "--bare", repo, bare]);
+            await git(bare, ["worktree", "add", "-q", "-b", "choice", linked]);
+
+            // The bare repository is git's first record, and it has no checkout to start a session in.
+            assert.deepEqual(
+                (await worktreesOf(linked)).map((choice) => [choice.name, choice.main]),
+                [["choice", false]],
+            );
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+
+    void it("leaves out a worktree whose folder is gone", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-pruned-"));
+
+        try {
+            const repo = join(at, "repo");
+            const data = join(at, "data");
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "first",
+                ],
+                { cwd: repo },
+            );
+
+            const made = await makeWorktree(data, repo, "gone");
+
+            await rm(made.worktree, { recursive: true, force: true });
+
+            assert.deepEqual(
+                (await worktreesOf(repo)).map((choice) => choice.name),
+                ["main"],
+            );
+            assert.deepEqual(await worktreesOf(at), [], "and nothing for a folder outside git");
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
+    });
+});
+
+void describe("git-worktree worktreesAmong", () => {
+    void it("names the linked worktrees, and not the main checkout or a plain folder", async () => {
+        const at = await mkdtemp(join(tmpdir(), "git-worktree-among-"));
+
+        try {
+            const repo = join(at, "repo");
+            const data = join(at, "data");
+            const theirs = join(at, "theirs");
+            const plain = join(at, "plain");
+
+            await run("git", ["init", "-q", "-b", "main", repo]);
+            await run(
+                "git",
+                [
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "first",
+                ],
+                { cwd: repo },
+            );
+            await mkdir(plain);
+
+            const ours = await makeWorktree(data, repo, "ours");
+
+            await mkdir(theirs);
+            await run("git", ["worktree", "add", "-q", "-b", "theirs", theirs], { cwd: repo });
+
+            assert.deepEqual(
+                await worktreesAmong([repo, plain, ours.worktree, theirs, join(at, "gone")]),
+                [ours.worktree, theirs],
+            );
+        } finally {
+            await rm(at, { recursive: true, force: true });
+        }
     });
 });
 

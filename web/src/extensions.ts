@@ -149,8 +149,12 @@ function isNewSessionItem(value: unknown): value is NewSessionItem {
     }
 
     const blocked: unknown = Reflect.get(value, "blocked");
+    const omit: unknown = Reflect.get(value, "omit");
 
-    return blocked === undefined || typeof blocked === "function";
+    return (
+        (blocked === undefined || typeof blocked === "function") &&
+        (omit === undefined || typeof omit === "function")
+    );
 }
 
 function isSessionMenuItem(value: unknown): value is SessionMenuItem {

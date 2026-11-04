@@ -7,12 +7,12 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError } from "../../server/sdk.ts";
-import type { MadeWorktree } from "./refs.ts";
+import type { MadeWorktree, WorktreeChoice } from "./refs.ts";
 import { mainOfRemembered, readRemembered, rememberWorktree } from "./remembered.ts";
 
 const run = promisify(execFile);
@@ -103,7 +103,7 @@ export function worktreeOf(dataDir: string, cwd: string): Worktree | null {
 export async function linkedWorktreeOf(
     cwd: string,
 ): Promise<{ name: string; folder: string } | null> {
-    if ((await mainCheckoutOf(cwd)) === undefined) {
+    if (!(await isLinkedWorktree(cwd))) {
         return null;
     }
 
@@ -112,17 +112,128 @@ export async function linkedWorktreeOf(
     return top === "" ? null : { name: basename(top), folder: top };
 }
 
-/**
- * The main checkout of the repository a linked worktree belongs to: undefined for the main
- * checkout itself, for a folder of no repository, and for a folder that is not a worktree.
- */
-export async function mainCheckoutOf(cwd: string): Promise<string | undefined> {
+/** `cwd`'s own git dir and the one every worktree of its repository shares. */
+async function gitDirsOf(cwd: string): Promise<{ gitDir: string; common: string }> {
     const [gitDir, common] = await Promise.all([
         out(cwd, ["rev-parse", "--path-format=absolute", "--git-dir"]),
         out(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]),
     ]);
 
-    return gitDir === "" || common === "" || gitDir === common ? undefined : dirname(common);
+    return { gitDir, common };
+}
+
+/**
+ * Whether `cwd` is a linked worktree of a repository, whatever that repository has: a bare one has no
+ * checkout, and the worktree is still a worktree.
+ */
+async function isLinkedWorktree(cwd: string): Promise<boolean> {
+    const { gitDir, common } = await gitDirsOf(cwd);
+
+    return gitDir !== "" && common !== "" && gitDir !== common;
+}
+
+/**
+ * The main checkout of the repository a linked worktree belongs to: undefined for the main
+ * checkout itself, for a folder of no repository, for a folder that is not a worktree, and for a
+ * repository that is bare — its worktrees stand under nobody.
+ */
+export async function mainCheckoutOf(cwd: string): Promise<string | undefined> {
+    const { gitDir, common } = await gitDirsOf(cwd);
+
+    if (gitDir === "" || common === "" || gitDir === common) {
+        return undefined;
+    }
+
+    // A bare repository has no checkout of its own: the folder beside its git dir is no main checkout,
+    // even when it is a repository of its own.
+    return (await out(common, ["rev-parse", "--is-bare-repository"])) === "true"
+        ? undefined
+        : dirname(common);
+}
+
+/**
+ * The worktrees of the repository `cwd` is in, the main checkout first: where a session could start
+ * instead of `cwd`. Nothing for a folder of no repository, and nothing for a worktree whose folder is
+ * gone: there is nowhere to start.
+ */
+export async function worktreesOf(cwd: string): Promise<WorktreeChoice[]> {
+    const [listing, top, prefix] = await Promise.all([
+        // NUL-terminated lines: a folder's name may hold a newline, and git has no other way to say it.
+        out(cwd, ["worktree", "list", "--porcelain", "-z"]),
+        out(cwd, ["rev-parse", "--show-toplevel"]),
+        out(cwd, ["rev-parse", "--show-prefix"]),
+    ]);
+
+    if (listing === "") {
+        return [];
+    }
+
+    const choices: WorktreeChoice[] = [];
+
+    // git names the main checkout first, then every linked worktree, an empty NUL apart.
+    for (const [at, block] of listing.split("\0\0").entries()) {
+        const lines = block.split("\0");
+        const where = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
+        const branch = lines.find((line) => line.startsWith("branch refs/heads/"));
+
+        // `prunable` is a worktree whose folder is gone, and `bare` a repository with no checkout: there
+        // is nowhere to start in either, and the first record is the main checkout whether or not it is one.
+        if (
+            where === undefined ||
+            lines.includes("prunable") ||
+            lines.includes("bare") ||
+            !isFolder(where)
+        ) {
+            continue;
+        }
+
+        const inside = prefix === "" ? where : resolve(where, prefix);
+
+        choices.push({
+            name:
+                branch === undefined ? basename(where) : branch.slice("branch refs/heads/".length),
+            // A worktree may hold a file where the picked folder is a folder: the worktree itself then.
+            path: isFolder(inside) ? inside : where,
+            main: at === 0,
+            current: where === top,
+        });
+    }
+
+    return choices;
+}
+
+/**
+ * The folders among `folders` that are a linked worktree of another checkout: what the folder picker
+ * leaves out of its lists, so the main checkout is the folder to pick.
+ */
+export async function worktreesAmong(folders: readonly string[]): Promise<string[]> {
+    const linked = await Promise.all(
+        folders.map(
+            async (folder) =>
+                // Only a linked worktree has `.git` as a file: the one cheap test that keeps git out of a listing.
+                hasGitFile(folder) && (await mainCheckoutOf(folder)) !== undefined,
+        ),
+    );
+
+    return folders.filter((_, at) => linked[at] === true);
+}
+
+/** A worktree's `.git` is a file naming the repository's own git folder; a checkout's is a folder. */
+function hasGitFile(folder: string): boolean {
+    try {
+        return statSync(join(folder, ".git")).isFile();
+    } catch {
+        return false;
+    }
+}
+
+/** Whether `folder` is a folder: a name git lists may be a file, or gone. */
+function isFolder(folder: string): boolean {
+    try {
+        return statSync(folder).isDirectory();
+    } catch {
+        return false;
+    }
 }
 
 /**

@@ -65,6 +65,13 @@ export type NewSessionItem = {
     /** Why Open cannot go ahead with this, said in place of nothing; null when it can. */
     blocked?: ((collected: NewSessionCollected | null) => string | null) | undefined;
     /**
+     * The folders among these that the picker leaves out of its lists, favourites, recents and the
+     * folder being browsed alike: a worktree, say, whose main checkout is the folder to pick instead.
+     * Called with a list's folders when that list changes, never while the picker renders; a failure
+     * leaves the folders as they are.
+     */
+    omit?: ((folders: readonly string[]) => Promise<readonly string[]>) | undefined;
+    /**
      * Runs on Open, for an option that collected something: the folder the session starts in, given the
      * one picked so far. A throw keeps the picker open and says why.
      */

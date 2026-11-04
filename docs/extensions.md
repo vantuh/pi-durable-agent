@@ -296,9 +296,10 @@ on the icon, and keeps every session that carries at least one chosen tag.
 
 ### Options in the new-session picker
 
-`web.tsx` may export `newSession: [{ id, component, blocked, place }]`. Each option is drawn in
-the folder picker's footer, under the "Show hidden" row, and the component draws the whole option:
-`extensions/git-worktree` draws a checkbox and a name field. Its props are `{ cwd, use, refused }`:
+`web.tsx` may export `newSession: [{ id, component, blocked, omit, place }]`. Each option is drawn in
+the folder picker's footer, beside the core's own rows, and the component draws the whole option:
+`extensions/git-worktree` draws a menu of the repository's worktrees, a checkbox and a name field.
+Its props are `{ cwd, use, refused }`:
 `cwd` is the folder picked so far, `use(values)` says what the option collected, from an effect
 rather than while rendering, and `null` means "the folder as picked". Core keeps those values as
 plain JSON and does nothing else with them.
@@ -310,6 +311,13 @@ which the option says next to its own field: no caption is drawn for it. A failu
 held, so a refusal worth another try can be retried; changing the option's values clears it.
 `extensions/git-worktree` makes the worktree there, so the session starts in it without the core
 knowing what a worktree is (see [Git worktrees](#git-worktrees)).
+
+`omit(folders)` answers which of those folders the picker leaves out of its lists — favourites,
+recents and the folder being browsed alike — so an option can keep a folder it already offers from
+being offered twice. It is called once with the folders of a list whenever that list changes, never
+while the picker renders, and a throw leaves the folders as they are; the stored favourites are not
+touched, only the rows drawn from them. `extensions/git-worktree` leaves out the worktrees, whose
+repository's checkout is the folder to pick.
 
 ### Keys for a shell command
 
@@ -364,7 +372,7 @@ setCommandKeys("session.new", null); // the command shows no key again
 | `notifySessionChanged`  | `(session) => void`: says that something about the session changed which its own commits do not show, such as a conversation this extension started for it. Within 250 ms the server sends that session's `live` event again with a new `revision`, and a web component reads it as `session.revision` in `StatusProps`. Many calls in the window make one event                                                                                                                                                                                                                                                                                                             |
 | `notify`                | `(notice: { level: "success" \| "error", message, session?, description? }) => void`: a toast in every open browser tab. With `session` it is that session's own toast, top right for six seconds, and it rides the session list stream, which every tab holds whether or not it shows a session: `message` is the session's title, `description` the line under it, a click opens the session, and a tab already showing that session stays silent, since its transcript shows what happened. Without `session` it is the plain notice the loader sends, in the bottom centre, on the conversation streams a tab showing a session holds. A throw is the caller's to handle |
 | `registerModelProvider` | `(provider: Provider) => () => void`: puts a pi-ai provider in the catalog and in front of the model picker, and returns how to take it out. The registration goes with this extension version                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `folderGroup`           | `(resolve: (cwd) => Promise<string \| undefined>) => void`: says which folder a session's folder is shown under in the sidebar's folder menu, such as the repository a worktree belongs to; undefined leaves it a folder of its own, and a throw counts the same. The first answer in folder order wins. It goes with this extension version, and the list is sent again when it changes                                                                                                                                                                                                                                                                                     |
+| `folderGroup`           | `(resolve: (cwd) => Promise<string \| undefined>) => void`: says which folder a session's folder is shown under in the sidebar's folder menu and in the new session picker, such as the repository a worktree belongs to; undefined leaves it a folder of its own, and a throw counts the same. The first answer in folder order wins. It goes with this extension version, and the list is sent again when it changes                                                                                                                                                                                                                                                       |
 
 For `sessionRequest.send`, omitted `reasoning` inherits the session's thinking level; `"off"`
 explicitly disables thinking for that request.
@@ -1016,10 +1024,13 @@ model keeps all its tools as well; `modelTools` is not set.
 
 ## Git worktrees
 
-`extensions/git-worktree` puts a `New worktree` checkbox in the folder picker, with a name field
-beside it. Open then makes a worktree of the picked folder's repository
-and starts the session **in** it, so two sessions can work on the same repository without stepping
-on each other's files.
+`extensions/git-worktree` puts a menu of the repository's worktrees in the folder picker, and a
+`New worktree` checkbox with a name field beside it. The menu offers the folder as picked — the
+main checkout, usually — and every worktree the repository already has, made by this server or by
+hand; the two are one answer, so ticking the box puts the folder back and picking a worktree unticks
+it. The choice belongs to the folder it was made for: browsing anywhere else, and opening the picker
+again, starts from the picked folder. Open then starts the session **in** the worktree chosen, or
+in a new one, so two sessions can work on the same repository without stepping on each other's files.
 
 - **Where it starts from:** the tip of the branch the folder is on, so local commits that were
   never pushed come with it. Uncommitted changes and new files do not: a worktree is a clean place
@@ -1030,8 +1041,15 @@ on each other's files.
 - **The name** is slugified (lowercase, letters, digits, `.`, `_`, `-`, at most 40 characters) and
   is both the folder's name and the new branch's. A name that is a branch already, or a folder that
   is there already, refuses with a message under the picker.
+- **The menu** lists checkouts, not folders: `git worktree list` of the picked folder's repository,
+  the checkout the folder is in marked as the one picked, and a worktree whose folder is gone — or
+  that is no checkout at all, as a bare repository is — left out. Its first item is the folder as
+  picked, named `Main checkout` when that is the repository's own, so a folder inside a linked
+  worktree is offered under the worktree's own name. A worktree may hold a file where the picked
+  folder is a folder, and then the menu offers the worktree itself, not that name inside it. The
+  menu is cut to the screen, so a long branch name is truncated instead of widening it.
 - **The session folder keeps its place:** picking `packages/app` of a repository starts the session
-  in `packages/app` of the worktree.
+  in `packages/app` of the worktree, whether it was made here or elsewhere.
 - Refused: a folder in no repository, and a repository with no commit yet. The worktree's branch
   stays after the session is deleted, with whatever was committed on it; nothing removes it yet.
 - **Beside the branch badge**, `extensions/git-worktree` shows the worktree the session is in: its
@@ -1043,9 +1061,15 @@ on each other's files.
   nothing is removed. A worktree someone made elsewhere is shown the same way, without the ×.
 - **In the sidebar,** a worktree's sessions appear under their repository's folder in the folder
   menu, read through `folderGroup` and `mainCheckoutOf`; the answer is kept per folder until the
-  extension reloads. A worktree this server made is remembered in `git-worktree.json` under the
+  extension reloads, and a repository with no checkout of its own — a bare one — is nobody's. A worktree this server made is remembered in `git-worktree.json` under the
   data folder as it is made, so its sessions stay under the repository after the worktree is gone
   and git has forgotten it. Turning `git-worktree` off makes them folders of their own again.
+- **The folder picker** reads that same answer, the `under` of a session row: a session working in a
+  worktree opens the picker at the repository's own checkout, and the `Recent` list keeps the
+  repository rather than the worktree. The worktrees themselves are left out of the picker's lists
+  through the option's `omit`, answered by the `linked` action: a folder whose `.git` is a file is
+  the cheap test for a linked worktree, and `mainCheckoutOf` confirms it before the row is hidden.
+  The menu is the `worktrees` action, git's own list of checkouts.
 - **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
   the folder it was created in, the transcript stays readable, and the stream keeps working. What
   ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting

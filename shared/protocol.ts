@@ -213,8 +213,8 @@ export type SessionSummary = {
      */
     mark?: string;
     /**
-     * The folder this row's folder is shown under in the sidebar's folder menu, when an extension
-     * says it is one of that folder's worktrees; absent for a folder of its own.
+     * The folder this row's folder is shown under in the sidebar's folder menu, and the folder the new
+     * session picker starts from; absent for a folder of its own.
      */
     under?: string;
     /** When the session's newest run started, or when it was created; null while unknown. */

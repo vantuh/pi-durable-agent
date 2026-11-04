@@ -4,12 +4,21 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
-import type { MadeWorktree } from "./refs.ts";
-import { groupOf, linkedWorktreeOf, makeWorktree, removeWorktree, worktreeOf } from "./worktree.ts";
+import type { MadeWorktree, WorktreeChoice } from "./refs.ts";
+import {
+    groupOf,
+    linkedWorktreeOf,
+    makeWorktree,
+    removeWorktree,
+    worktreeOf,
+    worktreesAmong,
+    worktreesOf,
+} from "./worktree.ts";
 
 export const meta = {
     title: "Git worktree",
-    description: "Starts a new session in a git worktree of its own, named in the folder picker.",
+    description:
+        "Starts a new session in a git worktree of its own, named in the folder picker, or in one the repository already has.",
 };
 
 export default function gitWorktree(host: Host) {
@@ -38,9 +47,25 @@ function text(args: unknown, key: string): string {
     return value;
 }
 
+function foldersOf(args: unknown): string[] {
+    const value: unknown = recordOf(args)?.["folders"];
+
+    if (!Array.isArray(value) || value.some((entry: unknown) => typeof entry !== "string")) {
+        throw new ActionError("`folders` must be a list of folders.");
+    }
+
+    return value;
+}
+
 export const actions = (host: Host): Record<string, Action> => ({
     make({ args }): Promise<MadeWorktree> {
         return makeWorktree(host.dataDir, text(args, "cwd"), text(args, "name"));
+    },
+    worktrees({ args }): Promise<WorktreeChoice[]> {
+        return worktreesOf(text(args, "cwd"));
+    },
+    linked({ args }): Promise<string[]> {
+        return worktreesAmong(foldersOf(args));
     },
     async state({ args }) {
         const cwd = text(args, "cwd");
