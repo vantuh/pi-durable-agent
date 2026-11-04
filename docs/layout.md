@@ -167,8 +167,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 - **Composer**: `sunken` card, textarea grows with its content from 2 to 10 lines (including wrapped
   lines), then scrolls internally. Native CSS `field-sizing: content` also shrinks it when text is
   removed or sent. `Enter` sends, `Shift+Enter` breaks the line. A command typed in the box
-  (`/compact`, `/new`) is run instead of sent and never enters the transcript: `/new` opens a new
-  session in the folder this one works in. `/` opens a list of the commands and the session's skills,
+  (`/compact`, `/new`, `/model`) is run instead of sent and never enters the transcript: `/new` opens a new
+  session in the folder this one works in, `/model` opens the model menu. `/` opens a list of the commands and the session's skills,
   narrowed as you type, walked with the arrows and taken with `Enter` or `Tab`; a picked command or
   skill is inserted and the list closes. While a run is
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:

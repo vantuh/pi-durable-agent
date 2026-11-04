@@ -59,6 +59,7 @@ const HISTORY_MAX = 100;
 /** What the composer runs itself instead of saying something; the same names `submit` matches on. */
 const COMMANDS: { name: string; description: string; takesArgs: boolean }[] = [
     { name: "new", description: "Open a new session in this folder", takesArgs: false },
+    { name: "model", description: "Choose the model for this session", takesArgs: false },
     { name: "compact", description: "Summarize the earlier messages", takesArgs: true },
 ];
 
@@ -439,6 +440,15 @@ export const Composer = memo(function Composer({
             browse.current = null;
             setText("");
             onNewSession();
+
+            return;
+        }
+
+        if (name === "model" && args === "" && paths.length === 0) {
+            setComposerDraft(sessionId, "");
+            clearComposerQuotes(sessionId);
+            browse.current = null;
+            onToggleMenu();
 
             return;
         }
