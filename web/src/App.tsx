@@ -101,11 +101,9 @@ export function App() {
         setOpen: setPanelOpen,
         forget: forgetPanel,
     } = useOpenPanel(current);
-    // A panel may fill the conversation instead of the drawer; it is the panel's own choice, dropped when
-    // the panel closes.
-    const [expanded, setExpanded] = useState<{ session: number | null; panel: string } | null>(
-        null,
-    );
+    // A panel may fill the conversation instead of the drawer; it is the visit's choice, so another tab
+    // opens the same way and only closing the panel or leaving the session drops it.
+    const [expanded, setExpanded] = useState<{ session: number | null } | null>(null);
 
     // A session change starts in the drawer, even one coming back to a session that was expanded: an open
     // panel is remembered per session, so the mode must not outlive the visit that asked for it. Adjusted
@@ -198,8 +196,7 @@ export function App() {
         panelOpen &&
         !pageOpen && // a page reached by browser Back while the panel was open is not made inert by it
         expanded !== null &&
-        expanded.session === current &&
-        expanded.panel === panelShown;
+        expanded.session === current;
     // Closing the panel drops the mode with it, so reopening it comes back to the drawer.
     const closePanel = useCallback(() => {
         setPanelOpen(null);
@@ -207,11 +204,9 @@ export function App() {
     }, [setPanelOpen]);
     const setPanelExpanded = useCallback(
         (value: boolean) => {
-            setExpanded(
-                value && panelShown !== null ? { session: current, panel: panelShown } : null,
-            );
+            setExpanded(value ? { session: current } : null);
         },
-        [current, panelShown],
+        [current],
     );
 
     // The address may name a page no folder answers — turned off, or a typo. Once the folders are in,
