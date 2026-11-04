@@ -1037,7 +1037,7 @@ export const Sessions = memo(function Sessions({
                             variant="ghost"
                             size="icon"
                             asChild
-                            className={`-my-1 -ml-1 size-8 shrink-0 lg:group-data-[collapsed]/side:hidden ${current === null ? "bg-raised" : ""}`}
+                            className="relative -my-1 -ml-1 size-8 shrink-0 lg:group-data-[collapsed]/side:hidden"
                         >
                             <a
                                 href={sessionHref(null)}
@@ -1051,6 +1051,12 @@ export const Sessions = memo(function Sessions({
                                 aria-current={current === null ? "page" : undefined}
                             >
                                 <img src="/favicon.png" alt="" className="size-6" />
+                                {current === null ? (
+                                    <span
+                                        aria-hidden
+                                        className="bg-accent absolute inset-x-0 bottom-0 h-0.5"
+                                    />
+                                ) : null}
                             </a>
                         </Button>
                     </Hint>
