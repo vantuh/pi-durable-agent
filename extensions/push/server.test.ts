@@ -374,7 +374,7 @@ void describe("push", () => {
     });
 
     void describe("listener", () => {
-        const wire = (using: PushStore = store) => {
+        const wire = (using: PushStore = store, seen = false) => {
             const listeners: CommitListener[] = [];
             const disposers: (() => void | Promise<void>)[] = [];
             const host: Host = {
@@ -393,6 +393,7 @@ void describe("push", () => {
                 sessionTitle: () => Promise.resolve(null),
                 sessionName: () => Promise.resolve(null),
                 sessionOwner: () => Promise.resolve(undefined),
+                sessionSeen: () => Promise.resolve(seen),
                 setSessionTitle: () => Promise.resolve(),
                 readDoc: (doc) => Promise.resolve(doc.definition.initial()),
                 setSessionMark: () => undefined,
@@ -403,11 +404,16 @@ void describe("push", () => {
             };
             const sends: string[] = [];
 
-            listen(host, using, (_device, payload) => {
-                sends.push(payload);
+            listen(
+                host,
+                using,
+                (_device, payload) => {
+                    sends.push(payload);
 
-                return Promise.resolve(201);
-            });
+                    return Promise.resolve(201);
+                },
+                0,
+            );
 
             const commit = async (entries: unknown[], busy: boolean) => {
                 // Test data: ids are plain numbers here, branded in the real harness.
@@ -459,6 +465,17 @@ void describe("push", () => {
                 false,
             );
             assert.equal(sends.length, 1);
+        });
+
+        void it("sends nothing for a turn a browser saw end", async () => {
+            await ready();
+            await call("subscribe", { subscription: device() });
+
+            const { sends, commit } = wire(store, true);
+
+            await commit(entries(["pi.user"]), true);
+            await commit(entries(["pi.user"], ["pi.assistant", "stop"]), false);
+            assert.equal(sends.length, 0);
         });
 
         void it("sends for a turn that ended while the extension reloaded, once", async () => {

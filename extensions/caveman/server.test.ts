@@ -57,6 +57,7 @@ function hostOf(dir: string, wiring: Wiring): Host {
 
             return Promise.resolve(wiring.owners.get(session));
         },
+        sessionSeen: () => Promise.resolve(false),
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,

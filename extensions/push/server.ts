@@ -87,7 +87,18 @@ export function pushActions(store: PushStore): Record<string, Action> {
 export const actions = (host: Host): Record<string, Action> =>
     pushActions(new PushStore(host.dataDir));
 
-export function listen(host: Host, store: PushStore, transport: Transport): void {
+/**
+ * How long a finished turn waits for a browser to say it was seen. A browser on that session, visible
+ * and focused, says so within a moment of the end, so a device in use is not pinged about it.
+ */
+const SEEN_WAIT_MS = 5000;
+
+export function listen(
+    host: Host,
+    store: PushStore,
+    transport: Transport,
+    seenWaitMs = SEEN_WAIT_MS,
+): void {
     const completions = new Completions();
     let live = true;
     let queue: Promise<void> = Promise.resolve();
@@ -131,12 +142,19 @@ export function listen(host: Host, store: PushStore, transport: Transport): void
         if (done > 0) {
             const { id, cwd } = view.session;
 
-            void host
-                .sessionTitle(id)
-                .then((title) => notifyAll(store, transport, finishedPayload(id, title, cwd)))
-                .catch(() => {
-                    host.log("push: a notification could not be sent");
-                });
+            void (async () => {
+                await new Promise((resolve) => setTimeout(resolve, seenWaitMs));
+
+                if (await host.sessionSeen(id)) {
+                    return;
+                }
+
+                const title = await host.sessionTitle(id);
+
+                await notifyAll(store, transport, finishedPayload(id, title, cwd));
+            })().catch(() => {
+                host.log("push: a notification could not be sent");
+            });
         }
     };
 

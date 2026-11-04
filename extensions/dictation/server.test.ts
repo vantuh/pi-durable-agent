@@ -59,6 +59,7 @@ function hostOf(dataDir: string, disposed: Disposal[]): Host {
         sessionTitle: () => Promise.resolve(null),
         sessionName: () => Promise.resolve(null),
         sessionOwner: () => Promise.resolve(undefined),
+        sessionSeen: () => Promise.resolve(false),
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,

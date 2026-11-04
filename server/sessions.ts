@@ -251,6 +251,15 @@ export class Sessions {
         }, this.#context);
     }
 
+    /** Whether the session was seen after its latest run ended. */
+    async seenSinceEnd(id: ConversationId): Promise<boolean> {
+        return await this.#harness.commit(async (tx) => {
+            const attention = await tx.doc(AttentionDoc, id);
+
+            return attention.seenAt >= attention.endedAt;
+        }, this.#context);
+    }
+
     async setArchived(id: ConversationId, archived: boolean): Promise<void> {
         await this.#harness.commit(async (tx) => {
             (await tx.doc(ArchiveDoc, id)).archived = archived;

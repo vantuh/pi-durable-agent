@@ -14,6 +14,9 @@ worker facet ([extensions.md](extensions.md)).
   commit is judged inside the serialised change to that file, from the saved point, which wins over
   the memory of any version. So a snapshot that arrives again, or after a restart or a reload,
   sends a turn that ended in the gap, and two overlapping versions never both send it.
+- A finished turn waits 5 seconds, then sends only if nobody saw it end: a browser that shows the
+  session, visible and focused, marks it seen (`host.sessionSeen`), so working at the computer keeps
+  the phone quiet.
 - With no device subscribed, only an in-memory baseline moves; nothing is written.
 - A conversation with no settled point only sets a baseline, so old history never sends.
 - A version that is turned off before it saves claims nothing, and the next version sends the turn.

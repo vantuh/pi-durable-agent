@@ -217,6 +217,7 @@ function hostOf(options: {
         sessionTitle: () => Promise.resolve(name),
         sessionName: () => Promise.resolve(name),
         sessionOwner: () => Promise.resolve(undefined),
+        sessionSeen: () => Promise.resolve(false),
         setSessionTitle: (_session, title) => {
             names.push(title);
             name = title;
