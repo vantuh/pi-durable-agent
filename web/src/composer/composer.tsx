@@ -214,7 +214,12 @@ export const Composer = memo(function Composer({
         field.current?.focus({ preventScroll: true });
     }, []);
     useEffect(
-        () => subscribeComposerFocus(() => field.current?.focus({ preventScroll: true })),
+        () =>
+            subscribeComposerFocus(() => {
+                field.current?.focus({ preventScroll: true });
+
+                return field.current !== null && document.activeElement === field.current;
+            }),
         [],
     );
     const sentListeners = useRef(new Set<() => void>());
@@ -573,6 +578,7 @@ export const Composer = memo(function Composer({
                     <textarea
                         rows={2}
                         ref={field}
+                        data-slot="composer-field"
                         aria-label="Message"
                         // Opted in: the shell's keys, the session arrows among them, work while typing here.
                         data-shell-keys

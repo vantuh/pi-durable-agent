@@ -70,7 +70,7 @@ import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nes
 import { newestFirst } from "../lib/session-order.ts";
 import { toast } from "../lib/toast.ts";
 import { useShellCommand } from "../sdk/commands.ts";
-import { focusComposer } from "../sdk/composer.ts";
+import { focusComposer, restoreComposerFocus } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { CommandKeys } from "../ui/command-keys.tsx";
 import { GroupHeading } from "../ui/group-heading.tsx";
@@ -1335,6 +1335,11 @@ export const Sessions = memo(function Sessions({
                 // The search box closes itself on Escape; the sheet closes on the next one.
                 onEscapeKeyDown={(event) => {
                     if (document.activeElement === searchBox.current && searching) {
+                        event.preventDefault();
+                    }
+                }}
+                onCloseAutoFocus={(event) => {
+                    if (restoreComposerFocus("close")) {
                         event.preventDefault();
                     }
                 }}
