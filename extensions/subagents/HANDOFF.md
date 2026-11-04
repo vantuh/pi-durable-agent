@@ -328,7 +328,7 @@ the owner's app.
 - [README.md](README.md) documents current usage, profile precedence and field semantics, strict
   model/thinking validation, the four tools, context inheritance, reports and UI, stop/delete
   behavior, durable tasks/state, reload rules, checks, troubleshooting, and deliberate limits.
-- [docs/extensions.md](../../docs/extensions.md#subagents) lists this feature as implemented,
+- [docs/extensions.md](../../docs/extensions.md#extension-guides) lists this feature as implemented,
   links to the local guide, and no longer lists it among planned folders.
 - [docs/server.md](../../docs/server.md#messages-from-application-authors) describes the generic
   author convention for committed and queued messages, including separate model/display text.

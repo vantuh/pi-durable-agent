@@ -18,6 +18,10 @@ The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 | [helpers.md](helpers.md)             | Plan: one home for each repeated helper function.          |
 | [ui-rework.md](ui-rework.md)         | The flat, square look and the extensions sidebar.          |
 
+Extension-specific guides live in `extensions/<name>/README.md`; the
+[extension guide index](extensions.md#extension-guides) links to them. Shared contracts and
+architecture decisions stay here.
+
 Planned, not written yet: `agent.md` (tools, prompt, permissions).
 
 ## Ground rules

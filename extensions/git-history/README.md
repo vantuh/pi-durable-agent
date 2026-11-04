@@ -3,7 +3,7 @@
 `extensions/git-history` adds **Git history**, a page in place of the conversation: the list is its
 root and a commit is a sub-page. It has no tab in the right sidebar (`tab: false`); the header badge
 (`+added −deleted ↑ahead ↓behind` and Push, see
-[Header items](extensions.md#header-items-and-git-statistics)) is the way in, and the same folder
+[Header badge and push](#header-badge-and-push)) is the way in, and the same folder
 serves the badge's counts and push. It runs in the selected session's working folder, not a
 browser-supplied filesystem path.
 
@@ -86,6 +86,26 @@ Remote Git checks and automatic CLI updates are disabled for these processes. Ot
 features follow the user's configuration; optional AI/provider actions inside its UI are separate
 from merely opening a review and can invoke their own tools when explicitly requested.
 
+## Header badge and push
+
+`extensions/git-history` uses the [header slot](../../docs/extensions.md#header-items) for a rounded
+`+added −deleted ↑ahead ↓behind` badge. Its icon and numbers are one button with one highlight:
+it opens the history page at uncommitted changes
+(`sub=working`, whose Back leads to the list) while there are changed lines, and the list otherwise.
+
+- Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
+  untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
+  not report a separate “modified lines” count. Binary files contribute no line counts.
+- An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
+- Commit counts compare against the configured upstream as of the **last fetch**. The extension
+  does not fetch or pull automatically. Without an upstream, the counters show `?` and Push is disabled.
+- Counts refresh after agent activity, after a push, and within about 3 s of a change in the working tree (see [Git history](#how-the-badge-stays-current)); the browser's own poll is every minute.
+- Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
+  configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
+  upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
+- Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
+  beforehand. Failures are shown in the header popover and can be dismissed.
+
 ## How the badge stays current
 
 Each `stats` call leases its session for three minutes; the browser's once-a-minute call renews it. While any lease is held, the server reads each leased folder every 3 s and, when the numbers differ from the last reading, calls `host.notifySessionChanged` for the sessions of that folder, so the badge re-reads through `session.revision`. With no lease there is no Git work, and a reload stops the poller.
@@ -121,7 +141,7 @@ without an icon package. The colour is a theme role picked by family: `text-info
 `text-agent` for components, `text-warn` for JavaScript and JSON, `text-accent` for styles and
 media, `text-ok` for shells, `text-spark` for config and data, `text-ember` for markup, SQL and
 Rust. A kind of file that has no mark yet falls back to plain lines; a new one goes into
-`icons.tsx` and the subset is rebuilt:
+`icons.tsx` and the subset is rebuilt. Run from the repository root:
 
 ```bash
 uvx --with fonttools --with brotli python -c "
