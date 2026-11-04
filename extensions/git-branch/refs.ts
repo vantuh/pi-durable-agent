@@ -31,6 +31,20 @@ function branchFrom(value: unknown): Branch {
     throw new Error("a branch must be { name: string, worktree: string | null }");
 }
 
+/** What a checkout did: the branch, and the worktree folder the session moved to, or null for a switch in place. */
+export type Moved = Checkout & { worktree: string | null };
+
+function movedFrom(value: unknown): Moved {
+    const { branch: name } = checkoutFrom(value);
+    const worktree: unknown = Reflect.get(Object(value), "worktree");
+
+    if (worktree === null || typeof worktree === "string") {
+        return { branch: name, worktree };
+    }
+
+    throw new Error("the worktree must be a folder, or null");
+}
+
 /** The checkout of the session's folder, or null when it is not a git checkout. */
 export const branch = actionRef<undefined, Checkout | null>("git-branch", "branch", (value) =>
     value === null ? null : checkoutFrom(value),
@@ -50,4 +64,4 @@ export const branches = actionRef<undefined, Branch[]>("git-branch", "branches",
  * session to that worktree's folder; any other branch is switched to in the session's own folder.
  * Git's own refusal comes back as the error.
  */
-export const checkout = actionRef<Checkout, Checkout>("git-branch", "checkout", checkoutFrom);
+export const checkout = actionRef<Checkout, Moved>("git-branch", "checkout", movedFrom);

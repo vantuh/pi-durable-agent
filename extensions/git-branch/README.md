@@ -20,6 +20,8 @@ draft, so the agent hears of it with the next message. The draft is never sent f
 
 - Local branches only: no creating a branch and no remote branches.
 - A move lands on the worktree's root, not on a subfolder the session was in.
-- Refused while the session, or a session it started, is working (`host.sessionWorking`).
+- Refused while the session, or a session it started, is working (`host.sessionWorking`). The check
+  and the move are two steps: a message sent in the same instant can still start a run that the
+  move then reaches.
 - A background command the agent started keeps the folder it began in.
 - The core change (`setSessionCwd`) needs a server restart; the extension itself reloads live.

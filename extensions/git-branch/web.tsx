@@ -74,14 +74,17 @@ function Branch({ session }: StatusProps) {
     };
 
     const switchTo = async (name: string) => {
-        const worktree = names.find((each) => each.name === name)?.worktree ?? null;
-
         try {
-            setCurrent(await callAction(checkout, { branch: name }, id));
+            const done = await callAction(checkout, { branch: name }, id);
+
+            setCurrent({ branch: done.branch });
 
             // The agent still has the old folder in its head; the draft tells it, and the person sends it.
-            if (worktree !== null) {
-                appendComposerDraft(id, `Worktree changed to ${worktree} (branch ${name}).`);
+            if (done.worktree !== null) {
+                appendComposerDraft(
+                    id,
+                    `Worktree changed to ${done.worktree} (branch ${done.branch}).`,
+                );
             }
         } catch (failure) {
             toast.error(messageOf(failure));

@@ -106,8 +106,23 @@ void describe("git-branch branch action", () => {
         });
 
         void it("switches to a local branch", async () => {
-            assert.deepEqual(await call("checkout", { branch: "other" }), { branch: "other" });
+            assert.deepEqual(await call("checkout", { branch: "other" }), {
+                branch: "other",
+                worktree: null,
+            });
             assert.deepEqual(await branch(dir), { branch: "other" });
+        });
+
+        void it("lists the branches of a repository whose folder ends in a space", async () => {
+            const root = join(dir, "root ");
+
+            await mkdir(root);
+            await run("git", ["init", "-b", "spaced"], { cwd: root });
+            await commit(root);
+
+            assert.deepEqual(await call("branches", undefined, testHost(), root), [
+                { name: "spaced", worktree: null },
+            ]);
         });
 
         void it("refuses a name that is not a local branch, an option included", async () => {
@@ -155,6 +170,7 @@ void describe("git-branch branch action", () => {
 
                 assert.deepEqual(await call("checkout", { branch: "other" }, host), {
                     branch: "other",
+                    worktree: await realpath(linked),
                 });
                 const [moved] = moves;
 
@@ -162,6 +178,41 @@ void describe("git-branch branch action", () => {
                 assert.ok(moved);
                 assert.equal(await realpath(moved), await realpath(linked));
                 assert.deepEqual(await branch(dir), { branch: "topic" });
+            });
+
+            void it("keeps a worktree folder whose name has a newline", async () => {
+                const odd = join(dir, "odd\nname");
+
+                await run("git", ["worktree", "add", "-b", "odd", odd], { cwd: dir });
+
+                const found = await call("branches", undefined);
+                const entry = Array.isArray(found)
+                    ? found.find((each) => each.name === "odd")
+                    : undefined;
+
+                assert.ok(entry?.worktree);
+                assert.equal(await realpath(entry.worktree), await realpath(odd));
+            });
+
+            void it("offers no move to a worktree whose folder is gone", async () => {
+                const moves: string[] = [];
+                const host = testHost({
+                    setSessionCwd: (_session, cwd) => {
+                        moves.push(cwd);
+
+                        return Promise.resolve();
+                    },
+                });
+
+                await rm(linked, { recursive: true, force: true });
+
+                const found = await call("branches", undefined);
+
+                assert.ok(Array.isArray(found));
+                assert.equal(found.find((each) => each.name === "other")?.worktree, null);
+                // Git decides what to do with a branch it still lists; the session does not move.
+                await call("checkout", { branch: "other" }, host).catch(() => undefined);
+                assert.deepEqual(moves, []);
             });
 
             void it("switches in place for a branch that no other worktree has", async () => {
