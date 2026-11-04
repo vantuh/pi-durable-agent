@@ -7,16 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
-import type { StatusProps, WebExtension } from "@/sdk/types.ts";
+import type { HeaderItemProps } from "@/sdk/types.ts";
 
 import { messageOf } from "../../shared/guards.ts";
-import { push, stats, type GitStats } from "./refs.ts";
+import { HISTORY_PAGE, push, stats, WORKING, type GitStats } from "./refs.ts";
 
-// The numbers change when the agent works (the effect below re-reads on that), so a slow poll is enough, and a hidden
-// tab, which a phone keeps for hours, is not worth waking the radio for.
+// The server watches the working tree and bumps `session.revision` on a change (the effect below re-reads on that), so
+// this slow poll is only the heartbeat that keeps the server watching, and a hidden tab, which a phone keeps for
+// hours, is not worth waking the radio for.
 const POLL_MS = 60_000;
 
-function GitBadge({ session }: StatusProps) {
+function GitBadge({ session, openPage }: HeaderItemProps) {
     const id = session?.id ?? null;
     const busy = session?.busy ?? false;
     const [data, setData] = useState<{ id: number; stats: GitStats } | null>(null);
@@ -64,15 +65,20 @@ function GitBadge({ session }: StatusProps) {
             clearTimeout(timer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- refresh on agent activity and after a push, in addition to polling
-    }, [id, busy, refresh]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- refresh on agent activity, a server-side change and after a push, in addition to polling
+    }, [id, busy, refresh, session?.revision]);
 
     if (id === null || data?.id !== id) {
         return null;
     }
     const value = data.stats;
     const canPush = value.upstream !== null && value.ahead > 0 && value.behind === 0;
-    const description = `${String(value.added)} added, ${String(value.deleted)} deleted lines (staged, unstaged and untracked; binary files excluded). ${value.upstream === null ? "No upstream configured." : `${String(value.ahead)} unpushed, ${String(value.behind)} incoming commits vs ${value.upstream} (last fetch).`}`;
+    const changesLabel = `${String(value.added)} added, ${String(value.deleted)} deleted lines`;
+    const commitsLabel =
+        value.upstream === null
+            ? "No upstream configured"
+            : `${String(value.ahead)} unpushed, ${String(value.behind)} incoming commits vs ${value.upstream}`;
+    const description = `${changesLabel} (staged, unstaged and untracked; binary files excluded). ${commitsLabel} (last fetch).`;
 
     async function doPush() {
         if (id === null) {
@@ -111,15 +117,39 @@ function GitBadge({ session }: StatusProps) {
                 setConfirm(true);
             }}
         >
-            <Badge
-                title={description}
-                aria-label={description}
-                className="bg-panel h-7 gap-2 tabular-nums [&>svg]:size-3.5"
-            >
-                <GitCompareArrows className="hidden size-3.5 sm:block" />
-                <span className="text-ok">+{value.added}</span>
-                <span className="text-danger">−{value.deleted}</span>
-                <span className="border-edge flex items-center gap-1 border-l pl-2">
+            <Badge title={description} className="bg-panel h-7 gap-2 tabular-nums [&>svg]:size-3.5">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Git history"
+                    className="-mx-1 hidden h-5 px-1 py-0 sm:inline-flex"
+                    onClick={() => {
+                        openPage(HISTORY_PAGE);
+                    }}
+                >
+                    <GitCompareArrows className="size-3.5" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Uncommitted changes: ${changesLabel}`}
+                    className="-mx-1 h-5 gap-2 px-1 py-0"
+                    onClick={() => {
+                        openPage(HISTORY_PAGE, WORKING);
+                    }}
+                >
+                    <span className="text-ok">+{value.added}</span>
+                    <span className="text-danger">−{value.deleted}</span>
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Git history: ${commitsLabel}`}
+                    className="border-edge -mx-1 h-5 gap-1 border-l px-1 py-0 pl-2"
+                    onClick={() => {
+                        openPage(HISTORY_PAGE);
+                    }}
+                >
                     <span
                         className={`flex items-center gap-1 ${value.ahead > 0 ? "text-warn" : ""}`}
                     >
@@ -132,7 +162,7 @@ function GitBadge({ session }: StatusProps) {
                         <ArrowDown className="size-3" />
                         {value.upstream === null ? "?" : value.behind}
                     </span>
-                </span>
+                </Button>
                 <Hint
                     label={
                         canPush
@@ -146,7 +176,7 @@ function GitBadge({ session }: StatusProps) {
                             size="sm"
                             aria-label="Push commits"
                             aria-disabled={!canPush || pushing}
-                            className="border-edge text-accent hover:text-accent -mr-1 h-5 gap-1 rounded-full border px-1.5 aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
+                            className="border-edge text-accent hover:text-accent -mr-1 h-5 gap-1 border px-1.5 aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
                         >
                             {pushing ? (
                                 <LoaderCircle className="size-3 animate-spin" />
@@ -188,7 +218,7 @@ function GitBadge({ session }: StatusProps) {
                 </div>
                 {confirm ? (
                     <Button
-                        className="mt-3 rounded-full"
+                        className="mt-3"
                         onClick={() => {
                             void doPush();
                         }}
@@ -202,8 +232,6 @@ function GitBadge({ session }: StatusProps) {
 }
 
 // Reset local state when switching conversations, including an open confirmation/error.
-function Item({ session }: StatusProps) {
-    return <GitBadge key={session?.id ?? "none"} session={session} />;
+export function GitStatsItem({ session, openPage }: HeaderItemProps) {
+    return <GitBadge key={session?.id ?? "none"} session={session} openPage={openPage} />;
 }
-
-export default { header: [{ id: "stats", component: Item }] } satisfies WebExtension;

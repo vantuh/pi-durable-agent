@@ -177,9 +177,7 @@ function Tree({ id, onOpen }: { id: number; onOpen: (path: string) => void }) {
                     </Button>
                 </Hint>
             </Toolbar>
-            {error === null ? null : (
-                <Alert className="text-interface rounded-none p-3">{error}</Alert>
-            )}
+            {error === null ? null : <Alert className="text-interface p-3">{error}</Alert>}
             <ScrollArea className="min-h-0 flex-1">
                 <div className="text-interface p-1 font-mono">{rows("", 0)}</div>
             </ScrollArea>

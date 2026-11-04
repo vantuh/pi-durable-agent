@@ -1,8 +1,6 @@
 import {
     ArrowLeft,
     ArrowRight,
-    Maximize2,
-    Minimize2,
     Monitor,
     RotateCw,
     Smartphone,
@@ -395,7 +393,7 @@ function IconButton({
     );
 }
 
-export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
+export function BrowserPanel({ session }: PanelProps) {
     const id = session?.id ?? null;
     const { page, error, setError, run } = usePageState(id);
     const shot = useFrame(id, page?.open === true);
@@ -496,25 +494,12 @@ export function BrowserPanel({ session, expanded, setExpanded }: PanelProps) {
                 >
                     <Terminal className="size-4" />
                 </IconButton>
-                {/* Below `lg` the drawer is already the screen, so there is nothing to fill. */}
-                <IconButton
-                    hint={expanded ? "Exit full screen" : "Full screen"}
-                    pressed={expanded}
-                    className="max-lg:hidden"
-                    onClick={() => {
-                        setExpanded(!expanded);
-                    }}
-                >
-                    {expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-                </IconButton>
                 {page !== undefined && page.errors > 0 ? (
                     <span className="text-meta text-danger">{page.errors}</span>
                 ) : null}
             </Toolbar>
 
-            {problem === null ? null : (
-                <Alert className="rounded-none px-3 py-1.5">{problem}</Alert>
-            )}
+            {problem === null ? null : <Alert className="px-3 py-1.5">{problem}</Alert>}
 
             {page?.open === true ? (
                 <Stage id={id} shot={shot} onError={setError} />

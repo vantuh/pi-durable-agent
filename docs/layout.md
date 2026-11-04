@@ -1,32 +1,29 @@
 # Layout
 
-Floating panels with a gap between them, on a darker page, and one status bar underneath. This
-is the shape we settled on after the mockup: cards with gaps, not flush columns — the gaps are what
-tell a panel from the page.
+Flush panels, one 1px rule between them, and one flat status bar underneath. Brutalist on purpose:
+no gaps, no rounded corners, no shadows on the shell.
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ page: bg-sunken, 8px padding, 8px gaps                                       │
-│ ┌────────────────┐ ┌───────────────────────────────────────┐ ┌────────────┐  │
-│ │ Sessions       │ │ Session name            ⎇ branch       │ │ (Settings  │  │
-│ │ 264px, drag    │ ├───────────────────────────────────────┤ │ sheet over │  │
-│ │ folder pill    │ │ transcript  (the only scroller)        │ │ the app,   │  │
-│ │ list of rows   │ │                                        │ │ 360px)     │  │
-│ │                │ ├───────────────────────────────────────┤ │            │  │
-│ │                │ │ composer                               │ │            │  │
-│ └────────────────┘ └───────────────────────────────────────┘ └────────────┘  │
-│ ┌──────────────────────────────────────────────────────────────────────────┐ │
-│ │ ● ready  ~/project  ⎇ main          model            ↑in ↓out · $cost ⚙ │ │
-│ └──────────────────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌────────────────┬───────────────────────────────────────┬────────────┐
+│ Sessions       │ Session name            ⎇ branch       │ (Settings  │
+│ 264px, drag    ├───────────────────────────────────────┤ sheet over │
+│ folder pill    │ transcript  (the only scroller)        │ the app,   │
+│ list of rows   │                                        │ 360px)     │
+│                ├───────────────────────────────────────┤            │
+│                │ composer                               │            │
+├────────────────┴───────────────────────────────────────┴────────────┤
+│ ● ready  ~/project  ⎇ main          model            ↑in ↓out · $cost ⚙ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-The roles, top down: page `sunken`, panels `canvas`, anything inside a panel that must stand out
-(`raised`): the selected session row, a person's message, a hover on a control. Borders are
-`edge-soft` inside a panel and never on the page. See [theme.md](theme.md).
+The roles, top down: the conversation `canvas`; the sidebar, the right panel, the settings sheet and
+the status bar `panel`; anything inside that must stand out (`raised`): the selected session row, a
+person's message, a hover on a control. Regions are separated by one `edge-soft` rule on the side
+they share: `border-r` on the sidebar, `border-l` on the panel and the sheet, `border-t` on the
+status bar. See [theme.md](theme.md).
 
-Every pane wears one frame — `rounded-card`, a 1px `edge-soft` border, and the fill its job picks —
-and a pane's header is one row: a title on the left, its actions on the right, a rule under it. Both
+A box inside a region (a card, a code block, a dialog) wears one frame — a square 1px `edge-soft`
+border, and the fill its job picks — and a pane's header is one row: a title on the left, its actions on the right, a rule under it. Both
 are named once, in `web/src/ui/pane.tsx` (`PANE`, `PaneHeader`); positioning, width, drag and
 animation stay with the caller. The transcript's header and a page's are the other row: the two-line
 `min-h-header` with `py-0.5`.
@@ -89,23 +86,25 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 ## Conversation
 
 - **Header**: the session title, the `title` slot in a small line under it (the branch badge of
-  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. The mockup's other three
-  buttons (file browser, web, subagents) arrive with their extensions and take this same row.
+  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. One "Extensions" button
+  at the right of this row toggles the right sidebar: its top row is a tab strip, one tab per extension
+  panel and then one per page. A panel tab shows the panel there; a page tab opens the page in place
+  of the conversation, under the same strip, and the sidebar closes.
 - **A panel may fill the conversation**: the right drawer becomes the same box a page takes —
   everything but the sidebar and the status bar — while the transcript and composer stay mounted
   behind it, hidden and inert, and the panel itself stays mounted too, so a live browser view inside
   it is not reloaded by the move. It is a mode of the panel, not a route: the address does not carry
   it, Escape, the panel's own button, closing the panel and switching session all return it to the
-  drawer. The button is the panel's own, drawn in its toolbar from `lg` up; below that the drawer
+  drawer. The expand button is the panel's own, drawn in its toolbar from `lg` up; below that the drawer
   already covers the screen.
 - **A page replaces the conversation**: an extension's page fills the conversation column in place
-  of the transcript and composer, with its own header row: the page's title, a close button that
-  always returns to the conversation, and — only inside a sub-location — a back arrow to its parent.
-  The sidebar, the right panel and the status bar stay. The transcript and composer stay mounted
+  of the transcript and composer, with its own header row: the extension tab strip (the page's tab
+  active), a close button that always returns to the conversation, and — only inside a sub-location — a back arrow to its parent.
+  The sidebar and the status bar stay; the right sidebar is closed. The transcript and composer stay mounted
   behind it, so a draft, the scroll position and a running answer survive. `?page=` in the address is
   the page and `&sub=` its own place inside it; Back returns to the conversation. The frame focuses
-  its title on arrival, the page's own layer takes focus when it shows a detail, and closing returns
-  focus to the button that opened it (or the composer after a review adds a draft). The page's body
+  its active tab on arrival, the page's own layer takes focus when it shows a detail, and closing
+  returns focus to the composer. The page's body
   does not scroll by itself: the page owns its one scroll.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
     - **What is loaded**: the event stream carries the active view, which starts at the newest
@@ -190,8 +189,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 The gear at the right end of the status bar opens a sheet from the right edge, over the app: the
 sidebar and the conversation keep their width, a scrim (`sunken` at 70%, the dialogs' own) dims them,
 and a click on the scrim, `Esc` or the close button closes it, and focus returns to the gear. The gear
-stays raised while the sheet is open. The sheet is 360px wide and stops above the status bar from `sm`
-up; below `sm` it fills the screen inside the 8px gaps. It is a `Sheet`
+stays raised while the sheet is open. The sheet is 360px wide from `sm` up, over the status bar too;
+below `sm` it fills the screen. It is a `Sheet`
 (`components/ui/sheet.tsx`, over the dialog primitive) that is unmounted when closed, so its sections
 read afresh at each open. Under its sections is a footer row with two icon
 buttons: a puzzle ("Extensions") that opens a modal to turn extensions on and off

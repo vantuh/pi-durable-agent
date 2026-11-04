@@ -1,9 +1,11 @@
 # Git history and embedded review
 
-`extensions/git-history` adds **Git history** (the history icon in the conversation header). It
-opens a page in place of the conversation; the list is its root and a commit is a sub-page. It runs
-in the selected session's working folder, not a browser-supplied filesystem path. It is independent
-of `git-stats`: disabling either does not disable the other.
+`extensions/git-history` adds **Git history**, a page in place of the conversation: the list is its
+root and a commit is a sub-page. It has no tab in the right sidebar (`tab: false`); the header badge
+(`+added −deleted ↑ahead ↓behind` and Push, see
+[Header items](extensions.md#header-items-and-git-statistics)) is the way in, and the same folder
+serves the badge's counts and push. It runs in the selected session's working folder, not a
+browser-supplied filesystem path.
 
 ## Workflow
 
@@ -82,6 +84,10 @@ currently survive session switching, not a page reload.
 Remote Git checks and automatic CLI updates are disabled for these processes. Other Plannotator
 features follow the user's configuration; optional AI/provider actions inside its UI are separate
 from merely opening a review and can invoke their own tools when explicitly requested.
+
+## How the badge stays current
+
+Each `stats` call leases its session for three minutes; the browser's once-a-minute call renews it. While any lease is held, the server reads each leased folder every 3 s and, when the numbers differ from the last reading, calls `host.notifySessionChanged` for the sessions of that folder, so the badge re-reads through `session.revision`. With no lease there is no Git work, and a reload stops the poller.
 
 ## Why a commit opens without waiting
 

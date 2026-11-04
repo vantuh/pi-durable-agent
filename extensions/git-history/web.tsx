@@ -39,8 +39,11 @@ import type { PageProps, WebExtension } from "@/sdk/types.ts";
 import { Toolbar } from "@/ui/pane.tsx";
 
 import { messageOf } from "../../shared/guards.ts";
+import { GitStatsItem } from "./badge.tsx";
 import {
+    HISTORY_PAGE,
     UNTRACKED_FILE_CAP,
+    WORKING,
     cancel,
     changes,
     commitMeta,
@@ -60,10 +63,6 @@ import {
  */
 const loadPreview = () => import("./preview.tsx");
 const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPreview }));
-
-/** Uncommitted changes travel as `worktree` to the server and as `working` in the address: a commit
- * hash is hex, so it can never be mistaken for the working tree. */
-const WORKING = "working";
 
 /** Reviews whose feedback the composer has taken: reopening the page must not append or close again. */
 const reported = new Set<string>();
@@ -353,7 +352,7 @@ function ChangesView({
     if (error !== null) {
         return (
             <PendingPane header={header}>
-                <Alert className="text-interface rounded-none p-3">{error}</Alert>
+                <Alert className="text-interface p-3">{error}</Alert>
             </PendingPane>
         );
     }
@@ -454,7 +453,7 @@ function HistoryRow({
                     onFocus={() => {
                         onPrefetch(target === WORKING ? undefined : target);
                     }}
-                    className="w-full min-w-0 justify-start rounded-none px-3 py-2 text-left focus-visible:ring-inset"
+                    className="w-full min-w-0 justify-start px-3 py-2 text-left focus-visible:ring-inset"
                 >
                     {/* Spans, not the primitive's parts: a `<button>` takes phrasing content only. */}
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -603,7 +602,7 @@ function CommitDetail({
                         <h3
                             ref={takeTitle}
                             tabIndex={-1}
-                            className="text-interface text-ink text-prose leading-snug font-medium outline-none"
+                            className="text-interface text-ink leading-snug font-medium outline-none"
                         >
                             {shown.commit.subject || "(no message)"}
                         </h3>
@@ -698,7 +697,7 @@ function CommitDetail({
                         commit.
                     </Empty>
                 ) : (
-                    <Alert className="text-interface rounded-none p-3">
+                    <Alert className="text-interface p-3">
                         {failure} Refresh the history to try again.
                     </Alert>
                 )}
@@ -759,9 +758,7 @@ function ReviewView({
             </Toolbar>
 
             {issue !== null ? (
-                <Alert className="text-interface border-edge-soft rounded-none border-b">
-                    {issue}
-                </Alert>
+                <Alert className="text-interface border-edge-soft border-b">{issue}</Alert>
             ) : null}
 
             {starting || state?.state === "starting" ? (
@@ -788,7 +785,7 @@ function ReviewView({
                               : "Review completed without comments."}
                     </p>
                     {state.message ? (
-                        <pre className="text-meta text-muted bg-panel rounded-card overflow-auto p-3 whitespace-pre-wrap">
+                        <pre className="text-meta text-muted bg-panel overflow-auto p-3 whitespace-pre-wrap">
                             {state.message}
                         </pre>
                     ) : null}
@@ -803,9 +800,7 @@ function ReviewView({
                     </Button>
                 </div>
             ) : state?.state === "failed" ? (
-                <Alert className="text-interface rounded-none p-4">
-                    {state.error ?? "Review failed."}
-                </Alert>
+                <Alert className="text-interface p-4">{state.error ?? "Review failed."}</Alert>
             ) : state?.state === "cancelled" ? (
                 <p className="text-muted text-interface p-4">Review was cancelled.</p>
             ) : (
@@ -1139,9 +1134,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                 {toolbar}
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     {issue !== null ? (
-                        <Alert className="text-interface border-edge-soft rounded-none border-b">
-                            {issue}
-                        </Alert>
+                        <Alert className="text-interface border-edge-soft border-b">{issue}</Alert>
                     ) : null}
                     {data === null && loading ? (
                         <p className="text-muted p-4">Reading Git history…</p>
@@ -1283,10 +1276,12 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
 export default {
     pages: [
         {
-            id: "history",
+            id: HISTORY_PAGE,
             title: "Git history",
             icon: <HistoryIcon className="size-4" />,
+            tab: false,
             component: GitHistoryPage,
         },
     ],
+    header: [{ id: "stats", component: GitStatsItem }],
 } satisfies WebExtension;

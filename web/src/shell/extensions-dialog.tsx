@@ -119,7 +119,7 @@ function ExtensionList() {
                 {loadError === undefined ? (
                     <Loading className="text-meta animate-drop-in p-3" />
                 ) : (
-                    <Alert className="animate-drop-in rounded-none p-3">{loadError}</Alert>
+                    <Alert className="animate-drop-in p-3">{loadError}</Alert>
                 )}
             </>
         );

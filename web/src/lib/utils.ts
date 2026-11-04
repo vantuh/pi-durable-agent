@@ -3,23 +3,12 @@ import { extendTailwindMerge } from "tailwind-merge";
 
 /**
  * The theme's own names: unknown to tailwind-merge, `text-meta` would be read as a colour and lost
- * beside `text-muted`, and `rounded-control` would lose to a base `rounded-full`.
+ * beside `text-muted`.
  */
 const twMerge = extendTailwindMerge({
     extend: {
         theme: {
-            text: [
-                "micro",
-                "meta",
-                "code",
-                "sidebar",
-                "tool",
-                "interface",
-                "prose",
-                "subheading",
-                "heading",
-            ],
-            radius: ["control", "card", "mark"],
+            text: ["meta", "code", "ui", "interface", "subheading", "heading"],
             shadow: ["float"],
             spacing: ["stripe", "header"],
         },

@@ -104,19 +104,19 @@ export function DropOverlay({ dragging, batch }: { dragging: boolean; batch: Pen
             }`}
         >
             <div
-                className={`rounded-card bg-panel shadow-float flex w-full max-w-sm flex-col items-center gap-3 border-2 p-8 text-center ${
+                className={`bg-panel flex w-full max-w-sm flex-col items-center gap-3 border-2 p-8 text-center ${
                     dragging ? "border-accent border-dashed" : "border-edge"
                 }`}
             >
                 <div
-                    className={`bg-raised text-accent flex size-12 items-center justify-center rounded-full ${
+                    className={`bg-raised text-accent flex size-12 items-center justify-center ${
                         dragging ? "animate-bounce" : ""
                     }`}
                 >
                     <Paperclip className="size-5" />
                 </div>
 
-                <p className="text-prose text-ink font-medium">
+                <p className="text-interface text-ink font-medium">
                     {dragging ? "Drop to attach" : busy ? "Attaching…" : "Attached"}
                 </p>
 

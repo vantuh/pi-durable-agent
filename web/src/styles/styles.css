@@ -126,10 +126,6 @@
     --color-code-function: var(--role-code-function);
     --color-code-punctuation: var(--role-code-punctuation);
 
-    --radius-control: 6px;
-    --radius-card: 10px;
-    --radius-mark: 2px;
-
     /* The two lengths more than one component draws: the accent stripe's thickness, and the floor of a pane header. */
     --spacing-stripe: 3px;
     --spacing-header: 45px;
@@ -137,13 +133,10 @@
     /* Tailwind's lg geometry (10px/15px blur, 6px/4px spread), in the theme's shadow ink instead of black. */
     --shadow-float: 0 10px 15px -3px var(--role-shadow), 0 4px 6px -4px var(--role-shadow);
 
-    --text-micro: 11px;
     --text-meta: 12px;
-    --text-code: 12.5px;
-    --text-sidebar: 13px;
-    --text-tool: 13px;
+    --text-code: 12px;
+    --text-ui: 14px;
     --text-interface: 15px;
-    --text-prose: 15px;
     --text-subheading: 16px;
     --text-subheading--line-height: 1.5rem;
     --text-heading: 18px;
@@ -351,6 +344,24 @@ body {
     animation: drop-in 150ms ease-out;
 }
 
+/*
+ * Full screen is another placement, not a width: the drawer is a flex child and this is an absolute
+ * box, so nothing can be interpolated between them. A short fade and a step in from the edge cover
+ * the jump without pretending to be a resize.
+ */
+@keyframes panel-widen {
+    from {
+        opacity: 0.4;
+        translate: 16px 0;
+    }
+}
+
+/* On the body, not the frame: the frame's own animation is the one a mount plays, and a second name
+   on it would replay that animation from `width: 0` when the panel goes back into the drawer. */
+[data-slot="panel-host"][data-expanded] > div {
+    animation: panel-widen 160ms ease-out;
+}
+
 /* Forwards: the panel keeps the end of its exit until the frame it is dropped from. */
 [data-slot="panel-host"][data-leaving] {
     animation: panel-out 200ms ease-out forwards;
@@ -381,6 +392,7 @@ body {
     [data-slot="sheet-content"],
     [data-slot="sheet-content"][data-state="closed"],
     [data-slot="panel-host"],
+    [data-slot="panel-host"][data-expanded] > div,
     [data-slot="panel-host"][data-leaving],
     [data-slot="page-host"] {
         animation-duration: 1ms;
@@ -402,7 +414,6 @@ body {
     flex: none;
     width: 8px;
     height: 8px;
-    border-radius: 1.5px;
 }
 
 .state-mark.idle {
@@ -425,7 +436,6 @@ body {
     left: 0;
     width: var(--q);
     height: var(--q);
-    border-radius: 1px;
 }
 
 /* The four dim quadrants: one square and three shadows of it. */

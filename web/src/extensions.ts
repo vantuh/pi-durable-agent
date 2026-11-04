@@ -117,7 +117,7 @@ function isPanel(value: unknown): value is PanelItem {
 }
 
 function isPage(value: unknown): value is PageItem {
-    return isPanel(value);
+    return isPanel(value) && (Reflect.get(value, "tab") ?? false) === false;
 }
 
 /** An icon component; lucide's are `forwardRef` objects, not functions. */

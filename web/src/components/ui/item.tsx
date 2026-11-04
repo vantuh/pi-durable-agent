@@ -23,7 +23,7 @@ type ItemProps = ComponentProps<"div"> & {
  */
 export function Item({ size = "md", asChild = false, className, ...props }: ItemProps) {
     const classes = cn(
-        "rounded-control focus-visible:ring-accent flex items-center gap-2 outline-none focus-visible:ring-2",
+        "focus-visible:ring-accent flex items-center gap-2 outline-none focus-visible:ring-2",
         SIZES[size],
         className,
     );
@@ -50,7 +50,7 @@ export function ItemTitle({ className, ...props }: ComponentProps<"div">) {
     return (
         <div
             data-slot="item-title"
-            className={cn("text-sidebar text-ink truncate", className)}
+            className={cn("text-ui text-ink truncate", className)}
             {...props}
         />
     );

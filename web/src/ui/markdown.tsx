@@ -161,9 +161,9 @@ function langOf(className: unknown): string {
     return found === undefined ? "" : found.slice("language-".length);
 }
 
-// A link in prose is a mark, not a control: the theme's smallest radius, and the ring around it.
+// A link in prose is a mark, not a control: an underline, and the ring around it.
 const LINK_CLASS =
-    "text-info decoration-info/40 focus-visible:ring-accent rounded-mark underline underline-offset-2 outline-none hover:decoration-info focus-visible:ring-2";
+    "text-info decoration-info/40 focus-visible:ring-accent underline underline-offset-2 outline-none hover:decoration-info focus-visible:ring-2";
 
 const COMPONENTS: Components = {
     pre({ node }) {
@@ -183,7 +183,7 @@ const COMPONENTS: Components = {
     code({ children }) {
         return (
             // A relative size, not a step: inline code sits in prose of any size and stays just under it.
-            <code className="rounded-control bg-raised border-edge-soft border px-1 py-px font-mono text-[0.88em]">
+            <code className="bg-raised border-edge-soft border px-1 py-px font-mono text-[0.88em]">
                 {children}
             </code>
         );
@@ -220,7 +220,12 @@ const COMPONENTS: Components = {
     ),
     hr: () => <hr className="border-edge-soft" />,
     table: ({ children }) => <Table>{children}</Table>,
-    thead: ({ children }) => <TableHeader>{children}</TableHeader>,
+    // `| | |` states no column names, only the delimiter GFM demands; an empty header row is still a row.
+    thead: ({ node, children }) => (
+        <TableHeader className={node !== undefined && textOf(node).trim() === "" ? "sr-only" : ""}>
+            {children}
+        </TableHeader>
+    ),
     tbody: ({ children }) => <TableBody>{children}</TableBody>,
     tr: ({ children }) => <TableRow>{children}</TableRow>,
     // GFM states a column's alignment as an inline `text-align`; the header's own `text-left` would win over a
@@ -254,7 +259,7 @@ export const Markdown = memo(function Markdown({
     return (
         <div
             className={cn(
-                "text-prose text-ink flex min-w-0 flex-col gap-3 leading-relaxed break-words",
+                "text-interface text-ink flex min-w-0 flex-col gap-3 leading-relaxed break-words",
                 streaming && "streaming",
             )}
         >

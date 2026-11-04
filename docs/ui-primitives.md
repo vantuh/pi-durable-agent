@@ -197,13 +197,13 @@ only the sites in [Kept custom](#kept-custom) and the ones a later step owns. Af
 review it lists 19: five kept custom (the lightbox close, the two resize handles, the two tag colour
 dots), and fourteen another step rewrites — [Item](#39-item-new) rows and the folder picker (5, the
 two file-tree rows among them), [ToggleGroup](#36-togglegroup-new) in the appearance dialog (3), the
-git-stats panel (2, [Popover](#31-popover-new) and [AlertDialog](#34-alertdialog-new)), and one each
+git-history badge panel (2, [Popover](#31-popover-new) and [AlertDialog](#34-alertdialog-new)), and one each
 for the [Badge](#25-badge-installed-reduced-to-one-look) chip, the
 [DropdownMenu](#32-dropdownmenu-installed-bypassed) send modes, the
 [Command](#33-command-installed-bypassed) slash list, and the [Breadcrumb](#312-breadcrumb-new)
 crumbs. The third resize handle is a `div role="separator"`, not a button.
 
-One action hint is still `title=`: git-stats' Push, whose title also says why it is disabled
+One action hint is still `title=`: git-history badge's Push, whose title also says why it is disabled
 ([Popover](#31-popover-new), [AlertDialog](#34-alertdialog-new)). The rest of the `title=` left in the
 app is a readout, not an action, and stays — listed under [Kept custom](#kept-custom).
 
@@ -228,7 +228,7 @@ What the review of the migration found and fixed.
 - [x] `web/src/shell/folder-picker.tsx` — the favourite star (`389`) is ghost in its own 16px box,
       with the hint the `title` gave. Rows and crumbs stay for [Item](#39-item-new) and
       [Breadcrumb](#312-breadcrumb-new).
-- [x] `extensions/git-stats/web.tsx` — the push panel's close (`145`) is a `Button` in its 16px box.
+- [x] `extensions/git-history/badge.tsx` — the push panel's close (`145`) is a `Button` in its 16px box.
       The trigger and the confirm stay for [Popover](#31-popover-new) and
       [AlertDialog](#34-alertdialog-new).
 - [x] `web/src/components/ui/dialog.tsx` and `web/src/shell/settings.tsx` — the dialog and the sheet
@@ -353,7 +353,7 @@ border.
 - [x] `extensions/notes/panel.tsx` — `239–254`. Stay: the bottom edge of the tabs header, and of the
       conflict banner under it.
 - [x] `extensions/notes/todos.tsx` — `215`. Stays: the tabs header's bottom edge.
-- [x] `extensions/git-stats/web.tsx` — `99–101`. Stays: a divider inside the pill, as tall as the text
+- [x] `extensions/git-history/badge.tsx` — `99–101`. Stays: a divider inside the pill, as tall as the text
       beside it (measured 18px in the pill's 28), which a stretched separator would run taller;
       [Badge](#25-badge-installed-reduced-to-one-look) takes the pill whole.
 
@@ -393,7 +393,7 @@ border.
       drop: `BADGE` holds only geometry (`hidden` until `sm`, `h-4`, `max-w-full min-w-0 shrink`,
       `px-1.5`, a 10px icon) and never named a colour, so the default `muted` tone is already what the
       pill wears. It keeps its `title`.
-- [x] `extensions/git-stats/web.tsx:89–101`. The pill is the badge whole: 28px tall, `px-2`, `gap-2`,
+- [x] `extensions/git-history/badge.tsx:89–101`. The pill is the badge whole: 28px tall, `px-2`, `gap-2`,
       mono 12px, the muted tone's `border-edge` and `text-muted`, and `bg-panel` passed through, so
       nothing moved. Two things are passed through as well: `[&>svg]:size-3.5` keeps the compare
       icon at its 14px (the badge's own is 12, and the two arrows inside the divider are not direct
@@ -500,7 +500,7 @@ Collision-aware placement, outside-click and Escape, focus return.
       `onOpenChange` instead of a click handler that read the old state. Gone: the portal, the
       placement math, the two listeners, `POPOVER_WIDTH`, the `rounded-xl` and the `max-w` fallback.
       The `border-edge` it carried went too: one popover wears `edge-soft` like the menu family.
-- [x] `extensions/git-stats/web.tsx:113–160` — `role="dialog"` panel. Its Push trigger is a
+- [x] `extensions/git-history/badge.tsx:113–160` — `role="dialog"` panel. Its Push trigger is a
       `Button` with a `Hint` that also says why it is disabled: `aria-disabled` instead of
       `disabled`, so the button stays focusable and the hint can show, and `onOpenChange` keeps the
       guard the `disabled` attribute used to be. The confirm is a primary `Button`. Focus lands on
@@ -732,7 +732,7 @@ square corners (`rounded-none`) and the caller's own padding, so no edge a borde
       recolouring or removing one is the person's own click.
 - [x] `extensions/usage-limits/details.tsx:61–65` — a provider's switch failing, `role="alert"`: one
       click, one save, and the switch went back.
-- [x] `extensions/git-stats/web.tsx:165–176` — the push panel's error state, left inside the popover
+- [x] `extensions/git-history/badge.tsx:165–176` — the push panel's error state, left inside the popover
       by [Popover](#31-popover-new). It is `role="alert"` (the default): the person pressed Push and
       it failed, which is the most urgent thing a 256px panel can say. The prompt it swaps with keeps
       its own `<p>`, since it is a question and not a notice. The error is 12px now where the popover's
@@ -858,7 +858,7 @@ cut short by a `head` — found these too.
 
 The rest of what a tone colours is a mark, not a block: a diff's `−` count (`web/src/ui/diff.tsx:276`,
 `extensions/git-history/preview.tsx:238`, `extensions/git-history/web.tsx:368`,
-`extensions/git-stats/web.tsx:120`), git-stats' ahead/behind pair (`:123`), the browser's error count in
+`extensions/git-history/badge.tsx:120`), git-history badge's ahead/behind pair (`:123`), the browser's error count in
 its toolbar (`extensions/browser/panel.tsx:507`), a status bar field's label
 (`web/src/shell/status-bar.tsx:62`), and a server row's own detail line
 (`extensions/mcp/details.tsx:88`). Each is one value inside a row or a readout that a frame would pull
@@ -888,7 +888,7 @@ out of its line, so all of them stay text.
       something a check can ask for. It sits inside the menu but is not a menu item: no click, no focus stop, no `menuitem` role,
       only the sentence with the rows' own 8px side padding.
 - [x] `web/src/transcript/transcript.tsx:677–679` — the prompt an empty session shows. It keeps
-      `text-prose`: the conversation is prose at 15px, where the sidebar's own states are 12. Unmoved:
+      `text-interface`: the conversation is prose at 15px, where the sidebar's own states are 12. Unmoved:
       15px on a 22.5px line, faint, no padding, measured 227.66×22.5 before and after in a throwaway page,
       since an empty session needs one created. It is not a live
       region: the session was empty when it opened, so nothing replaces anything.
@@ -969,7 +969,7 @@ What the sweep left as text, and why:
       element is cmdk's and its look is `ui/command.tsx`'s, which already writes `text-faint text-meta`;
       an `Empty` inside it would nest two of the same thing, and one that is already the primitive's own
       defaults.
-- [x] `extensions/git-stats/web.tsx:74` — `No upstream configured.`, **stays text**: it is a clause in a
+- [x] `extensions/git-history/badge.tsx:74` — `No upstream configured.`, **stays text**: it is a clause in a
       tooltip's description string, not a block.
 - [x] Five regions show nothing at all rather than a sentence: the composer's queue
       (`web/src/composer/queued.tsx:51`), the composer's attachments (`web/src/ui/attachments.tsx:171`),
@@ -1367,7 +1367,7 @@ finding is fixed in this phase, not just listed.
       was found):
     - [x] **Font sizes** — fixed in `feat(theme): name every text size`. The 12.5px code text in
           `ui/diff.tsx`, `ui/markdown.tsx` and `transcript/activity.tsx` is `text-code`. The three
-          annotation sizes became one `text-micro` at 11px: 11px had four uses (`activity.tsx`'s
+          annotation sizes became one `text-micro` at 11px (folded into `text-meta` at 12px later): 11px had four uses (`activity.tsx`'s
           outcome counts, `ui/attachment.tsx`'s size, `extensions/subagents/web.tsx`'s context
           percentage), 11.5px one (`activity.tsx`'s group duration, now 11px, −0.5px), and 10px two
           (`subagents/web.tsx`'s model name and folder chip, now 11px, +1px) — the same job, so one
@@ -1590,7 +1590,7 @@ finding is fixed in this phase, not just listed.
       the switch 28×16 at 449, and `12,215,366,18` with the label at 24 and the switch at 144; Session
       names' row `317,252,646,18`, its label 192.13 wide, its switch at 517.13.
 - [x] Extension popovers: four `PopoverContent` frames (`mcp` `w-72 p-1`, `keep-warm` `p-3`,
-      `usage-limits` `w-72 p-3`, `git-stats` `w-64 p-3`) — sizes the primitive can name. Done:
+      `usage-limits` `w-72 p-3`, `git-history` badge `w-64 p-3`) — sizes the primitive can name. Done:
       `PopoverContent` takes a `size`, the way `Button` does — `menu` is `w-72 p-1`, the 4px a list of
       rows wants around them, and `panel` is `w-64 p-3`, room for content. There is no default: a
       caller that names no size draws exactly what it drew, and the shell's rename popover is one. The
@@ -1600,7 +1600,7 @@ finding is fixed in this phase, not just listed.
       of those stay with the caller: they are not the frame's. `max-h-[70vh] overflow-y-auto` is the
       same pair in keep-warm and Usage limits, but the context meter caps its own scroll viewport
       instead, so it is two sites and not a size. Unmoved at 1280×800, padding and text size with
-      them: keep-warm `957,515,256,246` at 12px in a 12px padding; git-stats 256×117.5 at 15px in a
+      them: keep-warm `957,515,256,246` at 12px in a 12px padding; git-history badge 256×117.5 at 15px in a
       12px padding; Usage limits — opened once, as the step allows — 288×560 at 12px in a 12px
       padding, its four provider cards 247 wide inside it. MCP's popup was read from its class string,
       since the item is off on this machine and draws no status-bar trigger: `w-72 p-1` is `SIZES.menu`
@@ -1803,7 +1803,7 @@ ones that belong to a later primitive go with it.
   (`extensions/browser/panel.tsx:459`).
 - A pill or a chip that [Badge](#25-badge-installed-reduced-to-one-look) rewrites:
   `extensions/git-branch/web.tsx:56`, `extensions/git-worktree/web.tsx:95`, `:107`,
-  `extensions/git-stats/web.tsx:93`, `extensions/git-history/web.tsx:1063`, `:1073`, `:1151`,
+  `extensions/git-history/badge.tsx:93`, `extensions/git-history/web.tsx:1063`, `:1073`, `:1151`,
   `extensions/tags/details.tsx:39`, and the agent chip at `extensions/subagents/web.tsx:104`, which
   [Item](#39-item-new) takes with its row (`:276`).
 - The three resize handles' `title="Drag to resize, double-click to reset"`, which explains the

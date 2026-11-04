@@ -148,7 +148,7 @@ export function SidebarBottom({
                 onKeyDown={press}
                 onDoubleClick={reset}
                 // Not a step: 3px is the grip's thickness, the line the vertical handles draw 2px wide.
-                className={`border-edge-soft bg-panel focus-visible:ring-accent relative h-4 flex-none cursor-row-resize touch-none border-t outline-none before:absolute before:inset-x-0 before:-inset-y-1.5 after:absolute after:top-1/2 after:left-1/2 after:h-[3px] after:w-8 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full focus-visible:ring-2 focus-visible:ring-inset lg:h-2.5 ${atLimit ? "after:bg-warn" : "after:bg-edge hover:after:bg-accent focus-visible:after:bg-accent [:root.resizing-y_&]:after:bg-accent"}`}
+                className={`border-edge-soft bg-panel focus-visible:ring-accent relative h-4 flex-none cursor-row-resize touch-none border-t outline-none before:absolute before:inset-x-0 before:-inset-y-1.5 after:absolute after:top-1/2 after:left-1/2 after:h-[3px] after:w-8 after:-translate-x-1/2 after:-translate-y-1/2 focus-visible:ring-2 focus-visible:ring-inset lg:h-2.5 ${atLimit ? "after:bg-warn" : "after:bg-edge hover:after:bg-accent focus-visible:after:bg-accent [:root.resizing-y_&]:after:bg-accent"}`}
             />
             <div
                 ref={area}

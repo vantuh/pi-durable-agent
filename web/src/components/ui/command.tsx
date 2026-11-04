@@ -26,7 +26,7 @@ export function CommandInput({
         <div className="px-3 py-2">
             <CommandPrimitive.Input
                 className={cn(
-                    "rounded-control border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint focus-visible:ring-accent w-full border px-2.5 py-1.5 outline-none focus-visible:ring-2",
+                    "border-edge-soft bg-sunken text-interface text-ink placeholder:text-faint focus-visible:ring-accent w-full border px-2.5 py-1.5 outline-none focus-visible:ring-2",
                     className,
                 )}
                 {...props}
@@ -52,7 +52,7 @@ export function CommandItem({ className, ...props }: ComponentProps<typeof Comma
     return (
         <CommandPrimitive.Item
             className={cn(
-                "rounded-control hover:bg-raised/50 data-[selected=true]:bg-raised flex cursor-default items-center gap-2 px-2 py-1.5 outline-none select-none",
+                "hover:bg-raised/50 data-[selected=true]:bg-raised flex cursor-default items-center gap-2 px-2 py-1.5 outline-none select-none",
                 className,
             )}
             {...props}

@@ -46,7 +46,7 @@ export function BreadcrumbLink({
     ...props
 }: BreadcrumbLinkProps) {
     const classes = cn(
-        "rounded-control focus-visible:ring-accent text-muted hover:text-ink outline-none focus-visible:ring-2",
+        "focus-visible:ring-accent text-muted hover:text-ink outline-none focus-visible:ring-2",
         className,
     );
 

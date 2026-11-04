@@ -10,10 +10,7 @@ export function Tabs({ className, ...props }: ComponentProps<typeof TabsPrimitiv
 export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
     return (
         <TabsPrimitive.List
-            className={cn(
-                "rounded-control bg-sunken text-muted inline-flex items-center gap-0.5 p-0.5",
-                className,
-            )}
+            className={cn("bg-sunken text-muted inline-flex items-center gap-0.5 p-0.5", className)}
             {...props}
         />
     );
@@ -23,7 +20,7 @@ export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsP
     return (
         <TabsPrimitive.Trigger
             className={cn(
-                "rounded-control text-interface hover:text-ink focus-visible:ring-accent data-[state=active]:bg-raised data-[state=active]:text-ink outline-none focus-visible:ring-2 inline-flex flex-1 items-center justify-center px-2 py-1 whitespace-nowrap",
+                "text-interface hover:text-ink focus-visible:ring-accent data-[state=active]:bg-raised data-[state=active]:text-ink outline-none focus-visible:ring-2 inline-flex flex-1 items-center justify-center px-2 py-1 whitespace-nowrap",
                 className,
             )}
             {...props}

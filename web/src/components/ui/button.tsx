@@ -9,13 +9,24 @@ const VARIANTS = {
     danger: "bg-danger text-canvas hover:bg-danger/90 font-medium",
 };
 
-/** The squares are the ones the hand-written icon buttons already use: 28px in a footer or a toolbar, 24px inside a row. */
+/**
+ * The squares are the ones the hand-written icon buttons already use: 28px in a footer or a toolbar,
+ * 24px inside a row.
+ */
 const SIZES = {
     default: "px-3 py-1.5 text-interface",
     sm: "px-2 py-1 text-meta",
     icon: "size-7",
     "icon-sm": "size-6",
 };
+
+/**
+ * 8px more on every side for a fingertip, without the square growing: a bar is laid out around the box,
+ * a finger is not. For a control that stands alone — two of these side by side would share a hit area,
+ * so a row's own menu button, which sits inside a link, does without it.
+ */
+export const REACH =
+    "pointer-coarse:relative pointer-coarse:before:absolute pointer-coarse:before:-inset-2 pointer-coarse:before:content-['']";
 
 type ButtonProps = ComponentProps<"button"> & {
     variant?: keyof typeof VARIANTS;
@@ -34,7 +45,7 @@ export function Button({
 }: ButtonProps) {
     const classes = cn(
         // The weight is stated, not inherited: a ghost button sits inside text of every weight.
-        "rounded-control focus-visible:ring-accent inline-flex items-center justify-center gap-1.5 font-normal outline-none focus-visible:ring-2 disabled:opacity-50",
+        "focus-visible:ring-accent inline-flex items-center justify-center gap-1.5 font-normal outline-none focus-visible:ring-2 disabled:opacity-50",
         VARIANTS[variant],
         SIZES[size],
         className,

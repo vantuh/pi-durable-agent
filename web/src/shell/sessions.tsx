@@ -73,8 +73,8 @@ import { useShellCommand } from "../sdk/commands.ts";
 import { focusComposer } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { CommandKeys } from "../ui/command-keys.tsx";
+import { GroupHeading } from "../ui/group-heading.tsx";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
-import { PANE } from "../ui/pane.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
@@ -232,7 +232,7 @@ function ResizeHandle() {
             className="group absolute inset-y-0 -right-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
         >
             {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
-            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
+            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
         </button>
     );
 }
@@ -306,7 +306,7 @@ function RenameForm({
                 onChange={(event) => {
                     setDraft(event.target.value);
                 }}
-                className="border-edge-soft bg-canvas text-sidebar"
+                className="border-edge-soft bg-canvas text-ui"
             />
             <div className="flex justify-end gap-1">
                 <Button variant="ghost" size="sm" onClick={onCancel}>
@@ -367,7 +367,7 @@ const SessionRow = memo(function SessionRow({
                     <div
                         ref={attach}
                         data-holds-open={holding ? "" : undefined}
-                        className={`session-row group rounded-control relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
+                        className={`session-row group relative flex items-center ${current || holding ? "bg-raised" : "hover:bg-raised/50"}`}
                     >
                         <Item asChild className="min-w-0 flex-1">
                             <a
@@ -390,9 +390,7 @@ const SessionRow = memo(function SessionRow({
                                             <span
                                                 key={`${String(index)}-${part.text}`}
                                                 className={
-                                                    part.hit
-                                                        ? "bg-warn/30 text-ink rounded-mark"
-                                                        : undefined
+                                                    part.hit ? "bg-warn/30 text-ink" : undefined
                                                 }
                                             >
                                                 {part.text}
@@ -1007,16 +1005,16 @@ export const Sessions = memo(function Sessions({
     });
 
     return (
-        // 38px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the card's two 1px borders.
+        // 37px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the 1px border.
         <aside
             ref={shell}
             data-collapsed={collapsed ? "" : undefined}
-            className={`group/side ${PANE} bg-canvas shrink-0 flex-col in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[38px] ${
-                sheet ? "fixed inset-2 z-30 flex" : "hidden"
+            className={`group/side border-edge-soft bg-panel shrink-0 flex-col border-r in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[37px] ${
+                sheet ? "fixed inset-0 z-30 flex" : "hidden"
             }`}
         >
-            <div className="rounded-card flex min-h-0 flex-1 flex-col overflow-hidden">
-                <header className="border-edge-soft flex items-center gap-2 border-b px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:px-1.5">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <header className="border-edge-soft relative flex items-center gap-2 px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:border-b lg:group-data-[collapsed]/side:px-1.5">
                     {/* The rail has room for one button: there the logo expands, and shows it on hover. */}
                     <Hint label="Expand sidebar">
                         <Button
@@ -1057,18 +1055,45 @@ export const Sessions = memo(function Sessions({
                         </Button>
                     </Hint>
                     <h2
-                        className={`text-sidebar text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
+                        className={`text-ui text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
                     >
                         Sessions
                     </h2>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 lg:group-data-[collapsed]/side:hidden">
+                        <Hint label="New session">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="New session"
+                                onClick={onNew}
+                            >
+                                <Plus className="size-4" />
+                            </Button>
+                        </Hint>
+                        <Hint
+                            label="Search sessions"
+                            keys={<CommandKeys command="session.search" />}
+                        >
+                            <Button
+                                ref={searchTrigger}
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Search sessions"
+                                aria-expanded={searching}
+                                onClick={() => {
+                                    setSearching(true);
+                                }}
+                            >
+                                <Search className="size-4" />
+                            </Button>
+                        </Hint>
                         <Hint label="Collapse sidebar">
                             <Button
                                 variant="ghost"
                                 size="icon-sm"
                                 aria-label="Collapse sidebar"
                                 onClick={toggleCollapsed}
-                                className="hidden shrink-0 lg:inline-flex lg:group-data-[collapsed]/side:hidden"
+                                className="hidden shrink-0 lg:inline-flex"
                             >
                                 <PanelLeftClose className="size-4" />
                             </Button>
@@ -1085,9 +1110,48 @@ export const Sessions = memo(function Sessions({
                             </Button>
                         </Hint>
                     </div>
+                    <div
+                        className={`bg-panel absolute inset-0 flex items-center px-3 py-2 transition-opacity duration-200 lg:group-data-[collapsed]/side:hidden ${searching ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                    >
+                        <Search className="text-faint pointer-events-none absolute left-5 size-3.5" />
+                        <Input
+                            ref={searchBox}
+                            type="search"
+                            value={query}
+                            aria-label="Search sessions"
+                            placeholder={`Search in ${scope}`}
+                            tabIndex={searching ? undefined : -1}
+                            onChange={(event) => {
+                                setQuery(event.target.value);
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                    event.preventDefault();
+                                    // The key is this field's: it must not also leave the panel's full screen.
+                                    event.stopPropagation();
+                                    stopSearch();
+                                }
+                            }}
+                            className="border-edge-soft text-ui h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
+                        />
+                        <Hint label="Close search">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close search"
+                                onClick={stopSearch}
+                                tabIndex={searching ? undefined : -1}
+                                className="absolute top-1/2 right-4.5 -translate-y-1/2"
+                            >
+                                <X className="size-3.5" />
+                            </Button>
+                        </Hint>
+                    </div>
                 </header>
 
-                <div className={`border-edge-soft border-b ${FADE} ${FOLD}`}>
+                <div
+                    className={`border-edge-soft flex items-center gap-1 border-b px-1.5 py-1 ${FADE} ${FOLD}`}
+                >
                     <DropdownMenu
                         modal={false}
                         open={scopeOpen}
@@ -1102,7 +1166,7 @@ export const Sessions = memo(function Sessions({
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="ghost"
-                                className="w-full justify-start rounded-none px-3 py-2"
+                                className="min-w-0 flex-1 justify-start px-2 py-1"
                             >
                                 <Folder className="text-faint size-3 shrink-0" />
                                 <span className="text-meta text-muted min-w-0 flex-1 truncate text-left font-mono">
@@ -1111,10 +1175,7 @@ export const Sessions = memo(function Sessions({
                                 <ChevronDown className="text-faint size-3.5 shrink-0" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            align="start"
-                            className="w-(--radix-dropdown-menu-trigger-width)"
-                        >
+                        <DropdownMenuContent align="start" className="w-64">
                             <ScrollArea viewportProps={{ className: "max-h-72" }}>
                                 <DropdownMenuItem
                                     onSelect={() => {
@@ -1135,87 +1196,6 @@ export const Sessions = memo(function Sessions({
                             </ScrollArea>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-
-                <div className={`flex items-stretch gap-1 px-3 pt-3 ${FADE} ${FOLD}`}>
-                    <div className="relative min-w-0 flex-1">
-                        <Button
-                            variant="ghost"
-                            onClick={onNew}
-                            tabIndex={searching ? -1 : undefined}
-                            className={`border-edge bg-sunken text-ink w-full gap-2 border py-2.5 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-0" : "opacity-100"}`}
-                        >
-                            <Plus className="size-4" />
-                            <span className="text-sidebar">New session</span>
-                        </Button>
-                        <div
-                            className={`absolute inset-0 transition-[opacity,transform] duration-200 ${searching ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"}`}
-                        >
-                            <Search className="text-faint pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
-                            <Input
-                                ref={searchBox}
-                                type="search"
-                                value={query}
-                                aria-label="Search sessions"
-                                placeholder={`Search in ${scope}`}
-                                tabIndex={searching ? undefined : -1}
-                                onChange={(event) => {
-                                    setQuery(event.target.value);
-                                }}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Escape") {
-                                        event.preventDefault();
-                                        // The key is this field's: it must not also leave the panel's full screen.
-                                        event.stopPropagation();
-                                        stopSearch();
-                                    }
-                                }}
-                                className="border-edge-soft text-sidebar h-full pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
-                            />
-                            <Hint label="Close search">
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Close search"
-                                    onClick={stopSearch}
-                                    tabIndex={searching ? undefined : -1}
-                                    className="absolute top-1/2 right-1.5 -translate-y-1/2"
-                                >
-                                    <X className="size-3.5" />
-                                </Button>
-                            </Hint>
-                        </div>
-                    </div>
-                    <Hint label="Search sessions" keys={<CommandKeys command="session.search" />}>
-                        <Button
-                            ref={searchTrigger}
-                            variant="ghost"
-                            aria-label="Search sessions"
-                            aria-expanded={searching}
-                            aria-hidden={searching ? true : undefined}
-                            tabIndex={searching ? -1 : undefined}
-                            onClick={() => {
-                                if (searching) {
-                                    stopSearch();
-                                } else {
-                                    setSearching(true);
-                                }
-                            }}
-                            className={`border-edge-soft bg-sunken shrink-0 overflow-hidden border px-0 transition-[width,opacity] duration-200 ${searching ? "pointer-events-none w-0 border-transparent opacity-0" : "w-9 opacity-100"}`}
-                        >
-                            <Search className="size-4" />
-                        </Button>
-                    </Hint>
-                </div>
-
-                <div className={`flex items-center justify-between px-3 pt-2 ${FADE} ${FOLD}`}>
-                    <span className="text-meta text-muted">
-                        {archived
-                            ? "Archive"
-                            : query.trim() === ""
-                              ? "Sessions"
-                              : `${String(shown.length)} found`}
-                    </span>
                     <div className="flex items-center">
                         {filters.map((item) => {
                             const setMatch = setters.get(item.id);
@@ -1238,6 +1218,7 @@ export const Sessions = memo(function Sessions({
                                     archived ? "Back to sessions" : "Show archived sessions"
                                 }
                                 aria-pressed={archived}
+                                className={archived ? "bg-raised text-ink" : ""}
                                 onClick={() => {
                                     setArchived(!archived);
                                 }}
@@ -1251,6 +1232,7 @@ export const Sessions = memo(function Sessions({
                         </Hint>
                     </div>
                 </div>
+
                 <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">
                         {shown.length === 0 ? (
@@ -1279,13 +1261,11 @@ export const Sessions = memo(function Sessions({
                                 <div key={group}>
                                     <Separator
                                         decorative={false}
-                                        className={`mx-2 mt-1 mb-0.5 w-auto ${FADE} ${FOLD}`}
+                                        className={`mx-2 mt-1 mb-0.5 w-auto [:first-child>&]:hidden ${FADE} ${FOLD}`}
                                     />
-                                    <div
-                                        className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE} ${FOLD}`}
-                                    >
+                                    <GroupHeading className={`${FADE} ${FOLD}`}>
                                         {group} {rows.length}
-                                    </div>
+                                    </GroupHeading>
 
                                     {rows.map((session) => (
                                         <SessionRow

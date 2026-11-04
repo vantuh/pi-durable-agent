@@ -1,7 +1,7 @@
 import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, REACH } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,7 +12,8 @@ import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { newestFirst } from "../lib/session-order.ts";
 import { MINUTE } from "../lib/time.ts";
-import { PANE, PaneHeader } from "../ui/pane.tsx";
+import { GroupHeading } from "../ui/group-heading.tsx";
+import { PaneHeader } from "../ui/pane.tsx";
 import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
 
 type Props = {
@@ -86,7 +87,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
     ];
 
     return (
-        <section className={`${PANE} bg-canvas flex min-h-0 flex-1 flex-col`}>
+        <section className="bg-canvas flex min-h-0 flex-1 flex-col">
             <PaneHeader className="gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                     <Hint label="Sessions">
@@ -95,7 +96,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                             size="icon-sm"
                             aria-label="Sessions"
                             onClick={onSessions}
-                            className="shrink-0 lg:hidden"
+                            className={`shrink-0 lg:hidden ${REACH}`}
                         >
                             <PanelLeft className="size-4" />
                         </Button>
@@ -116,9 +117,9 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                     {groups.map((group) =>
                         group.rows.length === 0 ? null : (
                             <div key={group.name}>
-                                <h2 className="text-faint text-meta px-2 py-1.5">
+                                <GroupHeading>
                                     {group.name} {group.rows.length}
-                                </h2>
+                                </GroupHeading>
                                 {group.rows.map((session) => (
                                     <Row
                                         key={session.id}

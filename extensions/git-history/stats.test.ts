@@ -7,18 +7,20 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import { stats as statsRef } from "./refs.ts";
-import { actions } from "./server.ts";
+import { watchStats, type StatsWatch } from "./stats.ts";
 
 const run = promisify(execFile);
 
-void describe("git-stats", () => {
+void describe("git-history stats", () => {
     let dir: string;
     let repo: string;
+    let watch: StatsWatch;
+    // Each reading is a minute-ish later than the last, so the poller's cache never answers for Git.
+    let clock = 0;
     const git = async (cwd: string, ...args: string[]) =>
         (await run("git", args, { cwd })).stdout.trim();
     const call = async (name: string, cwd: string | null = repo) => {
-        const action = actions[name];
-        assert.ok(action);
+        const action = name === "push" ? watch.actions.push : watch.actions.stats;
         return await action({ args: undefined, session: { id: 1, cwd } });
     };
     const stats = async (cwd = repo) => statsRef.parse(await call("stats", cwd));
@@ -63,12 +65,18 @@ void describe("git-stats", () => {
         );
     };
     beforeEach(async () => {
-        dir = await mkdtemp(join(tmpdir(), "git-stats-"));
+        dir = await mkdtemp(join(tmpdir(), "git-history-stats-"));
         repo = join(dir, "repo");
         await mkdir(repo);
         await git(repo, "init", "-b", "main");
+        watch = watchStats({
+            notify: () => undefined,
+            log: () => undefined,
+            now: () => (clock += 1e6),
+        });
     });
     afterEach(async () => {
+        watch.dispose();
         await rm(dir, { recursive: true, force: true });
     });
 
@@ -195,5 +203,58 @@ void describe("git-stats", () => {
         await git(repo, "remote", "add", "origin", remote);
         await git(repo, "push", "-u", "origin", "main");
         await assert.rejects(call("push"), /No commits/);
+    });
+
+    void describe("watching", () => {
+        let time: number;
+        let heard: number[];
+        const watching = () =>
+            watchStats({
+                notify: (session) => heard.push(session),
+                log: () => undefined,
+                now: () => time,
+                // Long, so the real timer never fires inside a test; the test calls `poll` itself.
+                pollMs: 600_000,
+            });
+        const lease = (watcher: StatsWatch, session: number) =>
+            watcher.actions.stats({ args: undefined, session: { id: session, cwd: repo } });
+        beforeEach(async () => {
+            time = 1;
+            heard = [];
+            await writeFile(join(repo, "file"), "one\n");
+            await commit();
+        });
+        void it("announces one change to each leased session of the folder", async () => {
+            const watcher = watching();
+            try {
+                await lease(watcher, 1);
+                await lease(watcher, 2);
+                await watcher.poll();
+                assert.deepEqual(heard, []);
+                await writeFile(join(repo, "file"), "one\ntwo\n");
+                await watcher.poll();
+                assert.deepEqual(heard, [1, 2]);
+                await watcher.poll();
+                assert.deepEqual(heard, [1, 2]);
+            } finally {
+                watcher.dispose();
+            }
+        });
+        void it("stays quiet without a lease or after it expired", async () => {
+            const watcher = watching();
+            try {
+                await writeFile(join(repo, "file"), "one\ntwo\n");
+                await watcher.poll();
+                await lease(watcher, 1);
+                time += 3 * 60_000 + 1;
+                await writeFile(join(repo, "file"), "one\ntwo\nthree\n");
+                await watcher.poll();
+                await writeFile(join(repo, "file"), "one\n");
+                await watcher.poll();
+                assert.deepEqual(heard, []);
+            } finally {
+                watcher.dispose();
+            }
+        });
     });
 });

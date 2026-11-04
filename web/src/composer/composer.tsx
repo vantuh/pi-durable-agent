@@ -488,7 +488,8 @@ export const Composer = memo(function Composer({
     };
 
     return (
-        <div>
+        // The transcript's column: its width setting plus the px-4 its scroll area pads with, so the edges line up.
+        <div className="mx-auto w-full max-w-[calc(var(--chat-width)+2rem)] px-4 pt-2">
             <DropOverlay dragging={dragging} batch={batch} />
 
             <Queued
@@ -504,7 +505,7 @@ export const Composer = memo(function Composer({
             <div className="mb-2 empty:hidden">{above}</div>
 
             <div
-                className="rounded-card border-edge bg-sunken focus-within:border-accent relative border p-2"
+                className="border-edge bg-sunken focus-within:border-accent relative border p-2"
                 onPaste={(event) => {
                     const pasted = [...event.clipboardData.files];
 
@@ -525,7 +526,7 @@ export const Composer = memo(function Composer({
                         onMouseDown={(event) => {
                             event.preventDefault();
                         }}
-                        className="rounded-control border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border"
+                        className="border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border"
                     >
                         <CommandList label="Completions" className="min-h-0 overflow-y-auto p-1">
                             {matches.map((candidate, index) => (
@@ -579,7 +580,7 @@ export const Composer = memo(function Composer({
                     </div>
                 )}
 
-                <ScrollArea viewportProps={{ className: "text-prose max-h-[10lh]" }}>
+                <ScrollArea viewportProps={{ className: "text-interface max-h-[10lh]" }}>
                     <textarea
                         rows={2}
                         ref={field}
@@ -592,7 +593,7 @@ export const Composer = memo(function Composer({
                                 ? `${how.label}: ${how.hint}…`
                                 : "Ask the agent to change something…"
                         }
-                        className="text-prose text-ink placeholder:text-faint block [field-sizing:content] min-h-[2lh] w-full resize-none bg-transparent outline-none"
+                        className="text-interface text-ink placeholder:text-faint block [field-sizing:content] min-h-[2lh] w-full resize-none bg-transparent outline-none"
                         onChange={(event) => {
                             const value = event.target.value;
 
@@ -741,7 +742,7 @@ export const Composer = memo(function Composer({
                     <Button
                         variant="ghost"
                         onClick={onToggleMenu}
-                        className={`min-w-0 rounded-full px-2 py-1 ${menuOpen ? "bg-raised text-ink" : ""}`}
+                        className={`min-w-0 px-2 py-1 ${menuOpen ? "bg-raised text-ink" : ""}`}
                     >
                         <Sparkles className="text-accent size-3.5" />
                         <span className="max-w-48 min-w-0 truncate font-mono">{model}</span>
@@ -789,9 +790,7 @@ export const Composer = memo(function Composer({
                                         event.preventDefault();
                                     }}
                                     className={`relative gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
-                                        busy
-                                            ? "rounded-l-control h-7 w-auto rounded-r-none pr-1.5 pl-2"
-                                            : ""
+                                        busy ? "h-7 w-auto pr-1.5 pl-2" : ""
                                     }`}
                                     disabled={empty || uploading}
                                 >
@@ -806,7 +805,7 @@ export const Composer = memo(function Composer({
                                             <Button
                                                 size="icon"
                                                 aria-label="How to send"
-                                                className="rounded-r-control border-on-accent/30 w-6 rounded-l-none border-l"
+                                                className="border-on-accent/30 w-6 border-l"
                                             >
                                                 <ChevronDown className="size-3.5" />
                                             </Button>

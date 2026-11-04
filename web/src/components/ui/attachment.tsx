@@ -19,7 +19,7 @@ export function Attachment({
             data-slot="attachment"
             data-state={state}
             className={cn(
-                "group/attachment rounded-control border-edge-soft bg-raised text-ink has-[:focus-visible]:border-accent relative flex w-fit max-w-full min-w-0 shrink-0 items-center gap-1.5 border p-1 data-[state=error]:border-danger data-[state=idle]:border-dashed has-[>[data-slot=attachment-trigger]]:hover:bg-edge-soft",
+                "group/attachment border-edge-soft bg-raised text-ink has-[:focus-visible]:border-accent relative flex w-fit max-w-full min-w-0 shrink-0 items-center gap-1.5 border p-1 data-[state=error]:border-danger data-[state=idle]:border-dashed has-[>[data-slot=attachment-trigger]]:hover:bg-edge-soft",
                 className,
             )}
             {...props}
@@ -32,7 +32,7 @@ export function AttachmentMedia({ className, ...props }: ComponentProps<"div">) 
         <div
             data-slot="attachment-media"
             className={cn(
-                "rounded-control bg-sunken text-muted group-data-[state=error]/attachment:text-danger relative flex size-7 shrink-0 items-center justify-center overflow-hidden *:[img]:size-full *:[img]:object-cover group-data-[state=uploading]/attachment:*:[img]:opacity-40",
+                "bg-sunken text-muted group-data-[state=error]/attachment:text-danger relative flex size-7 shrink-0 items-center justify-center overflow-hidden *:[img]:size-full *:[img]:object-cover group-data-[state=uploading]/attachment:*:[img]:opacity-40",
                 className,
             )}
             {...props}
@@ -68,7 +68,7 @@ export function AttachmentDescription({ className, ...props }: ComponentProps<"s
         <span
             data-slot="attachment-description"
             className={cn(
-                "text-faint block min-w-0 truncate text-micro group-data-[state=error]/attachment:text-danger",
+                "text-faint block min-w-0 truncate text-meta group-data-[state=error]/attachment:text-danger",
                 className,
             )}
             {...props}
@@ -96,7 +96,7 @@ export function AttachmentAction({
             data-slot="attachment-action"
             type={type}
             className={cn(
-                "rounded-control text-muted hover:text-ink hover:bg-edge-soft flex size-5 items-center justify-center",
+                "text-muted hover:text-ink hover:bg-edge-soft flex size-5 items-center justify-center",
                 className,
             )}
             {...props}

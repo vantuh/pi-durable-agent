@@ -1,6 +1,10 @@
 import { actionRef } from "../../shared/extension-api.ts";
 import { isRecord } from "../../shared/guards.ts";
 
+/** The history page's id, and its sub-location for uncommitted changes: a commit's hash is hex, so it never reads as the working tree. */
+export const HISTORY_PAGE = "history";
+export const WORKING = "working";
+
 /** Listing untracked files costs a Git process each, so a preview stops here and says it did. */
 export const UNTRACKED_FILE_CAP = 500;
 
@@ -188,3 +192,42 @@ export const reword = actionRef<{ hash: string; subject: string; body: string },
     "reword",
     parseReword,
 );
+
+export type GitStats = {
+    added: number;
+    deleted: number;
+    ahead: number;
+    behind: number;
+    upstream: string | null;
+};
+
+function parseStats(value: unknown): GitStats | null {
+    if (value === null) {
+        return null;
+    }
+    if (
+        typeof value === "object" &&
+        "added" in value &&
+        typeof value.added === "number" &&
+        "deleted" in value &&
+        typeof value.deleted === "number" &&
+        "ahead" in value &&
+        typeof value.ahead === "number" &&
+        "behind" in value &&
+        typeof value.behind === "number" &&
+        "upstream" in value &&
+        (typeof value.upstream === "string" || value.upstream === null)
+    ) {
+        return {
+            added: value.added,
+            deleted: value.deleted,
+            ahead: value.ahead,
+            behind: value.behind,
+            upstream: value.upstream,
+        };
+    }
+    throw new Error("Invalid Git statistics");
+}
+
+export const stats = actionRef<undefined, GitStats | null>("git-history", "stats", parseStats);
+export const push = actionRef<undefined, GitStats | null>("git-history", "push", parseStats);

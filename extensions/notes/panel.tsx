@@ -266,7 +266,7 @@ function Notes({ id, tabs }: { id: number; tabs: ReactNode }) {
             )}
 
             {note.state === "error" && note.error !== null ? (
-                <Alert className="text-interface rounded-none">{note.error}</Alert>
+                <Alert className="text-interface">{note.error}</Alert>
             ) : null}
 
             <Textarea

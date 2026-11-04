@@ -22,7 +22,7 @@ type BadgeProps = ComponentProps<"span"> & {
 /** shadcn's badge, reduced to the tones this app uses: a small label that sits beside text. */
 export function Badge({ tone = "muted", asChild = false, className, ...props }: BadgeProps) {
     const classes = cn(
-        "text-meta inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 font-mono whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0",
+        "text-meta inline-flex h-5 shrink-0 items-center gap-1 border px-2 font-mono whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0",
         TONES[tone],
         className,
     );

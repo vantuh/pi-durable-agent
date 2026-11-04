@@ -68,7 +68,7 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                         key={item.id}
                         asChild
                         size="sm"
-                        className="rounded-card border-edge bg-raised relative items-start gap-1.5 overflow-hidden border pr-1 pl-3"
+                        className="border-edge bg-raised relative items-start gap-1.5 overflow-hidden border pr-1 pl-3"
                     >
                         <li>
                             <span
@@ -101,7 +101,7 @@ export function Queued({ items, onWithdraw, onEdit }: Props) {
                                                 current === item.id ? null : item.id,
                                             );
                                         }}
-                                        className={`text-prose text-ink mt-0.5 p-0 text-left break-words whitespace-pre-wrap hover:bg-transparent ${
+                                        className={`text-interface text-ink mt-0.5 p-0 text-left break-words whitespace-pre-wrap hover:bg-transparent ${
                                             open === item.id ? "block" : "line-clamp-2"
                                         }`}
                                     >

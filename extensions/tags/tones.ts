@@ -4,16 +4,16 @@
  */
 import type { TagColor } from "./refs.ts";
 
-/** A chip, in a session row or in the filter: the tag's hue on a wash of itself, chosen or not. */
+/** A chip in a session row: the tag's hue as text, no wash under it, so a row of tags stays quiet. */
 export const TAG_TONE: Record<TagColor, string> = {
-    red: "bg-tag-red/15 text-tag-red",
-    peach: "bg-tag-peach/15 text-tag-peach",
-    yellow: "bg-tag-yellow/15 text-tag-yellow",
-    green: "bg-tag-green/15 text-tag-green",
-    teal: "bg-tag-teal/15 text-tag-teal",
-    blue: "bg-tag-blue/15 text-tag-blue",
-    mauve: "bg-tag-mauve/15 text-tag-mauve",
-    pink: "bg-tag-pink/15 text-tag-pink",
+    red: "text-tag-red",
+    peach: "text-tag-peach",
+    yellow: "text-tag-yellow",
+    green: "text-tag-green",
+    teal: "text-tag-teal",
+    blue: "text-tag-blue",
+    mauve: "text-tag-mauve",
+    pink: "text-tag-pink",
 };
 
 /** The hue itself: a dot in a menu, a swatch in the picker. */

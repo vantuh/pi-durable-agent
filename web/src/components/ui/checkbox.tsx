@@ -13,7 +13,7 @@ export function Checkbox({ className, ...props }: ComponentProps<typeof Checkbox
         <CheckboxPrimitive.Root
             data-slot="checkbox"
             className={cn(
-                "rounded-control border-edge bg-sunken text-on-accent focus-visible:ring-accent size-4 shrink-0 border outline-none focus-visible:ring-2 disabled:opacity-50",
+                "border-edge bg-sunken text-on-accent focus-visible:ring-accent size-4 shrink-0 border outline-none focus-visible:ring-2 disabled:opacity-50",
                 "data-[state=checked]:border-accent data-[state=checked]:bg-accent",
                 "aria-invalid:border-danger aria-invalid:ring-danger/40",
                 className,

@@ -31,7 +31,7 @@ export function ToggleGroupItem({
         <ToggleGroupPrimitive.Item
             data-slot="toggle-group-item"
             className={cn(
-                "rounded-control text-interface text-muted focus-visible:ring-accent data-[state=on]:bg-raised data-[state=on]:text-ink outline-none focus-visible:ring-2",
+                "text-interface text-muted focus-visible:ring-accent data-[state=on]:bg-raised data-[state=on]:text-ink outline-none focus-visible:ring-2",
                 className,
             )}
             {...props}

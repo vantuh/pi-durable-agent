@@ -23,7 +23,7 @@ export function Alert({ tone = "danger", role = "alert", className, ...props }: 
             data-slot="alert"
             role={role}
             className={cn(
-                "text-meta flex items-start gap-2 rounded-control px-3 py-2 break-words [&>svg]:mt-0.5 [&>svg]:size-3.5 [&>svg]:shrink-0",
+                "text-meta flex items-start gap-2 px-3 py-2 break-words [&>svg]:mt-0.5 [&>svg]:size-3.5 [&>svg]:shrink-0",
                 TONES[tone],
                 className,
             )}

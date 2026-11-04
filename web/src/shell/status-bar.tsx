@@ -1,12 +1,11 @@
 import { Settings } from "lucide-react";
 import { memo, type RefObject } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, REACH } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
-import { PANE } from "../ui/pane.tsx";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
 import { SessionsStatus } from "./sessions-status.tsx";
 
@@ -57,11 +56,11 @@ export const StatusBar = memo(function StatusBar({
 
     return (
         <footer
-            className={`${PANE} bg-canvas text-meta text-muted grid h-8 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden px-3`}
+            className={`border-edge-soft bg-panel text-meta text-muted grid h-7 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border-t px-3 pointer-coarse:h-11`}
         >
             <div className="flex min-w-0 items-center gap-3">
                 <SessionsStatus sessions={sessions} current={current} onOpen={onOpen}>
-                    <span className={`size-2 rounded-full ${toneOf(tone)}`} />
+                    <span className={`size-2 ${toneOf(tone)}`} />
                     <span className={tone === "danger" ? "text-danger" : "text-ink"}>{label}</span>
                 </SessionsStatus>
 
@@ -89,15 +88,18 @@ export const StatusBar = memo(function StatusBar({
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-3">
-                <StatusItems
-                    slot="end"
-                    session={session}
-                    sessions={sessions}
-                    openSession={onOpen}
-                />
-                {at("end").map((field) => (
-                    <StatusField key={field.source} field={field} />
-                ))}
+                {/* A phone keeps the state and the settings: five chips around a 171px cell drew over the state. */}
+                <div className="hidden min-w-0 items-center gap-3 sm:flex">
+                    <StatusItems
+                        slot="end"
+                        session={session}
+                        sessions={sessions}
+                        openSession={onOpen}
+                    />
+                    {at("end").map((field) => (
+                        <StatusField key={field.source} field={field} />
+                    ))}
+                </div>
                 <Hint label="Settings">
                     <Button
                         ref={settingsGear}
@@ -106,7 +108,7 @@ export const StatusBar = memo(function StatusBar({
                         aria-label="Settings"
                         aria-pressed={settingsOpen}
                         onClick={onSettings}
-                        className={`shrink-0 ${settingsOpen ? "bg-raised text-ink" : ""}`}
+                        className={`shrink-0 ${REACH} ${settingsOpen ? "bg-raised text-ink" : ""}`}
                     >
                         <Settings className="size-4" />
                     </Button>

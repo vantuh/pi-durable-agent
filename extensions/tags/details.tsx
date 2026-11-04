@@ -48,7 +48,7 @@ function Swatches({
                     // The ring sits 2px out over a `canvas` offset — the hue is the fill, so a ring
                     // flush with it would read as part of the colour — and the chosen dot's mark is an
                     // inner ring, so focus and choice show at once.
-                    className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-4 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[color]} ${
+                    className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-4 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[color]} ${
                         color === value
                             ? "inset-ring-ink inset-ring-2"
                             : "opacity-50 hover:opacity-100"
@@ -170,7 +170,7 @@ export default function Details({ enabled, installed }: ExtensionDetailsProps) {
                                                 setRenaming(null);
                                                 setEditing(tag.id);
                                             }}
-                                            className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-3 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[tag.color]}`}
+                                            className={`focus-visible:ring-accent focus-visible:ring-offset-canvas size-3 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${TAG_DOT[tag.color]}`}
                                         />
                                     </Hint>
                                 )}

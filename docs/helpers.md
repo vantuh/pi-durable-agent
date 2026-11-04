@@ -145,7 +145,7 @@ not a list of every function in the repository.
 
 ### Kept separate, with the reason
 
-- **Git runners** in `git-history` and `git-stats`: two extensions, different timeouts and exit-code
+- **Git runners** in `git-history`'s `git.ts` and `stats.ts`: different timeouts and exit-code
   handling, and no shared home without a core git API nobody else needs.
 - **Processes, timers, cancellation**: each is shaped by its task (build output, Chromium's lifetime,
   Kiro's process group, the bash idle guard); one helper would hide the differences that matter.

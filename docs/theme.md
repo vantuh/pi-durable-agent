@@ -96,20 +96,19 @@ In `styles.css`, next to the roles, so no component invents its own:
 - `--shadow-float` (`shadow-float`): Tailwind's `lg` geometry — `0 10px 15px -3px` and
   `0 4px 6px -4px` — in `--role-shadow`. Every surface that floats over the app wears it, so a
   popup, a tooltip, a menu and a toast cast the same shadow in every flavour;
-- `--radius-control: 6px` (a button, an input, a tooltip, a popup), `--radius-card: 10px` (a
-  pane, a card, a toast) and `--radius-mark: 2px` (a highlight behind a run of characters: a diff's
-  added or removed line, a search hit, a legend's dot);
+- no radius: every corner is square, so the theme has no `--radius-*` names;
 - two spacing names, for the lengths more than one component draws: `--spacing-stripe: 3px`
   (`w-stripe`: the accent mark down the side of a queued message and of a subagent's card) and
   `--spacing-header: 45px` (`min-h-header`: a pane header's floor, in the transcript and in a page).
   Every other length of the spacing scale is Tailwind's own step, `calc(var(--spacing) * n)` at 4px
   a step, and a length that belongs to one component's own drawing — a timeline mark, a rail, a
   chip's cap — stays a number in that component, with the reason beside it;
-- text sizes, one name per job, smallest first: `--text-micro: 11px` (an annotation inside a dense
-  row — a duration, a file's size, a chip's model name or folder), `--text-meta: 12px` (metadata),
-  `--text-code: 12.5px` (monospace lines: code blocks, diffs, tool names and their arguments),
-  `--text-sidebar: 13px` (session titles and the sidebar heading), `--text-tool: 13px` (tool group
-  headings), `--text-interface: 15px`, `--text-prose: 15px`, `--text-subheading: 16px` (a Markdown
+- text sizes, one name per job, smallest first: `--text-meta: 12px` (metadata, and an annotation
+  inside a dense row — a duration, a file's size, a chip's model name or folder), `--text-code:
+  12px` (monospace lines: code blocks, diffs, tool names and their arguments), `--text-ui: 14px`
+  (the chrome: session titles, the sidebar heading, list items, tool group headings),
+  `--text-interface: 15px` (the body, the conversation's prose, and the chrome that matches it),
+  `--text-subheading: 16px` (a Markdown
   answer's `h2`) and `--text-heading: 18px` (its `h1`, and the extensions dialog's title);
 - `--text-heading` and `--text-subheading` carry a `--text-*-line-height` (1.75rem, 1.5rem): both
   replaced one of Tailwind's own steps, which brought a line box with it, and the line box stays as

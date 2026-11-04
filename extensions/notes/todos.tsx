@@ -244,9 +244,7 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
                 />
             </form>
 
-            {error === null ? null : (
-                <Alert className="text-interface rounded-none px-3 py-1">{error}</Alert>
-            )}
+            {error === null ? null : <Alert className="text-interface px-3 py-1">{error}</Alert>}
 
             <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
                 {items?.length === 0 ? (
@@ -357,7 +355,7 @@ function Row({
         <li
             ref={rowRef}
             style={style}
-            className={cn("group rounded-control", dragging && "bg-raised relative z-10")}
+            className={cn("group", dragging && "bg-raised relative z-10")}
         >
             <div className="flex items-start gap-2 px-2 py-1">
                 {handle ?? <span className="size-4 shrink-0" />}

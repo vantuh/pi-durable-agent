@@ -201,7 +201,7 @@ function FileHeader({
             onClick={(event) => {
                 onToggle(event.currentTarget);
             }}
-            className="bg-panel border-edge-soft hover:text-muted h-9 w-full gap-2 rounded-none border-t px-3 text-left font-mono"
+            className="bg-panel border-edge-soft hover:text-muted h-9 w-full gap-2 border-t px-3 text-left font-mono"
         >
             <ChevronRight
                 className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
@@ -226,12 +226,7 @@ function WithoutDiff({ files }: { files: ChangedFile[] }) {
     return (
         <ul>
             {files.map((file) => (
-                <Item
-                    key={file.path}
-                    asChild
-                    // Square, because the row is the rule between two files: a 6px radius would curve it.
-                    className="border-edge-soft text-meta rounded-none border-t px-3"
-                >
+                <Item key={file.path} asChild className="border-edge-soft text-meta border-t px-3">
                     <li>
                         <ItemContent className="truncate font-mono">{file.path}</ItemContent>
                         {file.binary ? (
@@ -430,7 +425,7 @@ export function PatchPreview({
     if (parsed.error !== null) {
         return (
             <PendingPane header={header}>
-                <Alert className="rounded-none">Could not render this diff: {parsed.error}</Alert>
+                <Alert>Could not render this diff: {parsed.error}</Alert>
             </PendingPane>
         );
     }

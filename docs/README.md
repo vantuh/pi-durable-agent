@@ -16,6 +16,7 @@ The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 | [conventions.md](conventions.md)     | Every rule, and the mistake it prevents.                   |
 | [ui-primitives.md](ui-primitives.md) | Plan: hand-written controls replaced by shadcn primitives. |
 | [helpers.md](helpers.md)             | Plan: one home for each repeated helper function.          |
+| [ui-rework.md](ui-rework.md)         | The flat, square look and the extensions sidebar.          |
 
 Planned, not written yet: `agent.md` (tools, prompt, permissions).
 

@@ -24,7 +24,7 @@ export function DropdownMenuContent({
                 sideOffset={sideOffset}
                 collisionPadding={8}
                 className={cn(
-                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-float outline-none",
+                    "border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-float outline-none",
                     className,
                 )}
                 {...props}
@@ -40,7 +40,7 @@ export function DropdownMenuItem({
     return (
         <DropdownMenuPrimitive.Item
             className={cn(
-                "rounded-control text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 px-3 py-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+                "text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 px-3 py-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
                 className,
             )}
             {...props}
@@ -67,7 +67,7 @@ export function DropdownMenuRadioItem({
         <DropdownMenuPrimitive.RadioItem
             data-slot="dropdown-menu-radio-item"
             className={cn(
-                "rounded-control text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 py-2 pr-3 pl-9 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                "text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 py-2 pr-3 pl-9 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
                 className,
             )}
             {...props}
@@ -92,12 +92,12 @@ export function DropdownMenuCheckboxItem({
         <DropdownMenuPrimitive.CheckboxItem
             data-slot="dropdown-menu-checkbox-item"
             className={cn(
-                "group/check rounded-control text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 py-2 pr-3 pl-9 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                "group/check text-meta data-[highlighted]:bg-raised relative flex w-full cursor-default items-center gap-2 py-2 pr-3 pl-9 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
                 className,
             )}
             {...props}
         >
-            <span className="rounded-control border-edge bg-sunken text-on-accent group-data-[state=checked]/check:border-accent group-data-[state=checked]/check:bg-accent absolute top-2 left-3 flex size-4 items-center justify-center border">
+            <span className="border-edge bg-sunken text-on-accent group-data-[state=checked]/check:border-accent group-data-[state=checked]/check:bg-accent absolute top-2 left-3 flex size-4 items-center justify-center border">
                 <DropdownMenuPrimitive.ItemIndicator>
                     <Check className="size-3.5" />
                 </DropdownMenuPrimitive.ItemIndicator>
@@ -130,7 +130,7 @@ export function DropdownMenuSubTrigger({
     return (
         <DropdownMenuPrimitive.SubTrigger
             className={cn(
-                "rounded-control text-meta data-[highlighted]:bg-raised data-[state=open]:bg-raised relative flex cursor-default items-center gap-2 px-3 py-2 outline-none select-none [&_svg]:size-4 [&_svg]:shrink-0",
+                "text-meta data-[highlighted]:bg-raised data-[state=open]:bg-raised relative flex cursor-default items-center gap-2 px-3 py-2 outline-none select-none [&_svg]:size-4 [&_svg]:shrink-0",
                 className,
             )}
             {...props}
@@ -149,7 +149,7 @@ export function DropdownMenuSubContent({
                 sideOffset={4}
                 collisionPadding={8}
                 className={cn(
-                    "rounded-control border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-float outline-none",
+                    "border-edge-soft bg-panel text-ink z-50 min-w-40 border p-1 shadow-float outline-none",
                     className,
                 )}
                 {...props}

@@ -2,7 +2,6 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
-import { PANE } from "@/ui/pane.tsx";
 
 export function Sheet(props: ComponentProps<typeof DialogPrimitive.Root>) {
     return <DialogPrimitive.Root data-slot="sheet" {...props} />;
@@ -14,12 +13,12 @@ export function SheetClose(props: ComponentProps<typeof DialogPrimitive.Close>) 
 }
 
 /**
- * The edge a sheet comes from, with the geometry of an edge panel: the screen inside the app's 8px
- * gaps below `sm`, and from `sm` up a 360px card that stops above the status bar. A side is added
+ * The edge a sheet comes from, with the geometry of an edge panel: the whole screen below
+ * `sm`, and from `sm` up a 360px column that covers the status bar too. A side is added
  * when a caller slides in from it; today only the right edge has one.
  */
 const SIDES = {
-    right: "inset-2 sm:bottom-12 sm:left-auto sm:w-[360px]",
+    right: "inset-0 sm:left-auto sm:w-[360px]",
 };
 
 type SheetContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
@@ -36,8 +35,7 @@ export function SheetContent({ side = "right", className, children, ...props }: 
             <DialogPrimitive.Content
                 data-slot="sheet-content"
                 className={cn(
-                    "bg-canvas fixed z-50 flex flex-col overflow-hidden outline-none",
-                    PANE,
+                    "border-edge-soft bg-panel fixed z-50 flex flex-col overflow-hidden border-l outline-none",
                     SIDES[side],
                     className,
                 )}
