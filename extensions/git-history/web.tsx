@@ -41,6 +41,7 @@ import { Toolbar } from "@/ui/pane.tsx";
 import { messageOf } from "../../shared/guards.ts";
 import { GitStatsItem } from "./badge.tsx";
 import { PendingPane } from "./pending-pane.tsx";
+import { setViewedCommit, viewedCommit } from "./preferences.ts";
 import {
     HISTORY_PAGE,
     UNTRACKED_FILE_CAP,
@@ -413,6 +414,7 @@ function HistoryRow({
     detail,
     at,
     marker,
+    viewed,
     onOpen,
     onPrefetch,
     rowRef,
@@ -422,6 +424,7 @@ function HistoryRow({
     detail: string;
     at: number | undefined;
     marker: "local" | "remote" | undefined;
+    viewed: boolean;
     onOpen: (target: string) => void;
     onPrefetch: (target: string | undefined) => void;
     rowRef: (element: HTMLButtonElement | null) => void;
@@ -444,7 +447,8 @@ function HistoryRow({
                     onFocus={() => {
                         onPrefetch(target === WORKING ? undefined : target);
                     }}
-                    className="w-full min-w-0 justify-start px-3 py-2 text-left focus-visible:ring-inset"
+                    aria-current={viewed ? "true" : undefined}
+                    className={`w-full min-w-0 justify-start px-3 py-2 text-left focus-visible:ring-inset ${viewed ? "ring-accent ring-1 ring-inset" : ""}`}
                 >
                     {/* Spans, not the primitive's parts: a `<button>` takes phrasing content only. */}
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -827,6 +831,10 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const latestReview = useRef<ReviewState | null>(null);
     const leaving = useRef(false);
     const address = useRef(sub);
+    // The folder, not the conversation: ten commits read in one chat are still the folder's progress.
+    const repo = session.cwd ?? String(id);
+    // The row the list rings: the detail the page keeps mounted after a return, or the one a reload stored.
+    const viewed = shownTarget ?? viewedCommit(repo);
 
     // The list says how long ago each commit landed, so the clock it counts from ticks while open.
     useEffect(() => {
@@ -1007,6 +1015,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     // The last detail is kept mounted offscreen when the list comes back, so the slide returns.
     const openCommit = (target: string): void => {
         setDetailTarget(target);
+        setViewedCommit(repo, target);
         navigate(target);
     };
 
@@ -1140,6 +1149,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                         detail={`${String(data.changes)} files changed · live Git review`}
                                         at={undefined}
                                         marker={undefined}
+                                        viewed={viewed === WORKING}
                                         onOpen={openCommit}
                                         onPrefetch={(target) => {
                                             prefetchSoon(id, target);
@@ -1167,6 +1177,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                                   ? "local"
                                                   : undefined
                                         }
+                                        viewed={viewed === each.hash}
                                         onOpen={openCommit}
                                         onPrefetch={(target) => {
                                             prefetchSoon(id, target);
