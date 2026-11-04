@@ -3,6 +3,7 @@ import {
     History as HistoryIcon,
     ArrowDown,
     ArrowUp,
+    Check,
     ChevronRight,
     Pencil,
     RefreshCw,
@@ -41,7 +42,7 @@ import { Toolbar } from "@/ui/pane.tsx";
 import { messageOf } from "../../shared/guards.ts";
 import { GitStatsItem } from "./badge.tsx";
 import { PendingPane } from "./pending-pane.tsx";
-import { setViewedCommit, viewedCommit } from "./preferences.ts";
+import { markSeen, seenCommits, setViewedCommit, unmarkSeen, viewedCommit } from "./preferences.ts";
 import {
     HISTORY_PAGE,
     UNTRACKED_FILE_CAP,
@@ -415,8 +416,10 @@ function HistoryRow({
     at,
     marker,
     viewed,
+    seen,
     onOpen,
     onPrefetch,
+    onUnread,
     rowRef,
 }: {
     target: string;
@@ -425,12 +428,15 @@ function HistoryRow({
     at: number | undefined;
     marker: "local" | "remote" | undefined;
     viewed: boolean;
+    /** Already read: the row keeps a tick, as the last one keeps the ring. */
+    seen: boolean;
     onOpen: (target: string) => void;
     onPrefetch: (target: string | undefined) => void;
+    onUnread: (target: string) => void;
     rowRef: (element: HTMLButtonElement | null) => void;
 }) {
     return (
-        <li className="border-edge-soft border-b">
+        <li className="border-edge-soft relative border-b">
             <Item asChild>
                 <Button
                     ref={rowRef}
@@ -448,7 +454,7 @@ function HistoryRow({
                         onPrefetch(target === WORKING ? undefined : target);
                     }}
                     aria-current={viewed ? "true" : undefined}
-                    className={`w-full min-w-0 justify-start px-3 py-2 text-left focus-visible:ring-inset ${viewed ? "ring-accent ring-1 ring-inset" : ""}`}
+                    className={`w-full min-w-0 justify-start py-2 pl-3 text-left focus-visible:ring-inset ${seen ? "pr-14" : "pr-3"} ${viewed ? "ring-accent ring-1 ring-inset" : ""}`}
                 >
                     {/* Spans, not the primitive's parts: a `<button>` takes phrasing content only. */}
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -476,6 +482,21 @@ function HistoryRow({
                     <ChevronRight className="text-faint size-4 shrink-0" />
                 </Button>
             </Item>
+            {/* Over the row, not in it: a button holds phrasing content, and a press here takes the tick back. */}
+            {seen ? (
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Mark as not read"
+                    title="Mark as not read"
+                    onClick={() => {
+                        onUnread(target);
+                    }}
+                    className="text-ok absolute top-1/2 right-7 -translate-y-1/2"
+                >
+                    <Check className="size-3.5" />
+                </Button>
+            ) : null}
         </li>
     );
 }
@@ -835,6 +856,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const repo = session.cwd ?? String(id);
     // The row the list rings: the detail the page keeps mounted after a return, or the one a reload stored.
     const viewed = shownTarget ?? viewedCommit(repo);
+    const [seen, setSeen] = useState<ReadonlySet<string>>(() => seenCommits(repo));
 
     // The list says how long ago each commit landed, so the clock it counts from ticks while open.
     useEffect(() => {
@@ -1016,7 +1038,13 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const openCommit = (target: string): void => {
         setDetailTarget(target);
         setViewedCommit(repo, target);
+        setSeen(markSeen(repo, target, seen));
         navigate(target);
+    };
+
+    // A tick pressed takes its commit back out of the read list, and only out of it: the ring stays.
+    const unread = (target: string): void => {
+        setSeen(unmarkSeen(repo, target, seen));
     };
 
     async function begin(target: string): Promise<void> {
@@ -1150,6 +1178,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                         at={undefined}
                                         marker={undefined}
                                         viewed={viewed === WORKING}
+                                        seen={seen.has(WORKING)}
+                                        onUnread={unread}
                                         onOpen={openCommit}
                                         onPrefetch={(target) => {
                                             prefetchSoon(id, target);
@@ -1178,6 +1208,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                                                   : undefined
                                         }
                                         viewed={viewed === each.hash}
+                                        seen={seen.has(each.hash)}
+                                        onUnread={unread}
                                         onOpen={openCommit}
                                         onPrefetch={(target) => {
                                             prefetchSoon(id, target);
