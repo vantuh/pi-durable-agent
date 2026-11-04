@@ -1,6 +1,7 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
+import { recordOf } from "../../shared/guards.ts";
 import { readChanges, readCommit, readHistory, reword as rewordCommit } from "./git.ts";
 import { reviewProxy } from "./proxy.ts";
 import type { Changes } from "./refs.ts";
@@ -38,11 +39,8 @@ function watcher(host: Host): StatsWatch {
     }
     return found;
 }
-function field(args: unknown, key: string): unknown {
-    return typeof args === "object" && args !== null ? Reflect.get(args, key) : undefined;
-}
 function targetOf(args: unknown): string {
-    const target = field(args, "target");
+    const target = recordOf(args)?.["target"];
     if (
         typeof target !== "string" ||
         (target !== "worktree" && !/^[0-9a-f]{4,64}$/i.test(target))
@@ -87,7 +85,7 @@ export const actions = (host: Host): Record<string, Action> => ({
     stats: (call) => watcher(host).actions.stats(call),
     push: (call) => watcher(host).actions.push(call),
     history({ args, session }) {
-        const limit = field(args, "limit");
+        const limit = recordOf(args)?.["limit"];
         if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
             throw new ActionError("History limit must be between 1 and 200.");
         }
@@ -98,16 +96,16 @@ export const actions = (host: Host): Record<string, Action> => ({
         return changesOf(current.cwd, targetOf(args));
     },
     commit({ args, session }) {
-        const target = field(args, "target");
+        const target = recordOf(args)?.["target"];
         if (typeof target !== "string" || !/^[0-9a-f]{4,64}$/i.test(target)) {
             throw new ActionError("Choose a commit from the history.");
         }
         return readCommit(sessionOf(session).cwd, target);
     },
     reword({ args, session }) {
-        const hash = field(args, "hash");
-        const subject = field(args, "subject");
-        const body = field(args, "body");
+        const hash = recordOf(args)?.["hash"];
+        const subject = recordOf(args)?.["subject"];
+        const body = recordOf(args)?.["body"];
         if (typeof hash !== "string" || !/^[0-9a-f]{4,64}$/i.test(hash)) {
             throw new ActionError("Choose a commit from the history.");
         }
@@ -129,7 +127,7 @@ export const actions = (host: Host): Record<string, Action> => ({
         return manager(host).state(sessionOf(session).id);
     },
     cancel({ args, session }) {
-        const id = field(args, "id");
+        const id = recordOf(args)?.["id"];
         if (typeof id !== "string") {
             throw new ActionError("A review id is required.");
         }
