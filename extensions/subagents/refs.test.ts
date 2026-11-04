@@ -11,7 +11,6 @@ const agent = {
     fill: 10,
     used: 100,
     window: 1000,
-    working: true,
 };
 
 void describe("strip.parse", () => {

@@ -365,7 +365,6 @@ async function childAgent(
 type Seen = {
     owner: number;
     cwd: string | null;
-    busy: boolean;
     answer: AssistantMessage | undefined;
 };
 
@@ -407,7 +406,6 @@ async function stripAgent(
         fill: window > 0 ? Math.min(100, Math.round((used / window) * 100)) : 0,
         used,
         window,
-        working: true,
         cwd: cwd ?? null,
     };
 }
@@ -499,7 +497,7 @@ export const actions = (host: Host): Record<string, Action> => ({
         }
 
         const working = [...seen]
-            .filter(([, child]) => child.owner === session.id && child.busy)
+            .filter(([, child]) => child.owner === session.id)
             .toSorted(([a], [b]) => a - b);
 
         if (working.length === 0) {
@@ -544,7 +542,6 @@ export default function subagents(host: Host) {
             seen.set(id, {
                 owner,
                 cwd,
-                busy: true,
                 answer: answer?.role === "assistant" ? answer : undefined,
             });
         } else {

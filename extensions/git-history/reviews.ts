@@ -8,7 +8,6 @@ import { readChanges, resolveCommit, rootOf } from "./git.ts";
 import type { ReviewState } from "./refs.ts";
 
 export type ReviewJob = {
-    session: number;
     view: ReviewState;
     child?: ChildProcess;
     port?: number;
@@ -46,7 +45,6 @@ export class Reviews {
             throw new ActionError("Choose a commit from the history.");
         }
         const job: ReviewJob = {
-            session,
             view: { id: randomBytes(24).toString("hex"), target, state: "starting" },
         };
         this.jobs.set(session, job);
