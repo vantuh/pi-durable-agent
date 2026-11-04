@@ -274,6 +274,17 @@ export class Sessions {
         this.#questions.delete(id);
     }
 
+    /** Moves the session to another folder: its next request runs there, and its history stays. */
+    async setCwd(id: ConversationId, cwd: string): Promise<void> {
+        const opened = await this.open(id);
+
+        if (opened === undefined) {
+            throw new Error(`no session ${String(id)}`);
+        }
+
+        await opened.conversation.configure({ cwd }, this.#context);
+    }
+
     /** Names the session by hand; an empty name goes back to the automatic one. */
     async setTitle(id: ConversationId, title: string): Promise<void> {
         await this.#harness.commit(async (tx) => {

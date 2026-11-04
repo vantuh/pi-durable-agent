@@ -110,6 +110,11 @@ export type Host = {
     /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
     readonly setSessionTitle: (session: number, title: string) => Promise<void>;
     /**
+     * Moves a session to another folder: the next request of its agent runs there, and its history
+     * stays. The caller checks that the folder is right and that the session is not working.
+     */
+    readonly setSessionCwd: (session: number, cwd: string) => Promise<void>;
+    /**
      * The current value of a conversation document, or its initial value while that conversation has
      * none. It is for the places a tool call's `api.snapshot` does not reach: a commit listener and an
      * action. It only reads: no document is created and no revision moves.
@@ -429,6 +434,7 @@ export class Extensions {
     readonly #sessionSeen: Host["sessionSeen"];
     readonly #sessionWorking: Host["sessionWorking"];
     readonly #setSessionTitle: Host["setSessionTitle"];
+    readonly #setSessionCwd: Host["setSessionCwd"];
     readonly #readDoc: Host["readDoc"];
     readonly #sessionListChanged: () => void;
     readonly #sessionChanged: (session: number) => void;
@@ -469,6 +475,7 @@ export class Extensions {
         sessionSeen?: Host["sessionSeen"];
         sessionWorking?: Host["sessionWorking"];
         setSessionTitle?: Host["setSessionTitle"];
+        setSessionCwd?: Host["setSessionCwd"];
         readDoc?: Host["readDoc"];
         sessionListChanged?: () => void;
         sessionChanged?: (session: number) => void;
@@ -489,6 +496,7 @@ export class Extensions {
         this.#sessionSeen = options.sessionSeen ?? (() => Promise.resolve(false));
         this.#sessionWorking = options.sessionWorking ?? (() => Promise.resolve(false));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
+        this.#setSessionCwd = options.setSessionCwd ?? (() => Promise.resolve());
         this.#readDoc = options.readDoc ?? ((doc) => Promise.resolve(doc.definition.initial()));
         this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
         this.#sessionChanged = options.sessionChanged ?? (() => undefined);
@@ -968,6 +976,7 @@ export class Extensions {
             sessionSeen: (session) => this.#sessionSeen(session),
             sessionWorking: (session) => this.#sessionWorking(session),
             setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
+            setSessionCwd: (session, cwd) => this.#setSessionCwd(session, cwd),
             readDoc: (doc, session) => this.#readDoc(doc, session),
             setSessionMark: (session, mark) => {
                 const marks = this.#marks.get(folder) ?? new Map<number, string>();
