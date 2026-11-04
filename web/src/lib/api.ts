@@ -52,6 +52,14 @@ async function json(path: string, init?: RequestInit): Promise<unknown> {
     return response.json();
 }
 
+function post(path: string, body: unknown): Promise<unknown> {
+    return json(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+    });
+}
+
 export async function getHealth(): Promise<Health | undefined> {
     try {
         const body = recordOf(await json("/api/health"));
@@ -157,46 +165,24 @@ function rowsOf(value: unknown): SessionSummary[] {
 }
 
 export async function setSessionArchived(session: number, archived: boolean): Promise<void> {
-    await json("/api/sessions/archive", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session, archived }),
-    });
+    await post("/api/sessions/archive", { session, archived });
 }
 
 export async function setSessionTitle(session: number, title: string): Promise<void> {
-    await json("/api/sessions/title", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session, title }),
-    });
+    await post("/api/sessions/title", { session, title });
 }
 
 export async function markSeen(session: number): Promise<void> {
-    await json("/api/sessions/seen", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session }),
-    });
+    await post("/api/sessions/seen", { session });
 }
 
 /** Out of the sidebar for good: only a note says it is deleted, the transcript stays on disk. */
 export async function deleteSession(session: number): Promise<void> {
-    await json("/api/sessions/delete", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session }),
-    });
+    await post("/api/sessions/delete", { session });
 }
 
 export async function createSession(cwd: string): Promise<number> {
-    const body = recordOf(
-        await json("/api/sessions", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ cwd }),
-        }),
-    );
+    const body = recordOf(await post("/api/sessions", { cwd }));
 
     return num(body?.["session"], 0);
 }
@@ -270,22 +256,14 @@ export async function listModels(): Promise<Models> {
 }
 
 export async function setDefaultModel(choice: DefaultModel): Promise<void> {
-    await json("/api/default", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-            model: { provider: choice.provider, modelId: choice.modelId },
-            thinkingLevel: choice.thinkingLevel,
-        }),
+    await post("/api/default", {
+        model: { provider: choice.provider, modelId: choice.modelId },
+        thinkingLevel: choice.thinkingLevel,
     });
 }
 
 export async function addScopedModel(choice: ModelChoice): Promise<void> {
-    await json("/api/scoped", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: choice.provider, modelId: choice.id }),
-    });
+    await post("/api/scoped", { provider: choice.provider, modelId: choice.id });
 }
 
 export async function removeScopedModel(choice: ModelChoice): Promise<void> {
@@ -327,11 +305,7 @@ export async function setAgent(
     session: number,
     change: { model?: { provider: string; modelId: string }; thinkingLevel?: string },
 ): Promise<void> {
-    await json("/api/agent", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session, ...change }),
-    });
+    await post("/api/agent", { session, ...change });
 }
 
 /**
@@ -382,13 +356,7 @@ export async function withdrawQueued(
     id: number,
 ): Promise<"aborted" | "already_placed" | "settled" | "not_found" | undefined> {
     try {
-        const body = recordOf(
-            await json("/api/queued/withdraw", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ session, id }),
-            }),
-        );
+        const body = recordOf(await post("/api/queued/withdraw", { session, id }));
         const result = body?.["result"];
 
         return result === "aborted" ||
