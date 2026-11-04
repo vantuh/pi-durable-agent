@@ -12,8 +12,9 @@ import type { HeaderItemProps } from "@/sdk/types.ts";
 import { messageOf } from "../../shared/guards.ts";
 import { HISTORY_PAGE, push, stats, WORKING, type GitStats } from "./refs.ts";
 
-// The numbers change when the agent works (the effect below re-reads on that), so a slow poll is enough, and a hidden
-// tab, which a phone keeps for hours, is not worth waking the radio for.
+// The server watches the working tree and bumps `session.revision` on a change (the effect below re-reads on that), so
+// this slow poll is only the heartbeat that keeps the server watching, and a hidden tab, which a phone keeps for
+// hours, is not worth waking the radio for.
 const POLL_MS = 60_000;
 
 function GitBadge({ session, openPage }: HeaderItemProps) {
@@ -64,8 +65,8 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
             clearTimeout(timer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- refresh on agent activity and after a push, in addition to polling
-    }, [id, busy, refresh]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- refresh on agent activity, a server-side change and after a push, in addition to polling
+    }, [id, busy, refresh, session?.revision]);
 
     if (id === null || data?.id !== id) {
         return null;

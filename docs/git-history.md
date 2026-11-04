@@ -85,6 +85,10 @@ Remote Git checks and automatic CLI updates are disabled for these processes. Ot
 features follow the user's configuration; optional AI/provider actions inside its UI are separate
 from merely opening a review and can invoke their own tools when explicitly requested.
 
+## How the badge stays current
+
+Each `stats` call leases its session for three minutes; the browser's once-a-minute call renews it. While any lease is held, the server reads each leased folder every 3 s and, when the numbers differ from the last reading, calls `host.notifySessionChanged` for the sessions of that folder, so the badge re-reads through `session.revision`. With no lease there is no Git work, and a reload stops the poller.
+
 ## Why a commit opens without waiting
 
 A commit cannot change, so three layers answer for it and only the working tree is read again on

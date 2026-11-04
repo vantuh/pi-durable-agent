@@ -534,7 +534,7 @@ the icon (hidden on a phone) and `↑ ↓` open the page root.
 - An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
 - Commit counts compare against the configured upstream as of the **last fetch**. The extension
   does not fetch or pull automatically. Without an upstream, the counters show `?` and Push is disabled.
-- Counts refresh every minute, after agent activity and after a push.
+- Counts refresh after agent activity, after a push, and within about 3 s of a change in the working tree (see [Git history](git-history.md#how-the-badge-stays-current)); the browser's own poll is every minute.
 - Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
   configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
   upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.

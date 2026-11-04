@@ -5,7 +5,7 @@ import { readChanges, readCommit, readHistory, reword as rewordCommit } from "./
 import { reviewProxy } from "./proxy.ts";
 import type { Changes } from "./refs.ts";
 import { Reviews } from "./reviews.ts";
-import { statsActions } from "./stats.ts";
+import { watchStats, type StatsWatch } from "./stats.ts";
 
 export const meta = {
     title: "Git history & review",
@@ -14,14 +14,25 @@ export const meta = {
 };
 // Ephemeral processes belong to one installed host version, never to another reload.
 const instances = new WeakMap<Host, Reviews>();
+const watches = new WeakMap<Host, StatsWatch>();
 export default function gitHistory(host: Host) {
     const reviews = new Reviews(`/api/extensions/${encodeURIComponent(host.name)}/http`);
     instances.set(host, reviews);
     host.onDispose(() => reviews.dispose());
+    const watch = watchStats({ notify: host.notifySessionChanged, log: host.log });
+    watches.set(host, watch);
+    host.onDispose(watch.dispose);
     return defineExtension({ name: host.name });
 }
 function manager(host: Host): Reviews {
     const found = instances.get(host);
+    if (found === undefined) {
+        throw new Error("Git history has not been installed.");
+    }
+    return found;
+}
+function watcher(host: Host): StatsWatch {
+    const found = watches.get(host);
     if (found === undefined) {
         throw new Error("Git history has not been installed.");
     }
@@ -73,7 +84,8 @@ function changesOf(cwd: string, target: string): Promise<Changes> {
 }
 
 export const actions = (host: Host): Record<string, Action> => ({
-    ...statsActions,
+    stats: (call) => watcher(host).actions.stats(call),
+    push: (call) => watcher(host).actions.push(call),
     history({ args, session }) {
         const limit = field(args, "limit");
         if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
