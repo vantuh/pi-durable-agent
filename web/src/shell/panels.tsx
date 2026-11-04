@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
@@ -285,6 +285,25 @@ export function PanelHost({
                 <div className={`flex w-full min-w-0 flex-col ${expanded ? "" : COLUMN}`}>
                     <PaneHeader className="gap-2">
                         {tabs}
+                        {/* Below `lg` the drawer is already the screen, so there is nothing to fill. */}
+                        <Hint label={expanded ? "Back to the sidebar" : "Full screen"}>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={expanded ? "Back to the sidebar" : "Full screen"}
+                                aria-pressed={expanded}
+                                onClick={() => {
+                                    setExpanded(!expanded);
+                                }}
+                                className="max-lg:hidden"
+                            >
+                                {expanded ? (
+                                    <Minimize2 className="size-4" />
+                                ) : (
+                                    <Maximize2 className="size-4" />
+                                )}
+                            </Button>
+                        </Hint>
                         <Hint label="Close">
                             <Button
                                 variant="ghost"

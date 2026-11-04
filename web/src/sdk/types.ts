@@ -84,7 +84,7 @@ export type PanelProps = StatusProps & {
     onClose: () => void;
     /** The shell has placed this panel over the conversation instead of in the drawer. */
     expanded: boolean;
-    /** A panel that chooses to fill the conversation asks for it here; the shell does the placing. */
+    /** Fills the conversation, and back: the shell's header button asks; the shell does the placing. */
     setExpanded: (value: boolean) => void;
 };
 
