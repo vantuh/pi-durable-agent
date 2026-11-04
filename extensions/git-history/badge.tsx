@@ -204,7 +204,8 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
                 </div>
                 {confirm ? (
                     <Button
-                        className="mt-3"
+                        size="sm"
+                        className="mt-3 font-normal"
                         onClick={() => {
                             void doPush();
                         }}
