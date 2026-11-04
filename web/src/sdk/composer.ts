@@ -42,8 +42,11 @@ export function subscribeComposerDraft(listener: () => void): () => void {
     };
 }
 
+/** The one empty list: a reader compares snapshots, and a new array each read would look like a change. */
+const NO_QUOTES: string[] = [];
+
 export function composerQuotes(sessionId: string): string[] {
-    return quotes.get(sessionId) ?? [];
+    return quotes.get(sessionId) ?? NO_QUOTES;
 }
 
 function tellQuotes(): void {
