@@ -40,6 +40,7 @@ import { Toolbar } from "@/ui/pane.tsx";
 
 import { messageOf } from "../../shared/guards.ts";
 import { GitStatsItem } from "./badge.tsx";
+import { PendingPane } from "./pending-pane.tsx";
 import {
     HISTORY_PAGE,
     UNTRACKED_FILE_CAP,
@@ -293,16 +294,6 @@ function whenIdle(run: () => void): () => void {
     return () => {
         cancelIdleCallback(handle);
     };
-}
-
-/** The page's one scroll until the diff is ready: the commit's own header, then a note. */
-function PendingPane({ header, children }: { header: ReactNode; children: ReactNode }) {
-    return (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="flex flex-col gap-3 px-3 py-3">{header}</div>
-            {children}
-        </div>
-    );
 }
 
 /** One commit's changes; the diff, when it is drawn, owns the page's only scroll. */
