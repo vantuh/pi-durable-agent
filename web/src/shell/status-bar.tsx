@@ -1,7 +1,7 @@
 import { Settings } from "lucide-react";
 import { memo, type RefObject } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, REACH } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
@@ -56,7 +56,7 @@ export const StatusBar = memo(function StatusBar({
 
     return (
         <footer
-            className={`border-edge-soft bg-panel text-meta text-muted grid h-7 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border-t px-3`}
+            className={`border-edge-soft bg-panel text-meta text-muted grid h-7 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden border-t px-3 pointer-coarse:h-11`}
         >
             <div className="flex min-w-0 items-center gap-3">
                 <SessionsStatus sessions={sessions} current={current} onOpen={onOpen}>
@@ -108,7 +108,7 @@ export const StatusBar = memo(function StatusBar({
                         aria-label="Settings"
                         aria-pressed={settingsOpen}
                         onClick={onSettings}
-                        className={`shrink-0 ${settingsOpen ? "bg-raised text-ink" : ""}`}
+                        className={`shrink-0 ${REACH} ${settingsOpen ? "bg-raised text-ink" : ""}`}
                     >
                         <Settings className="size-4" />
                     </Button>

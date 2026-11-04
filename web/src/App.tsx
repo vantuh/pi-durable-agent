@@ -1,7 +1,7 @@
 import { PanelRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, REACH } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 
 import type { ClientQueued, ClientStatus } from "../../shared/protocol.ts";
@@ -467,9 +467,7 @@ export function App() {
                                                         aria-label="Extensions"
                                                         aria-pressed={sidebarOpen}
                                                         onClick={toggleSidebar}
-                                                        className={
-                                                            sidebarOpen ? "bg-raised text-ink" : ""
-                                                        }
+                                                        className={`${REACH} ${sidebarOpen ? "bg-raised text-ink" : ""}`}
                                                     >
                                                         <PanelRight className="size-4" />
                                                     </Button>

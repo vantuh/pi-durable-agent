@@ -11,7 +11,7 @@ import {
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, REACH } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Empty } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -560,7 +560,7 @@ export function Transcript({
                             size="icon-sm"
                             aria-label="Sessions"
                             onClick={onSessions}
-                            className="shrink-0 lg:hidden"
+                            className={`shrink-0 lg:hidden ${REACH}`}
                         >
                             <PanelLeft className="size-4" />
                         </Button>

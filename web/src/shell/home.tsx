@@ -1,7 +1,7 @@
 import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, REACH } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { Item } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -96,7 +96,7 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                             size="icon-sm"
                             aria-label="Sessions"
                             onClick={onSessions}
-                            className="shrink-0 lg:hidden"
+                            className={`shrink-0 lg:hidden ${REACH}`}
                         >
                             <PanelLeft className="size-4" />
                         </Button>
