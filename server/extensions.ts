@@ -105,6 +105,8 @@ export type Host = {
      * session is on screen, visible and focused. False for a run nobody has looked at yet.
      */
     readonly sessionSeen: (session: number) => Promise<boolean>;
+    /** Whether the session's own run is busy, or any session started from it, at any depth, still works. */
+    readonly sessionWorking: (session: number) => Promise<boolean>;
     /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
     readonly setSessionTitle: (session: number, title: string) => Promise<void>;
     /**
@@ -429,6 +431,7 @@ export class Extensions {
     readonly #sessionName: Host["sessionName"];
     readonly #sessionOwner: Host["sessionOwner"];
     readonly #sessionSeen: Host["sessionSeen"];
+    readonly #sessionWorking: Host["sessionWorking"];
     readonly #setSessionTitle: Host["setSessionTitle"];
     readonly #readDoc: Host["readDoc"];
     readonly #sessionListChanged: () => void;
@@ -468,6 +471,7 @@ export class Extensions {
         sessionName?: Host["sessionName"];
         sessionOwner?: Host["sessionOwner"];
         sessionSeen?: Host["sessionSeen"];
+        sessionWorking?: Host["sessionWorking"];
         setSessionTitle?: Host["setSessionTitle"];
         readDoc?: Host["readDoc"];
         sessionListChanged?: () => void;
@@ -487,6 +491,7 @@ export class Extensions {
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
         this.#sessionOwner = options.sessionOwner ?? (() => Promise.resolve(undefined));
         this.#sessionSeen = options.sessionSeen ?? (() => Promise.resolve(false));
+        this.#sessionWorking = options.sessionWorking ?? (() => Promise.resolve(false));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
         this.#readDoc = options.readDoc ?? ((doc) => Promise.resolve(doc.definition.initial()));
         this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
@@ -965,6 +970,7 @@ export class Extensions {
             sessionName: (session) => this.#sessionName(session),
             sessionOwner: (session) => this.#sessionOwner(session),
             sessionSeen: (session) => this.#sessionSeen(session),
+            sessionWorking: (session) => this.#sessionWorking(session),
             setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
             readDoc: (doc, session) => this.#readDoc(doc, session),
             setSessionMark: (session, mark) => {

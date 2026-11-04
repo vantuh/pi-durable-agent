@@ -1,7 +1,7 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type { SessionSummary } from "../../../shared/protocol.ts";
-import { finishedBetween } from "../lib/finished.ts";
+import { finishedBetween, working } from "../lib/finished.ts";
 import { showSessionAlert } from "./session-alert.tsx";
 import { folderName } from "./session-parts.tsx";
 
@@ -32,9 +32,13 @@ function chime(): void {
     }
 }
 
+/** A parent's report reaches it a moment after its last child idles; a run that starts again in this time did not finish. */
+const SETTLE_MS = 3000;
+
 /**
- * A toast when another session's run ends; a click anywhere on it opens that session. A chime when
- * any run ends, the one on screen included.
+ * A toast when another session stops working; a click anywhere on it opens that session. A chime when
+ * any top-level session does, the one on screen included. A session works while its own run or any
+ * subagent below it does, and the signal comes only once it has stayed idle for a moment.
  */
 export function useFinishedToasts(
     sessions: SessionSummary[],
@@ -42,29 +46,62 @@ export function useFinishedToasts(
     onOpen: (id: number) => void,
 ): void {
     const before = useRef<SessionSummary[]>([]);
-    const announce = useEffectEvent((after: SessionSummary[]) => {
-        // Subagents finish inside their parent's run; only the parent's end is worth a sound.
-        if (finishedBetween(before.current, after, null).some((row) => row.parent === undefined)) {
-            chime();
-        }
+    const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+    const latest = useRef({ sessions, current, onOpen });
 
-        for (const session of finishedBetween(before.current, after, current)) {
-            showSessionAlert(
-                {
-                    id: `finished-${String(session.id)}`,
-                    level: "success",
-                    session: session.id,
-                    title: session.title ?? "New session",
-                    description: `Finished · ${folderName(session.cwd)}`,
-                },
-                onOpen,
+    useEffect(() => {
+        latest.current = { sessions, current, onOpen };
+
+        for (const candidate of finishedBetween(before.current, sessions, null)) {
+            if (timers.current.has(candidate.id)) {
+                continue;
+            }
+
+            timers.current.set(
+                candidate.id,
+                setTimeout(() => {
+                    timers.current.delete(candidate.id);
+
+                    const now = latest.current;
+                    const session = now.sessions.find((row) => row.id === candidate.id);
+
+                    if (session === undefined || working(session, now.sessions)) {
+                        return;
+                    }
+
+                    // Subagents finish inside their parent's run; only the parent's end is worth a sound.
+                    if (session.parent === undefined) {
+                        chime();
+                    }
+
+                    if (session.id !== now.current) {
+                        showSessionAlert(
+                            {
+                                id: `finished-${String(session.id)}`,
+                                level: "success",
+                                session: session.id,
+                                title: session.title ?? "New session",
+                                description: `Finished · ${folderName(session.cwd)}`,
+                            },
+                            now.onOpen,
+                        );
+                    }
+                }, SETTLE_MS),
             );
         }
 
-        before.current = after;
-    });
+        before.current = sessions;
+    }, [sessions, current, onOpen]);
 
     useEffect(() => {
-        announce(sessions);
-    }, [sessions]);
+        const pending = timers.current;
+
+        return () => {
+            for (const timer of pending.values()) {
+                clearTimeout(timer);
+            }
+
+            pending.clear();
+        };
+    }, []);
 }

@@ -89,7 +89,8 @@ export const actions = (host: Host): Record<string, Action> =>
 
 /**
  * How long a finished turn waits for a browser to say it was seen. A browser on that session, visible
- * and focused, says so within a moment of the end, so a device in use is not pinged about it.
+ * and focused, says so within a moment of the end, so a device in use is not pinged about it. The
+ * wait also lets a subagent's report start the parent's next turn before its end is judged.
  */
 const SEEN_WAIT_MS = 5000;
 
@@ -145,7 +146,7 @@ export function listen(
             void (async () => {
                 await new Promise((resolve) => setTimeout(resolve, seenWaitMs));
 
-                if (await host.sessionSeen(id)) {
+                if ((await host.sessionSeen(id)) || (await host.sessionWorking(id))) {
                     return;
                 }
 

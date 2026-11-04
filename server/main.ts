@@ -154,6 +154,28 @@ function isBusy(id: number): boolean {
     return busy.get(id) === true;
 }
 
+/** Whether the session's own run is busy, or a session started from it, at any depth, is. */
+async function sessionWorking(session: number): Promise<boolean> {
+    if (isBusy(session)) {
+        return true;
+    }
+
+    for (const [id, running] of busy) {
+        let owner = running ? await sessions.owner(idOf(id)) : undefined;
+
+        // The depth bound stops a cycle in the records from looping.
+        for (let depth = 0; owner !== undefined && depth < 64; depth += 1) {
+            if (owner === session) {
+                return true;
+            }
+
+            owner = await sessions.owner(idOf(owner));
+        }
+    }
+
+    return false;
+}
+
 /** What extensions say about a session's row: the mark they put on it and the folder it is shown under. */
 async function markRow(row: SessionSummary): Promise<SessionSummary> {
     const mark = extensions.markOf(row.id);
@@ -740,6 +762,7 @@ async function boot(): Promise<void> {
         sessionName: (session) => sessions.name(idOf(session)),
         sessionOwner: (session) => sessions.owner(idOf(session)),
         sessionSeen: (session) => sessions.seenSinceEnd(idOf(session)),
+        sessionWorking,
         // The title lives in a document, so no commit carries it to the browsers: the list goes again.
         setSessionTitle: async (session, title) => {
             await sessions.setTitle(idOf(session), title);
