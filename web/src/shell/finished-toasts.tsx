@@ -36,8 +36,8 @@ function chime(): void {
 const SETTLE_MS = 3000;
 
 /**
- * A toast when another session stops working; a click anywhere on it opens that session. A chime when
- * any top-level session does, the one on screen included. A session works while its own run or any
+ * A toast when another top-level session stops working; a click anywhere on it opens that session. A
+ * chime when one does, the one on screen included. Subagents give neither. A session works while its own run or any
  * subagent below it does, and the signal comes only once it has stayed idle for a moment.
  */
 export function useFinishedToasts(
@@ -75,14 +75,16 @@ export function useFinishedToasts(
                     const now = latest.current;
                     const session = now.sessions.find((row) => row.id === candidate.id);
 
-                    if (session === undefined || working(session, now.sessions)) {
+                    // Subagents finish inside their parent's run; only the parent's end is worth a signal.
+                    if (
+                        session === undefined ||
+                        session.parent !== undefined ||
+                        working(session, now.sessions)
+                    ) {
                         return;
                     }
 
-                    // Subagents finish inside their parent's run; only the parent's end is worth a sound.
-                    if (session.parent === undefined) {
-                        chime();
-                    }
+                    chime();
 
                     if (session.id !== now.current) {
                         showSessionAlert(
