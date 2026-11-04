@@ -40,10 +40,8 @@ turndown.remove(["script", "style", "noscript", "iframe"]);
 const error = (message: string): Fetched => ({ kind: "error", message });
 
 export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetched> {
-    const timeout = new AbortController();
-    const timer = setTimeout(() => timeout.abort(new Error("timeout")), TIMEOUT_MS);
-    const aborted =
-        signal === undefined ? timeout.signal : AbortSignal.any([signal, timeout.signal]);
+    const timeout = AbortSignal.timeout(TIMEOUT_MS);
+    const aborted = signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
 
     try {
         const response = await fetch(url, {
@@ -87,12 +85,10 @@ export async function fetchPage(url: string, signal?: AbortSignal): Promise<Fetc
         if (signal?.aborted === true) {
             return error("fetch_content was stopped.");
         }
-        if (timeout.signal.aborted) {
+        if (timeout.aborted) {
             return error(`the page did not answer within ${TIMEOUT_MS / 1000} seconds`);
         }
         return error(`fetch failed: ${messageOf(cause)}`);
-    } finally {
-        clearTimeout(timer);
     }
 }
 
