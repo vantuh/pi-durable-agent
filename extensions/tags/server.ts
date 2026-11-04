@@ -55,65 +55,51 @@ export default function tags(host: Host) {
 }
 
 /** The actions with their names typed, so a test calls one without asking whether it is there. */
-export const tagActions = (host: Host) => ({
-    state: async (): Promise<TagsState> => await readTags(host.dataDir),
-    create: async ({ args }: ActionCall): Promise<TagsState> => {
-        const name = fieldOf(args, "name");
-        const color = colorOf(args);
-
-        return await serialize(tagsFile(host.dataDir), async () => {
-            const state = addTag(await readTags(host.dataDir), name, color);
+export const tagActions = (host: Host) => {
+    /** One change to the file: read, edit, write, in the file's queue; the new state is the answer. */
+    const change = (edit: (state: TagsState) => TagsState): Promise<TagsState> =>
+        serialize(tagsFile(host.dataDir), async () => {
+            const state = edit(await readTags(host.dataDir));
             await writeTags(host.dataDir, state);
 
             return state;
         });
-    },
-    rename: async ({ args }: ActionCall): Promise<TagsState> => {
-        const id = fieldOf(args, "id");
-        const name = fieldOf(args, "name");
 
-        return await serialize(tagsFile(host.dataDir), async () => {
-            const state = renameTag(await readTags(host.dataDir), id, name);
-            await writeTags(host.dataDir, state);
+    return {
+        state: async (): Promise<TagsState> => await readTags(host.dataDir),
+        create: async ({ args }: ActionCall): Promise<TagsState> => {
+            const name = fieldOf(args, "name");
+            const color = colorOf(args);
 
-            return state;
-        });
-    },
-    recolor: async ({ args }: ActionCall): Promise<TagsState> => {
-        const id = fieldOf(args, "id");
-        const color = colorOf(args);
+            return await change((state) => addTag(state, name, color));
+        },
+        rename: async ({ args }: ActionCall): Promise<TagsState> => {
+            const id = fieldOf(args, "id");
+            const name = fieldOf(args, "name");
 
-        return await serialize(tagsFile(host.dataDir), async () => {
-            const state = recolorTag(await readTags(host.dataDir), id, color);
-            await writeTags(host.dataDir, state);
+            return await change((state) => renameTag(state, id, name));
+        },
+        recolor: async ({ args }: ActionCall): Promise<TagsState> => {
+            const id = fieldOf(args, "id");
+            const color = colorOf(args);
 
-            return state;
-        });
-    },
-    remove: async ({ args }: ActionCall): Promise<TagsState> => {
-        const id = fieldOf(args, "id");
+            return await change((state) => recolorTag(state, id, color));
+        },
+        remove: async ({ args }: ActionCall): Promise<TagsState> => {
+            const id = fieldOf(args, "id");
 
-        return await serialize(tagsFile(host.dataDir), async () => {
-            const state = removeTag(await readTags(host.dataDir), id);
-            await writeTags(host.dataDir, state);
+            return await change((state) => removeTag(state, id));
+        },
+        toggle: async ({ args, session }: ActionCall): Promise<TagsState> => {
+            if (session === null) {
+                throw new ActionError("a session is needed");
+            }
 
-            return state;
-        });
-    },
-    toggle: async ({ args, session }: ActionCall): Promise<TagsState> => {
-        if (session === null) {
-            throw new ActionError("a session is needed");
-        }
+            const tag = fieldOf(args, "tag");
 
-        const tag = fieldOf(args, "tag");
-
-        return await serialize(tagsFile(host.dataDir), async () => {
-            const state = toggleTag(await readTags(host.dataDir), session.id, tag);
-            await writeTags(host.dataDir, state);
-
-            return state;
-        });
-    },
-});
+            return await change((state) => toggleTag(state, session.id, tag));
+        },
+    };
+};
 
 export const actions = (host: Host): Record<string, Action> => tagActions(host);
