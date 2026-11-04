@@ -12,6 +12,7 @@ import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
 import { newestFirst } from "../lib/session-order.ts";
 import { MINUTE } from "../lib/time.ts";
+import { GroupHeading } from "../ui/group-heading.tsx";
 import { PaneHeader } from "../ui/pane.tsx";
 import { SessionMarks, SessionRowContent } from "./session-parts.tsx";
 
@@ -116,9 +117,9 @@ export function Home({ sessions, onOpen, onNew, onSessions }: Props) {
                     {groups.map((group) =>
                         group.rows.length === 0 ? null : (
                             <div key={group.name}>
-                                <h2 className="text-faint text-meta px-2 py-1.5">
+                                <GroupHeading>
                                     {group.name} {group.rows.length}
-                                </h2>
+                                </GroupHeading>
                                 {group.rows.map((session) => (
                                     <Row
                                         key={session.id}

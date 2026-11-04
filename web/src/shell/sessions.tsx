@@ -73,6 +73,7 @@ import { useShellCommand } from "../sdk/commands.ts";
 import { focusComposer } from "../sdk/composer.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { CommandKeys } from "../ui/command-keys.tsx";
+import { GroupHeading } from "../ui/group-heading.tsx";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
@@ -1262,11 +1263,9 @@ export const Sessions = memo(function Sessions({
                                         decorative={false}
                                         className={`mx-2 mt-1 mb-0.5 w-auto [:first-child>&]:hidden ${FADE} ${FOLD}`}
                                     />
-                                    <div
-                                        className={`text-faint text-meta px-2 py-1.5 whitespace-nowrap ${FADE} ${FOLD}`}
-                                    >
+                                    <GroupHeading className={`${FADE} ${FOLD}`}>
                                         {group} {rows.length}
-                                    </div>
+                                    </GroupHeading>
 
                                     {rows.map((session) => (
                                         <SessionRow
