@@ -169,8 +169,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   removed or sent. `Enter` sends, `Shift+Enter` breaks the line. A command typed in the box
   (`/compact`, `/new`, `/model`) is run instead of sent and never enters the transcript: `/new` opens a new
   session in the folder this one works in, `/model` opens the model menu. `/` opens a list of the commands and the session's skills,
-  narrowed as you type, walked with the arrows and taken with `Enter` or `Tab`; a picked command or
-  skill is inserted and the list closes. While a run is
+  narrowed as you type, walked with the arrows and taken with `Enter` or `Tab`; a picked skill or
+  `/compact` is inserted and the list closes; a picked `/new` or `/model` runs at once. While a run is
   live, Stop appears beside Send and a row of **Steer / Queue / Interrupt** says how the message goes:
   after the current tool round (`whenBusy: "steer"`), after the answer (`"followUp"`), or now (abort,
   then send; it goes back to Steer after one use). Messages waiting in `pi.inbox` are cards above the

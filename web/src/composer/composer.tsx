@@ -69,6 +69,8 @@ type Candidate = {
     description: string;
     insert: string;
     replace?: [number, number];
+    /** A command with no arguments: picking it runs it, there is nothing left to type. */
+    instant?: "new" | "model";
 };
 
 const FILE_MATCHES = 30;
@@ -84,6 +86,9 @@ function slashCandidates(typed: string, skills: readonly SkillInfo[]): Candidate
             label: `/${command.name}`,
             description: command.description,
             insert: `/${command.name}${command.takesArgs ? " " : ""}`,
+            ...(command.name === "new" || command.name === "model"
+                ? { instant: command.name }
+                : {}),
         })),
         ...skills.map((skill) => ({
             name: skill.name,
@@ -302,6 +307,19 @@ export const Composer = memo(function Composer({
             requestAnimationFrame(() => {
                 field.current?.setSelectionRange(end, end);
             });
+
+            return;
+        }
+
+        if (candidate.instant !== undefined && files.length === 0 && quotes.length === 0) {
+            setComposerDraft(sessionId, "");
+            setText("");
+
+            if (candidate.instant === "new") {
+                onNewSession();
+            } else {
+                onToggleMenu();
+            }
 
             return;
         }
