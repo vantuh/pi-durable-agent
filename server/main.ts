@@ -33,7 +33,7 @@ import type {
     SessionsEvent,
 } from "../shared/protocol.ts";
 import { buildShell } from "./build.ts";
-import { commitAnnouncer } from "./commit-announcer.ts";
+import { commitView } from "./commit-view.ts";
 import { executionEnv } from "./execution-env.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
@@ -461,22 +461,10 @@ function publish(opened: Opened, view: View): void {
     }
 }
 
-const announce = commitAnnouncer({
-    cwdOf: async (id) => {
-        const agent = await latest.get(id)?.opened.conversation.agent(context);
-
-        return agent?.cwd ?? null;
-    },
-    ownerOf: (session) => sessions.owner(idOf(session)),
-    publish: (view) => {
-        extensions.publish(view);
-    },
-});
-
 /** Sends a state to the browsers and, with its busy value as it is now, to the extensions. */
 function observe(opened: Opened, state: View): void {
     publish(opened, state);
-    void announce(opened.id, state.entries, busy.get(opened.id) === true);
+    extensions.publish(commitView(state, busy.get(opened.id) === true));
 }
 
 const attaching = new Map<number, Promise<Opened | undefined>>();
