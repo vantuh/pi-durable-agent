@@ -186,6 +186,7 @@ export function App() {
     // arrived, its folder, revision and busy flag are guesses that change a moment later, so they get no session.
     const activeSession = loading || active === undefined ? null : knownSession;
 
+    const tabPages = useMemo(() => pages.filter((candidate) => candidate.tab !== false), [pages]);
     const panel = panels.find((candidate) => panelKey(candidate) === panelShown);
     const openPageItem =
         route.page === null
@@ -255,7 +256,9 @@ export function App() {
         closePanel();
         closePage();
     }, [closePanel, closePage]);
-    const sidebarOpen = pageOpen || (panelOpen && panel !== undefined);
+    // A page without a tab does not light the sidebar's button: it is no part of the sidebar.
+    const sidebarOpen =
+        (pageOpen && openPageItem.tab !== false) || (panelOpen && panel !== undefined);
     const selectPanel = useCallback(
         (key: string) => {
             if (pageOpen) {
@@ -276,7 +279,16 @@ export function App() {
         },
         [route.page?.key, closePanel, openPage],
     );
-    // Closed, it brings back the panel opened last, else the first panel, else the first page.
+    // A header item's page, at its own sub-location: the same step as a tab, but already being on the page
+    // is no reason to stay at its current sub.
+    const openFromHeader = useCallback(
+        (key: string, sub?: string) => {
+            closePanel();
+            openPage(key, sub);
+        },
+        [closePanel, openPage],
+    );
+    // Closed, it brings back the panel opened last, else the first panel, else the first tabbed page.
     const toggleSidebar = (): void => {
         if (sidebarOpen) {
             leavePage();
@@ -286,15 +298,15 @@ export function App() {
         const first = panels.find((candidate) => panelKey(candidate) === panelLast) ?? panels[0];
 
         if (first !== undefined) {
-            setPanelOpen(panelKey(first));
-        } else if (pages[0] !== undefined) {
-            openPage(pageKey(pages[0]));
+            selectPanel(panelKey(first));
+        } else if (tabPages[0] !== undefined) {
+            openPage(pageKey(tabPages[0]));
         }
     };
     const tabs = (
         <ExtensionTabs
             panels={panels}
-            pages={pages}
+            pages={tabPages}
             session={activeSession}
             panel={pageOpen ? null : panelShown}
             page={openPageItem === undefined ? null : pageKey(openPageItem)}
@@ -453,8 +465,11 @@ export function App() {
                                     onLoadOlder={loadOlder}
                                     tools={
                                         <>
-                                            <HeaderItems session={activeSession} />
-                                            {panels.length + pages.length === 0 ? null : (
+                                            <HeaderItems
+                                                session={activeSession}
+                                                openPage={openFromHeader}
+                                            />
+                                            {panels.length + tabPages.length === 0 ? null : (
                                                 <Hint label="Extensions">
                                                     <Button
                                                         variant="ghost"

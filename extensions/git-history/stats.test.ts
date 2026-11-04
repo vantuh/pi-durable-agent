@@ -7,11 +7,11 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import { stats as statsRef } from "./refs.ts";
-import { actions } from "./server.ts";
+import { statsActions as actions } from "./stats.ts";
 
 const run = promisify(execFile);
 
-void describe("git-stats", () => {
+void describe("git-history stats", () => {
     let dir: string;
     let repo: string;
     const git = async (cwd: string, ...args: string[]) =>
@@ -63,7 +63,7 @@ void describe("git-stats", () => {
         );
     };
     beforeEach(async () => {
-        dir = await mkdtemp(join(tmpdir(), "git-stats-"));
+        dir = await mkdtemp(join(tmpdir(), "git-history-stats-"));
         repo = join(dir, "repo");
         await mkdir(repo);
         await git(repo, "init", "-b", "main");

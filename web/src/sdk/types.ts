@@ -117,13 +117,26 @@ export type PageItem = {
     icon: ReactNode;
     /** A count on the tab: return the number (or text), or null for none. Needs only a session. */
     badge?: ComponentType<StatusProps>;
+    /**
+     * `false` leaves the page out of the right sidebar's tabs and out of the Extensions button's
+     * fallback: it is reached by its address or by the extension's own `openPage`, for instance from a header item.
+     */
+    tab?: false;
     /** A plain function component: a `memo` or `forwardRef` object is rejected. */
     component: ComponentType<PageProps>;
 };
 
+export type HeaderItemProps = StatusProps & {
+    /**
+     * Opens one of this extension's own pages (`id` is the page's `id`), at `sub` when given, closing
+     * any open panel on the way. A click handler's call; the session must be open.
+     */
+    openPage: (id: string, sub?: string) => void;
+};
+
 export type HeaderItem = {
     id: string;
-    component: ComponentType<StatusProps>;
+    component: ComponentType<HeaderItemProps>;
 };
 
 export type ComposerProps = StatusProps & {

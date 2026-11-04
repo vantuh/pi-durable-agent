@@ -3,21 +3,10 @@ import { lstat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { defineExtension } from "@earendil-works/pi-durable";
-
-import { ActionError, type Action, type Host } from "../../server/sdk.ts";
+import { ActionError, type Action } from "../../server/sdk.ts";
 import type { GitStats } from "./refs.ts";
 
 const run = promisify(execFile);
-
-export const meta = {
-    title: "Git statistics",
-    description: "Header badge with changed lines, ahead/behind counts and a safe push button.",
-};
-
-export default function gitStats(host: Host) {
-    return defineExtension({ name: host.name });
-}
 
 async function git(cwd: string, args: string[]): Promise<string> {
     const { stdout } = await run("git", args, {
@@ -113,7 +102,7 @@ async function readStats(cwd: string): Promise<GitStats | null> {
     return result;
 }
 
-export const actions: Record<string, Action> = {
+export const statsActions: Record<string, Action> = {
     stats({ session }) {
         return session?.cwd ? readStats(session.cwd) : null;
     },

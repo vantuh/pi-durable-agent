@@ -1,9 +1,11 @@
 # Git history and embedded review
 
-`extensions/git-history` adds **Git history** (the history icon in the conversation header). It
-opens a page in place of the conversation; the list is its root and a commit is a sub-page. It runs
-in the selected session's working folder, not a browser-supplied filesystem path. It is independent
-of `git-stats`: disabling either does not disable the other.
+`extensions/git-history` adds **Git history**, a page in place of the conversation: the list is its
+root and a commit is a sub-page. It has no tab in the right sidebar (`tab: false`); the header badge
+(`+added −deleted ↑ahead ↓behind` and Push, see
+[Header items](extensions.md#header-items-and-git-statistics)) is the way in, and the same folder
+serves the badge's counts and push. It runs in the selected session's working folder, not a
+browser-supplied filesystem path.
 
 ## Workflow
 

@@ -5,11 +5,12 @@ import { readChanges, readCommit, readHistory, reword as rewordCommit } from "./
 import { reviewProxy } from "./proxy.ts";
 import type { Changes } from "./refs.ts";
 import { Reviews } from "./reviews.ts";
+import { statsActions } from "./stats.ts";
 
 export const meta = {
     title: "Git history & review",
     description:
-        "Browse commits and local changes, review in embedded Plannotator, and return feedback to the composer.",
+        "Header badge with changed lines, ahead/behind counts and a safe push button; browse commits and local changes, review in embedded Plannotator, and return feedback to the composer.",
 };
 // Ephemeral processes belong to one installed host version, never to another reload.
 const instances = new WeakMap<Host, Reviews>();
@@ -72,6 +73,7 @@ function changesOf(cwd: string, target: string): Promise<Changes> {
 }
 
 export const actions = (host: Host): Record<string, Action> => ({
+    ...statsActions,
     history({ args, session }) {
         const limit = field(args, "limit");
         if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) {

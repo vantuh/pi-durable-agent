@@ -39,8 +39,11 @@ import type { PageProps, WebExtension } from "@/sdk/types.ts";
 import { Toolbar } from "@/ui/pane.tsx";
 
 import { messageOf } from "../../shared/guards.ts";
+import { GitStatsItem } from "./badge.tsx";
 import {
+    HISTORY_PAGE,
     UNTRACKED_FILE_CAP,
+    WORKING,
     cancel,
     changes,
     commitMeta,
@@ -60,10 +63,6 @@ import {
  */
 const loadPreview = () => import("./preview.tsx");
 const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPreview }));
-
-/** Uncommitted changes travel as `worktree` to the server and as `working` in the address: a commit
- * hash is hex, so it can never be mistaken for the working tree. */
-const WORKING = "working";
 
 /** Reviews whose feedback the composer has taken: reopening the page must not append or close again. */
 const reported = new Set<string>();
@@ -1277,10 +1276,12 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
 export default {
     pages: [
         {
-            id: "history",
+            id: HISTORY_PAGE,
             title: "Git history",
             icon: <HistoryIcon className="size-4" />,
+            tab: false,
             component: GitHistoryPage,
         },
     ],
+    header: [{ id: "stats", component: GitStatsItem }],
 } satisfies WebExtension;

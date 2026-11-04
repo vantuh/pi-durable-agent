@@ -232,8 +232,11 @@ position and a running answer survive the visit.
 - **The body does not scroll for you.** The frame fills the area and clips; the page's component
   owns its one scroll, so a page with two views keeps each view's position.
 - **A badge** works as a panel's does: a component fed `StatusProps`, returning a count or nothing.
+- **`tab: false`** leaves the page out of the right sidebar's tabs and out of the Extensions button's
+  fallback (and the button does not exist for an extension set whose only pages are tabless). The page
+  still routes and renders as any other, reached by its address or by a [header item](#header-items-and-git-statistics)'s `openPage`.
 - `extensions/git-history` is the example: the history list and a commit's detail are two
-  sub-locations of one page.
+  sub-locations of one page, and it is `tab: false`, entered from its header badge.
 
 ### Tool icons
 
@@ -517,10 +520,13 @@ needs its own HTTP endpoints uses the raw HTTP seam ([Raw HTTP and composer draf
 ## Header items and Git statistics
 
 `web.tsx` may export `header: [{ id, component }]`. A header item gets the same `StatusProps`
-as a status item, renders before the Extensions toggle, follows the extension's enabled switch and
-has its own error boundary. The shell knows no feature by name.
+as a status item plus `openPage(id, sub?)`, which opens one of the same extension's own pages (at
+`sub`, in one history step, closing any open panel). It renders before the Extensions toggle, follows
+the extension's enabled switch and has its own error boundary. The shell knows no feature by name.
 
-`extensions/git-stats` uses this slot for a rounded `+added −deleted ↑ahead ↓behind` badge:
+`extensions/git-history` uses this slot for a rounded `+added −deleted ↑ahead ↓behind` badge. Its
+numbers are buttons: `+added −deleted` opens the history page at uncommitted changes (`sub=working`),
+the icon (hidden on a phone) and `↑ ↓` open the page root.
 
 - Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
   untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
@@ -528,7 +534,7 @@ has its own error boundary. The shell knows no feature by name.
 - An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
 - Commit counts compare against the configured upstream as of the **last fetch**. The extension
   does not fetch or pull automatically. Without an upstream, the counters show `?` and Push is disabled.
-- Counts refresh every ten seconds, after agent activity and after a push.
+- Counts refresh every minute, after agent activity and after a push.
 - Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
   configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
   upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
