@@ -9,6 +9,7 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
@@ -90,19 +91,21 @@ function Branch({ session }: StatusProps) {
                     </button>
                 </Badge>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-                <DropdownMenuRadioGroup
-                    value={current.branch}
-                    onValueChange={(name) => {
-                        void switchTo(name);
-                    }}
-                >
-                    {names.map((name) => (
-                        <DropdownMenuRadioItem key={name} value={name}>
-                            <span className="truncate">{name}</span>
-                        </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
+            <DropdownMenuContent align="start">
+                <ScrollArea viewportProps={{ className: "max-h-72" }}>
+                    <DropdownMenuRadioGroup
+                        value={current.branch}
+                        onValueChange={(name) => {
+                            void switchTo(name);
+                        }}
+                    >
+                        {names.map((name) => (
+                            <DropdownMenuRadioItem key={name} value={name}>
+                                <span className="truncate">{name}</span>
+                            </DropdownMenuRadioItem>
+                        ))}
+                    </DropdownMenuRadioGroup>
+                </ScrollArea>
             </DropdownMenuContent>
         </DropdownMenu>
     );
