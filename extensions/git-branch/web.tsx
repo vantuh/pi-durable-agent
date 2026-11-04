@@ -2,15 +2,24 @@ import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu.tsx";
+import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { branch, type Checkout } from "./refs.ts";
+import { messageOf } from "../../shared/guards.ts";
+import { branch, branches, checkout, type Checkout } from "./refs.ts";
 
 const BADGE = "hidden h-4 max-w-full min-w-0 shrink px-1.5 sm:inline-flex [&>svg]:size-2.5";
 
-function useCheckout(session: StatusProps["session"]): Checkout | null {
-    const [checkout, setCheckout] = useState<Checkout | null>(null);
+function useCheckout(session: StatusProps["session"]): [Checkout | null, (next: Checkout) => void] {
+    const [current, setCurrent] = useState<Checkout | null>(null);
     const id = session?.id ?? null;
     const cwd = session?.cwd ?? null;
     const busy = session?.busy ?? false;
@@ -32,7 +41,7 @@ function useCheckout(session: StatusProps["session"]): Checkout | null {
             }
 
             if (alive) {
-                setCheckout(found);
+                setCurrent(found);
             }
         })();
 
@@ -42,21 +51,60 @@ function useCheckout(session: StatusProps["session"]): Checkout | null {
         // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new folder, a run ending (busy going false), and a change its own commits do not show, can change the branch
     }, [id, cwd, busy, session?.revision]);
 
-    return checkout;
+    return [current, setCurrent];
 }
 
 function Branch({ session }: StatusProps) {
-    const checkout = useCheckout(session);
+    const [current, setCurrent] = useCheckout(session);
+    const [names, setNames] = useState<string[]>([]);
+    const id = session?.id ?? null;
 
-    if (checkout === null) {
+    if (current === null || id === null) {
         return null;
     }
 
+    const load = (open: boolean) => {
+        if (open) {
+            void callAction(branches, undefined, id).then(setNames, () => {
+                setNames([]);
+            });
+        }
+    };
+
+    const switchTo = async (name: string) => {
+        try {
+            setCurrent(await callAction(checkout, { branch: name }, id));
+        } catch (failure) {
+            toast.error(messageOf(failure));
+        }
+    };
+
     return (
-        <Badge title={`Branch ${checkout.branch}`} className={BADGE}>
-            <GitBranch />
-            <span className="truncate">{checkout.branch}</span>
-        </Badge>
+        <DropdownMenu modal={false} onOpenChange={load}>
+            {/* Not while the agent runs: its files would change under it. */}
+            <DropdownMenuTrigger asChild disabled={session?.busy === true}>
+                <Badge asChild title={`Branch ${current.branch}`} className={BADGE}>
+                    <button type="button">
+                        <GitBranch />
+                        <span className="truncate">{current.branch}</span>
+                    </button>
+                </Badge>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                <DropdownMenuRadioGroup
+                    value={current.branch}
+                    onValueChange={(name) => {
+                        void switchTo(name);
+                    }}
+                >
+                    {names.map((name) => (
+                        <DropdownMenuRadioItem key={name} value={name}>
+                            <span className="truncate">{name}</span>
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

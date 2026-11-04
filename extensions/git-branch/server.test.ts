@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
+import { testHost } from "../../test/fixtures/host.ts";
 import { actions } from "./server.ts";
 
 const run = promisify(execFile);
@@ -14,7 +15,7 @@ void describe("git-branch branch action", () => {
     let dir: string;
 
     const branch = (cwd: string | null) => {
-        const action = actions["branch"];
+        const action = actions(testHost())["branch"];
 
         assert.ok(action);
 
@@ -80,6 +81,37 @@ void describe("git-branch branch action", () => {
         await run("git", ["init", "-b", "unborn"], { cwd: dir });
 
         assert.deepEqual(await branch(dir), { branch: "unborn" });
+    });
+
+    void describe("switching", () => {
+        const call = async (name: string, args: unknown) => {
+            const action = actions(testHost())[name];
+
+            assert.ok(action);
+
+            return await action({ args, session: { id: 1, cwd: dir } });
+        };
+
+        beforeEach(async () => {
+            await run("git", ["init", "-b", "topic"], { cwd: dir });
+            await commit(dir);
+            await run("git", ["branch", "other"], { cwd: dir });
+        });
+
+        void it("lists the local branches", async () => {
+            assert.deepEqual(await call("branches", undefined), ["other", "topic"]);
+        });
+
+        void it("switches to a local branch", async () => {
+            assert.deepEqual(await call("checkout", { branch: "other" }), { branch: "other" });
+            assert.deepEqual(await branch(dir), { branch: "other" });
+        });
+
+        void it("refuses a name that is not a local branch, an option included", async () => {
+            await assert.rejects(call("checkout", { branch: "nope" }));
+            await assert.rejects(call("checkout", { branch: "--detach" }));
+            assert.deepEqual(await branch(dir), { branch: "topic" });
+        });
     });
 
     void it("names a detached head HEAD", async () => {
