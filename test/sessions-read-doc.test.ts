@@ -77,4 +77,48 @@ void describe("Sessions.readDoc", () => {
             await rm(dir, { recursive: true, force: true });
         }
     });
+
+    void it("defaults, name, title and seenSinceEnd read without creating documents", async () => {
+        const dir = await mkdtemp(join(tmpdir(), "sessions-read-only-"));
+        const file = join(dir, "state.sqlite");
+        const model = { provider: "p", modelId: "m" };
+        const models = await ModelRuntime.create();
+        const harness = await Harness.open(
+            await openNodeSqliteStorage(file),
+            { models, registry: createRegistry(), env: () => new NodeExecutionEnv({ cwd: dir }) },
+            BACKGROUND_CONTEXT,
+        );
+        const revisions = (): number => {
+            const db = new DatabaseSync(file, { readOnly: true });
+
+            try {
+                const row = db.prepare("SELECT count(*) AS n FROM document_revisions").get();
+
+                return typeof row?.["n"] === "number" ? row["n"] : -1;
+            } finally {
+                db.close();
+            }
+        };
+
+        try {
+            const sessions = new Sessions({ harness, model, models, context: BACKGROUND_CONTEXT });
+            const { id } = await sessions.create(dir);
+            const before = revisions();
+
+            assert.equal(await sessions.defaults(), undefined);
+            assert.equal(await sessions.name(id), null);
+            assert.equal(await sessions.seenSinceEnd(id), true);
+            assert.equal(await sessions.title(id), null);
+            assert.equal(revisions(), before, "reading moved no revision");
+
+            await sessions.setDefaults(model, "high");
+            assert.deepEqual(await sessions.defaults(), { model, thinkingLevel: "high" });
+
+            await sessions.delete(id);
+            assert.equal(await sessions.title(id), null, "a deleted session has no title");
+        } finally {
+            await harness.close(BACKGROUND_CONTEXT);
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
 });
