@@ -213,6 +213,24 @@ export async function readHistory(cwd: string, limit: number): Promise<History> 
     };
 }
 
+/** Git's "no" for a yes/no question is exit 1; any other failure is not an answer. */
+function exitedOne(error: unknown): boolean {
+    return typeof error === "object" && error !== null && "code" in error && error.code === 1;
+}
+
+/** Whether `ancestor` is reachable from `ref`. A Git that failed throws instead of answering no. */
+async function reaches(root: string, ancestor: string, ref: string): Promise<boolean> {
+    try {
+        await git(root, ["merge-base", "--is-ancestor", ancestor, ref]);
+        return true;
+    } catch (error) {
+        if (exitedOne(error)) {
+            return false;
+        }
+        throw new ActionError(gitMessage(error));
+    }
+}
+
 /**
  * The full id of a commit, or null when this history has no such commit. Under `--quiet` Git answers a
  * revision it cannot resolve with exit 1 and no words; anything else — a Git that died, a folder that
@@ -232,7 +250,7 @@ async function commitId(root: string, target: string): Promise<string | null> {
 
         return found === "" ? null : found;
     } catch (error) {
-        if (typeof error === "object" && error !== null && "code" in error && error.code === 1) {
+        if (exitedOne(error)) {
             return null;
         }
         throw new ActionError(gitMessage(error));
@@ -262,22 +280,15 @@ export async function readCommit(cwd: string, target: string): Promise<Commit | 
     if (found === undefined) {
         throw new ActionError("Git could not read that commit.");
     }
-    const reaches = (ref: string): Promise<boolean> =>
-        git(root, ["merge-base", "--is-ancestor", hash, ref]).then(
-            () => true,
-            () => false,
-        );
-    const upstream = (
-        await git(root, ["rev-parse", "--verify", "--quiet", "@{upstream}"]).catch(() => "")
-    ).trim();
-    const own = await reaches("HEAD");
-    const pushed = upstream !== "" && (await reaches(upstream));
+    const upstream = await commitId(root, "@{upstream}");
+    const own = await reaches(root, hash, "HEAD");
+    const pushed = upstream !== null && (await reaches(root, hash, upstream));
 
     // The list's rule as well: with no upstream, nothing is known to be waiting to go out.
     return {
         ...found,
-        unpushed: upstream !== "" && own && !pushed,
-        remote: upstream !== "" && !own && pushed,
+        unpushed: upstream !== null && own && !pushed,
+        remote: upstream !== null && !own && pushed,
     };
 }
 
@@ -496,18 +507,11 @@ export async function reword(
         await must(root, ["rev-parse", "--verify", "--end-of-options", `${hash}^{commit}`])
     ).trim();
     const head = (await must(root, ["rev-parse", "--verify", "HEAD"])).trim();
-    const reaches = (ref: string) =>
-        git(root, ["merge-base", "--is-ancestor", target, ref]).then(
-            () => true,
-            () => false,
-        );
-    if (!(await reaches("HEAD"))) {
+    if (!(await reaches(root, target, "HEAD"))) {
         throw new ActionError("Only a commit of the checked-out branch can be edited.");
     }
-    const upstream = (
-        await git(root, ["rev-parse", "--verify", "--quiet", "@{upstream}"]).catch(() => "")
-    ).trim();
-    if (upstream !== "" && (await reaches(upstream))) {
+    const upstream = await commitId(root, "@{upstream}");
+    if (upstream !== null && (await reaches(root, target, upstream))) {
         throw new ActionError("This commit is pushed already: its message cannot change here.");
     }
     const sign = await git(root, ["config", "--bool", "commit.gpgsign"]).then(
