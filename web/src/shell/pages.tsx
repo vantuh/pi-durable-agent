@@ -18,7 +18,8 @@ export function parentSub(sub: string): string | undefined {
 }
 
 /**
- * The open page, in place of the conversation. The frame is ours: the extension tabs, an arrow to the
+ * The open page, in place of the conversation. The frame is ours: the extension tabs (or, for a page
+ * without a tab, its title), an arrow to the
  * parent only when the address has a sub-location, and a close button that always returns to the
  * conversation. The
  * body is the extension's; it fills the area and does not scroll, so the page owns its one scroll.
@@ -82,7 +83,14 @@ export function PageHost({
                         </Button>
                     </Hint>
                 )}
-                {tabs}
+                {/* A page with no tab of its own stands alone: the sidebar's tabs would lead elsewhere from it. */}
+                {page.tab === false ? (
+                    <h1 className="text-interface text-ink min-w-0 flex-1 truncate font-medium">
+                        {page.title}
+                    </h1>
+                ) : (
+                    tabs
+                )}
                 <Hint label="Close">
                     <Button
                         variant="ghost"
