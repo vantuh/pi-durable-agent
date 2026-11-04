@@ -525,8 +525,8 @@ as a status item plus `openPage(id, sub?)`, which opens one of the same extensio
 the extension's enabled switch and has its own error boundary. The shell knows no feature by name.
 
 `extensions/git-history` uses this slot for a rounded `+added −deleted ↑ahead ↓behind` badge. Its
-numbers are buttons: `+added −deleted` opens the history page at uncommitted changes (`sub=working`),
-the icon (hidden on a phone) and `↑ ↓` open the page root.
+icon and numbers are one button with one highlight: it opens the history page at uncommitted changes
+(`sub=working`, whose Back leads to the list) while there are changed lines, and the list otherwise.
 
 - Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
   untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does

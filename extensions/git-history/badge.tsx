@@ -118,49 +118,35 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
             }}
         >
             <Badge title={description} className="bg-panel h-7 gap-2 tabular-nums [&>svg]:size-3.5">
+                {/* One target, so one highlight: the diff while there is one (its Back leads to the list), else the list. */}
                 <Button
                     variant="ghost"
                     size="sm"
-                    aria-label="Git history"
-                    className="-mx-1 hidden h-5 px-1 py-0 sm:inline-flex"
+                    aria-label={`Git history: ${changesLabel}. ${commitsLabel}`}
+                    className="-ml-1.5 h-5 gap-2 px-1.5 py-0"
                     onClick={() => {
-                        openPage(HISTORY_PAGE);
+                        openPage(
+                            HISTORY_PAGE,
+                            value.added + value.deleted > 0 ? WORKING : undefined,
+                        );
                     }}
                 >
-                    <GitCompareArrows className="size-3.5" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Uncommitted changes: ${changesLabel}`}
-                    className="-mx-1 h-5 gap-2 px-1 py-0"
-                    onClick={() => {
-                        openPage(HISTORY_PAGE, WORKING);
-                    }}
-                >
+                    <GitCompareArrows className="hidden size-3.5 sm:block" />
                     <span className="text-ok">+{value.added}</span>
                     <span className="text-danger">−{value.deleted}</span>
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Git history: ${commitsLabel}`}
-                    className="border-edge -mx-1 h-5 gap-1 border-l px-1 py-0 pl-2"
-                    onClick={() => {
-                        openPage(HISTORY_PAGE);
-                    }}
-                >
-                    <span
-                        className={`flex items-center gap-1 ${value.ahead > 0 ? "text-warn" : ""}`}
-                    >
-                        <ArrowUp className="size-3" />
-                        {value.upstream === null ? "?" : value.ahead}
-                    </span>
-                    <span
-                        className={`flex items-center gap-1 ${value.behind > 0 ? "text-danger-deep" : ""}`}
-                    >
-                        <ArrowDown className="size-3" />
-                        {value.upstream === null ? "?" : value.behind}
+                    <span className="border-edge flex items-center gap-1 border-l pl-2">
+                        <span
+                            className={`flex items-center gap-1 ${value.ahead > 0 ? "text-warn" : ""}`}
+                        >
+                            <ArrowUp className="size-3" />
+                            {value.upstream === null ? "?" : value.ahead}
+                        </span>
+                        <span
+                            className={`flex items-center gap-1 ${value.behind > 0 ? "text-danger-deep" : ""}`}
+                        >
+                            <ArrowDown className="size-3" />
+                            {value.upstream === null ? "?" : value.behind}
+                        </span>
                     </span>
                 </Button>
                 <Hint
