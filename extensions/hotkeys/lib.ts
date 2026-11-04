@@ -212,6 +212,8 @@ export type Field = Target & { closest(selector: string): object | null };
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
 // The composer carries it: the shell's keys reach it, so the arrows still switch sessions while typing.
 const SHELL_KEYS = "[data-shell-keys]";
+// A terminal carries it: everything typed there is the shell's, the prefix key included.
+const OWN_KEYS = "[data-own-keys]";
 
 /** A field owns the keys typed into it: an unprefixed shortcut would eat the text the person writes. */
 export function ownsKeys(target: Target): boolean {
@@ -223,9 +225,16 @@ function arms(keymap: Keymap, event: KeyEvent): boolean {
     return matches(parseBinding(keymap.prefix, "prefix"), event);
 }
 
-/** Whether a field keeps the key: everything it types, but neither the prefix nor the keys it opted out of. */
+/**
+ * Whether a field keeps the key: everything it types, but neither the prefix nor the keys it opted out of.
+ * A surface that handles every key of its own — a terminal — keeps the prefix too, or Ctrl+A never
+ * reaches the shell that needs it.
+ */
 export function fieldKeeps(target: Field, keymap: Keymap, event: KeyEvent): boolean {
-    return ownsKeys(target) && !arms(keymap, event) && target.closest(SHELL_KEYS) === null;
+    return (
+        target.closest(OWN_KEYS) !== null ||
+        (ownsKeys(target) && !arms(keymap, event) && target.closest(SHELL_KEYS) === null)
+    );
 }
 
 // A confirmation is an alert dialog, which is a dialog to the keyboard as well as to the screen reader.

@@ -38,5 +38,6 @@ complete defaults:
 
 A normal field keeps its keys except the prefix. A field inside `[data-shell-keys]`, including the
 composer's textarea, also lets unprefixed shell shortcuts through, so Shift+Left/Right switches
-sessions there. Dialogs keep the keyboard unless a prefix sequence was already armed. Composition
+sessions there. A field inside `[data-own-keys]`, such as the terminal, keeps every key, the prefix
+included. Dialogs keep the keyboard unless a prefix sequence was already armed. Composition
 input and repeated key presses do not run commands.

@@ -488,6 +488,7 @@ This document holds the shared contract; feature guides link here instead of rep
 - [Ponytail](../extensions/ponytail/README.md)
 - [Push notifications](../extensions/push/README.md)
 - [Subagents](../extensions/subagents/README.md)
+- [Terminal](../extensions/terminal/README.md)
 - [Usage limits](../extensions/usage-limits/README.md)
 - [Fetching a page](../extensions/web-fetch/README.md)
 - [Web search](../extensions/web-search/README.md)
