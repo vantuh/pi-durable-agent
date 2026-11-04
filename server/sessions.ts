@@ -7,6 +7,10 @@
 import type { Context } from "@earendil-works/chord/context";
 import { type Api, clampThinkingLevel, type Model } from "@earendil-works/pi-ai";
 import {
+    MODEL_THINKING_LEVELS,
+    type ModelThinkingLevel,
+} from "@earendil-works/pi-ai/providers/model-schema";
+import {
     AgentDoc,
     type Conversation,
     type ConversationDocToken,
@@ -85,10 +89,6 @@ const SettingsDoc = defineDoc({
     checkpointWhen: () => true,
 });
 
-export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
-
-export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-
 export type Opened = {
     id: ConversationId;
     conversation: Conversation;
@@ -106,8 +106,8 @@ export type ModelCatalog = {
 export function supportedLevel(
     models: ModelCatalog,
     model: ModelRef,
-    level: ThinkingLevel,
-): ThinkingLevel {
+    level: ModelThinkingLevel,
+): ModelThinkingLevel {
     const known = models.getModel(model.provider, model.modelId);
 
     return known === undefined ? level : clampThinkingLevel(known, level);
@@ -201,12 +201,13 @@ export class Sessions {
 
     /** The model chosen with "Make default", if any. */
     async defaults(): Promise<
-        { model: { provider: string; modelId: string }; thinkingLevel: ThinkingLevel } | undefined
+        | { model: { provider: string; modelId: string }; thinkingLevel: ModelThinkingLevel }
+        | undefined
     > {
         const stored =
             (await this.#harness.snapshot(SettingsDoc, this.#context)) ??
             SettingsDoc.definition.initial();
-        const thinkingLevel = THINKING_LEVELS.find((level) => level === stored.thinkingLevel);
+        const thinkingLevel = MODEL_THINKING_LEVELS.find((level) => level === stored.thinkingLevel);
 
         return stored.provider === "" || stored.modelId === "" || thinkingLevel === undefined
             ? undefined
@@ -215,7 +216,7 @@ export class Sessions {
 
     async setDefaults(
         model: { provider: string; modelId: string },
-        thinkingLevel: ThinkingLevel,
+        thinkingLevel: ModelThinkingLevel,
     ): Promise<void> {
         await this.#harness.commit(async (tx) => {
             const doc = await tx.doc(SettingsDoc);

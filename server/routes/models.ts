@@ -1,11 +1,12 @@
 /** The model picker: the catalog, scoped by Pi's `enabledModels`, and the default for new sessions. */
 
 import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
+import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import { type ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { recordOf } from "../../shared/guards.ts";
 import { answer, readJson, type Route, string } from "../http.ts";
-import { type Sessions, supportedLevel, THINKING_LEVELS } from "../sessions.ts";
+import { type Sessions, supportedLevel } from "../sessions.ts";
 
 /** Read through the manager that saves it, so a model added here is in the next read. */
 export function enabledModels(): string[] | undefined {
@@ -161,7 +162,7 @@ export function modelRoutes(deps: {
                 const model = recordOf(payload?.["model"]);
                 const provider = string(model?.["provider"]);
                 const modelId = string(model?.["modelId"]);
-                const thinkingLevel = THINKING_LEVELS.find(
+                const thinkingLevel = MODEL_THINKING_LEVELS.find(
                     (known) => known === payload?.["thinkingLevel"],
                 );
 
