@@ -52,6 +52,16 @@ export function useFinishedToasts(
     useEffect(() => {
         latest.current = { sessions, current, onOpen };
 
+        // A session that works again waits its full time after the next finish.
+        for (const [id, timer] of timers.current) {
+            const row = sessions.find((session) => session.id === id);
+
+            if (row !== undefined && working(row, sessions)) {
+                clearTimeout(timer);
+                timers.current.delete(id);
+            }
+        }
+
         for (const candidate of finishedBetween(before.current, sessions, null)) {
             if (timers.current.has(candidate.id)) {
                 continue;

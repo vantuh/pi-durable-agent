@@ -162,13 +162,15 @@ async function sessionWorking(session: number): Promise<boolean> {
 
     for (const [id, running] of busy) {
         let owner = running ? await sessions.owner(idOf(id)) : undefined;
+        // Stops a cycle in the records from looping.
+        const visited = new Set([id]);
 
-        // The depth bound stops a cycle in the records from looping.
-        for (let depth = 0; owner !== undefined && depth < 64; depth += 1) {
+        while (owner !== undefined && !visited.has(owner)) {
             if (owner === session) {
                 return true;
             }
 
+            visited.add(owner);
             owner = await sessions.owner(idOf(owner));
         }
     }
