@@ -9,6 +9,7 @@ import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type { CommitListener, CommitView, Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { due, IDLE_STOP, LEAD, TTL } from "./due.ts";
 import keepWarm, { actions } from "./server.ts";
 import { readStore, writeStore } from "./store.ts";
@@ -310,36 +311,19 @@ void test("names the warmed conversations with the titles the core keeps", async
     const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
     const commits: CommitListener[] = [];
     const disposers: (() => void | Promise<void>)[] = [];
-    const host: Host = {
+    const host: Host = testHost({
         name: "keep-warm",
         cwd: dir,
         dataDir: dir,
-        log: () => undefined,
         onCommit: (listener) => {
             commits.push(listener);
         },
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
         // Session 3 has no title yet, so the folder the commits alone name it by has to stand.
         sessionTitle: (session) => Promise.resolve(session === 2 ? "mcp plugin" : null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
     const at = Date.now();
 
     // The timer outlives a failed assertion, so it has to be cleared even then.
@@ -386,36 +370,19 @@ void test("forgets a conversation nothing can be sent to, so the popover stops p
     const dir = await mkdtemp(join(tmpdir(), "keep-warm-"));
     const commits: CommitListener[] = [];
     const disposers: (() => void | Promise<void>)[] = [];
-    const host: Host = {
+    const host: Host = testHost({
         name: "keep-warm",
         cwd: dir,
         dataDir: dir,
-        log: () => undefined,
         onCommit: (listener) => {
             commits.push(listener);
         },
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
         // Deleted: the core refuses to build a request for it, so no ping can be sent.
         sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
     const at = Date.now();
     const sessions = async (): Promise<unknown> =>
         await actions(host)["state"]?.({ args: undefined, session: null });
@@ -459,39 +426,22 @@ void test("builds no request for a conversation the user left too long ago for a
     const commits: CommitListener[] = [];
     const disposers: (() => void | Promise<void>)[] = [];
     const built: number[] = [];
-    const host: Host = {
+    const host: Host = testHost({
         name: "keep-warm",
         cwd: dir,
         dataDir: dir,
-        log: () => undefined,
         onCommit: (listener) => {
             commits.push(listener);
         },
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
         sessionRequest: (session) => {
             built.push(session);
 
             return Promise.resolve(undefined);
         },
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
     const at = Date.now();
 
     try {
@@ -531,39 +481,22 @@ void test("builds no request for a conversation no ping can be due for yet", asy
     const commits: CommitListener[] = [];
     const disposers: (() => void | Promise<void>)[] = [];
     const built: number[] = [];
-    const host: Host = {
+    const host: Host = testHost({
         name: "keep-warm",
         cwd: dir,
         dataDir: dir,
-        log: () => undefined,
         onCommit: (listener) => {
             commits.push(listener);
         },
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
         sessionRequest: (session) => {
             built.push(session);
 
             return Promise.resolve(undefined);
         },
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
     const at = Date.now();
 
     try {
@@ -638,22 +571,16 @@ void test("sends no second ping and writes nothing after dispose", async () => {
     const inFlight = new Promise<void>((resolve) => {
         release = resolve;
     });
-    const host: Host = {
+    const host: Host = testHost({
         name: "keep-warm",
         cwd: dir,
         dataDir: dir,
-        log: () => undefined,
         onCommit: (listener) => {
             commits.push(listener);
         },
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
         sessionRequest: (session) =>
             Promise.resolve({
                 model: warmModel,
@@ -666,18 +593,7 @@ void test("sends no second ping and writes nothing after dispose", async () => {
                     return pinged();
                 },
             }),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
     const at = Date.now();
     const warm = async (session: number): Promise<void> => {
         await commits[0]?.({

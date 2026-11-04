@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import type { Action, Host, ResolveModelAuth } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { createKeeper } from "./keeper.ts";
 import { collect, readCodex, readKiro, toMs, type Fetch } from "./readers.ts";
 import { providers as providersRef, readerFor, type ProviderUsage } from "./refs.ts";
@@ -208,31 +209,11 @@ void test("settings: missing or broken file shows everything; actions validate a
 
     assert.deepEqual(await readSettings(dir), { hidden: [] });
 
-    const host: Host = {
+    const host: Host = testHost({
         name: "usage-limits",
-        cwd: ".",
         dataDir: dir,
-        log: () => undefined,
-        onCommit: () => undefined,
-        onDispose: () => undefined,
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
         resolveModelAuth: auth({}),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-        wrapModelFetch: () => undefined,
-    };
+    });
     const { setShown, settings } = actions(host);
     const call = async (action: typeof setShown | undefined, args: unknown) =>
         await action?.({ args, session: null });
@@ -274,31 +255,11 @@ void test("a toggle while a reading runs keeps its answer out of the cache", asy
         return held.then(() => json({ five_hour: { utilization: 42, resets_at: null } }));
     };
 
-    const host: Host = {
+    const host: Host = testHost({
         name: "usage-limits",
-        cwd: ".",
         dataDir: dir,
-        log: () => undefined,
-        onCommit: () => undefined,
-        onDispose: () => undefined,
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
         resolveModelAuth: auth({ anthropic: "sk-ant-oat-x" }),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
 
     const call = async (action: Action | undefined, args: unknown): Promise<unknown> => {
         assert.ok(action);

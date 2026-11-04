@@ -26,6 +26,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import type { Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import codemode from "./server.ts";
 
 const REPO = join(import.meta.dirname, "..", "..");
@@ -148,31 +149,11 @@ void describe("codemode extension", () => {
 
 /** Only `onDispose` reaches the extension; the rest is what the core would hand it. */
 function hostOf(cwd: string): Host {
-    return {
+    return testHost({
         name: "codemode",
         cwd,
         dataDir: cwd,
-        log: () => undefined,
-        onDispose: () => undefined,
-        onCommit: () => undefined,
-        folderGroup: () => undefined,
-        shapeModelRequests: () => undefined,
-        wrapModelFetch: () => undefined,
-        registerModelProvider: () => () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
 }
 
 void describe("the codemode section", () => {

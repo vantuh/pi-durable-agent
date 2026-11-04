@@ -42,6 +42,7 @@ import { Type } from "typebox";
 import type { Action, Host } from "../../server/sdk.ts";
 import { ActionError } from "../../server/sdk.ts";
 import type { ExtensionNotice } from "../../shared/protocol.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { DEFAULT_MINUTES, FILE, IDLE_CODE, MAX_MINUTES, MIN_MINUTES } from "./refs.ts";
 import bashTimeout, { actions, idleGuard } from "./server.ts";
 
@@ -54,33 +55,15 @@ type Captured = {
 
 function hostIn(dataDir: string): Captured {
     const said: ExtensionNotice[] = [];
-    const host: Host = {
+    const host: Host = testHost({
         name: "bash-timeout",
         cwd: dataDir,
         dataDir,
-        log: () => undefined,
-        onCommit: () => undefined,
-        onDispose: () => undefined,
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: (session) => Promise.resolve(`Session ${String(session)}`),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
         notify: (notice) => {
             said.push(notice);
         },
-    };
+    });
 
     return { host, said };
 }

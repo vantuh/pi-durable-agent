@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 
 import type { Host } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { MAX_BYTES, Parts, toSamples } from "./parts.ts";
 import dictation, { actions, candidates, Dictation, http, models } from "./server.ts";
 import { DictationStore } from "./store.ts";
@@ -41,33 +42,14 @@ type Disposal = Parameters<Host["onDispose"]>[0];
 
 /** A host with only what the routes and the actions read: the data directory and the disposal hook. */
 function hostOf(dataDir: string, disposed: Disposal[]): Host {
-    return {
+    return testHost({
         name: "dictation",
         cwd: dataDir,
         dataDir,
-        log: () => undefined,
-        onCommit: () => undefined,
         onDispose: (dispose) => {
             disposed.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        wrapModelFetch: () => undefined,
-        registerModelProvider: () => () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
 }
 
 /** The mono 16-bit PCM of a WAV file: `say` writes a JUNK chunk first, so the data is not at a fixed offset. */

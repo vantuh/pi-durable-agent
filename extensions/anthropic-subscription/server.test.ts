@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Host, FetchWrapper, ModelFetch } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { diagnostics } from "./refs.ts";
 import subscription, { actions, shapeRequest } from "./server.ts";
 
@@ -72,35 +73,15 @@ void test("text content blocks seed the same billing identity as string content"
 function setup() {
     const wrappers: FetchWrapper[] = [];
     const disposers: (() => void | Promise<void>)[] = [];
-    const host: Host = {
+    const host: Host = testHost({
         name: "anthropic-subscription",
-        cwd: ".",
-        dataDir: ".",
-        log: () => undefined,
-        onCommit: () => undefined,
         onDispose: (dispose) => {
             disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
         wrapModelFetch: (wrap) => {
             wrappers.push(wrap);
         },
-    };
+    });
     subscription(host);
     const read = () =>
         diagnostics.parse(actions(host)["diagnostics"]?.({ args: undefined, session: null }));

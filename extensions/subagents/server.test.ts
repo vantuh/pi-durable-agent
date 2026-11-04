@@ -30,6 +30,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import { ActionError, type CommitListener, type Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import {
     agents as agentsRef,
     profiles as profilesRef,
@@ -52,27 +53,19 @@ type Wiring = {
 };
 
 function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host {
-    return {
+    return testHost({
         name: "subagents",
         cwd,
         dataDir: cwd,
-        log: () => undefined,
         onCommit: (listener) => {
             wiring.listeners.push(listener);
         },
         onDispose: (dispose) => {
             wiring.disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
         contextWindow: () => wiring.windowOf(),
-        sessionRequest: () => Promise.resolve(undefined),
         sessionTitle: (session) => Promise.resolve(titles.get(session) ?? null),
         sessionName: (session) => Promise.resolve(titles.get(session) ?? null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
         setSessionTitle: (session, title) => {
             titles.set(session, title);
             return Promise.resolve();
@@ -85,14 +78,10 @@ function hostOf(cwd: string, titles: Map<number, string>, wiring: Wiring): Host 
 
             return (await wiring.harness?.snapshot(doc, id, context)) ?? doc.definition.initial();
         },
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
         notifySessionChanged: (session) => {
             wiring.notified.push(session);
         },
-        notify: () => undefined,
-    };
+    });
 }
 
 function lastText(request: TranscriptContext): string {

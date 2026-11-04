@@ -8,37 +8,18 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import type { Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { FALLBACK_COLOR, MAX_NAME, state as stateRef, type TagsState } from "./refs.ts";
 import { tagActions } from "./server.ts";
 import { readTags } from "./store.ts";
 import type * as Store from "./store.ts";
 
 function hostOf(dataDir: string): Host {
-    return {
+    return testHost({
         name: "tags",
         cwd: dataDir,
         dataDir,
-        log: () => undefined,
-        onCommit: () => undefined,
-        onDispose: () => undefined,
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        toolOwner: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
 }
 
 /** The answer as the browser reads it: through the ref's own check, which is the contract. */

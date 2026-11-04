@@ -7,35 +7,14 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import type { Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { actions } from "./server.ts";
 
 const run = promisify(execFile);
 
-const host: Host = {
+const host: Host = testHost({
     name: "git-history",
-    cwd: ".",
-    dataDir: ".",
-    log: () => undefined,
-    onCommit: () => undefined,
-    onDispose: () => undefined,
-    shapeModelRequests: () => undefined,
-    wrapModelFetch: () => undefined,
-    registerModelProvider: () => () => undefined,
-    resolveModelAuth: () => Promise.resolve(undefined),
-    contextWindow: () => undefined,
-    sessionRequest: () => Promise.resolve(undefined),
-    sessionTitle: () => Promise.resolve(null),
-    sessionName: () => Promise.resolve(null),
-    sessionOwner: () => Promise.resolve(undefined),
-    sessionSeen: () => Promise.resolve(false),
-    setSessionTitle: () => Promise.resolve(),
-    readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-    setSessionMark: () => undefined,
-    toolOwner: () => undefined,
-    folderGroup: () => undefined,
-    notifySessionChanged: () => undefined,
-    notify: () => undefined,
-};
+});
 
 void describe("git-history reword", () => {
     let dir: string;

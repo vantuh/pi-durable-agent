@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { ActionError, type CommitListener, type CommitView, type Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { normalizeContact, type DeviceSubscription } from "./refs.ts";
 import { finishedPayload, notifyAll, type Transport } from "./send.ts";
 import { listen, pushActions } from "./server.ts";
@@ -377,31 +378,14 @@ void describe("push", () => {
         const wire = (using: PushStore = store, seen = false) => {
             const listeners: CommitListener[] = [];
             const disposers: (() => void | Promise<void>)[] = [];
-            const host: Host = {
+            const host: Host = testHost({
                 name: "push",
                 cwd: dir,
                 dataDir: dir,
-                log: () => undefined,
                 onDispose: (dispose) => disposers.push(dispose),
                 onCommit: (listener) => listeners.push(listener),
-                shapeModelRequests: () => undefined,
-                registerModelProvider: () => () => undefined,
-                wrapModelFetch: () => undefined,
-                resolveModelAuth: () => Promise.resolve(undefined),
-                contextWindow: () => undefined,
-                sessionRequest: () => Promise.resolve(undefined),
-                sessionTitle: () => Promise.resolve(null),
-                sessionName: () => Promise.resolve(null),
-                sessionOwner: () => Promise.resolve(undefined),
                 sessionSeen: () => Promise.resolve(seen),
-                setSessionTitle: () => Promise.resolve(),
-                readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-                setSessionMark: () => undefined,
-                toolOwner: () => undefined,
-                folderGroup: () => undefined,
-                notifySessionChanged: () => undefined,
-                notify: () => undefined,
-            };
+            });
             const sends: string[] = [];
 
             listen(

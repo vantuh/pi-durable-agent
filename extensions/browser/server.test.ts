@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import type { Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import type { Saved } from "./lib/page.ts";
 import { normalizeUrl } from "./lib/urls.ts";
 import { viewportFrom } from "./lib/viewport.ts";
@@ -48,31 +49,13 @@ function hostOf(dataDir: string): { host: Host; log: string[]; stop: () => Promi
 
     return {
         log,
-        host: {
+        host: testHost({
             name: "browser",
             cwd: dataDir,
             dataDir,
             log: (line) => log.push(line),
             onDispose: (dispose) => disposers.push(dispose),
-            onCommit: () => undefined,
-            shapeModelRequests: () => undefined,
-            registerModelProvider: () => () => undefined,
-            wrapModelFetch: () => undefined,
-            resolveModelAuth: () => Promise.resolve(undefined),
-            contextWindow: () => undefined,
-            toolOwner: () => undefined,
-            sessionRequest: () => Promise.resolve(undefined),
-            sessionTitle: () => Promise.resolve(null),
-            sessionName: () => Promise.resolve(null),
-            sessionOwner: () => Promise.resolve(undefined),
-            sessionSeen: () => Promise.resolve(false),
-            setSessionTitle: () => Promise.resolve(),
-            readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-            setSessionMark: () => undefined,
-            folderGroup: () => undefined,
-            notifySessionChanged: () => undefined,
-            notify: () => undefined,
-        },
+        }),
         /** What the server does when the extension stops: run what it registered, then exit. */
         stop: async () => {
             for (const dispose of disposers.reverse()) {

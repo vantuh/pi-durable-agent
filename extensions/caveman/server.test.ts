@@ -8,6 +8,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Extension, PromptInput, PromptSection } from "@earendil-works/pi-durable";
 
 import { ActionError, type CommitListener, type Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import caveman, { actions } from "./server.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -33,39 +34,22 @@ type Wiring = {
 
 /** Every member the host has, as `server/extensions.ts` hands it over; only `cwd`, `dataDir`, commits and owners are read. */
 function hostOf(dir: string, wiring: Wiring): Host {
-    return {
+    return testHost({
         name: "caveman",
         cwd: dir,
         dataDir: dir,
-        log: () => undefined,
         onCommit: (listener) => {
             wiring.listeners.push(listener);
         },
         onDispose: (dispose) => {
             wiring.disposers.push(dispose);
         },
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
-        sessionRequest: () => Promise.resolve(undefined),
-        sessionTitle: () => Promise.resolve(null),
-        sessionName: () => Promise.resolve(null),
         sessionOwner: (session) => {
             wiring.asked.push(session);
 
             return Promise.resolve(wiring.owners.get(session));
         },
-        sessionSeen: () => Promise.resolve(false),
-        setSessionTitle: () => Promise.resolve(),
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
-    };
+    });
 }
 
 /** Only the two fields the section reads are filled in. */

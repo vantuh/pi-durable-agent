@@ -5,6 +5,7 @@ import type { AssistantMessage, StopReason, Usage } from "@earendil-works/pi-ai"
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type { CommitListener, Host } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { breakdown as breakdownRef } from "./refs.ts";
 import contextMeter, { actions } from "./server.ts";
 
@@ -76,31 +77,13 @@ const OWNERS = new Map([
     ["web_search", "web-search"],
 ]);
 
-const host: Host = {
+const host: Host = testHost({
     name: "context-meter",
     cwd: "/work",
     dataDir: "/work",
-    log: () => undefined,
-    onCommit: () => undefined,
-    onDispose: () => undefined,
-    shapeModelRequests: () => undefined,
-    registerModelProvider: () => () => undefined,
-    wrapModelFetch: () => undefined,
-    resolveModelAuth: () => Promise.resolve(undefined),
     contextWindow: () => WINDOW,
-    sessionRequest: () => Promise.resolve(undefined),
-    sessionTitle: () => Promise.resolve(null),
-    sessionName: () => Promise.resolve(null),
-    sessionOwner: () => Promise.resolve(undefined),
-    sessionSeen: () => Promise.resolve(false),
-    setSessionTitle: () => Promise.resolve(),
-    readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-    setSessionMark: () => undefined,
     toolOwner: (tool) => OWNERS.get(tool),
-    folderGroup: () => undefined,
-    notifySessionChanged: () => undefined,
-    notify: () => undefined,
-};
+});
 
 const commits: CommitListener[] = [];
 

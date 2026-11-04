@@ -16,6 +16,7 @@ import type {
 } from "@earendil-works/pi-ai";
 
 import type { CommitListener, Host, SessionSendOptions } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
 import { buildTitleTranscript, parseGeneratedSessionTitle } from "./lib.ts";
 import autoSessionName, { actions } from "./server.ts";
 import { writeAuto } from "./store.ts";
@@ -200,36 +201,21 @@ function hostOf(options: {
     const names: string[] = [];
     let name: string | null = options.named ?? null;
 
-    const host: Host = {
+    const host: Host = testHost({
         name: "auto-session-name",
         cwd: options.dir,
         dataDir: options.dir,
-        log: () => undefined,
         onCommit: (listener) => {
             commits.push(listener);
         },
-        onDispose: () => undefined,
-        shapeModelRequests: () => undefined,
-        registerModelProvider: () => () => undefined,
-        wrapModelFetch: () => undefined,
-        resolveModelAuth: () => Promise.resolve(undefined),
-        contextWindow: () => undefined,
         sessionTitle: () => Promise.resolve(name),
         sessionName: () => Promise.resolve(name),
-        sessionOwner: () => Promise.resolve(undefined),
-        sessionSeen: () => Promise.resolve(false),
         setSessionTitle: (_session, title) => {
             names.push(title);
             name = title;
 
             return Promise.resolve();
         },
-        readDoc: (doc) => Promise.resolve(doc.definition.initial()),
-        setSessionMark: () => undefined,
-        toolOwner: () => undefined,
-        folderGroup: () => undefined,
-        notifySessionChanged: () => undefined,
-        notify: () => undefined,
         sessionRequest: () =>
             Promise.resolve({
                 model: options.model ?? model,
@@ -247,7 +233,7 @@ function hostOf(options: {
                     return Promise.resolve(answer("Fix the MCP config.", options.stop ?? "stop"));
                 },
             }),
-    };
+    });
 
     const commit = async (busy: boolean): Promise<void> => {
         await commits[0]?.({ session: { id: 1, cwd: options.dir }, entries: [], busy });
