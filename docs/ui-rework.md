@@ -58,6 +58,13 @@ Colours stay the Catppuccin roles; only which role a surface uses changed.
   as a server `end` field already was. Five chips in a 171px cell drew over `ready`.
 - No `key` warning: the unicorn in `extensions/ponytail/icon.tsx` had nodes without keys, and lucide
   builds its `svg` children from them. It was the only icon written by hand here.
+- A list's group heading starts over its titles, not over the state marks: 24px in, the row's own
+  padding, mark and gap.
+- A fingertip: a bar control gains 8px of reach on every side without its square growing, and the
+  footer is 44px tall, on a coarse pointer only. A row's own menu button does without — it sits
+  inside a link, and two reaches side by side would share one.
+- `pnpm test` is green again: `6027020` turned the sidebar's New session button into an icon and the
+  folder-picker test still pressed it by its text, so it pressed nothing.
 
 ## Open
 
