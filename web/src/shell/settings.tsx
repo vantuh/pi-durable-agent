@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Hint } from "@/components/ui/tooltip";
 
+import { restoreComposerFocus } from "../sdk/composer.ts";
 import { PaneHeader } from "../ui/pane.tsx";
 import type { Props } from "./settings-content.tsx";
 
@@ -31,10 +32,14 @@ export function Settings({
         >
             <SheetContent
                 aria-describedby={undefined}
-                // The gear is outside this sheet, so Radix has no trigger to give focus back to.
+                // The caret goes back to the composer; where that is not possible (a phone, a page over it, home)
+                // the gear is outside this sheet, so Radix has no trigger to give focus back to.
                 onCloseAutoFocus={(event) => {
                     event.preventDefault();
-                    returnFocusTo.current?.focus();
+
+                    if (!restoreComposerFocus("close")) {
+                        returnFocusTo.current?.focus();
+                    }
                 }}
             >
                 <PaneHeader>

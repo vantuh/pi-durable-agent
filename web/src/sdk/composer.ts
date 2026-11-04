@@ -91,18 +91,84 @@ export function subscribeComposerQuotes(listener: () => void): () => void {
     };
 }
 
-const focusListeners = new Set<() => void>();
+const focusListeners = new Set<() => boolean>();
 
-/** Asks the composer on screen for the caret, so words quoted from an answer can be followed by a question. */
-export function focusComposer(): void {
+/**
+ * Asks the composer on screen for the caret, so words quoted from an answer can be followed by a question.
+ * Answers whether the caret landed: a composer under a page or an expanded panel is inert and takes nothing.
+ */
+export function focusComposer(): boolean {
+    let landed = false;
+
     for (const listener of focusListeners) {
-        listener();
+        landed = listener() || landed;
     }
+
+    return landed;
 }
 
-export function subscribeComposerFocus(listener: () => void): () => void {
+export function subscribeComposerFocus(listener: () => boolean): () => void {
     focusListeners.add(listener);
     return () => {
         focusListeners.delete(listener);
     };
+}
+
+/** What brings the caret back unasked: a menu, sheet or panel that closed, or the window coming back. */
+export type ComposerReturn = "close" | "window";
+
+export interface ComposerScene {
+    reason: ComposerReturn;
+    /** Nothing holds the keyboard: the page's body, or no element at all. */
+    lost: boolean;
+    /** Another field, outside any menu or dialog, holds the caret. */
+    typing: boolean;
+    /** A menu or dialog is open. */
+    overlay: boolean;
+    /** A phone: the caret would raise the on-screen keyboard. */
+    touch: boolean;
+    /** Words are selected on the page, in the transcript for one. */
+    selecting: boolean;
+}
+
+/** A close follows a click or key of the person's; a window coming back only fills a keyboard nobody holds. */
+export function composerMayTakeFocus(scene: ComposerScene): boolean {
+    if (scene.overlay || scene.touch || scene.typing || scene.selecting) {
+        return false;
+    }
+
+    return scene.reason === "close" || scene.lost;
+}
+
+const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+const OVERLAY = '[role="dialog"], [role="alertdialog"], [role="menu"]';
+
+/** A field the person is typing in: not the composer itself, not one inside a dialog that is closing. */
+export function isTypingElsewhere(active: Element | null): boolean {
+    return (
+        active !== null &&
+        active.closest(EDITABLE) !== null &&
+        active.closest('[data-slot="composer-field"]') === null &&
+        active.closest(OVERLAY) === null
+    );
+}
+
+/**
+ * Hands the caret to the composer when nothing of the person's is in the way. The explicit request,
+ * `focusComposer`, never asks; this is for the shell's own returns. Answers whether the caret landed.
+ */
+export function restoreComposerFocus(reason: ComposerReturn): boolean {
+    const { activeElement, body } = document;
+    const selection = window.getSelection();
+
+    const allowed = composerMayTakeFocus({
+        reason,
+        lost: activeElement === null || activeElement === body,
+        typing: isTypingElsewhere(activeElement),
+        overlay: document.querySelector(`:is(${OVERLAY})[data-state="open"]`) !== null,
+        touch: window.matchMedia("(pointer: coarse)").matches,
+        selecting: selection !== null && !selection.isCollapsed,
+    });
+
+    return allowed && focusComposer();
 }

@@ -23,6 +23,7 @@ import { Hint } from "@/components/ui/tooltip";
 import type { DefaultModel, ModelChoice } from "../../../shared/protocol.ts";
 import { tokens } from "../lib/format.ts";
 import { thinkingTab } from "../lib/thinking.ts";
+import { restoreComposerFocus } from "../sdk/composer.ts";
 
 type Props = {
     /** Absent: no scoped/all tabs, and `all` is the whole list. */
@@ -118,6 +119,12 @@ export function ModelMenu({
             <DialogContent
                 aria-describedby={undefined}
                 className="bg-panel sm:h-[min(36rem,80dvh)] sm:max-w-xl"
+                // Without a trigger Radix would return to the chip; the caret belongs in the message.
+                onCloseAutoFocus={(event) => {
+                    if (restoreComposerFocus("close")) {
+                        event.preventDefault();
+                    }
+                }}
                 onOpenAutoFocus={(event) => {
                     // The keys must work at once. A phone would put its on-screen keyboard over the
                     // list, so there the menu itself takes them and the search box waits for a tap.

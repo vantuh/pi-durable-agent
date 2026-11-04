@@ -31,7 +31,7 @@ import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
 import { useShellCommand } from "./sdk/commands.ts";
-import { focusComposer } from "./sdk/composer.ts";
+import { focusComposer, restoreComposerFocus } from "./sdk/composer.ts";
 import { useEdgeSwipe } from "./shell/edge-swipe.ts";
 import { FolderPicker } from "./shell/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
@@ -247,6 +247,40 @@ export function App() {
         }
     }, [pageOpen]);
 
+    // A panel that closes, or shrinks from the whole conversation to the drawer, takes the keyboard with it; the
+    // page's exit above does the same for a page. A field still focused in the panel keeps the caret.
+    const panelBefore = useRef({ open: false, expanded: false });
+
+    useEffect(() => {
+        const after = { open: panelOpen, expanded: panelExpanded };
+        const before = panelBefore.current;
+        const released = (before.open && !after.open) || (before.expanded && !after.expanded);
+
+        panelBefore.current = after;
+
+        if (released) {
+            restoreComposerFocus("close");
+        }
+    }, [panelOpen, panelExpanded]);
+
+    // Coming back to the window or tab: Chromium restores the focused element itself, so only an unclaimed
+    // keyboard is filled.
+    useEffect(() => {
+        const back = (): void => {
+            if (document.visibilityState === "visible") {
+                restoreComposerFocus("window");
+            }
+        };
+
+        window.addEventListener("focus", back);
+        document.addEventListener("visibilitychange", back);
+
+        return () => {
+            window.removeEventListener("focus", back);
+            document.removeEventListener("visibilitychange", back);
+        };
+    }, []);
+
     const leavePage = useCallback(() => {
         pendingFocus.current = "composer";
         // Leaving by the page's own close or the toggle also forgets the panel, so it does not come back under it.
@@ -316,8 +350,13 @@ export function App() {
         (id: number | null) => {
             go(id);
             setSheet(false);
+
+            // The same session is not mounted again, so the composer's own focus on mount does not run.
+            if (id === current) {
+                restoreComposerFocus("close");
+            }
         },
-        [go],
+        [go, current],
     );
     const home = useCallback(() => {
         select(null);

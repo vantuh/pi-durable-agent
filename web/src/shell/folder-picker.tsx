@@ -27,6 +27,7 @@ import {
     listFolders,
     setFavourites as saveFavourites,
 } from "../lib/api.ts";
+import { restoreComposerFocus } from "../sdk/composer.ts";
 
 type Props = {
     start: string;
@@ -220,6 +221,11 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     // Radix focuses the first tabbable (the Up button) unless the default is cancelled.
                     event.preventDefault();
                     openRef.current?.focus();
+                }}
+                onCloseAutoFocus={(event) => {
+                    if (restoreComposerFocus("close")) {
+                        event.preventDefault();
+                    }
                 }}
                 onKeyDown={(event) => {
                     if (event.key !== "Enter" || event.defaultPrevented) {
