@@ -46,7 +46,14 @@ import {
     type Todo,
     updateTodo,
 } from "./refs.ts";
-import { setCount } from "./store.ts";
+import {
+    changeTodos,
+    countChange,
+    pendingChanges,
+    refreshTodos,
+    setTodos,
+    useTodos,
+} from "./store.ts";
 
 const DEBOUNCE_MS = 600;
 
@@ -60,31 +67,22 @@ const messageOf = (failure: unknown, fallback: string): string =>
  * so an undo never overtakes its removal; the answer replaces the list once nothing else is waiting.
  * A change the server refuses shows its error and re-reads the list.
  */
-function useTodos(id: number) {
-    const [items, setItems] = useState<Todo[] | null>(null);
+function useTodoList(id: number) {
+    const items = useTodos(id) ?? null;
     const [error, setError] = useState<string | null>(null);
     const queue = useRef<Promise<unknown>>(Promise.resolve());
-    const waiting = useRef(0);
-
-    const show = useCallback(
-        (todos: Todo[]) => {
-            setItems(todos);
-            setCount(id, todos.filter((todo) => !todo.done).length);
-        },
-        [id],
-    );
 
     const reload = useCallback(async (): Promise<void> => {
         try {
             const todos = await callAction(listTodos, undefined, id);
 
             if (todos !== null) {
-                show(todos);
+                setTodos(id, todos);
             }
         } catch (failure) {
             setError(messageOf(failure, "The to-dos could not be read."));
         }
-    }, [id, show]);
+    }, [id]);
 
     const run = useCallback(
         async <Args,>(
@@ -92,8 +90,8 @@ function useTodos(id: number) {
             args: Args,
             local: (todos: Todo[]) => Todo[],
         ): Promise<void> => {
-            setItems((current) => (current === null ? null : local(current)));
-            waiting.current += 1;
+            changeTodos(id, local);
+            countChange(id, 1);
 
             const sent = queue.current.then(() => callAction(ref, args, id));
 
@@ -102,8 +100,8 @@ function useTodos(id: number) {
             try {
                 const todos = await sent;
 
-                if (waiting.current === 1) {
-                    show(todos);
+                if (pendingChanges(id) === 1) {
+                    setTodos(id, todos);
                 }
 
                 setError(null);
@@ -111,22 +109,17 @@ function useTodos(id: number) {
                 setError(messageOf(failure, "The to-dos were not saved."));
                 await reload();
             } finally {
-                waiting.current -= 1;
+                countChange(id, -1);
             }
         },
-        [id, show, reload],
+        [id, reload],
     );
 
     useEffect(() => {
         let alive = true;
         const refresh = async (): Promise<void> => {
             try {
-                const todos = await callAction(listTodos, undefined, id);
-
-                // A change still on its way would be undone on screen by this older list.
-                if (alive && todos !== null && waiting.current === 0) {
-                    show(todos);
-                }
+                await refreshTodos(id);
             } catch (failure) {
                 if (alive) {
                     setError(messageOf(failure, "The to-dos could not be read."));
@@ -144,13 +137,13 @@ function useTodos(id: number) {
             alive = false;
             window.removeEventListener("focus", onFocus);
         };
-    }, [id, show]);
+    }, [id]);
 
     return { items, error, run };
 }
 
 export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
-    const { items, error, run } = useTodos(id);
+    const { items, error, run } = useTodoList(id);
     const [title, setTitle] = useState("");
     const [expanded, setExpanded] = useState<number | null>(null);
     const sensors = useSensors(
