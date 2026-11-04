@@ -1,4 +1,4 @@
-import type { SessionSummary } from "../../../shared/protocol.ts";
+import type { SessionSummary } from "../../shared/protocol.ts";
 
 /** Whether the session's own run is busy, or any session started from it, at any depth, is. */
 export function working(row: SessionSummary, rows: SessionSummary[]): boolean {

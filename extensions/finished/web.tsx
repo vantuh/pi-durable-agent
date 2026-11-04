@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 
-import type { SessionSummary } from "../../../shared/protocol.ts";
-import { finishedBetween, working } from "../lib/finished.ts";
-import { showSessionAlert } from "./session-alert.tsx";
-import { folderName } from "./session-parts.tsx";
+import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
+import { showSessionAlert } from "@/shell/session-alert.tsx";
+import { folderName } from "@/shell/session-parts.tsx";
+
+import type { SessionSummary } from "../../shared/protocol.ts";
+import { finishedBetween, working } from "./finished.ts";
 
 let audio: AudioContext | undefined;
 
@@ -38,23 +40,21 @@ const SETTLE_MS = 3000;
 /**
  * A toast when another top-level session stops working; a click anywhere on it opens that session. A
  * chime when one does, the one on screen included. Subagents give neither. A session works while its own run or any
- * subagent below it does, and the signal comes only once it has stayed idle for a moment.
+ * subagent below it does, and the signal comes only once it has stayed idle for a moment. It draws nothing: the
+ * status bar only keeps it mounted.
  */
-export function useFinishedToasts(
-    sessions: SessionSummary[],
-    current: number | null,
-    onOpen: (id: number) => void,
-): void {
+function Finished({ session, sessions, openSession }: StatusItemProps) {
+    const current = session?.id ?? null;
     const before = useRef<SessionSummary[]>([]);
     const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
-    const latest = useRef({ sessions, current, onOpen });
+    const latest = useRef({ sessions, current, openSession });
 
     useEffect(() => {
-        latest.current = { sessions, current, onOpen };
+        latest.current = { sessions, current, openSession };
 
         // A session that works again waits its full time after the next finish.
         for (const [id, timer] of timers.current) {
-            const row = sessions.find((session) => session.id === id);
+            const row = sessions.find((each) => each.id === id);
 
             if (row !== undefined && working(row, sessions)) {
                 clearTimeout(timer);
@@ -73,29 +73,29 @@ export function useFinishedToasts(
                     timers.current.delete(candidate.id);
 
                     const now = latest.current;
-                    const session = now.sessions.find((row) => row.id === candidate.id);
+                    const ended = now.sessions.find((row) => row.id === candidate.id);
 
                     // Subagents finish inside their parent's run; only the parent's end is worth a signal.
                     if (
-                        session === undefined ||
-                        session.parent !== undefined ||
-                        working(session, now.sessions)
+                        ended === undefined ||
+                        ended.parent !== undefined ||
+                        working(ended, now.sessions)
                     ) {
                         return;
                     }
 
                     chime();
 
-                    if (session.id !== now.current) {
+                    if (ended.id !== now.current) {
                         showSessionAlert(
                             {
-                                id: `finished-${String(session.id)}`,
+                                id: `finished-${String(ended.id)}`,
                                 level: "success",
-                                session: session.id,
-                                title: session.title ?? "New session",
-                                description: `Finished · ${folderName(session.cwd)}`,
+                                session: ended.id,
+                                title: ended.title ?? "New session",
+                                description: `Finished · ${folderName(ended.cwd)}`,
                             },
-                            now.onOpen,
+                            now.openSession,
                         );
                     }
                 }, SETTLE_MS),
@@ -103,7 +103,7 @@ export function useFinishedToasts(
         }
 
         before.current = sessions;
-    }, [sessions, current, onOpen]);
+    }, [sessions, current, openSession]);
 
     useEffect(() => {
         const pending = timers.current;
@@ -116,4 +116,10 @@ export function useFinishedToasts(
             pending.clear();
         };
     }, []);
+
+    return null;
 }
+
+export default {
+    status: [{ id: "finished", slot: "start", component: Finished }],
+} satisfies WebExtension;

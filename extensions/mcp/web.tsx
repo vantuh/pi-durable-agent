@@ -1,5 +1,5 @@
 import { Plug } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -10,49 +10,12 @@ import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
-import { callAction } from "@/sdk/actions.ts";
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { type McpState, type ServerInfo, state, toggle } from "./refs.ts";
+import { useMcp } from "./client.ts";
+import type { ServerInfo } from "./refs.ts";
 
 const REFRESH_MS = 5000;
-
-/** A server may still be connecting when the page opens, so the state is read again on a timer. */
-function useMcp() {
-    const [current, setCurrent] = useState<McpState | undefined>();
-
-    useEffect(() => {
-        let alive = true;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-
-        const update = async (): Promise<void> => {
-            try {
-                const found = await callAction(state, undefined, null);
-
-                if (alive) {
-                    setCurrent(found);
-                }
-            } catch {
-                // The next tick tries again; the last known state stays on screen.
-            }
-
-            if (alive) {
-                timer = setTimeout(() => {
-                    void update();
-                }, REFRESH_MS);
-            }
-        };
-
-        void update();
-
-        return () => {
-            alive = false;
-            clearTimeout(timer);
-        };
-    }, []);
-
-    return [current, setCurrent] as const;
-}
 
 function toneOf(servers: ServerInfo[]): string {
     if (servers.some((server) => server.status === "error")) {
@@ -141,27 +104,12 @@ function Panel({
 }
 
 function McpStatus() {
-    const [current, setCurrent] = useMcp();
-    const [busy, setBusy] = useState<string | undefined>();
-    const [failure, setFailure] = useState<string | undefined>();
+    const { current, busy, error, change } = useMcp({ refreshMs: REFRESH_MS });
     const [open, setOpen] = useState(false);
 
     if (current === undefined) {
         return null;
     }
-
-    const change = async (name: string, on: boolean): Promise<void> => {
-        setBusy(name);
-        setFailure(undefined);
-
-        try {
-            setCurrent(await callAction(toggle, { name, enabled: on }, null));
-        } catch (error) {
-            setFailure(error instanceof Error ? error.message : "Something went wrong.");
-        } finally {
-            setBusy(undefined);
-        }
-    };
 
     const on = current.servers.filter((server) => server.status !== "off");
     const title = `MCP: ${String(on.length)} of ${String(current.servers.length)} servers on`;
@@ -186,7 +134,7 @@ function McpStatus() {
             </Hint>
             <Panel
                 servers={current.servers}
-                problem={failure ?? current.problem}
+                problem={error ?? current.problem}
                 busy={busy}
                 onToggle={(name, wanted) => {
                     void change(name, wanted);

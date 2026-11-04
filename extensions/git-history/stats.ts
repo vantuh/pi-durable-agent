@@ -4,37 +4,19 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError, type Action } from "../../server/sdk.ts";
+import { filesOf, git } from "./git.ts";
 import type { GitStats } from "./refs.ts";
 
+// Only the push needs its own call: it is a write with a longer timeout than the reads in `git.ts` allow.
 const run = promisify(execFile);
-
-async function git(cwd: string, args: string[]): Promise<string> {
-    const { stdout } = await run("git", args, {
-        cwd,
-        timeout: 10000,
-        maxBuffer: 8 * 1024 * 1024,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-    });
-    return stdout;
-}
 
 /** -z keeps tabs and newlines in paths out of the numeric fields; binary files have '-' counts. */
 function totals(output: string): { added: number; deleted: number } {
     let added = 0;
     let deleted = 0;
-    const fields = output.split("\0");
-    for (let index = 0; index < fields.length; index += 1) {
-        const field = fields[index] ?? "";
-        const match = /^(\d+|-)\t(\d+|-)\t/.exec(field);
-        if (match === null) {
-            continue;
-        }
-        added += Number(match[1] === "-" ? 0 : match[1]);
-        deleted += Number(match[2] === "-" ? 0 : match[2]);
-        // A rename's -z record has an empty path followed by the old and new paths.
-        if (field.endsWith("\t")) {
-            index += 2;
-        }
+    for (const file of filesOf(output)) {
+        added += file.added;
+        deleted += file.deleted;
     }
     return { added, deleted };
 }

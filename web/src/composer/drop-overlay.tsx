@@ -1,5 +1,5 @@
 import { Paperclip } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import { Attachments, type Pending } from "../ui/attachments.tsx";
 
@@ -13,11 +13,7 @@ function hasFiles(event: DragEvent): boolean {
  */
 export function useWindowDrop(onFiles: (files: File[]) => void): boolean {
     const [dragging, setDragging] = useState(false);
-    const latest = useRef(onFiles);
-
-    useEffect(() => {
-        latest.current = onFiles;
-    });
+    const dropped = useEffectEvent(onFiles);
 
     useEffect(() => {
         // dragenter and dragleave also fire for every child the pointer crosses: count them.
@@ -48,7 +44,7 @@ export function useWindowDrop(onFiles: (files: File[]) => void): boolean {
             event.preventDefault();
             depth = 0;
             setDragging(false);
-            latest.current([...(event.dataTransfer?.files ?? [])]);
+            dropped([...(event.dataTransfer?.files ?? [])]);
         };
 
         window.addEventListener("dragenter", enter);

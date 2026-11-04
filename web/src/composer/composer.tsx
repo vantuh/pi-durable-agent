@@ -1,5 +1,14 @@
 import { ArrowUp, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
-import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    memo,
+    type ReactNode,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
@@ -192,23 +201,9 @@ export const Composer = memo(function Composer({
     onStop,
     onNewSession,
 }: Props) {
-    const [text, setText] = useState(() => composerDraft(sessionId));
-    useEffect(
-        () =>
-            subscribeComposerDraft(() => {
-                setText(composerDraft(sessionId));
-            }),
-        [sessionId],
-    );
+    const text = useSyncExternalStore(subscribeComposerDraft, () => composerDraft(sessionId));
     const [files, setLocalFiles] = useState<Pending[]>(() => composerFiles(sessionId));
-    const [quotes, setQuotes] = useState<string[]>(() => composerQuotes(sessionId));
-    useEffect(
-        () =>
-            subscribeComposerQuotes(() => {
-                setQuotes(composerQuotes(sessionId));
-            }),
-        [sessionId],
-    );
+    const quotes = useSyncExternalStore(subscribeComposerQuotes, () => composerQuotes(sessionId));
     // Written through the store too, so an upload that ends after the session was left still lands.
     const setFiles = (update: (current: Pending[]) => Pending[]): void => {
         const next = update(composerFiles(sessionId));
@@ -302,7 +297,6 @@ export const Composer = memo(function Composer({
             const end = from + candidate.insert.length;
 
             setComposerDraft(sessionId, next);
-            setText(next);
             setCaret(end);
             requestAnimationFrame(() => {
                 field.current?.setSelectionRange(end, end);
@@ -325,7 +319,6 @@ export const Composer = memo(function Composer({
         }
 
         setComposerDraft(sessionId, candidate.insert);
-        setText(candidate.insert);
         setDismissed(candidate.insert);
     };
 
@@ -422,7 +415,6 @@ export const Composer = memo(function Composer({
         }
 
         setComposerDraft(sessionId, next);
-        setText(next);
         setMode(item.mode);
         setFiles((current) => [...current, ...(item.files ?? []).map(pendingOf)]);
         field.current?.focus();
@@ -456,7 +448,6 @@ export const Composer = memo(function Composer({
             setComposerDraft(sessionId, "");
             clearComposerQuotes(sessionId);
             browse.current = null;
-            setText("");
             onNewSession();
 
             return;
@@ -475,7 +466,6 @@ export const Composer = memo(function Composer({
             setComposerDraft(sessionId, "");
             clearComposerQuotes(sessionId);
             browse.current = null;
-            setText("");
             void (async () => {
                 try {
                     const result = await runCommand(Number(sessionId), "compact", args);
@@ -498,7 +488,6 @@ export const Composer = memo(function Composer({
         setComposerDraft(sessionId, "");
         clearComposerQuotes(sessionId);
         browse.current = null;
-        setText("");
         setFiles(() => []);
         setMode((current) => (current === "interrupt" ? "steer" : current));
 
@@ -630,7 +619,6 @@ export const Composer = memo(function Composer({
 
                             browse.current = null;
                             setComposerDraft(sessionId, value);
-                            setText(value);
                         }}
                         onSelect={(event) => {
                             setCaret(event.currentTarget.selectionStart);
@@ -712,7 +700,6 @@ export const Composer = memo(function Composer({
                                     if (next !== undefined) {
                                         event.preventDefault();
                                         setComposerDraft(sessionId, next);
-                                        setText(next);
                                         // Put the caret at the end once React has applied the text.
                                         requestAnimationFrame(() => {
                                             box.setSelectionRange(next.length, next.length);
@@ -787,7 +774,6 @@ export const Composer = memo(function Composer({
                             setText={(value) => {
                                 browse.current = null;
                                 setComposerDraft(sessionId, value);
-                                setText(value);
                             }}
                             onSent={onSent}
                         />

@@ -3,6 +3,7 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
+import { recordOf } from "../../shared/guards.ts";
 import type { MadeWorktree } from "./refs.ts";
 import { groupOf, linkedWorktreeOf, makeWorktree, removeWorktree, worktreeOf } from "./worktree.ts";
 
@@ -28,8 +29,7 @@ export default function gitWorktree(host: Host) {
 }
 
 function text(args: unknown, key: string): string {
-    const value: unknown =
-        typeof args === "object" && args !== null ? Reflect.get(args, key) : undefined;
+    const value: unknown = recordOf(args)?.[key];
 
     if (typeof value !== "string" || value.trim() === "") {
         throw new ActionError(`\`${key}\` must be a non-empty string.`);

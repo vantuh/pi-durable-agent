@@ -1138,7 +1138,6 @@ void describe("subagents", () => {
                     fill: 25,
                     used,
                     window: used * 4,
-                    working: true,
                     cwd: dir,
                 },
             ]);

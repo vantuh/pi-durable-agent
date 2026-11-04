@@ -8,7 +8,7 @@
  * is not imported, and its items go away when it is turned off.
  */
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { listExtensions } from "./lib/api.ts";
 import type {
@@ -260,10 +260,9 @@ const folders = Object.entries(import.meta.glob("../../extensions/*/web.tsx"))
 let disabled: ReadonlySet<string> = new Set();
 /** False until one answer came: before that nothing is imported, as the browser cannot know what is off. */
 let known = false;
-const RETRY_MS = 2000;
-let retry: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
-const modules = new Map<string, Promise<Loaded>>();
+/** Every folder's items, by folder, kept once imported: a folder turned off is skipped, not dropped. */
+const modules = new Map<string, Loaded>();
 
 async function loadFolder(folder: string, importModule: () => Promise<unknown>): Promise<Loaded> {
     const loaded: Loaded = {
@@ -309,6 +308,57 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
     return loaded;
 }
 
+/**
+ * What every extension hook reads: one frozen snapshot of the items of every folder that is on, made
+ * again on each refresh, so each item keeps its identity until the folders change.
+ */
+type Snapshot = { readonly [Key in keyof Loaded]: readonly Loaded[Key][number][] };
+
+function gather(loaded: readonly Loaded[]): Snapshot {
+    return Object.freeze({
+        status: loaded.flatMap((each) => each.status),
+        header: loaded.flatMap((each) => each.header),
+        composer: loaded.flatMap((each) => each.composer),
+        aboveComposer: loaded.flatMap((each) => each.aboveComposer),
+        sidebarBottom: loaded.flatMap((each) => each.sidebarBottom),
+        statusRow: loaded.flatMap((each) => each.statusRow),
+        settings: loaded.flatMap((each) => each.settings),
+        panels: loaded.flatMap((each) => each.panels),
+        pages: loaded.flatMap((each) => each.pages),
+        tools: loaded.flatMap((each) => each.tools),
+        toolViews: loaded.flatMap((each) => each.toolViews),
+        sessionMenu: loaded.flatMap((each) => each.sessionMenu),
+        sessionRow: loaded.flatMap((each) => each.sessionRow),
+        sessionFilter: loaded.flatMap((each) => each.sessionFilter),
+        newSession: loaded.flatMap((each) => each.newSession),
+    });
+}
+
+/** Nothing is imported before the server has said which folders are on; empty is the answer until then. */
+let snapshot = gather([]);
+let loading: Promise<void> | undefined;
+
+function publish(): void {
+    snapshot = gather(
+        [...modules].filter(([folder]) => !disabled.has(folder)).map(([, loaded]) => loaded),
+    );
+
+    for (const listener of listeners) {
+        listener();
+    }
+}
+
+function subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+
+    return () => {
+        listeners.delete(listener);
+    };
+}
+
+const RETRY_MS = 2000;
+let retry: ReturnType<typeof setTimeout> | undefined;
+
 /** Reads which folders are on, then tells every hook. Call it after a folder was turned on or off. */
 export async function refreshExtensions(): Promise<void> {
     try {
@@ -327,66 +377,41 @@ export async function refreshExtensions(): Promise<void> {
         }
     }
 
-    for (const listener of listeners) {
-        listener();
+    await loadAll();
+    publish();
+}
+
+void refreshExtensions();
+
+/** Imports every folder that is on, once each; `refreshExtensions` publishes what came in. */
+async function loadAll(): Promise<void> {
+    if (!known) {
+        return;
     }
-}
 
-const first = refreshExtensions();
+    while (true) {
+        const missing = folders.filter(
+            ({ folder }) => !disabled.has(folder) && !modules.has(folder),
+        );
 
-/** Imports every folder that is on, once each: the answer every extension hook reads. */
-async function loadAll(): Promise<Loaded[]> {
-    await first;
+        if (missing.length === 0) {
+            return;
+        }
 
-    const wanted = known ? folders.filter(({ folder }) => !disabled.has(folder)) : [];
+        // A second call while one runs waits for that pass; the loop then takes the folders a folder
+        // turned on in the meantime left over.
+        loading ??= Promise.all(
+            missing.map(async ({ folder, importModule }) => {
+                modules.set(folder, await loadFolder(folder, importModule));
+            }),
+        )
+            .then(() => undefined)
+            .finally(() => {
+                loading = undefined;
+            });
 
-    return Promise.all(
-        wanted.map(({ folder, importModule }) => {
-            const cached = modules.get(folder) ?? loadFolder(folder, importModule);
-
-            modules.set(folder, cached);
-
-            return cached;
-        }),
-    );
-}
-
-const pickStatus = (loaded: Loaded): FolderStatusItem[] => loaded.status;
-const pickSettings = (loaded: Loaded): FolderSettingsSection[] => loaded.settings;
-const pickPanels = (loaded: Loaded): FolderPanel[] => loaded.panels;
-const pickPages = (loaded: Loaded): FolderPage[] => loaded.pages;
-
-function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
-    const [items, setItems] = useState<readonly T[]>([]);
-
-    useEffect(() => {
-        let alive = true;
-        let latest = 0;
-
-        const update = async (): Promise<void> => {
-            latest += 1;
-
-            const mine = latest;
-            const found = await loadAll();
-
-            if (alive && mine === latest) {
-                setItems(found.flatMap(pick));
-            }
-        };
-        const listener = (): void => {
-            void update();
-        };
-
-        listener();
-        listeners.add(listener);
-
-        return () => {
-            alive = false;
-            listeners.delete(listener);
-        };
-    }, [pick]);
-
-    return items;
+        await loading;
+    }
 }
 
 /**
@@ -394,126 +419,80 @@ function useLoaded<T>(pick: (loaded: Loaded) => T[]): readonly T[] {
  * page that is still on its way.
  */
 export function useExtensionsLoaded(): boolean {
-    const [loaded, setLoaded] = useState(false);
-
-    useEffect(() => {
-        let alive = true;
-
-        const update = (): void => {
-            void (async () => {
-                await loadAll();
-
-                if (alive && known) {
-                    setLoaded(true);
-                }
-            })();
-        };
-
-        update();
-        listeners.add(update);
-
-        return () => {
-            alive = false;
-            listeners.delete(update);
-        };
-    }, []);
-
-    return loaded;
+    return useSyncExternalStore(subscribe, () => known && loading === undefined);
 }
 
 /** The status items of every folder that is on and loaded; empty until the modules are in. */
 export function useStatusItems(): readonly FolderStatusItem[] {
-    return useLoaded(pickStatus);
+    return useSyncExternalStore(subscribe, () => snapshot.status);
 }
 
 /** The settings sections of every folder that is on and loaded; empty until the modules are in. */
 export function useSettingsSections(): readonly FolderSettingsSection[] {
-    return useLoaded(pickSettings);
+    return useSyncExternalStore(subscribe, () => snapshot.settings);
 }
 
 /** The side panels of every folder that is on and loaded; empty until the modules are in. */
 export function usePanels(): readonly FolderPanel[] {
-    return useLoaded(pickPanels);
+    return useSyncExternalStore(subscribe, () => snapshot.panels);
 }
 
 /** The pages of every folder that is on and loaded; empty until the modules are in. */
 export function usePages(): readonly FolderPage[] {
-    return useLoaded(pickPages);
+    return useSyncExternalStore(subscribe, () => snapshot.pages);
 }
-
-const pickHeader = (loaded: Loaded): FolderHeaderItem[] => loaded.header;
 
 /** Arbitrary extension controls in the conversation header. */
 export function useHeaderItems(): readonly FolderHeaderItem[] {
-    return useLoaded(pickHeader);
+    return useSyncExternalStore(subscribe, () => snapshot.header);
 }
-
-const pickComposer = (loaded: Loaded): FolderComposerItem[] => loaded.composer;
 
 /** Controls extensions add to the composer's row, beside Send. */
 export function useComposerItems(): readonly FolderComposerItem[] {
-    return useLoaded(pickComposer);
+    return useSyncExternalStore(subscribe, () => snapshot.composer);
 }
-
-const pickAboveComposer = (loaded: Loaded): FolderAboveComposerItem[] => loaded.aboveComposer;
 
 /** Blocks extensions put above the composer; empty until the modules are in. */
 export function useAboveComposerItems(): readonly FolderAboveComposerItem[] {
-    return useLoaded(pickAboveComposer);
+    return useSyncExternalStore(subscribe, () => snapshot.aboveComposer);
 }
-
-const pickSidebarBottom = (loaded: Loaded): FolderSidebarBottomItem[] => loaded.sidebarBottom;
 
 /** Blocks extensions put under the sidebar's session list; empty until the modules are in. */
 export function useSidebarBottomItems(): readonly FolderSidebarBottomItem[] {
-    return useLoaded(pickSidebarBottom);
+    return useSyncExternalStore(subscribe, () => snapshot.sidebarBottom);
 }
-
-const pickStatusRow = (loaded: Loaded): FolderStatusRowItem[] => loaded.statusRow;
 
 /** The markers extensions add to rows of the status popover; empty until the modules are in. */
 export function useStatusRowItems(): readonly FolderStatusRowItem[] {
-    return useLoaded(pickStatusRow);
+    return useSyncExternalStore(subscribe, () => snapshot.statusRow);
 }
-
-const pickTools = (loaded: Loaded): FolderToolIcon[] => loaded.tools;
 
 /** The icons extensions give their tools; empty until the modules are in. */
 export function useToolIcons(): readonly FolderToolIcon[] {
-    return useLoaded(pickTools);
+    return useSyncExternalStore(subscribe, () => snapshot.tools);
 }
-
-const pickToolViews = (loaded: Loaded): FolderToolView[] => loaded.toolViews;
 
 /** How extensions show their tools' arguments; empty until the modules are in. */
 export function useToolViews(): readonly FolderToolView[] {
-    return useLoaded(pickToolViews);
+    return useSyncExternalStore(subscribe, () => snapshot.toolViews);
 }
-
-const pickNewSession = (loaded: Loaded): FolderNewSessionItem[] => loaded.newSession;
 
 /** The options extensions add to the new-session folder picker; empty until the modules are in. */
 export function useNewSessionItems(): readonly FolderNewSessionItem[] {
-    return useLoaded(pickNewSession);
+    return useSyncExternalStore(subscribe, () => snapshot.newSession);
 }
-
-const pickSessionMenu = (loaded: Loaded): FolderSessionMenuItem[] => loaded.sessionMenu;
 
 /** The items extensions add to every session row's menu; empty until the modules are in. */
 export function useSessionMenu(): readonly FolderSessionMenuItem[] {
-    return useLoaded(pickSessionMenu);
+    return useSyncExternalStore(subscribe, () => snapshot.sessionMenu);
 }
-
-const pickSessionRow = (loaded: Loaded): FolderSessionRowItem[] => loaded.sessionRow;
 
 /** The marks extensions draw on every session row; empty until the modules are in. */
 export function useSessionRows(): readonly FolderSessionRowItem[] {
-    return useLoaded(pickSessionRow);
+    return useSyncExternalStore(subscribe, () => snapshot.sessionRow);
 }
-
-const pickSessionFilter = (loaded: Loaded): FolderSessionFilter[] => loaded.sessionFilter;
 
 /** The filters extensions add to the sidebar's list; empty until the modules are in. */
 export function useSessionFilters(): readonly FolderSessionFilter[] {
-    return useLoaded(pickSessionFilter);
+    return useSyncExternalStore(subscribe, () => snapshot.sessionFilter);
 }

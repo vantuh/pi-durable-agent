@@ -33,13 +33,13 @@ import type {
     SessionsEvent,
 } from "../shared/protocol.ts";
 import { buildShell } from "./build.ts";
-import { commitAnnouncer } from "./commit-announcer.ts";
+import { commitView } from "./commit-view.ts";
 import { executionEnv } from "./execution-env.ts";
 import { Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import { answer, openEventStream, readBody, type Route, sessionIdOf, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
-import { blocksSince, queuedSince, statusSince } from "./live-delta.ts";
+import { blocksSince, listSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
 import { createSessionRequest, shapeModelRequests } from "./model-requests.ts";
 import { observeNewConversations } from "./new-conversations.ts";
@@ -404,8 +404,8 @@ function sendLive(id: number): void {
     for (const client of clients) {
         if (client.session === id) {
             const { blocks, queued, status, ...rest } = live;
-            const changed = queuedSince(client.heldQueued, queued);
-            const changedStatus = statusSince(client.heldStatus, status);
+            const changed = listSince(client.heldQueued, queued);
+            const changedStatus = listSince(client.heldStatus, status);
 
             send(client, {
                 type: "live",
@@ -485,22 +485,10 @@ function publish(opened: Opened, view: View): void {
     }
 }
 
-const announce = commitAnnouncer({
-    cwdOf: async (id) => {
-        const agent = await latest.get(id)?.opened.conversation.agent(context);
-
-        return agent?.cwd ?? null;
-    },
-    ownerOf: (session) => sessions.owner(idOf(session)),
-    publish: (view) => {
-        extensions.publish(view);
-    },
-});
-
 /** Sends a state to the browsers and, with its busy value as it is now, to the extensions. */
 function observe(opened: Opened, state: View): void {
     publish(opened, state);
-    void announce(opened.id, state.entries, busy.get(opened.id) === true);
+    extensions.publish(commitView(state, busy.get(opened.id) === true));
 }
 
 const attaching = new Map<number, Promise<Opened | undefined>>();

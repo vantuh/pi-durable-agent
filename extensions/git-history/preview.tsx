@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 
 import { FileTree } from "./file-tree.tsx";
 import { FileMark } from "./icons.tsx";
+import { PendingPane } from "./pending-pane.tsx";
 import {
     changedFilesShown,
     diffStyle,
@@ -249,16 +250,6 @@ function WithoutDiff({ files }: { files: ChangedFile[] }) {
                 </Item>
             ))}
         </ul>
-    );
-}
-
-/** The page's one scroll while the diff is not drawn yet, or cannot be: the same header, then a note. */
-function PendingPane({ header, children }: { header: ReactNode; children: ReactNode }) {
-    return (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="flex flex-col gap-3 px-3 py-3">{header}</div>
-            {children}
-        </div>
     );
 }
 

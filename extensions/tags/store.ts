@@ -18,51 +18,8 @@ import {
 
 const FILE = "tags.json";
 
-/**
- * Changes to one file run one after another across every instance in the process: a reload makes a
- * new module while the old one may still be writing, and the two would read the same file, so the
- * later write would drop the earlier one's change. An entry lives only while a change is in flight.
- * The core's writer queues the write alone; here a change reads the file before it writes, and that
- * read has to wait with it.
- */
-const QUEUES = Symbol.for("pi-durable-agent.tags.queues");
-
-type Queues = Map<string, Promise<unknown>>;
-
-function isQueues(value: unknown): value is Queues {
-    return value instanceof Map;
-}
-
-function queues(): Queues {
-    const found: unknown = Reflect.get(globalThis, QUEUES);
-
-    if (isQueues(found)) {
-        return found;
-    }
-
-    const made: Queues = new Map();
-
-    Reflect.set(globalThis, QUEUES, made);
-
-    return made;
-}
-
-/** Runs `work` once the previous change to this folder's tag file has finished. */
-export function serialize<T>(dir: string, work: () => Promise<T>): Promise<T> {
-    const key = join(dir, FILE);
-    const held = queues();
-    const next = (held.get(key) ?? Promise.resolve()).then(work, work);
-
-    held.set(
-        key,
-        next.then(
-            () => undefined,
-            () => undefined,
-        ),
-    );
-
-    return next;
-}
+/** Where a folder keeps its tags; changes are serialised under this path. */
+export const tagsFile = (dir: string): string => join(dir, FILE);
 
 function tagFrom(value: unknown): Tag | undefined {
     if (typeof value !== "object" || value === null) {
@@ -82,7 +39,7 @@ function tagFrom(value: unknown): Tag | undefined {
 }
 
 export async function readTags(dir: string): Promise<TagsState> {
-    const parsed = await readJsonFile(join(dir, FILE));
+    const parsed = await readJsonFile(tagsFile(dir));
 
     if (typeof parsed !== "object" || parsed === null) {
         return { tags: [], sessions: {} };
@@ -132,7 +89,7 @@ export async function readTags(dir: string): Promise<TagsState> {
 }
 
 export async function writeTags(dir: string, state: TagsState): Promise<void> {
-    await writeJsonFile(join(dir, FILE), state);
+    await writeJsonFile(tagsFile(dir), state);
 }
 
 /** One line, short, and not the name of another tag: `except` is the tag being renamed. */

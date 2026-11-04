@@ -49,8 +49,9 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   session in the folder you open.
   `FolderPicker`, the model menu, and the attachment preview are all `Dialog` modals
   (`components/ui/dialog.tsx`): Escape closes them, focus stays inside and returns on close. The
-  parent owns `open`; each modal calls `onClose`. The sessions sheet below `lg` is not a `Dialog`:
-  it is the sidebar itself, shown as a sheet.
+  parent owns `open`; each modal calls `onClose`. Below `lg` the sidebar is a full-screen `Sheet`
+  (`components/ui/sheet.tsx`, the settings sheet's primitive), a modal like the rest: Escape closes
+  it, focus stays inside, the conversation behind it is hidden from assistive technology.
 - **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and how long ago
   its newest run started (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
   was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each

@@ -10,7 +10,6 @@ export type StripAgent = {
     fill: number;
     used: number;
     window: number;
-    working: boolean;
     /** The folder the agent's tools run in, null when unknown. */
     cwd: string | null;
 };
@@ -31,7 +30,6 @@ function isAgent(value: unknown): value is StripAgent {
         typeof Reflect.get(value, "fill") === "number" &&
         typeof Reflect.get(value, "used") === "number" &&
         typeof Reflect.get(value, "window") === "number" &&
-        typeof Reflect.get(value, "working") === "boolean" &&
         (Reflect.get(value, "cwd") === null || typeof Reflect.get(value, "cwd") === "string")
     );
 }

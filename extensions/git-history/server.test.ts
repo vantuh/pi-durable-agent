@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 import type { Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
+import { readCommit } from "./git.ts";
 import { actions } from "./server.ts";
 
 const run = promisify(execFile);
@@ -148,6 +149,27 @@ void describe("git-history reword", () => {
             await message((await git(repo, "rev-parse", "HEAD")).trim()),
             "local, reworded",
         );
+    });
+
+    void it("refuses when Git cannot tell whether the upstream has the commit", async () => {
+        await writeFile(join(repo, "file"), "one\n");
+        await commit("base");
+        await git(repo, "checkout", "-b", "remote-side");
+        const lost = await commit("lost");
+        await commit("remote tip");
+        await git(repo, "update-ref", "refs/remotes/origin/main", "HEAD");
+        await git(repo, "remote", "add", "origin", join(dir, "nowhere.git"));
+        await git(repo, "config", "branch.main.remote", "origin");
+        await git(repo, "config", "branch.main.merge", "refs/heads/main");
+        await git(repo, "checkout", "main");
+        const local = await commit("local");
+        const head = await commit("after");
+        // The upstream's history now has a hole, so the walk from it to `local` dies half way.
+        await rm(join(repo, ".git", "objects", lost.slice(0, 2), lost.slice(2)));
+
+        await refuses({ hash: local, subject: "again", body: "" }, /Could not read/);
+        await assert.rejects(readCommit(repo, local), /Could not read/);
+        assert.equal(await git(repo, "rev-parse", "HEAD"), head);
     });
 
     void it("rejects a blank or multi-line title and an unknown commit", async () => {

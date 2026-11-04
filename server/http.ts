@@ -106,24 +106,25 @@ export function sessionIdOf(value: unknown): number | undefined {
         : undefined;
 }
 
-/** Whether a client's `accept-encoding` takes gzip: named as `gzip` or through `*`, unless refused with `q=0`. */
-function acceptsGzip(request: IncomingMessage): boolean {
-    const codings = (request.headers["accept-encoding"] ?? "").split(",").map((entry) => {
-        const [coding = "", ...params] = entry.split(";");
+/**
+ * The weight an `accept-encoding` header gives a coding: its own `q`, else `*`'s, else 0. A coding the header names
+ * outranks `*` even when it is refused, so `gzip;q=0, *` takes no gzip. `q=0` is a refusal.
+ */
+export function encodingWeights(header: string | undefined): (coding: string) => number {
+    const weights = new Map<string, number>();
 
-        return {
-            name: coding.trim().toLowerCase(),
-            refused: params.some((param) => /^q=0(?:\.0*)?$/i.test(param.trim())),
-        };
-    });
-    const takes = (name: string): boolean | undefined => {
-        const coding = codings.find((entry) => entry.name === name);
+    for (const part of (header ?? "").split(",")) {
+        const [name = "", ...params] = part.trim().toLowerCase().split(";");
+        const q = params.map((param) => /^\s*q\s*=\s*([\d.]+)\s*$/.exec(param)?.[1]).find(Boolean);
 
-        return coding === undefined ? undefined : !coding.refused;
-    };
+        weights.set(name.trim(), q === undefined ? 1 : Number(q));
+    }
 
-    return takes("gzip") ?? takes("*") ?? false;
+    return (coding) => weights.get(coding) ?? weights.get("*") ?? 0;
 }
+
+const acceptsGzip = (request: IncomingMessage): boolean =>
+    encodingWeights(request.headers["accept-encoding"])("gzip") > 0;
 
 /** The body gzipped for a client that takes it when the body is big enough to gain; `undefined` to send it plain. */
 function gzipBody(request: IncomingMessage, body: string): Buffer | undefined {

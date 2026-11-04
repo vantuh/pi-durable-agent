@@ -114,7 +114,6 @@ function evaluated(response: Json): Json {
 
 /** One conversation's page. Everything it knows comes from the browser's events; nothing here is stored. */
 export class BrowserPage {
-    readonly conversationId: number;
     readonly #connection: Connection;
     readonly #session: string;
     readonly #target: string;
@@ -151,7 +150,6 @@ export class BrowserPage {
     readonly #handled = new Set<string>();
 
     constructor(options: {
-        conversationId: number;
         connection: Connection;
         session: string;
         target: string;
@@ -160,7 +158,6 @@ export class BrowserPage {
         viewport: Viewport;
         saved: (saved: Saved) => void;
     }) {
-        this.conversationId = options.conversationId;
         this.#connection = options.connection;
         this.#session = options.session;
         this.#target = options.target;

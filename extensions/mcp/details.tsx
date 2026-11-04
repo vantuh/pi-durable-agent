@@ -1,62 +1,16 @@
-import { useEffect, useState } from "react";
-
 import { Alert } from "@/components/ui/alert.tsx";
 import { Empty } from "@/components/ui/empty.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
-import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
-import { type McpState, state, toggle } from "./refs.ts";
+import { useMcp } from "./client.ts";
 
 /** The servers from mcp.json, each with a switch. */
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     const active = enabled && installed;
-    const [current, setCurrent] = useState<McpState | undefined>();
-    const [busy, setBusy] = useState<string | undefined>();
-    const [error, setError] = useState<string | undefined>();
-
-    useEffect(() => {
-        if (!active) {
-            return undefined;
-        }
-
-        let alive = true;
-
-        void (async () => {
-            try {
-                const found = await callAction(state, undefined, null);
-
-                if (alive) {
-                    setCurrent(found);
-                }
-            } catch (failure) {
-                if (alive) {
-                    setError(
-                        failure instanceof Error ? failure.message : "Cannot read the servers.",
-                    );
-                }
-            }
-        })();
-
-        return () => {
-            alive = false;
-        };
-    }, [active]);
-
-    const change = async (name: string, on: boolean) => {
-        setBusy(name);
-        setError(undefined);
-
-        try {
-            setCurrent(await callAction(toggle, { name, enabled: on }, null));
-        } catch (failure) {
-            setError(failure instanceof Error ? failure.message : "Something went wrong.");
-        } finally {
-            setBusy(undefined);
-        }
-    };
+    const { current, busy, error, change } = useMcp({ active });
 
     if (!active) {
         return <DetailsNote>Turn the extension on to see its servers.</DetailsNote>;

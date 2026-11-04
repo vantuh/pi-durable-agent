@@ -103,12 +103,7 @@ export function worktreeOf(dataDir: string, cwd: string): Worktree | null {
 export async function linkedWorktreeOf(
     cwd: string,
 ): Promise<{ name: string; folder: string } | null> {
-    const [gitDir, common] = await Promise.all([
-        out(cwd, ["rev-parse", "--path-format=absolute", "--git-dir"]),
-        out(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]),
-    ]);
-
-    if (gitDir === "" || common === "" || gitDir === common) {
+    if ((await mainCheckoutOf(cwd)) === undefined) {
         return null;
     }
 

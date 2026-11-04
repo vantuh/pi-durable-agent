@@ -179,10 +179,6 @@ export type CommitListener = (view: CommitView) => void | Promise<void>;
 
 export type Disposer = () => void | Promise<void>;
 
-export type ServerModule = (
-    host: Host,
-) => Extension | undefined | void | Promise<Extension | undefined | void>;
-
 /** What a status provider reads: the conversation's active entries. */
 export type StatusView = {
     readonly entries: readonly EntryRecord[];

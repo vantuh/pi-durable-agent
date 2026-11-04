@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 
 import type { ResolveModelAuth } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
@@ -217,8 +218,6 @@ export async function readCodex(
     };
 }
 
-const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
-
 /** kiro-cli prints the report to stderr when it is not attached to a terminal. */
 function runKiroUsage(signal: AbortSignal): Promise<string | undefined> {
     return new Promise((resolve, reject) => {
@@ -254,7 +253,7 @@ export async function readKiro(
         return undefined;
     }
 
-    const text = raw.replace(ANSI, "");
+    const text = stripVTControlCharacters(raw);
     const header = /Estimated Usage \| resets on ([^|]+) \| (.+)/.exec(text);
     const pct = /([0-9]+(?:\.[0-9]+)?)\s*%/.exec(text)?.[1];
 

@@ -13,6 +13,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import {
     ActionError,
+    serialize,
     writeFileAtomic,
     writeJsonFile,
     type Action,
@@ -169,26 +170,14 @@ const indexOf = (items: Todo[], id: unknown): number => {
     return index;
 };
 
-/**
- * Check-then-write must not interleave with another write. A reload builds a new `actions()` while the
- * old one may still be writing, so the tail of the queue lives on `globalThis`, not in the closure.
- */
-const QUEUE = Symbol.for("pi-durable-agent.notes.queue");
-
-function enqueue<T>(work: () => Promise<T>): Promise<T> {
-    const tail: unknown = Reflect.get(globalThis, QUEUE);
-    const next = (tail instanceof Promise ? tail : Promise.resolve()).then(work);
-
-    Reflect.set(
-        globalThis,
-        QUEUE,
-        next.catch(() => undefined),
-    );
-
-    return next;
-}
-
 export const actions = (host: Pick<Host, "dataDir">): Record<string, Action> => {
+    /**
+     * Check-then-write must not interleave with another write, and the first read of the to-dos writes
+     * the note too: one key for the notes folder covers every note and to-do file, and a change is
+     * queued before its repository is looked up, so changes run in the order they arrived.
+     */
+    const enqueue = <T>(work: () => Promise<T>): Promise<T> =>
+        serialize(join(host.dataDir, "notes"), work);
     const fileOf = async ({ session }: Parameters<Action>[0]): Promise<string | null> => {
         const cwd = session?.cwd;
 

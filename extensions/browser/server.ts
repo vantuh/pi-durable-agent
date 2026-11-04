@@ -14,7 +14,7 @@ import { AgentDoc, defineExtension, defineTool, section } from "@earendil-works/
 import { Type } from "typebox";
 
 import { ActionError, type Action, type Host, writeJsonFile } from "../../server/sdk.ts";
-import { messageOf } from "../../shared/guards.ts";
+import { messageOf, recordOf } from "../../shared/guards.ts";
 import { Browsers } from "./lib/browsers.ts";
 import { BrowserError } from "./lib/cdp.ts";
 import type { BrowserPage, LogEntry, Saved, Target } from "./lib/page.ts";
@@ -576,10 +576,6 @@ async function readable<T>(work: Promise<T>): Promise<T> {
     }
 }
 
-function field(args: unknown, name: string): unknown {
-    return typeof args === "object" && args !== null ? Reflect.get(args, name) : undefined;
-}
-
 export const actions = (host: Host): Record<string, Action> => {
     const browsers = browsersOf(host);
     const idOf = ({ session }: Parameters<Action>[0]): number => {
@@ -606,7 +602,7 @@ export const actions = (host: Host): Record<string, Action> => {
 
         async frame(call) {
             const page = browsers.page(idOf(call));
-            const after = Number(field(call.args, "after")) || 0;
+            const after = Number(recordOf(call.args)?.["after"]) || 0;
             const frame = await page?.frame(after);
 
             if (frame === undefined) {
@@ -622,7 +618,7 @@ export const actions = (host: Host): Record<string, Action> => {
         },
 
         async input(call) {
-            const events = field(call.args, "events");
+            const events = recordOf(call.args)?.["events"];
 
             if (!Array.isArray(events)) {
                 throw new ActionError("events must be a list");
@@ -635,7 +631,7 @@ export const actions = (host: Host): Record<string, Action> => {
 
         async control(call) {
             const id = idOf(call);
-            const op = field(call.args, "op");
+            const op = recordOf(call.args)?.["op"];
 
             if (op === "stop" || op === "clear") {
                 const page = pageOf(id);
@@ -649,8 +645,8 @@ export const actions = (host: Host): Record<string, Action> => {
                 return browsers.state(id);
             }
 
-            const viewport = viewportFrom(field(call.args, "viewport"));
-            const rawUrl = field(call.args, "url");
+            const viewport = viewportFrom(recordOf(call.args)?.["viewport"]);
+            const rawUrl = recordOf(call.args)?.["url"];
             const target =
                 op === "navigate"
                     ? normalizeUrl(typeof rawUrl === "string" ? rawUrl : "", {

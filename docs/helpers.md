@@ -73,13 +73,16 @@ not a list of every function in the repository.
       uploaded file (`writeFile(…, { flag: "wx" })`, and the flag is what keeps two uploads of one
       name apart, which a rename cannot carry) and `subagents` writing a profile's Markdown through
       `writeFileAtomic`.
-- [x] **Three queues stay, and they are not copies of the core's.** `push/store`, `tags/store` and
-      `mcp/connections` serialise a _change_, not a write: the file is read, changed and written
-      inside the queue, and the core's queue holds the write alone, so the read before it would still
-      race. `mcp` is the one this item added, and it is the item's own trap: the switch had no race
-      while its write was synchronous and no yield sat between the read and it. Each keeps its queue in
-      `globalThis` under a symbol, so a reloaded version waits for the save its old version started,
-      and says why in a line above the queue. No private queue only serialised a write, so none went.
+- [x] **One queue for a change.** `push/store`, `tags/store`, `mcp/connections` and `notes` serialise
+      a _change_, not a write: the file is read, changed and written inside the queue, and the
+      core's queue holds the write alone, so the read before it would still race. They share
+      `serialize(key, work)` (`server/keyed-queue.ts`, through `server/sdk.ts`), which runs the work
+      for a key one piece at a time, survives a rejected piece, drops a key once its work is done, and
+      keeps its map in `globalThis` under a symbol, so a reloaded version waits for the save its old
+      version started. The key is the file's path; `notes` keys the whole notes folder, since its
+      first read writes the to-do file and the note together and changes must run in arrival order.
+      `writeFileAtomic` keeps its own writer queue: a change holds the keyed queue while it writes,
+      and the writer must not wait on it.
 - [x] **Readers.** `readJsonFile` in `server/json-file.ts`, exported through `server/sdk.ts`, is the
       read: the value, or `undefined` when the file is missing or does not hold JSON. Anything else —
       a folder where the file should be, no permission — is thrown, because that is a mistake and not

@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { basename, extname } from "node:path";
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
+import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 
 import { recordOf } from "../../shared/guards.ts";
@@ -13,7 +14,7 @@ import { entryAt, historyPage } from "../history.ts";
 import { answer, readJson, type Route, sessionIdOf, string } from "../http.ts";
 import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
-import { type Opened, type Sessions, THINKING_LEVELS } from "../sessions.ts";
+import type { Opened, Sessions } from "../sessions.ts";
 import { expandSkillCommand, skillsFor } from "../skills.ts";
 import { IMAGE_TYPES } from "./files.ts";
 
@@ -317,7 +318,7 @@ export function conversationRoutes(deps: {
                 const provider = string(model?.["provider"]);
                 const modelId = string(model?.["modelId"]);
                 const level = string(payload?.["thinkingLevel"]);
-                const thinkingLevel = THINKING_LEVELS.find((known) => known === level);
+                const thinkingLevel = MODEL_THINKING_LEVELS.find((known) => known === level);
 
                 if (opened === undefined) {
                     answer(response, 404, { error: "no such session" });

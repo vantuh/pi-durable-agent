@@ -33,6 +33,7 @@ const SHOWN_MS = 10_000;
 const SETTLED_MS = 1500;
 
 const SHELL_SHOWN = `document.querySelector("textarea") !== null`;
+const NEW_SESSION_SHOWN = `document.querySelector('button[aria-label="New session"]') !== null`;
 const PICKER_SHOWN = `document.title !== "" && document.body.innerText.includes("pick a folder")`;
 /** Presses the star of the last row that has one: the Recent folder, when there is one. */
 const STAR = `(() => {
@@ -309,7 +310,9 @@ void describe("the folder picker", () => {
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
 
             // The sidebar's own button: an icon, so a name on it is an `aria-label` and nothing else.
-            // It is mounted even where the sidebar is collapsed to nothing, and a press still opens the picker.
+            // Below `lg` the sidebar is a sheet that is mounted only while open, so open it first.
+            await read(`document.querySelector('button[aria-label="Sessions"]')?.click()`);
+            assert.equal(await until(NEW_SESSION_SHOWN, SHOWN_MS), true, "the sidebar is open");
             await read(`document.querySelector('button[aria-label="New session"]')?.click()`);
 
             assert.equal(await until(PICKER_SHOWN, SHOWN_MS), true, "the picker is open");

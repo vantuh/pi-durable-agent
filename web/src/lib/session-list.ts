@@ -7,7 +7,7 @@ import type {
     SessionsEvent,
 } from "../../../shared/protocol.ts";
 import { sessionsEventOf } from "./api.ts";
-import { reopenDelay } from "./stream.ts";
+import { openStream } from "./stream.ts";
 
 /**
  * The list after one frame of the stream: a `sessions` frame replaces it, a `rows` frame upserts the rows it
@@ -51,54 +51,29 @@ export function useSessionList(onNotice?: (notice: ExtensionNotice) => void): {
         onNotice?.(notice);
     });
 
-    useEffect(() => {
-        let source: EventSource | undefined;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        let failures = 0;
+    useEffect(
+        () =>
+            openStream("/api/sessions/events", {
+                onOpen: () => {
+                    setConnected(true);
+                },
+                onError: () => {
+                    setConnected(false);
+                },
+                onMessage: (data) => {
+                    const event: SessionsEvent = sessionsEventOf(JSON.parse(data));
 
-        // A stream the browser closes for good is opened again from here: it retries only a connection it lost.
-        const connect = (): void => {
-            const stream = new EventSource("/api/sessions/events");
+                    if (event.type === "extension-notice") {
+                        announce(event.notice);
 
-            source = stream;
-            stream.onopen = () => {
-                failures = 0;
-                setConnected(true);
-            };
-            stream.onerror = () => {
-                setConnected(false);
+                        return;
+                    }
 
-                // Anything else is the browser reconnecting on its own, and it does that better than this would.
-                if (stream.readyState !== EventSource.CLOSED) {
-                    return;
-                }
-
-                timer = setTimeout(connect, reopenDelay(failures));
-                failures += 1;
-            };
-            stream.onmessage = (message: MessageEvent<string>) => {
-                const event: SessionsEvent = sessionsEventOf(JSON.parse(message.data));
-
-                if (event.type === "extension-notice") {
-                    announce(event.notice);
-
-                    return;
-                }
-
-                setRows((current) => withSessionsEvent(current, event));
-            };
-        };
-
-        connect();
-
-        return () => {
-            if (timer !== undefined) {
-                clearTimeout(timer);
-            }
-
-            source?.close();
-        };
-    }, []);
+                    setRows((current) => withSessionsEvent(current, event));
+                },
+            }),
+        [],
+    );
 
     return { sessions: rows, setSessions: setRows, connected };
 }

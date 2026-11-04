@@ -261,27 +261,6 @@ void describe("push", () => {
             assert.equal(Object.keys((await store.read()).seen).length, 6);
         });
 
-        void it("keeps no queue entry once changes finish, and still serialises later ones", async () => {
-            const queues: unknown = Reflect.get(
-                globalThis,
-                Symbol.for("pi-durable-agent.push.queues"),
-            );
-
-            await ready();
-            await Promise.all([
-                call("prepare", { contact: "a@example.com" }),
-                call("prepare", { contact: "b@example.com" }),
-            ]);
-            await new Promise((resolve) => setImmediate(resolve));
-
-            assert.ok(queues instanceof Map);
-            assert.equal(queues.size, 0);
-
-            await call("subscribe", { subscription: device() });
-
-            assert.equal((await store.read()).subscriptions.length, 1);
-        });
-
         void it("does not replace a file it cannot read", async () => {
             await writeFile(join(dir, "push.json"), "{broken");
 

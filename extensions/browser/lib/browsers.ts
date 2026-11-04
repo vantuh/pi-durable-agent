@@ -257,7 +257,6 @@ export class Browsers {
             });
 
             page = new BrowserPage({
-                conversationId,
                 connection,
                 session: sessionId,
                 target: targetId,

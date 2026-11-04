@@ -7,6 +7,10 @@
 import type { Context } from "@earendil-works/chord/context";
 import { type Api, clampThinkingLevel, type Model } from "@earendil-works/pi-ai";
 import {
+    MODEL_THINKING_LEVELS,
+    type ModelThinkingLevel,
+} from "@earendil-works/pi-ai/providers/model-schema";
+import {
     AgentDoc,
     type Conversation,
     type ConversationDocToken,
@@ -85,10 +89,6 @@ const SettingsDoc = defineDoc({
     checkpointWhen: () => true,
 });
 
-export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
-
-export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-
 export type Opened = {
     id: ConversationId;
     conversation: Conversation;
@@ -106,8 +106,8 @@ export type ModelCatalog = {
 export function supportedLevel(
     models: ModelCatalog,
     model: ModelRef,
-    level: ThinkingLevel,
-): ThinkingLevel {
+    level: ModelThinkingLevel,
+): ModelThinkingLevel {
     const known = models.getModel(model.provider, model.modelId);
 
     return known === undefined ? level : clampThinkingLevel(known, level);
@@ -201,14 +201,13 @@ export class Sessions {
 
     /** The model chosen with "Make default", if any. */
     async defaults(): Promise<
-        { model: { provider: string; modelId: string }; thinkingLevel: ThinkingLevel } | undefined
+        | { model: { provider: string; modelId: string }; thinkingLevel: ModelThinkingLevel }
+        | undefined
     > {
-        const stored = await this.#harness.commit(async (tx) => {
-            const doc = await tx.doc(SettingsDoc);
-
-            return { provider: doc.provider, modelId: doc.modelId, level: doc.thinkingLevel };
-        }, this.#context);
-        const thinkingLevel = THINKING_LEVELS.find((level) => level === stored.level);
+        const stored =
+            (await this.#harness.snapshot(SettingsDoc, this.#context)) ??
+            SettingsDoc.definition.initial();
+        const thinkingLevel = MODEL_THINKING_LEVELS.find((level) => level === stored.thinkingLevel);
 
         return stored.provider === "" || stored.modelId === "" || thinkingLevel === undefined
             ? undefined
@@ -217,7 +216,7 @@ export class Sessions {
 
     async setDefaults(
         model: { provider: string; modelId: string },
-        thinkingLevel: ThinkingLevel,
+        thinkingLevel: ModelThinkingLevel,
     ): Promise<void> {
         await this.#harness.commit(async (tx) => {
             const doc = await tx.doc(SettingsDoc);
@@ -253,11 +252,9 @@ export class Sessions {
 
     /** Whether the session was seen after its latest run ended. */
     async seenSinceEnd(id: ConversationId): Promise<boolean> {
-        return await this.#harness.commit(async (tx) => {
-            const attention = await tx.doc(AttentionDoc, id);
+        const attention = await this.readDoc(AttentionDoc, id);
 
-            return attention.seenAt >= attention.endedAt;
-        }, this.#context);
+        return attention.seenAt >= attention.endedAt;
     }
 
     async setArchived(id: ConversationId, archived: boolean): Promise<void> {
@@ -460,10 +457,7 @@ export class Sessions {
 
     /** A deleted session is out of the lists for good; its rows stay in storage. */
     async #isDeleted(id: ConversationId): Promise<boolean> {
-        return this.#harness.commit(
-            async (tx) => (await tx.doc(DeletedDoc, id)).deleted,
-            this.#context,
-        );
+        return (await this.readDoc(DeletedDoc, id)).deleted;
     }
 
     /** The name the sidebar shows: the one set by hand, else the first question. None for a deleted session, which no list shows. */
@@ -477,10 +471,7 @@ export class Sessions {
 
     /** The name set by hand or by an extension, or null while the first question still names the session. */
     async name(id: ConversationId): Promise<string | null> {
-        const chosen = await this.#harness.commit(
-            async (tx) => (await tx.doc(TitleDoc, id)).title,
-            this.#context,
-        );
+        const chosen = (await this.readDoc(TitleDoc, id)).title;
 
         return chosen === "" ? null : oneLine(chosen);
     }

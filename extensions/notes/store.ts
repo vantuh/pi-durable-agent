@@ -1,7 +1,13 @@
 import { useSyncExternalStore } from "react";
 
-// What the panel and the header badge share: the open to-dos of each session's repository.
-const counts = new Map<number, number>();
+import { callAction } from "../../web/src/sdk/actions.ts";
+import { listTodos, type Todo } from "./refs.ts";
+
+// What the panel and the header badge share: each session's to-dos, as far as they are read. The badge counts the
+// open ones from the same list the panel shows.
+const lists = new Map<number, Todo[]>();
+/** Changes the panel has sent whose answers are still to come, per session. */
+const pending = new Map<number, number>();
 const listeners = new Set<() => void>();
 
 const notify = (): void => {
@@ -10,24 +16,55 @@ const notify = (): void => {
     }
 };
 
-export function setCount(session: number, count: number): void {
-    if (counts.get(session) !== count) {
-        counts.set(session, count);
-        notify();
+const subscribe = (listener: () => void): (() => void) => {
+    listeners.add(listener);
+
+    return () => {
+        listeners.delete(listener);
+    };
+};
+
+export function setTodos(session: number, todos: Todo[]): void {
+    lists.set(session, todos);
+    notify();
+}
+
+/** Shows a change before the server confirms it; nothing happens while the list is unread. */
+export function changeTodos(session: number, local: (todos: Todo[]) => Todo[]): void {
+    const current = lists.get(session);
+
+    if (current !== undefined) {
+        setTodos(session, local(current));
     }
 }
 
-export function useCount(session: number | null): number {
-    return useSyncExternalStore(
-        (listener) => {
-            listeners.add(listener);
+/** The session's to-dos, or undefined until they are read. */
+export const todosOf = (session: number | null): Todo[] | undefined =>
+    session === null ? undefined : lists.get(session);
 
-            return () => {
-                listeners.delete(listener);
-            };
-        },
-        () => (session === null ? 0 : (counts.get(session) ?? 0)),
-    );
+/** How many of the session's to-dos are open. */
+export const countOf = (session: number | null): number =>
+    todosOf(session)?.filter((todo) => !todo.done).length ?? 0;
+
+export const useTodos = (session: number | null): Todo[] | undefined =>
+    useSyncExternalStore(subscribe, () => todosOf(session));
+
+export const useCount = (session: number | null): number =>
+    useSyncExternalStore(subscribe, () => countOf(session));
+
+export const pendingChanges = (session: number): number => pending.get(session) ?? 0;
+
+export function countChange(session: number, by: 1 | -1): void {
+    pending.set(session, pendingChanges(session) + by);
+}
+
+/** Reads the list from the server. A change still on its way would be undone on screen by this older list, so then it is dropped. */
+export async function refreshTodos(session: number): Promise<void> {
+    const todos = await callAction(listTodos, undefined, session);
+
+    if (todos !== null && pendingChanges(session) === 0) {
+        setTodos(session, todos);
+    }
 }
 
 let lastFlush: Promise<void> = Promise.resolve();

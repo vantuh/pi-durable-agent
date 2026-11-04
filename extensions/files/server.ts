@@ -9,6 +9,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
+import { recordOf } from "../../shared/guards.ts";
 import type { File, Folder } from "./refs.ts";
 
 export const meta = {
@@ -26,7 +27,7 @@ export default function files(host: Host) {
 }
 
 function pathOf(args: unknown): string {
-    const path = typeof args === "object" && args !== null ? Reflect.get(args, "path") : undefined;
+    const path = recordOf(args)?.["path"];
 
     if (typeof path !== "string" || path.includes("\0")) {
         throw new ActionError("A path must be a string.");
