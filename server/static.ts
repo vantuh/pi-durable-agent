@@ -6,6 +6,8 @@ import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import { brotliCompress, constants, gzip } from "node:zlib";
 
+import { encodingWeights } from "./http.ts";
+
 const compressBrotli = promisify(brotliCompress);
 const compressGzip = promisify(gzip);
 
@@ -52,16 +54,7 @@ interface Compressed {
 const compressed = new Map<string, Compressed>();
 
 function accepted(header: string | undefined): Encoding | null {
-    const weights = new Map<string, number>();
-
-    for (const part of (header ?? "").split(",")) {
-        const [name = "", ...params] = part.trim().toLowerCase().split(";");
-        const q = params.map((param) => /^\s*q\s*=\s*([\d.]+)\s*$/.exec(param)?.[1]).find(Boolean);
-
-        weights.set(name.trim(), q === undefined ? 1 : Number(q));
-    }
-
-    const weight = (name: string): number => weights.get(name) ?? weights.get("*") ?? 0;
+    const weight = encodingWeights(header);
 
     if (weight("br") > 0) {
         return "br";
