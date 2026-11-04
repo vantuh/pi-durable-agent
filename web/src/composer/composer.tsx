@@ -307,7 +307,6 @@ export const Composer = memo(function Composer({
 
         if (candidate.instant !== undefined && files.length === 0 && quotes.length === 0) {
             setComposerDraft(sessionId, "");
-            setText("");
 
             if (candidate.instant === "new") {
                 onNewSession();
