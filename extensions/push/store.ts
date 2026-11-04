@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { writeJsonFile } from "../../server/sdk.ts";
+import { serialize, writeJsonFile } from "../../server/sdk.ts";
 import { isRecord } from "../../shared/guards.ts";
 import type { DeviceSubscription } from "./refs.ts";
 
@@ -20,34 +20,6 @@ const EMPTY: PushFile = { version: 1, contact: null, vapid: null, subscriptions:
 
 /** Conversations remembered in `seen`; the oldest are forgotten past this. */
 const MAX_SEEN = 200;
-
-/**
- * Changes to one file run one after another across every instance in the process. A reload makes a
- * new store while the old one may still be working, and the actions and the listener each hold one.
- * An entry lives only while a change is in flight. The core's writer queues the write alone; here a
- * change reads the file before it writes, and that read has to wait with it.
- */
-const QUEUES = Symbol.for("pi-durable-agent.push.queues");
-
-type Queues = Map<string, Promise<unknown>>;
-
-function isQueues(value: unknown): value is Queues {
-    return value instanceof Map;
-}
-
-function queues(): Queues {
-    const found: unknown = Reflect.get(globalThis, QUEUES);
-
-    if (isQueues(found)) {
-        return found;
-    }
-
-    const made: Queues = new Map();
-
-    Reflect.set(globalThis, QUEUES, made);
-
-    return made;
-}
 
 /** One device per endpoint; a flood of subscriptions must not grow the file without bound. */
 const MAX_DEVICES = 20;
@@ -134,8 +106,7 @@ export class PushStore {
      * never overlap, even between stores of one file.
      */
     update<T>(change: (file: PushFile) => { file: PushFile | null; result: T }): Promise<T> {
-        const all = queues();
-        const run = (all.get(this.#file) ?? Promise.resolve()).then(async () => {
+        return serialize(this.#file, async () => {
             const { file, result } = change(await this.read());
 
             if (file !== null) {
@@ -144,20 +115,6 @@ export class PushStore {
 
             return result;
         });
-
-        const tail = run.catch(() => undefined);
-
-        all.set(this.#file, tail);
-        // Only the last change may remove the entry; a later change has replaced it by then.
-        void tail.then(() => {
-            if (all.get(this.#file) === tail) {
-                all.delete(this.#file);
-            }
-
-            return undefined;
-        });
-
-        return run;
     }
 }
 

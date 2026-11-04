@@ -182,6 +182,21 @@ void describe("notes", () => {
         assert.equal((await todos("todos")).length, 2);
     });
 
+    void it("takes the checkboxes out once when the first reads and changes arrive together", async () => {
+        await mkdir(join(data, "notes"), { recursive: true });
+        await writeFile(noteFile(data, repo), "plan\n- [ ] one\n");
+
+        const [, , note] = await Promise.all([
+            todos("addTodo", { title: "two" }),
+            todos("addTodo", { title: "three" }),
+            read(repo),
+        ]);
+
+        assert.equal(note.text, "plan\n");
+        assert.deepEqual(titles(await todos("todos")), ["one", "two", "three"]);
+        assert.equal(await readFile(noteFile(data, repo), "utf8"), "plan\n");
+    });
+
     void it("adds, edits, moves and removes to-dos, and restores a removed one in place", async () => {
         assert.deepEqual(await todos("todos"), []);
 

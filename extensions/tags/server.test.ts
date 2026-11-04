@@ -12,7 +12,6 @@ import { testHost } from "../../test/fixtures/host.ts";
 import { FALLBACK_COLOR, MAX_NAME, state as stateRef, type TagsState } from "./refs.ts";
 import { tagActions } from "./server.ts";
 import { readTags } from "./store.ts";
-import type * as Store from "./store.ts";
 
 function hostOf(dataDir: string): Host {
     return testHost({
@@ -149,30 +148,6 @@ void test("changes that arrive together all land", async () => {
         ]);
 
         assert.deepEqual((await readTags(dir)).sessions["7"], [one.id, two.id]);
-    });
-});
-
-void test("a reloaded module writes through the queue of the one already running", async () => {
-    await withDir(async (dir) => {
-        // A reload imports the file again, so the queue has to live outside either copy of it.
-        const reloaded: typeof Store = await import(
-            `${new URL("./store.ts", import.meta.url).href}?reloaded`
-        );
-
-        await Promise.all([
-            tagActions(hostOf(dir)).create(call({ name: "One", color: "blue" })),
-            reloaded.serialize(dir, async () => {
-                const state = reloaded.addTag(await reloaded.readTags(dir), "Two", "teal");
-                await reloaded.writeTags(dir, state);
-
-                return state;
-            }),
-        ]);
-
-        assert.deepEqual(
-            (await readTags(dir)).tags.map((tag) => tag.name),
-            ["One", "Two"],
-        );
     });
 });
 

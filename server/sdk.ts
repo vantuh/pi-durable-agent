@@ -16,5 +16,6 @@ export {
 export type { FetchWrapper, ModelFetch, RequestModel, ResolveModelAuth } from "./model-requests.ts";
 export { writeFileAtomic, writeJsonFile, type WriteOptions } from "./atomic-write.ts";
 export { readJsonFile } from "./json-file.ts";
+export { serialize } from "./keyed-queue.ts";
 export { skillsFor } from "./skills.ts";
 export { answer, answerError, HttpError, readJson } from "./http.ts";

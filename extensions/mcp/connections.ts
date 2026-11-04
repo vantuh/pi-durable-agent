@@ -9,7 +9,7 @@ import {
     type Tool,
 } from "@earendil-works/pi-mcp";
 
-import { writeJsonFile } from "../../server/sdk.ts";
+import { serialize, writeJsonFile } from "../../server/sdk.ts";
 import { isRecord, messageOf } from "../../shared/guards.ts";
 import type { McpState, ServerInfo } from "./refs.ts";
 
@@ -86,34 +86,6 @@ function failure(error: unknown): string {
     }
 
     return typeof code === "string" ? `error ${code}` : "unknown failure";
-}
-
-/**
- * Saving a switch is a read and then a write, so two switches made at once must not both read the
- * file before either wrote it: the second would drop the first's choice. Saves run one at a time per
- * state file, across every instance in the process — a reload makes a new `Connections` while the old
- * one may still be saving. An entry lives only while a save is in flight.
- */
-const QUEUES = Symbol.for("pi-durable-agent.mcp.queues");
-
-type Queues = Map<string, Promise<unknown>>;
-
-function isQueues(value: unknown): value is Queues {
-    return value instanceof Map;
-}
-
-function queues(): Queues {
-    const found: unknown = Reflect.get(globalThis, QUEUES);
-
-    if (isQueues(found)) {
-        return found;
-    }
-
-    const made: Queues = new Map();
-
-    Reflect.set(globalThis, QUEUES, made);
-
-    return made;
 }
 
 async function transportOf(raw: Raw) {
@@ -214,23 +186,9 @@ export class Connections {
      * write are held: connecting a server can take seconds and must not keep the file waiting.
      */
     #saveSwitch(name: string, enabled: boolean): Promise<void> {
-        const all = queues();
-        const save = (all.get(this.#state) ?? Promise.resolve()).then(() =>
+        return serialize(this.#state, () =>
             writeJsonFile(this.#state, { ...this.#saved(), [name]: enabled }),
         );
-        const tail = save.catch(() => undefined);
-
-        all.set(this.#state, tail);
-        // Only the last save may drop the entry; a later one has replaced it by then.
-        void tail.then(() => {
-            if (all.get(this.#state) === tail) {
-                all.delete(this.#state);
-            }
-
-            return undefined;
-        });
-
-        return save;
     }
 
     /** Resolves once the connection is up or has failed. */

@@ -5,7 +5,13 @@
  */
 import { defineExtension } from "@earendil-works/pi-durable";
 
-import { type Action, type ActionCall, ActionError, type Host } from "../../server/sdk.ts";
+import {
+    type Action,
+    type ActionCall,
+    ActionError,
+    type Host,
+    serialize,
+} from "../../server/sdk.ts";
 import { type TagsState, isTagColor, TAG_COLORS } from "./refs.ts";
 import {
     addTag,
@@ -13,7 +19,7 @@ import {
     recolorTag,
     renameTag,
     removeTag,
-    serialize,
+    tagsFile,
     toggleTag,
     writeTags,
 } from "./store.ts";
@@ -55,7 +61,7 @@ export const tagActions = (host: Host) => ({
         const name = fieldOf(args, "name");
         const color = colorOf(args);
 
-        return await serialize(host.dataDir, async () => {
+        return await serialize(tagsFile(host.dataDir), async () => {
             const state = addTag(await readTags(host.dataDir), name, color);
             await writeTags(host.dataDir, state);
 
@@ -66,7 +72,7 @@ export const tagActions = (host: Host) => ({
         const id = fieldOf(args, "id");
         const name = fieldOf(args, "name");
 
-        return await serialize(host.dataDir, async () => {
+        return await serialize(tagsFile(host.dataDir), async () => {
             const state = renameTag(await readTags(host.dataDir), id, name);
             await writeTags(host.dataDir, state);
 
@@ -77,7 +83,7 @@ export const tagActions = (host: Host) => ({
         const id = fieldOf(args, "id");
         const color = colorOf(args);
 
-        return await serialize(host.dataDir, async () => {
+        return await serialize(tagsFile(host.dataDir), async () => {
             const state = recolorTag(await readTags(host.dataDir), id, color);
             await writeTags(host.dataDir, state);
 
@@ -87,7 +93,7 @@ export const tagActions = (host: Host) => ({
     remove: async ({ args }: ActionCall): Promise<TagsState> => {
         const id = fieldOf(args, "id");
 
-        return await serialize(host.dataDir, async () => {
+        return await serialize(tagsFile(host.dataDir), async () => {
             const state = removeTag(await readTags(host.dataDir), id);
             await writeTags(host.dataDir, state);
 
@@ -101,7 +107,7 @@ export const tagActions = (host: Host) => ({
 
         const tag = fieldOf(args, "tag");
 
-        return await serialize(host.dataDir, async () => {
+        return await serialize(tagsFile(host.dataDir), async () => {
             const state = toggleTag(await readTags(host.dataDir), session.id, tag);
             await writeTags(host.dataDir, state);
 
