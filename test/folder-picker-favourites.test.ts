@@ -308,9 +308,9 @@ void describe("the folder picker", () => {
 
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
 
-            await read(
-                `[...document.querySelectorAll("button")].find((button) => button.innerText.trim() === "New session")?.click()`,
-            );
+            // The sidebar's own button: an icon, so a name on it is an `aria-label` and nothing else.
+            // It is mounted even where the sidebar is collapsed to nothing, and a press still opens the picker.
+            await read(`document.querySelector('button[aria-label="New session"]')?.click()`);
 
             assert.equal(await until(PICKER_SHOWN, SHOWN_MS), true, "the picker is open");
 
