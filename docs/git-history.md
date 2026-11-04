@@ -28,8 +28,9 @@ browser-supplied filesystem path.
   fold takes 200 ms and the files below move with it rather than after it; a reduced-motion setting
   folds at once. Files start expanded. Every file carries a mark for its kind. On a wide screen a
   changed-files column sits beside the diff, with its folders and per-file counts: clicking a file
-  unfolds it if it was folded and scrolls the diff to it. A phone, or a change of one file, shows
-  the diff alone.
+  unfolds it if it was folded and scrolls the diff to it. A button at the column's top hides it to a
+  narrow rail that keeps the way back; the choice is saved in this browser. A phone, or a change of
+  one file, shows the diff alone.
   Untracked non-ignored files are included; binary files are listed without a text diff.
 - In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
   **Side by side** for history previews. The choice is saved in this browser, applies to all
