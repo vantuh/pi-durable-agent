@@ -220,7 +220,12 @@ const COMPONENTS: Components = {
     ),
     hr: () => <hr className="border-edge-soft" />,
     table: ({ children }) => <Table>{children}</Table>,
-    thead: ({ children }) => <TableHeader>{children}</TableHeader>,
+    // `| | |` states no column names, only the delimiter GFM demands; an empty header row is still a row.
+    thead: ({ node, children }) => (
+        <TableHeader className={node !== undefined && textOf(node).trim() === "" ? "sr-only" : ""}>
+            {children}
+        </TableHeader>
+    ),
     tbody: ({ children }) => <TableBody>{children}</TableBody>,
     tr: ({ children }) => <TableRow>{children}</TableRow>,
     // GFM states a column's alignment as an inline `text-align`; the header's own `text-left` would win over a
