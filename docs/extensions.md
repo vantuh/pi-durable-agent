@@ -170,6 +170,12 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   `actionRef<Args, Result>(extension, name, parse)` in `shared/extension-api.ts`; put it in a browser-safe
   `refs.ts` in the folder. `parse(value: unknown): Result` returns the result or throws; `callAction`
   returns what it returns, and a throw becomes the error of the call. The server never uses the ref.
+- **A per-session on/off switch:** `useBooleanAction(sessionId, state, set)` from
+  `@/sdk/boolean-action.ts` keeps one for a status item: `state` and `set` are action refs that answer
+  `{ on: boolean }`. It returns `{ mode, read, toggle }`: `mode` is null until the server has answered,
+  `read()` rereads (a popover opening), `toggle(on)` saves and then settles on what the server stored.
+  It drops an answer that a newer reading or a save has overtaken, and tries an unreachable server
+  three times, five seconds apart. `caveman` and `ponytail` are two uses of it.
 - **Settings sections** (`settings: [{ id, title, component }]`) are drawn in the Settings panel after
   the core sections, under an `h3` with the title. They get the same `session` as status items. Each
   sits in an error boundary; the loading, skipping, duplicate-`id` and function-component rules are
