@@ -362,7 +362,6 @@ function IconButton({
     onClick,
     disabled,
     active,
-    pressed,
     className = "",
     children,
 }: {
@@ -370,9 +369,8 @@ function IconButton({
     hint: string;
     onClick: () => void;
     disabled?: boolean;
+    /** Set only by a toggle or a choice among several: a button that acts on each press carries no state to announce. */
     active?: boolean;
-    /** Set only by a toggle: a button that acts on each press carries no state to announce. */
-    pressed?: boolean;
     className?: string;
     children: React.ReactNode;
 }) {
@@ -382,7 +380,7 @@ function IconButton({
                 variant="ghost"
                 size="icon"
                 aria-label={hint}
-                aria-pressed={pressed}
+                aria-pressed={active}
                 disabled={disabled === true}
                 onClick={onClick}
                 className={`shrink-0 disabled:opacity-40 disabled:hover:bg-transparent ${active === true ? "bg-raised text-ink" : ""} ${className}`}
