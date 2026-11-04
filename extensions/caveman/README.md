@@ -2,9 +2,10 @@
 
 `extensions/caveman` adds the Caveman voice. It is **off by default**.
 
-The rules live in `~/.pi/agent/skills/caveman/SKILL.md`, not in this repository. The extension adds
-one system prompt section whose text is the skill body, read through `skillsFor` on every prompt
-build, so editing the skill shows up on the next run without a repository copy to drift.
+The rules come from the installed `caveman` skill, normally
+`~/.pi/agent/skills/caveman/SKILL.md`. Discovery uses `skillsFor(cwd)`, including Pi's configured agent
+directory and project skill paths; the path is not hard-coded. The extension reads the skill body
+on every prompt build, so edits show up on the next run without a bundled copy to drift.
 
 The section opens with one line that says why it is on (this app's status bar, not the chat) and
 that a phrase in a message which would switch it off in chat does not switch it here.

@@ -48,8 +48,10 @@ in a new one, so two sessions can work on the same repository without stepping o
   The menu is the `worktrees` action, git's own list of checkouts.
 - **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
   the folder it was created in, the transcript stays readable, and the stream keeps working. What
-  ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting
-  a worktree from the terminal leaves the session like that, so the header shows the worktree's
-  name in red instead of the branch badges, with the session's own folder in its tooltip. It is
-  read through the `state` action of `git-worktree`, again whenever the session's run state
-  changes, so a worktree deleted while the app is open shows red at the next message, not at once.
+  fails is work that needs the deleted folder: `bash` answers
+  `Working directory does not exist: <folder>`. This is not a tool sandbox; calls using other
+  existing paths can still work. Deleting a worktree from the terminal leaves the session like
+  that, so the header shows the worktree's name in red instead of the branch badges, with the
+  session's own folder in its tooltip. It is read through the `state` action of `git-worktree`, again
+  whenever the session's run state changes, so a worktree deleted while the app is open shows red at
+  the next message, not at once.

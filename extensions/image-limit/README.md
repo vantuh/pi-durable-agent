@@ -7,15 +7,14 @@ tool returned and an image already committed all pass through it. The case it an
 an image that breaks a request stays in the history it came from, so every later turn fails too,
 until the session is abandoned.
 
-- **2000 px on the longest side**, the cap both providers use when a request carries more than one
-  image. Resizing is `resizeImage` from `@earendil-works/pi-coding-agent` — Photon in a worker, the
-  same code an image read by `files` already goes through — so no new dependency.
-- **Only an image over the limit is touched.** Everything else goes byte-identical, which is what
-  keeps the provider's prompt cache holding across turns; the decision is made on the dimensions the
-  decoder reports, not on encoded size. The library encodes PNG first and falls back to JPEG only
-  when a photo will not fit under its 4.5 MB cap, so an image with transparency stays PNG, and a
-  result also stays under the provider's 5 MB per-image limit. An image under 2000 px that is over
-  that 5 MB is left alone: a different limit, and not the one this answers.
+- **2000 px on the longest side and at most 4.5 MiB of base64.** These are the defaults of
+  `resizeImage` from `@earendil-works/pi-coding-agent` — Photon in a worker, the same code an image
+  read by `files` already goes through — so no new dependency. The hook applies to every provider
+  and does not depend on how many images the request contains.
+- **Both dimensions and encoded size count.** An image within both limits goes byte-identical,
+  preserving its cache prefix. An image under 2000 px can still be re-encoded if its base64 is too
+  large. The library tries PNG first, then JPEG at several quality levels, then progressively
+  smaller dimensions. Transparency survives only when PNG fits; a JPEG fallback can lose it.
 - **One decode per image.** Sized images are remembered by MIME type, payload length and a hash of
   the payload — 128 of them, oldest evicted, cleared in `host.onDispose` — and a second request that
   carries an image while it is being resized waits on the same work instead of starting a second

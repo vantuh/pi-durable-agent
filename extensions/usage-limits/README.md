@@ -8,7 +8,8 @@ windows and reset times; the current provider is highlighted.
 
 - Providers: Anthropic (OAuth only), OpenCode Go, OpenAI Codex, and Kiro. These are undocumented
   endpoints; a failing provider is an error row, never a crash.
-- Anthropic and OpenCode Go tokens come from `host.resolveModelAuth` and never leave the server.
+- Anthropic and OpenCode Go tokens come from `host.resolveModelAuth` and are sent only in the
+  server's provider requests, never returned to the browser.
 - Pi's OpenAI token is refused by the ChatGPT usage endpoint (HTTP 401), so Codex reads the Codex
   CLI's own sign-in from `$CODEX_HOME/auth.json` (`~/.codex/auth.json`). Without it Codex is absent.
 - The browser reads every five minutes and when the popover opens (the refresh button does the same).

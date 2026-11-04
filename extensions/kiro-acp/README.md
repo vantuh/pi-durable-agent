@@ -9,5 +9,7 @@ tools over an in-process MCP server, and its own built-ins are refused at the pe
 `provider.close()` stops the `kiro-cli` processes it started, on reload, off, removal and shutdown.
 
 Kiro signs in through `kiro-cli` itself, so there is no key to add. The model picker's `scoped` tab
-lists only what `~/.pi/agent/settings.json` names in `enabledModels`; until `kiro-acp/<model>`
-entries are added there, the Kiro models sit in `all`.
+uses Pi's `enabledModels` setting when configured; otherwise it lists the models the runtime
+considers authenticated. A configured list can include `kiro-acp/<model>` entries, also added with
+the picker's **Add to scoped models** button. The `all` tab lists the whole catalog. If the scoped
+result is empty, even the `scoped` tab falls back to that catalog, including Kiro.

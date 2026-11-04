@@ -58,12 +58,13 @@ browser-supplied filesystem path.
   The index and the working tree are never touched; no dirty-tree guard is needed. The branch moves
   with a compare-and-swap on its old id, so a branch that changed meanwhile fails the save instead
   of losing a commit; the reflog keeps the old history. Git's own refusal (a pushed commit, a commit
-  of another branch) is shown in the form. This is the only Git write in this extension; it still
-  never fetches, checks out or pushes.
+  of another branch) is shown in the form. Reword and the explicitly confirmed header Push are
+  the extension's Git writes; it never fetches or checks out.
 
 The read-only history preview stops at 400 KiB of diff: the files that fit keep theirs, the rest are
-listed without one, and no file is dropped from the list. New symlinks are listed but never followed
-into files outside the checkout.
+listed without one. Tracked files stay in the list; at most 500 untracked files are included, with
+a truncation notice when there are more. New symlinks are listed but never followed into files
+outside the checkout.
 
 ## Processes, settings and limits
 

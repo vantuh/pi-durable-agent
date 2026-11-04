@@ -3,12 +3,14 @@
 `extensions/web-search` gives Pi one tool, `web_search`: `query` or `queries` (up to five, folded
 into one prompt, not one call each) and optional `urls` to read alongside. There is no search API
 and no key of its own: it asks a model with a built-in search tool, on a subscription already signed
-in, and returns that model's answer followed by `## Sources` and a `Searched with` line.
+in, and returns that model's answer, `## Sources` when sources are available (at most 20), and a
+`Searched with` line. The extension does not verify which billing pool a provider uses.
 
 - The order is ChatGPT, Claude, Kiro. A provider without a login, or whose call fails or times out,
   hands over to the next; the error lists each reason. A stop ends the chain at once.
 - **ChatGPT**: Pi's `openai` "Sign in with ChatGPT" token, sent to `api.openai.com/v1/responses` with
-  the `web_search` tool on `gpt-6-luna`. An `sk-…` API key is skipped, so the API is never billed.
+  the `web_search` tool on `gpt-6-luna`. An `sk-…` API key is skipped; the extension does not use
+  that key as a paid-API fallback.
 - **Claude**: the `sk-ant-oat…` subscription token, sent to `/v1/messages` with the
   `web_search_20260209` server tool on `claude-haiku-5-5`. The call does not go through Pi's model
   transport, so it repeats the billing block of `anthropic-subscription` itself (an extension may not

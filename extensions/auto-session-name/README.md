@@ -14,9 +14,10 @@ leaves the name alone instead of naming the session after a fragment of the user
   this app's model as the user message that carries its summary. That type is imported rather than
   restated, so a message shape that changes upstream breaks the file instead of passing silently.
 - **The request.** The session's model at the cheapest thinking level it supports (Gemini's
-  unsupported `minimal` skipped), 512 output tokens shared with the reasoning, no prompt cache or
-  session id — too small to reuse a prefix or to warm one — and a 90-second abort. Its own system
-  prompt, one user message, the harness's fetch wrappers shaping it like any other request.
+  unsupported `minimal` skipped), 512 output tokens shared with the reasoning, no prompt cache,
+  a fresh random session ID instead of the conversation's — too small to reuse a prefix or to warm
+  one — and a 90-second abort. Its own system prompt, one user message, the harness's fetch wrappers
+  shaping it like any other request.
 - **Automatic, off by default.** `details.tsx` in the Extensions dialog turns it on; the setting is
   `auto-session-name.json` in the data directory. Then a run that ends names its session **only while
   the session has no name** — `sessionName`, not `sessionTitle`, because the first question is not a

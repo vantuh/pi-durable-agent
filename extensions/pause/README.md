@@ -87,9 +87,8 @@ Neither conflicts with a pause: the run is what stops, not the inbox.
 - **Subagents are not held.** Hooks resolve the conversation they run for, and a subagent's
   conversation has its own id, so a paused session's subagents keep going. Covering them means
   walking task ownership, not a bigger map.
-- **`keep-warm` still warms a held session.** It sends requests outside the transcript, so a paused
-  session can still spend a little on its provider cache. Extensions cannot import each other, so
-  this is not something pause can switch off from here.
+- **`keep-warm` skips a held session.** A paused run still reads as busy, so keep-warm starts no
+  new cache pings for it. Pause does not cancel an out-of-transcript ping already in flight.
 - **A restart while parked re-attempts the call.** `beforeTool` runs before the tool's intent is
   committed, so nothing about the call is durable yet; the task comes back and starts again from
   before intent. Safe for the calls the model makes, but a tool with external effects does not get

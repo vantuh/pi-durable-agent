@@ -9,7 +9,8 @@ note's `offset` is always where the next call starts.
 - HTML goes through linkedom, Readability and Turndown (the path of `pi-web-access`'s `extract.ts`);
   links are made absolute first, and inline `data:` images are replaced by their alt text. A page
   Readability finds no article in (often one built by JavaScript) returns its title, URL and a line
-  saying there is no readable text. Plain text, Markdown and JSON come back as they are.
+  saying there is no readable text. Plain text, Markdown and JSON skip HTML extraction, but all
+  output is trimmed and runs of three or more newlines collapse to two; it is not byte-preserving.
 - The charset comes from a BOM, then `Content-Type`, then a `<meta>` in the first 4 KiB (where
   utf-16 and utf-32 are read as UTF-8, as browsers do), else UTF-8.
 - 30 s timeout, a 5 MiB cap on the body (reading stops there), and a content type that is not text,

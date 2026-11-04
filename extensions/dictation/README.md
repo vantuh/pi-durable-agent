@@ -4,8 +4,10 @@
 It uses the shared [composer slot](../../docs/extensions.md#composer-items). The browser records
 with `MediaRecorder`, resamples what it heard to 16 kHz mono 16-bit PCM and posts it
 to this server's own routes, which transcribe it here with `transcribe-cpp` — a Handy whisper or
-parakeet GGUF on Metal. The Web Speech API is gone: no audio reaches a speech service, and dictating needs no
-network. A browser without `MediaRecorder`, or a page off https or localhost, shows no mic.
+parakeet GGUF on Metal. No audio goes to an external speech service. A remote browser still needs
+a connection to this server. The mic remains visible in an unsupported browser or insecure
+context; pressing it shows an error instead of recording. Microphone access needs a secure context
+(HTTPS or localhost), `MediaRecorder` and the browser's media-devices API.
 
 - Three settings live in `dictation.json` in the data directory, and `details.tsx` — the Dictation
   row in the Extensions dialog, expanded — is the only way to change them: `language` (Auto, English
@@ -21,15 +23,16 @@ network. A browser without `MediaRecorder`, or a page off https or localhost, sh
   `0` lets it go as soon as the dictation that needed it ends. A failed load is tried again at the
   next one, and a chosen model whose file is gone says which path it wanted.
 - The audio arrives in numbered parts of 300 000 bytes, joined back in number order and refused
-  past 32 MB; the parts of a recording the browser never finished sending go after ten minutes,
+  past 32 MiB; unfinished uploads older than ten minutes are discarded when another part arrives,
   and anything under 0.35 s is a tap rather than a word.
 - A short rising tone marks the start of a recording and a falling one its end (`beep.ts`, Web
   Audio; no files). The tone follows listening, not the text: transcription finishes later and says
   nothing.
 - It never sends. Tap the mic again to stop, and the words go into the box at the caret, with a
   space only where words would touch and a capital on a sentence's first word (`insert.ts`, no
-  React; its tests are plain strings). Leaving the page or turning the extension off drops a
-  recording in flight.
+  React; its tests are plain strings). Unmounting the mic, including leaving the app or turning the
+  extension off, drops a recording in flight. Switching sessions while the mic stays mounted sends
+  the finished text to the current composer, not necessarily the session where recording began.
 - `server.ts` holds the model, the routes (`warm`, `audio`, `transcribe` under
   `/api/extensions/dictation/http/`) and the two actions behind the settings, `settings` and
   `saveSettings`, which validate every field with the rules the file is read with. `details.tsx`
