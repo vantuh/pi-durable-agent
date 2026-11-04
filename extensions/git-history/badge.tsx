@@ -72,13 +72,21 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
         return null;
     }
     const value = data.stats;
+    // `?? null` keeps a stats object one live edit older than this file from reading `undefined.ahead`.
+    const worktree = value.worktree ?? null;
     const canPush = value.upstream !== null && value.ahead > 0 && value.behind === 0;
+    const compare: { ahead: number; behind: number } | null =
+        worktree ?? (value.upstream === null ? null : value);
     const changesLabel = `${String(value.added)} added, ${String(value.deleted)} deleted lines`;
-    const commitsLabel =
+    const remoteLabel =
         value.upstream === null
             ? "No upstream configured"
-            : `${String(value.ahead)} unpushed, ${String(value.behind)} incoming commits vs ${value.upstream}`;
-    const description = `${changesLabel} (staged, unstaged and untracked; binary files excluded). ${commitsLabel} (last fetch).`;
+            : `${String(value.ahead)} unpushed, ${String(value.behind)} incoming commits vs ${value.upstream} (last fetch)`;
+    const commitsLabel =
+        worktree === null
+            ? remoteLabel
+            : `${String(worktree.ahead)} own, ${String(worktree.behind)} missing commits vs the main checkout's ${worktree.base} (local refs, no fetch)`;
+    const description = `${changesLabel} (staged, unstaged and untracked; binary files excluded). ${commitsLabel}.${worktree !== null && value.upstream !== null ? ` Push uses ${remoteLabel}.` : ""}`;
 
     async function doPush() {
         if (id === null) {
@@ -136,16 +144,16 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
                     <span className="text-danger">−{value.deleted}</span>
                     <span className="border-edge flex items-center gap-1 border-l pl-2">
                         <span
-                            className={`flex items-center gap-1 ${value.ahead > 0 ? "text-warn" : ""}`}
+                            className={`flex items-center gap-1 ${(compare?.ahead ?? 0) > 0 ? "text-warn" : ""}`}
                         >
                             <ArrowUp className="size-3" />
-                            {value.upstream === null ? "?" : value.ahead}
+                            {compare === null ? "?" : compare.ahead}
                         </span>
                         <span
-                            className={`flex items-center gap-1 ${value.behind > 0 ? "text-danger-deep" : ""}`}
+                            className={`flex items-center gap-1 ${(compare?.behind ?? 0) > 0 ? "text-danger-deep" : ""}`}
                         >
                             <ArrowDown className="size-3" />
-                            {value.upstream === null ? "?" : value.behind}
+                            {compare === null ? "?" : compare.behind}
                         </span>
                     </span>
                 </Button>

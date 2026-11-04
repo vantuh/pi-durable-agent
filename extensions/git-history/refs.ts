@@ -199,7 +199,18 @@ export type GitStats = {
     ahead: number;
     behind: number;
     upstream: string | null;
+    /** In a linked worktree, what the arrows compare with: the main checkout's branch. `null` when there is no base to compare with. */
+    worktree: { base: string; ahead: number; behind: number } | null;
 };
+
+function isComparison(value: unknown): value is { base: string; ahead: number; behind: number } {
+    return (
+        isRecord(value) &&
+        typeof value["base"] === "string" &&
+        number(value["ahead"]) &&
+        number(value["behind"])
+    );
+}
 
 function parseStats(value: unknown): GitStats | null {
     if (value === null) {
@@ -216,7 +227,9 @@ function parseStats(value: unknown): GitStats | null {
         "behind" in value &&
         typeof value.behind === "number" &&
         "upstream" in value &&
-        (typeof value.upstream === "string" || value.upstream === null)
+        (typeof value.upstream === "string" || value.upstream === null) &&
+        "worktree" in value &&
+        (value.worktree === null || isComparison(value.worktree))
     ) {
         return {
             added: value.added,
@@ -224,6 +237,7 @@ function parseStats(value: unknown): GitStats | null {
             ahead: value.ahead,
             behind: value.behind,
             upstream: value.upstream,
+            worktree: value.worktree,
         };
     }
     throw new Error("Invalid Git statistics");

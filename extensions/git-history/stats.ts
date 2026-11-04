@@ -40,6 +40,28 @@ function lines(content: Buffer): number {
     return content.length > 0 && content.at(-1) !== 0x0a ? count + 1 : count;
 }
 
+/**
+ * The main checkout's branch when `root` is a linked worktree: its arrows then compare with that
+ * local branch, not a remote. A bare, detached or unborn main checkout is `null`, and the upstream
+ * arrows stand, as they do when the compare itself fails.
+ */
+async function worktreeBase(root: string): Promise<{ ref: string; name: string } | null> {
+    try {
+        // `-z`: a worktree path may hold spaces or newlines. The main worktree is the first record.
+        const main = (
+            (await git(root, ["worktree", "list", "--porcelain", "-z"])).split("\0\0")[0] ?? ""
+        ).split("\0");
+        const path = main.find((field) => field.startsWith("worktree "))?.slice("worktree ".length);
+        if (path === root) {
+            return null;
+        }
+        const ref = main.find((field) => field.startsWith("branch "))?.slice("branch ".length);
+        return ref === undefined ? null : { ref, name: ref.replace(/^refs\/heads\//, "") };
+    } catch {
+        return null;
+    }
+}
+
 async function readStats(cwd: string): Promise<GitStats | null> {
     let root: string;
     try {
@@ -58,7 +80,25 @@ async function readStats(cwd: string): Promise<GitStats | null> {
         upstream,
         ahead: Number(counts?.[1] ?? 0),
         behind: Number(counts?.[2] ?? 0),
+        worktree: null,
     };
+    const base = await worktreeBase(root);
+    if (base !== null) {
+        try {
+            const [ahead, behind] = (
+                await git(root, ["rev-list", "--left-right", "--count", `HEAD...${base.ref}`])
+            )
+                .trim()
+                .split("\t");
+            result.worktree = {
+                base: base.name,
+                ahead: Number(ahead ?? 0),
+                behind: Number(behind ?? 0),
+            };
+        } catch {
+            // An unborn HEAD here has no commits to count; the upstream arrows stand.
+        }
+    }
     const untracked = await git(root, [
         "ls-files",
         ...(unborn ? ["--cached"] : []),
@@ -91,7 +131,10 @@ const same = (a: GitStats | null, b: GitStats | null): boolean =>
           a.deleted === b.deleted &&
           a.upstream === b.upstream &&
           a.ahead === b.ahead &&
-          a.behind === b.behind;
+          a.behind === b.behind &&
+          a.worktree?.base === b.worktree?.base &&
+          a.worktree?.ahead === b.worktree?.ahead &&
+          a.worktree?.behind === b.worktree?.behind;
 
 const LEASE_MS = 3 * 60_000;
 const POLL_MS = 3000;

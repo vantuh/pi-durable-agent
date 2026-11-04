@@ -98,8 +98,16 @@ it opens the history page at uncommitted changes
   untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
   not report a separate “modified lines” count. Binary files contribute no line counts.
 - An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
-- Commit counts compare against the configured upstream as of the **last fetch**. The extension
-  does not fetch or pull automatically. Without an upstream, the counters show `?` and Push is disabled.
+- In an ordinary checkout, commit counts compare against the configured upstream as of the **last
+  fetch**. The extension does not fetch or pull automatically. Without an upstream, the counters
+  show `?` and Push is disabled.
+- In a **linked worktree** (`git worktree add`), the arrows compare HEAD with the branch the main
+  checkout has checked out **now**, not the branch the worktree was started from: ↑ commits here
+  that branch does not contain, ↓ commits of that branch missing here. Both come from local refs —
+  there is no fetch — and are the unique commits on each side, not a lifetime total. A main checkout
+  on a detached or unborn HEAD, or a bare one, offers no base, so the badge keeps the upstream
+  arrows. The badge's title and accessible label name the branch it compares with. Push is
+  unaffected: it still counts and names the configured upstream in its confirmation.
 - Counts refresh after agent activity, after a push, and within about 3 s of a change in the working tree (see [Git history](#how-the-badge-stays-current)); the browser's own poll is every minute.
 - Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
   configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
