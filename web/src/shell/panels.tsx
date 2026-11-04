@@ -1,13 +1,5 @@
 import { Maximize2, Minimize2, X } from "lucide-react";
-import {
-    type PointerEvent as ReactPointerEvent,
-    type ReactNode,
-    useEffect,
-    useLayoutEffect,
-    useReducer,
-    useRef,
-    useState,
-} from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
@@ -17,6 +9,7 @@ import { clampPanelWidth } from "../lib/panel-width.ts";
 import type { PanelProps } from "../sdk/types.ts";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
 import { PaneHeader } from "../ui/pane.tsx";
+import { ResizeHandle } from "../ui/resize-handle.tsx";
 
 export const panelKey = (panel: FolderPanel): string => `${panel.folder}:${panel.id}`;
 
@@ -87,67 +80,6 @@ function setWidth(wanted: number | null, save: string | null): number | null {
     }
 
     return width;
-}
-
-/** Drag the panel's left edge, or press the arrow keys on it, to resize it; a double click resets it. */
-function ResizeHandle({ storageKey }: { storageKey: string }) {
-    const start = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-        if (event.button !== 0) {
-            return;
-        }
-
-        event.preventDefault();
-        const handle = event.currentTarget;
-        const right = handle.parentElement?.getBoundingClientRect().right ?? 0;
-        const root = document.documentElement;
-        let width: number | null = null;
-
-        const move = (each: PointerEvent): void => {
-            width = setWidth(right - each.clientX, null);
-        };
-
-        // Fires after pointerup and pointercancel alike, so one listener ends the drag.
-        const stop = (): void => {
-            root.classList.remove("resizing");
-            handle.removeEventListener("pointermove", move);
-            handle.removeEventListener("lostpointercapture", stop);
-
-            if (width !== null) {
-                setWidth(width, storageKey);
-            }
-        };
-
-        root.classList.add("resizing");
-        handle.setPointerCapture(event.pointerId);
-        handle.addEventListener("pointermove", move);
-        handle.addEventListener("lostpointercapture", stop);
-    };
-
-    return (
-        <button
-            type="button"
-            aria-label="Resize panel"
-            title="Drag to resize, double-click to reset"
-            onPointerDown={start}
-            onKeyDown={(event) => {
-                const step = { ArrowLeft: 16, ArrowRight: -16 }[event.key];
-                const current = event.currentTarget.parentElement?.getBoundingClientRect().width;
-
-                if (step !== undefined && current !== undefined) {
-                    event.preventDefault();
-                    setWidth(current + step, storageKey);
-                }
-            }}
-            onDoubleClick={() => {
-                localStorage.removeItem(storageKey);
-                setWidth(null, null);
-            }}
-            className="group absolute inset-y-0 -left-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
-        >
-            {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
-            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
-        </button>
-    );
 }
 
 const DRAWER = `border-edge-soft bg-panel absolute inset-0 border-l z-20 flex min-w-0 flex-col lg:relative lg:inset-auto lg:z-auto lg:w-[var(--panel-w,var(--panel-w-fit,min(46%,720px)))]`;
@@ -279,7 +211,18 @@ export function PanelHost({
             }}
             className={expanded ? OVER : DRAWER}
         >
-            {expanded ? null : <ResizeHandle storageKey={widthKey(id)} />}
+            {expanded ? null : (
+                <ResizeHandle
+                    edge="left"
+                    label="Resize panel"
+                    onResize={(wanted, save) => setWidth(wanted, save ? widthKey(id) : null)}
+                    base={(box) => box.getBoundingClientRect().width}
+                    onReset={() => {
+                        localStorage.removeItem(widthKey(id));
+                        setWidth(null, null);
+                    }}
+                />
+            )}
 
             {/* Pinned to the right edge while the panel widens: it comes in like a drawer, not a squashed card. */}
             <div className="flex min-h-0 flex-1 justify-end overflow-hidden">

@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import {
     Fragment,
-    type PointerEvent as ReactPointerEvent,
     type ReactNode,
     memo,
     useCallback,
@@ -76,6 +75,7 @@ import type { StatusProps } from "../sdk/types.ts";
 import { CommandKeys } from "../ui/command-keys.tsx";
 import { GroupHeading } from "../ui/group-heading.tsx";
 import { ItemBoundary } from "../ui/item-boundary.tsx";
+import { ResizeHandle } from "../ui/resize-handle.tsx";
 import { folderName, SessionMarks, StateMark } from "./session-parts.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 
@@ -176,66 +176,6 @@ function setWidth(wanted: number, save: boolean): number {
     }
 
     return width;
-}
-
-/** Drag the sidebar's right edge, or press the arrow keys on it, to resize it; a double click resets it. */
-function ResizeHandle() {
-    const start = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-        if (event.button !== 0) {
-            return;
-        }
-
-        event.preventDefault();
-        const handle = event.currentTarget;
-        const left = handle.parentElement?.getBoundingClientRect().left ?? 0;
-        const root = document.documentElement;
-        let width: number | null = null;
-
-        const move = (each: PointerEvent): void => {
-            width = setWidth(each.clientX - left, false);
-        };
-
-        // Fires after pointerup and pointercancel alike, so one listener ends the drag.
-        const stop = (): void => {
-            root.classList.remove("resizing");
-            handle.removeEventListener("pointermove", move);
-            handle.removeEventListener("lostpointercapture", stop);
-
-            if (width !== null) {
-                setWidth(width, true);
-            }
-        };
-
-        root.classList.add("resizing");
-        handle.setPointerCapture(event.pointerId);
-        handle.addEventListener("pointermove", move);
-        handle.addEventListener("lostpointercapture", stop);
-    };
-
-    return (
-        <button
-            type="button"
-            aria-label="Resize sidebar"
-            title="Drag to resize, double-click to reset"
-            onPointerDown={start}
-            onKeyDown={(event) => {
-                const step = { ArrowLeft: -16, ArrowRight: 16 }[event.key];
-
-                if (step !== undefined) {
-                    event.preventDefault();
-                    setWidth(savedWidth() + step, true);
-                }
-            }}
-            onDoubleClick={() => {
-                localStorage.removeItem(WIDTH_KEY);
-                setWidth(USUAL_WIDTH, false);
-            }}
-            className="group absolute inset-y-0 -right-2 z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block"
-        >
-            {/* Not a step: 3px centres the 2px grip in the handle's 8px strip. */}
-            <span className="bg-accent absolute top-1/2 left-[3px] h-9 w-0.5 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
-        </button>
-    );
 }
 
 const runKey = (item: FolderSessionMenuItem, session: SessionSummary): string =>
@@ -1365,7 +1305,18 @@ export const Sessions = memo(function Sessions({
                 </Dialog>
             ) : null}
 
-            {collapsed ? null : <ResizeHandle />}
+            {collapsed ? null : (
+                <ResizeHandle
+                    edge="right"
+                    label="Resize sidebar"
+                    onResize={setWidth}
+                    base={savedWidth}
+                    onReset={() => {
+                        localStorage.removeItem(WIDTH_KEY);
+                        setWidth(USUAL_WIDTH, false);
+                    }}
+                />
+            )}
         </aside>
     );
 
