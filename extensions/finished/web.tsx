@@ -1,9 +1,11 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 
-import type { SessionSummary } from "../../../shared/protocol.ts";
-import { finishedBetween } from "../lib/finished.ts";
-import { showSessionAlert } from "./session-alert.tsx";
-import { folderName } from "./session-parts.tsx";
+import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
+import { showSessionAlert } from "@/shell/session-alert.tsx";
+import { folderName } from "@/shell/session-parts.tsx";
+
+import type { SessionSummary } from "../../shared/protocol.ts";
+import { finishedBetween } from "./finished.ts";
 
 let audio: AudioContext | undefined;
 
@@ -34,13 +36,10 @@ function chime(): void {
 
 /**
  * A toast when another session's run ends; a click anywhere on it opens that session. A chime when
- * any run ends, the one on screen included.
+ * any run ends, the one on screen included. It draws nothing: the status bar only keeps it mounted.
  */
-export function useFinishedToasts(
-    sessions: SessionSummary[],
-    current: number | null,
-    onOpen: (id: number) => void,
-): void {
+function Finished({ session, sessions, openSession }: StatusItemProps) {
+    const current = session?.id ?? null;
     const before = useRef<SessionSummary[]>([]);
     const announce = useEffectEvent((after: SessionSummary[]) => {
         // Subagents finish inside their parent's run; only the parent's end is worth a sound.
@@ -48,16 +47,16 @@ export function useFinishedToasts(
             chime();
         }
 
-        for (const session of finishedBetween(before.current, after, current)) {
+        for (const ended of finishedBetween(before.current, after, current)) {
             showSessionAlert(
                 {
-                    id: `finished-${String(session.id)}`,
+                    id: `finished-${String(ended.id)}`,
                     level: "success",
-                    session: session.id,
-                    title: session.title ?? "New session",
-                    description: `Finished · ${folderName(session.cwd)}`,
+                    session: ended.id,
+                    title: ended.title ?? "New session",
+                    description: `Finished · ${folderName(ended.cwd)}`,
                 },
-                onOpen,
+                openSession,
             );
         }
 
@@ -67,4 +66,10 @@ export function useFinishedToasts(
     useEffect(() => {
         announce(sessions);
     }, [sessions]);
+
+    return null;
 }
+
+export default {
+    status: [{ id: "finished", slot: "start", component: Finished }],
+} satisfies WebExtension;

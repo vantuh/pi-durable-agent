@@ -1,4 +1,4 @@
-import type { SessionSummary } from "../../../shared/protocol.ts";
+import type { SessionSummary } from "../../shared/protocol.ts";
 
 /** The sessions whose run ended between two lists, except the one on screen: that one is already in view. */
 export function finishedBetween(

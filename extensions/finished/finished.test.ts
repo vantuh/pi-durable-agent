@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { SessionSummary } from "../shared/protocol.ts";
-import { finishedBetween } from "../web/src/lib/finished.ts";
+import type { SessionSummary } from "../../shared/protocol.ts";
+import { finishedBetween } from "./finished.ts";
 
 function row(id: number, busy: boolean): SessionSummary {
     return {
