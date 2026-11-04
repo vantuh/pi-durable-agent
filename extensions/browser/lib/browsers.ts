@@ -52,6 +52,8 @@ export class Browsers {
     #closing = false;
     /** Counts every closeAll: a page that began opening before one must not open after it. */
     #generation = 0;
+    /** Per session, counts the forgets: a page that began opening before one must not be installed after it. */
+    readonly #forgotten = new Map<number, number>();
 
     constructor(options: BrowsersOptions) {
         this.#options = options;
@@ -97,6 +99,17 @@ export class Browsers {
             logs: 0,
             ...(problem === undefined ? {} : { problem }),
         };
+    }
+
+    /** The page of a session that is gone: its context is disposed, as the reaper would have. */
+    forget(conversationId: number): void {
+        this.#forgotten.set(conversationId, (this.#forgotten.get(conversationId) ?? 0) + 1);
+
+        const page = this.#pages.get(conversationId);
+
+        if (page !== undefined) {
+            void this.#discard(conversationId, page);
+        }
     }
 
     /** The conversation's page if it is open. */
@@ -229,7 +242,11 @@ export class Browsers {
 
     async #create(conversationId: number, options: OpenOptions): Promise<BrowserPage> {
         const generation = this.#generation;
-        const stale = () => this.#closing || this.#generation !== generation;
+        const forgotten = this.#forgotten.get(conversationId) ?? 0;
+        const stale = () =>
+            this.#closing ||
+            this.#generation !== generation ||
+            (this.#forgotten.get(conversationId) ?? 0) !== forgotten;
         const saved = await this.#options.load?.(conversationId).catch(() => undefined);
 
         if (stale()) {
