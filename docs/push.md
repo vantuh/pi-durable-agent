@@ -20,6 +20,7 @@ worker facet ([extensions.md](extensions.md)).
   working while a subagent it started (at any depth) runs, or while that subagent's report is
   starting its next turn (`host.sessionWorking`), so the orchestrator is not announced as done in
   between.
+- A session started by another session (a subagent) never sends: its owner reports the job.
 - With no device subscribed, only an in-memory baseline moves; nothing is written.
 - A conversation with no settled point only sets a baseline, so old history never sends.
 - A version that is turned off before it saves claims nothing, and the next version sends the turn.

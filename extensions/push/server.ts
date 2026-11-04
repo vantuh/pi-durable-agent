@@ -141,7 +141,12 @@ export function listen(
         // One notification for the conversation however many turns landed in it: the tag is the same
         // and a browser would fold them into one anyway.
         if (done > 0) {
-            const { id, cwd } = view.session;
+            const { id, cwd, owner } = view.session;
+
+            // A subagent's own turn is not news: its owner reports when the whole job is done.
+            if (owner !== undefined) {
+                return;
+            }
 
             void (async () => {
                 await new Promise((resolve) => setTimeout(resolve, seenWaitMs));
