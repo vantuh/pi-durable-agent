@@ -1,3 +1,5 @@
+import { basename } from "node:path";
+
 import webpush from "web-push";
 
 import type { DeviceSubscription } from "./refs.ts";
@@ -34,11 +36,11 @@ export const sendWithWebPush: Transport = async (device, payload, vapid) => {
     }
 };
 
-/** The payload for a finished turn. It names the conversation by number and says nothing of its content. */
-export function finishedPayload(session: number): string {
+/** The payload for a finished turn: the conversation's title and folder, never the answer itself. */
+export function finishedPayload(session: number, title: string | null, cwd: string | null): string {
     return JSON.stringify({
-        title: "Pi finished",
-        body: "A conversation has a new answer.",
+        title: title ?? "Pi finished",
+        body: cwd === null ? "Finished" : `Finished · ${basename(cwd)}`,
         url: `/?session=${String(session)}`,
         tag: `session-${String(session)}`,
     });

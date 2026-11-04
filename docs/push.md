@@ -20,8 +20,9 @@ worker facet ([extensions.md](extensions.md)).
   Once a version has saved, its send finishes even if it is turned off at that moment.
 - The extension relies on the core giving a new listener the current state of each conversation
   before later commits (a snapshot at start and after a reload).
-- The text is always "Pi finished" with a generic line. It has no answer or reasoning. The link is
-  `/?session=ID`.
+- The title is the conversation's title ("Pi finished" while it has none) and the body is
+  "Finished · <folder>". It has no answer or reasoning. The link is `/?session=ID`. The payload is
+  encrypted for the device, but the lock screen shows the title.
 
 ## Setup
 

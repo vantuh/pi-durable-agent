@@ -308,7 +308,7 @@ void describe("push", () => {
                     : Promise.resolve(result ?? 201);
             };
 
-            await notifyAll(store, transport, finishedPayload(7));
+            await notifyAll(store, transport, finishedPayload(7, "Fix the login", "/work/app"));
 
             return {
                 calls,
@@ -334,13 +334,13 @@ void describe("push", () => {
             );
         });
 
-        void it("sends a generic payload with the conversation link", async () => {
+        void it("sends the conversation's title, folder and link", async () => {
             const { calls } = await sent({ one: 201 });
             const payload: unknown = JSON.parse(calls[0]?.split("|")[1] ?? "");
 
             assert.deepEqual(payload, {
-                title: "Pi finished",
-                body: "A conversation has a new answer.",
+                title: "Fix the login",
+                body: "Finished · app",
                 url: "/?session=7",
                 tag: "session-7",
             });

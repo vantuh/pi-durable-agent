@@ -1,5 +1,5 @@
 /**
- * Web Push: a notification on your devices when Pi finishes a turn. The text is generic and the
+ * Web Push: a notification on your devices when Pi finishes a turn. It names the conversation and the
  * link opens the conversation. Needs a secure context (HTTPS or localhost) and a production build for the worker.
  */
 
@@ -129,9 +129,14 @@ export function listen(host: Host, store: PushStore, transport: Transport): void
         // One notification for the conversation however many turns landed in it: the tag is the same
         // and a browser would fold them into one anyway.
         if (done > 0) {
-            void notifyAll(store, transport, finishedPayload(view.session.id)).catch(() => {
-                host.log("push: a notification could not be sent");
-            });
+            const { id, cwd } = view.session;
+
+            void host
+                .sessionTitle(id)
+                .then((title) => notifyAll(store, transport, finishedPayload(id, title, cwd)))
+                .catch(() => {
+                    host.log("push: a notification could not be sent");
+                });
         }
     };
 
