@@ -168,7 +168,7 @@ void describe("git-history stats", () => {
             calls.filter((line) => line.includes("--no-index")),
             [],
         );
-        assert.ok(calls.some((line) => line.startsWith("ls-files")));
+        assert.ok(calls.some((line) => line.startsWith("--no-pager ls-files")));
     });
     void it("counts divergence and safely pushes only to a temporary local remote", async () => {
         const remote = join(dir, "remote.git");
