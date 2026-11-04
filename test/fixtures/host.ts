@@ -22,6 +22,7 @@ export function testHost(overrides: Partial<Host> = {}): Host {
         sessionName: () => Promise.resolve(null),
         sessionOwner: () => Promise.resolve(undefined),
         sessionSeen: () => Promise.resolve(false),
+        sessionWorking: () => Promise.resolve(false),
         setSessionTitle: () => Promise.resolve(),
         readDoc: (doc) => Promise.resolve(doc.definition.initial()),
         setSessionMark: () => undefined,

@@ -1,11 +1,11 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
 import { showSessionAlert } from "@/shell/session-alert.tsx";
 import { folderName } from "@/shell/session-parts.tsx";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
-import { finishedBetween } from "./finished.ts";
+import { finishedBetween, working } from "./finished.ts";
 
 let audio: AudioContext | undefined;
 
@@ -34,38 +34,88 @@ function chime(): void {
     }
 }
 
+/** A parent's report reaches it a moment after its last child idles; a run that starts again in this time did not finish. */
+const SETTLE_MS = 3000;
+
 /**
- * A toast when another session's run ends; a click anywhere on it opens that session. A chime when
- * any run ends, the one on screen included. It draws nothing: the status bar only keeps it mounted.
+ * A toast when another top-level session stops working; a click anywhere on it opens that session. A
+ * chime when one does, the one on screen included. Subagents give neither. A session works while its own run or any
+ * subagent below it does, and the signal comes only once it has stayed idle for a moment. It draws nothing: the
+ * status bar only keeps it mounted.
  */
 function Finished({ session, sessions, openSession }: StatusItemProps) {
     const current = session?.id ?? null;
     const before = useRef<SessionSummary[]>([]);
-    const announce = useEffectEvent((after: SessionSummary[]) => {
-        // Subagents finish inside their parent's run; only the parent's end is worth a sound.
-        if (finishedBetween(before.current, after, null).some((row) => row.parent === undefined)) {
-            chime();
+    const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+    const latest = useRef({ sessions, current, openSession });
+
+    useEffect(() => {
+        latest.current = { sessions, current, openSession };
+
+        // A session that works again waits its full time after the next finish.
+        for (const [id, timer] of timers.current) {
+            const row = sessions.find((each) => each.id === id);
+
+            if (row !== undefined && working(row, sessions)) {
+                clearTimeout(timer);
+                timers.current.delete(id);
+            }
         }
 
-        for (const ended of finishedBetween(before.current, after, current)) {
-            showSessionAlert(
-                {
-                    id: `finished-${String(ended.id)}`,
-                    level: "success",
-                    session: ended.id,
-                    title: ended.title ?? "New session",
-                    description: `Finished · ${folderName(ended.cwd)}`,
-                },
-                openSession,
+        for (const candidate of finishedBetween(before.current, sessions, null)) {
+            if (timers.current.has(candidate.id)) {
+                continue;
+            }
+
+            timers.current.set(
+                candidate.id,
+                setTimeout(() => {
+                    timers.current.delete(candidate.id);
+
+                    const now = latest.current;
+                    const ended = now.sessions.find((row) => row.id === candidate.id);
+
+                    // Subagents finish inside their parent's run; only the parent's end is worth a signal.
+                    if (
+                        ended === undefined ||
+                        ended.parent !== undefined ||
+                        working(ended, now.sessions)
+                    ) {
+                        return;
+                    }
+
+                    chime();
+
+                    if (ended.id !== now.current) {
+                        showSessionAlert(
+                            {
+                                id: `finished-${String(ended.id)}`,
+                                level: "success",
+                                session: ended.id,
+                                title: ended.title ?? "New session",
+                                description: `Finished · ${folderName(ended.cwd)}`,
+                            },
+                            now.openSession,
+                        );
+                    }
+                }, SETTLE_MS),
             );
         }
 
-        before.current = after;
-    });
+        before.current = sessions;
+    }, [sessions, current, openSession]);
 
     useEffect(() => {
-        announce(sessions);
-    }, [sessions]);
+        const pending = timers.current;
+
+        return () => {
+            for (const timer of pending.values()) {
+                clearTimeout(timer);
+            }
+
+            pending.clear();
+        };
+    }, []);
 
     return null;
 }

@@ -354,7 +354,7 @@ void describe("push", () => {
     });
 
     void describe("listener", () => {
-        const wire = (using: PushStore = store, seen = false) => {
+        const wire = (using: PushStore = store, seen = false, working = false, owner?: number) => {
             const listeners: CommitListener[] = [];
             const disposers: (() => void | Promise<void>)[] = [];
             const host: Host = testHost({
@@ -364,6 +364,7 @@ void describe("push", () => {
                 onDispose: (dispose) => disposers.push(dispose),
                 onCommit: (listener) => listeners.push(listener),
                 sessionSeen: () => Promise.resolve(seen),
+                sessionWorking: () => Promise.resolve(working),
             });
             const sends: string[] = [];
 
@@ -382,7 +383,7 @@ void describe("push", () => {
                 // Test data: ids are plain numbers here, branded in the real harness.
                 // oxlint-disable-next-line typescript/no-unsafe-type-assertion
                 const view = {
-                    session: { id: 3, cwd: null },
+                    session: { id: 3, cwd: null, ...(owner === undefined ? {} : { owner }) },
                     entries,
                     busy,
                 } as unknown as CommitView;
@@ -435,6 +436,28 @@ void describe("push", () => {
             await call("subscribe", { subscription: device() });
 
             const { sends, commit } = wire(store, true);
+
+            await commit(entries(["pi.user"]), true);
+            await commit(entries(["pi.user"], ["pi.assistant", "stop"]), false);
+            assert.equal(sends.length, 0);
+        });
+
+        void it("sends nothing while the session is still working", async () => {
+            await ready();
+            await call("subscribe", { subscription: device() });
+
+            const { sends, commit } = wire(store, false, true);
+
+            await commit(entries(["pi.user"]), true);
+            await commit(entries(["pi.user"], ["pi.assistant", "stop"]), false);
+            assert.equal(sends.length, 0);
+        });
+
+        void it("sends nothing for a subagent's own turn", async () => {
+            await ready();
+            await call("subscribe", { subscription: device() });
+
+            const { sends, commit } = wire(store, false, false, 1);
 
             await commit(entries(["pi.user"]), true);
             await commit(entries(["pi.user"], ["pi.assistant", "stop"]), false);
