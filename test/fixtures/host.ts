@@ -10,6 +10,7 @@ export function testHost(overrides: Partial<Host> = {}): Host {
         log: () => undefined,
         onDispose: () => undefined,
         onCommit: () => undefined,
+        onSessionGone: () => undefined,
         folderGroup: () => undefined,
         shapeModelRequests: () => undefined,
         wrapModelFetch: () => undefined,

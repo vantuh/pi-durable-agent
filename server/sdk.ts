@@ -10,6 +10,7 @@ export {
     type Host,
     type HttpHandler,
     type SessionRequest,
+    type SessionGoneListener,
     type SessionSendOptions,
     type StatusProvider,
 } from "./extensions.ts";
