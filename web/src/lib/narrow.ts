@@ -1,14 +1,21 @@
 /** Under `sm`: a menu has no room beside its row, so a submenu opens inside it instead. */
-const QUERY = "(max-width: 639px)";
+const NARROW = "(max-width: 639px)";
+/** Under `lg`: the session list is a sheet over the app; from `lg` up it is a column beside it. */
+const SHEET = "(max-width: 1023px)";
 
-export function watchNarrow(notify: () => void): () => void {
-    const query = matchMedia(QUERY);
+const watch =
+    (query: string) =>
+    (notify: () => void): (() => void) => {
+        const list = matchMedia(query);
 
-    query.addEventListener("change", notify);
+        list.addEventListener("change", notify);
 
-    return () => {
-        query.removeEventListener("change", notify);
+        return () => {
+            list.removeEventListener("change", notify);
+        };
     };
-}
 
-export const isNarrow = (): boolean => matchMedia(QUERY).matches;
+export const watchNarrow = watch(NARROW);
+export const isNarrow = (): boolean => matchMedia(NARROW).matches;
+export const watchSheet = watch(SHEET);
+export const isSheet = (): boolean => matchMedia(SHEET).matches;

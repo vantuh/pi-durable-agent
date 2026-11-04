@@ -46,6 +46,7 @@ import { Item, ItemTitle } from "@/components/ui/item";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { Hint } from "@/components/ui/tooltip";
 import { DAY, MINUTE, ago } from "@/lib/time.ts";
@@ -63,7 +64,7 @@ import {
 } from "../components/ui/dropdown-menu.tsx";
 import { type FolderSessionMenuItem, useSessionFilters, useSessionMenu } from "../extensions.ts";
 import { fuzzyMatch, segments } from "../lib/fuzzy.ts";
-import { isNarrow, watchNarrow } from "../lib/narrow.ts";
+import { isNarrow, isSheet, watchNarrow, watchSheet } from "../lib/narrow.ts";
 import { isPlainClick, sessionHref } from "../lib/route.ts";
 import { cwdsOf, type FolderRow, folderRows, rowOf } from "../lib/session-folders.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "../lib/session-nesting.ts";
@@ -578,6 +579,7 @@ export const Sessions = memo(function Sessions({
     const [scopeOpen, setScopeOpen] = useState(false);
     const [expanded, setExpanded] = useState<string | null>(null);
     const narrow = useSyncExternalStore(watchNarrow, isNarrow);
+    const asSheet = useSyncExternalStore(watchSheet, isSheet);
     const chosen = useRef<HTMLDivElement | null>(null);
 
     useShellCommand("folder.pick", () => {
@@ -1004,13 +1006,15 @@ export const Sessions = memo(function Sessions({
         stepTo(1);
     });
 
-    return (
+    // The sheet's dialog needs a title; the column has no dialog, so there it stays a plain heading.
+    const Heading = asSheet ? SheetTitle : "h2";
+    const aside = (
         // 37px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the 1px border.
         <aside
             ref={shell}
             data-collapsed={collapsed ? "" : undefined}
-            className={`group/side border-edge-soft bg-panel shrink-0 flex-col border-r in-[.resizing]:transition-none lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[37px] ${
-                sheet ? "fixed inset-0 z-30 flex" : "hidden"
+            className={`group/side border-edge-soft bg-panel flex shrink-0 flex-col border-r in-[.resizing]:transition-none lg:relative lg:w-[min(var(--sidebar-w,264px),max(264px,40vw))] lg:transition-[width] lg:duration-200 lg:ease-out lg:data-[collapsed]:w-[37px] ${
+                asSheet ? "min-h-0 flex-1 border-r-0" : ""
             }`}
         >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1060,11 +1064,11 @@ export const Sessions = memo(function Sessions({
                             </a>
                         </Button>
                     </Hint>
-                    <h2
+                    <Heading
                         className={`text-ui text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
                     >
                         Sessions
-                    </h2>
+                    </Heading>
                     <div className="flex items-center gap-1 lg:group-data-[collapsed]/side:hidden">
                         <Hint label="New session">
                             <Button
@@ -1363,5 +1367,32 @@ export const Sessions = memo(function Sessions({
 
             {collapsed ? null : <ResizeHandle />}
         </aside>
+    );
+
+    return asSheet ? (
+        <Sheet
+            open={sheet}
+            onOpenChange={(next) => {
+                if (!next) {
+                    onClose();
+                }
+            }}
+        >
+            <SheetContent
+                side="full"
+                aria-describedby={undefined}
+                // The search box closes itself on Escape; the sheet closes on the next one.
+                onEscapeKeyDown={(event) => {
+                    if (document.activeElement === searchBox.current && searching) {
+                        event.preventDefault();
+                    }
+                }}
+                className="border-l-0"
+            >
+                {aside}
+            </SheetContent>
+        </Sheet>
+    ) : (
+        aside
     );
 });

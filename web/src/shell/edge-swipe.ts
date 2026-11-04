@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 
+import { isSheet } from "../lib/narrow.ts";
+
 /** A swipe counts only from this close to the left edge, so code blocks and tables keep their own horizontal scroll. */
 const EDGE = 32;
 /** How far right the finger travels before the swipe opens. */
 const DISTANCE = 60;
-/** Below the sidebar's `lg:` breakpoint the list is a sheet; above it the list is always on screen. */
-const SHEET_QUERY = "(max-width: 1023px)";
 
 /** A finger swiping right from the left edge calls `onOpen`, on a phone-wide screen only. */
 export function useEdgeSwipe(onOpen: () => void): void {
@@ -19,7 +19,7 @@ export function useEdgeSwipe(onOpen: () => void): void {
                 event.touches.length === 1 &&
                 touch !== undefined &&
                 touch.clientX <= EDGE &&
-                matchMedia(SHEET_QUERY).matches
+                isSheet()
                     ? { id: touch.identifier, x: touch.clientX, y: touch.clientY }
                     : null;
         };
