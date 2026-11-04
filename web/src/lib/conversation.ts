@@ -5,7 +5,7 @@ import { refreshExtensions } from "../extensions.ts";
 import { fetchHistory, sendMessage, stopRun } from "./api.ts";
 import { type ConversationState, START, withEvent, withOlder } from "./conversation-state.ts";
 import { parseEvent } from "./event.ts";
-import { reopenDelay } from "./stream.ts";
+import { openStream } from "./stream.ts";
 import { toast } from "./toast.ts";
 
 export function useConversation(session: number | null): {
@@ -24,29 +24,9 @@ export function useConversation(session: number | null): {
             return undefined;
         }
 
-        let source: EventSource | undefined;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        let failures = 0;
-
-        // A stream the browser closes for good is opened again from here: it retries only a connection it lost.
-        const connect = (): void => {
-            const stream = new EventSource(`/api/events?session=${String(session)}`);
-
-            source = stream;
-            stream.onopen = () => {
-                failures = 0;
-            };
-            stream.onerror = () => {
-                // Anything else is the browser reconnecting on its own, and it does that better than this would.
-                if (stream.readyState !== EventSource.CLOSED) {
-                    return;
-                }
-
-                timer = setTimeout(connect, reopenDelay(failures));
-                failures += 1;
-            };
-            stream.onmessage = (message: MessageEvent<string>) => {
-                const event = parseEvent(message.data);
+        return openStream(`/api/events?session=${String(session)}`, {
+            onMessage: (data) => {
+                const event = parseEvent(data);
 
                 if (event !== undefined && event.session === session) {
                     if (event.type === "extension-notice") {
@@ -56,18 +36,8 @@ export function useConversation(session: number | null): {
                         setState((current) => withEvent(current, event));
                     }
                 }
-            };
-        };
-
-        connect();
-
-        return () => {
-            if (timer !== undefined) {
-                clearTimeout(timer);
-            }
-
-            source?.close();
-        };
+            },
+        });
     }, [session]);
 
     // The stream only answers for its own conversation: another one's state is not shown for a frame.
