@@ -14,7 +14,8 @@ complete defaults:
 {
     "prefix": "ctrl+a",
     "keys": {
-        "session.new": ["prefix+c"],
+        "session.new": [],
+        "session.new.pick": ["prefix+c"],
         "folder.pick": ["prefix+s"],
         "session.search": ["prefix+f"],
         "session.rename": ["prefix+r", "prefix+,"],
@@ -23,6 +24,10 @@ complete defaults:
     }
 }
 ```
+
+Two commands start a session: `session.new` takes the folder on screen at once and `session.new.pick`
+opens the folder picker first. The picker is bound by default; `session.new` is there for a key of
+your own.
 
 - Press the prefix, release it, then press the second key within 1.5 seconds. The status bar shows
   the armed prefix. A second prefix passes that key through to the browser; an unbound second key

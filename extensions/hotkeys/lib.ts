@@ -3,6 +3,7 @@
 /** The shell's commands (`ShellCommand`); `web.tsx` fails to compile when they drift apart. */
 export const COMMANDS = [
     "session.new",
+    "session.new.pick",
     "folder.pick",
     "session.search",
     "session.rename",
@@ -18,7 +19,9 @@ export type Keymap = { prefix: string; keys: Record<Command, string[]> };
 export const DEFAULT_KEYMAP: Keymap = {
     prefix: "ctrl+a",
     keys: {
-        "session.new": ["prefix+c"],
+        // A new session in the folder on screen, or one picked by hand; the sidebar's `+` picks too.
+        "session.new": [],
+        "session.new.pick": ["prefix+c"],
         "folder.pick": ["prefix+s"],
         "session.search": ["prefix+f"],
         "session.rename": ["prefix+r", "prefix+,"],

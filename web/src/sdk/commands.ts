@@ -3,6 +3,7 @@ import { useEffect, useSyncExternalStore } from "react";
 /** What the shell can be told to do from outside it, by name. */
 export type ShellCommand =
     | "session.new"
+    | "session.new.pick"
     | "folder.pick"
     | "session.search"
     | "session.rename"

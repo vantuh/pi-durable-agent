@@ -448,6 +448,8 @@ export function App() {
         }
     });
 
+    useShellCommand("session.new.pick", askFolder);
+
     return (
         <div className="bg-sunken flex h-full flex-col">
             {/* Positioned: a panel that fills the conversation measures its place from this row. */}

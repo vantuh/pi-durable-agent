@@ -88,7 +88,7 @@ void test("prefix then a bound key runs its command, then goes idle", () => {
     });
     assert.deepEqual(step(DEFAULT_KEYMAP, true, key("KeyC")), {
         armed: false,
-        command: "session.new",
+        command: "session.new.pick",
         consume: true,
     });
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyS")).command, "folder.pick");

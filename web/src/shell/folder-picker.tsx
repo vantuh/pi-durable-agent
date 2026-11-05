@@ -28,6 +28,7 @@ import {
     setFavourites as saveFavourites,
 } from "../lib/api.ts";
 import { restoreComposerFocus } from "../sdk/composer.ts";
+import { folderAt, nextRow, rowsOf } from "./folder-picker-keys.ts";
 
 type Props = {
     start: string;
@@ -35,6 +36,9 @@ type Props = {
     onClose: () => void;
     onOpen: (path: string) => void;
 };
+
+/** A field keeps its own arrow keys: moving the caret out of one would swallow an edit. */
+const FIELD = "input, textarea, select, [contenteditable='true']";
 
 function crumbs(path: string): { name: string; path: string }[] {
     const parts = path.split("/").filter((part) => part !== "");
@@ -52,7 +56,11 @@ function crumbs(path: string): { name: string; path: string }[] {
 
 export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [page, setPage] = useState<FolderPage | undefined>(undefined);
+    /** The path `page` was read for: until they match, the rows on screen belong to the folder before. */
+    const [listed, setListed] = useState<string | null>(null);
     const [path, setPath] = useState(start);
+    /** The rows on screen answer for `path`; before they do, they name the folder before it. */
+    const fresh = listed === path;
     const [hidden, setHidden] = useState(false);
     const [error, setError] = useState(false);
     /** What each extension's option in the footer collected; null for the folder as picked. */
@@ -60,6 +68,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     /** What an option's `place` threw last time: the option, and what it said. */
     const [problem, setProblem] = useState<{ id: string; message: string } | null>(null);
     const [opening, setOpening] = useState(false);
+    /** The row the caret picked: Enter, Open and each option start there, and it stays marked. */
+    const [selected, setSelected] = useState<string | undefined>(undefined);
     /** The parent drops this dialog the moment it is told to close; it stays until its exit is over. */
     const [open, setOpen] = useState(true);
     const after = useRef<(() => void) | null>(null);
@@ -79,7 +89,15 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [favourites, setFavourites] = useState<string[]>([]);
     /** The stored list is here: a star pressed before it would save one folder over all of them. */
     const [favouritesLoaded, setFavouritesLoaded] = useState(false);
-    const openRef = useRef<HTMLButtonElement>(null);
+    /** The two lists: the keys move between their rows, and Tab crosses from one to the other. */
+    const left = useRef<HTMLElement | null>(null);
+    const right = useRef<HTMLDivElement | null>(null);
+    /** The left row the caret last stood on, so Shift+Tab comes back to it. */
+    const leftAt = useRef<HTMLElement | null>(null);
+    /** An arrow opened another folder: the pane takes the caret back. */
+    const returnFocus = useRef(false);
+    /** A `place` is running: a second Enter would ask every option twice. */
+    const starting = useRef(false);
     const recents = [...new Set(recent)].filter((folder) => !favourites.includes(folder));
     // One key for everything the lists hold, so the options are asked when a list changes and not on
     // every render: a folder that is a worktree keeps its place in the stored favourites. `recent` is a
@@ -114,6 +132,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
             if (alive) {
                 setPage(next);
+                setListed(path);
                 setError(next === undefined);
             }
         })();
@@ -122,6 +141,17 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
             alive = false;
         };
     }, [path, hidden]);
+
+    // The pane takes the caret back, so Left leaves it and the arrows pick a child; no child is picked
+    // for the person, so Enter keeps the folder just entered.
+    useEffect(() => {
+        if (!returnFocus.current || !fresh) {
+            return;
+        }
+
+        returnFocus.current = false;
+        right.current?.focus();
+    }, [fresh]);
 
     useEffect(() => {
         const folders = lists === "" ? [] : lists.split("\0");
@@ -146,9 +176,11 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
     const offered = (folder: string): boolean => !leftOut.has(folder);
 
+    /** Opens `next` in the pane, with no row picked: the rows on screen are about to be its own. */
     const go = (next: string | null | undefined): void => {
         if (typeof next === "string" && next !== "") {
             setPath(next);
+            setSelected(undefined);
         }
     };
 
@@ -173,6 +205,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             : {})}
                         label={folder.split("/").pop() ?? folder}
                         active={folder === page?.path}
+                        selected={folder === kept}
+                        folder={folder}
                         onClick={() => {
                             go(folder);
                         }}
@@ -183,6 +217,17 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
     const trail = crumbs(page?.path ?? path);
     const picked = page?.path ?? path;
+    // The rows the pane draws, less what an option keeps out, and Home and Computer, which always stay.
+    const shown = [
+        ...(page === undefined ? [] : [page.home, "/"]),
+        ...(page?.dirs ?? []).map((dir) => dir.path).filter(offered),
+        ...favourites.filter(offered),
+        ...recents.filter(offered),
+    ];
+    /** The row the caret picked, while the lists still offer it: one they dropped is no target. */
+    const kept = shown.includes(selected ?? "") ? selected : undefined;
+    /** Where a session starts: the row picked, or the folder on screen while it is being read. */
+    const here = fresh ? (kept ?? picked) : path;
 
     /** What this option says about going ahead: its own `blocked`, or what its `place` threw. */
     const refused = (option: FolderNewSessionItem): string | null =>
@@ -211,6 +256,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 try {
                     where = await option.place(where, mine);
                 } catch (failure) {
+                    starting.current = false;
                     setProblem({
                         id: option.id,
                         message:
@@ -229,6 +275,18 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         leave(() => {
             onOpen(where);
         });
+    };
+
+    /** A new session in `folder`, by key or by Open: the same checks stand in its way. */
+    const openIn = (folder: string): void => {
+        if (held || starting.current || !open) {
+            return;
+        }
+
+        starting.current = true;
+        setOpening(true);
+        setProblem(null);
+        void startIn(folder);
     };
 
     return (
@@ -251,23 +309,124 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 onOpenAutoFocus={(event) => {
                     // Radix focuses the first tabbable (the Up button) unless the default is cancelled.
                     event.preventDefault();
-                    openRef.current?.focus();
+                    // The row of the folder the picker opened at, or the list itself; the arrows start
+                    // from either, and Enter starts a session in the folder on screen.
+                    const row = rowsOf(left.current).find(
+                        (each) => each.getAttribute("data-folder") === start,
+                    );
+
+                    (row ?? left.current)?.focus();
                 }}
                 onCloseAutoFocus={(event) => {
                     if (restoreComposerFocus("close")) {
                         event.preventDefault();
                     }
                 }}
+                onFocus={(event) => {
+                    const target = event.target instanceof HTMLElement ? event.target : null;
+
+                    if (target !== null && left.current?.contains(target) === true) {
+                        leftAt.current = target;
+                    }
+
+                    // The row the caret lands on is the selection, by key or by pointer alike.
+                    const folder = folderAt(target);
+
+                    if (folder !== undefined) {
+                        setSelected(folder);
+                    }
+                }}
                 onKeyDown={(event) => {
-                    if (event.key !== "Enter" || event.defaultPrevented) {
+                    // A key a field or an option took is theirs; a folder being read answers none: its
+                    // rows still name the folder before it.
+                    if (event.nativeEvent.isComposing || event.defaultPrevented || !fresh) {
                         return;
                     }
 
-                    if (event.target instanceof HTMLElement && event.target.closest("button")) {
+                    const target = event.target instanceof HTMLElement ? event.target : null;
+                    const inLeft = target !== null && left.current?.contains(target) === true;
+                    const inRight = target !== null && right.current?.contains(target) === true;
+
+                    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                        // A field keeps its own arrows: moving the caret out of one would drop an edit.
+                        if (target !== null && target.closest(FIELD) !== null) {
+                            return;
+                        }
+
+                        const row = nextRow(
+                            rowsOf(inLeft ? left.current : right.current),
+                            target,
+                            event.key === "ArrowDown" ? 1 : -1,
+                        );
+
+                        if (row !== undefined) {
+                            event.preventDefault();
+                            row.focus();
+                        }
+
                         return;
                     }
 
-                    void startIn(picked);
+                    // Tab crosses from the left list to the right one and comes back; elsewhere it is
+                    // the browser's, so the header and the footer stay in reach.
+                    if (event.key === "Tab") {
+                        const back =
+                            inLeft && !event.shiftKey
+                                ? (rowsOf(right.current)[0] ?? right.current ?? undefined)
+                                : inRight && event.shiftKey
+                                  ? leftAt.current?.isConnected === true
+                                      ? leftAt.current
+                                      : (rowsOf(left.current)[0] ?? left.current ?? undefined)
+                                  : undefined;
+
+                        if (back !== undefined) {
+                            event.preventDefault();
+                            back.focus();
+                        }
+
+                        return;
+                    }
+
+                    if (event.key === "ArrowRight" && inRight) {
+                        const folder = folderAt(target);
+
+                        if (folder !== undefined) {
+                            event.preventDefault();
+                            returnFocus.current = true;
+                            go(folder);
+                        }
+
+                        return;
+                    }
+
+                    if (
+                        event.key === "ArrowLeft" &&
+                        inRight &&
+                        page !== undefined &&
+                        page.parent !== null
+                    ) {
+                        event.preventDefault();
+                        returnFocus.current = true;
+                        go(page.parent);
+
+                        return;
+                    }
+
+                    if (event.key !== "Enter") {
+                        return;
+                    }
+
+                    // A control keeps Enter: it means its own press, not a new session.
+                    if (
+                        folderAt(target) === undefined &&
+                        target !== null &&
+                        target.closest("button") !== null
+                    ) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    openIn(here);
                 }}
             >
                 <DialogHeader className="px-4 py-3 pr-10">
@@ -318,10 +477,16 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
                 <div className="flex min-h-0 flex-1 gap-2 px-4">
                     <ScrollArea className="w-44 shrink-0">
-                        <nav className="flex flex-col gap-0.5 pr-1">
+                        <nav
+                            ref={left}
+                            tabIndex={-1}
+                            className="focus-visible:ring-accent flex flex-col gap-0.5 pr-1 outline-none focus-visible:ring-2"
+                        >
                             <Row
                                 icon={<House className="size-4" />}
                                 label="Home"
+                                folder={page?.home}
+                                selected={kept === page?.home}
                                 onClick={() => {
                                     go(page?.home);
                                 }}
@@ -329,6 +494,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             <Row
                                 icon={<Laptop className="size-4" />}
                                 label="Computer"
+                                folder="/"
+                                selected={kept === "/"}
                                 onClick={() => {
                                     go("/");
                                 }}
@@ -339,7 +506,12 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                     </ScrollArea>
 
                     <ScrollArea className="border-edge-soft min-h-0 flex-1 border">
-                        <div className="p-1">
+                        <div
+                            ref={right}
+                            // Focused by the keys alone: the pane keeps the caret when it holds no row.
+                            tabIndex={-1}
+                            className="focus-visible:ring-accent p-1 outline-none focus-visible:ring-2"
+                        >
                             {error ? (
                                 <Alert>Cannot read that folder.</Alert>
                             ) : (
@@ -350,10 +522,18 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                                             key={dir.path}
                                             asChild
                                             size="sm"
-                                            className="text-ink hover:bg-raised text-interface w-full text-left"
+                                            className={`text-interface w-full text-left ${
+                                                kept === dir.path
+                                                    ? "bg-raised text-ink"
+                                                    : "text-ink hover:bg-raised"
+                                            }`}
                                         >
                                             <button
                                                 type="button"
+                                                data-folder={dir.path}
+                                                aria-current={
+                                                    kept === dir.path ? "true" : undefined
+                                                }
                                                 onDoubleClick={() => {
                                                     go(dir.path);
                                                 }}
@@ -376,7 +556,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                         <Option
                             key={`${option.folder}/${option.id}`}
                             option={option}
-                            cwd={page?.path ?? null}
+                            cwd={page === undefined ? null : here}
                             onUse={remember}
                             refused={refused(option)}
                         />
@@ -405,12 +585,9 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                                 Cancel
                             </Button>
                             <Button
-                                ref={openRef}
                                 disabled={held}
                                 onClick={() => {
-                                    setOpening(true);
-                                    setProblem(null);
-                                    void startIn(picked);
+                                    openIn(here);
                                 }}
                             >
                                 Open
@@ -427,19 +604,29 @@ function Row({
     icon,
     label,
     active,
+    selected,
+    folder,
     onIcon,
     onClick,
 }: {
     icon: React.ReactNode;
     label: string;
     active?: boolean;
+    /** The row the caret is on: Enter starts a session here, and the row stays marked. */
+    selected?: boolean;
+    /** What Enter starts a session in, and what the keys read as this row. Undefined while the list loads. */
+    folder: string | undefined;
     onIcon?: () => void;
     onClick: () => void;
 }) {
     return (
         <Item
             size="sm"
-            className={`text-interface ${active === true ? "bg-raised text-ink" : "text-muted hover:bg-raised"}`}
+            className={`text-interface ${
+                active === true || selected === true
+                    ? "bg-raised text-ink"
+                    : "text-muted hover:bg-raised"
+            }`}
         >
             {onIcon === undefined ? (
                 icon
@@ -457,6 +644,8 @@ function Row({
             )}
             <button
                 type="button"
+                data-folder={folder}
+                aria-current={selected === true ? "true" : undefined}
                 onClick={onClick}
                 className="focus-visible:ring-accent min-w-0 flex-1 text-left outline-none focus-visible:ring-2"
             >
