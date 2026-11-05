@@ -60,6 +60,12 @@ export const branches = actionRef<undefined, Branch[]>("git-branch", "branches",
 });
 
 /**
+ * Creates a local branch at the current commit in the session's folder and switches to it, keeping
+ * uncommitted changes. It never moves the session to another worktree.
+ */
+export const create = actionRef<Checkout, Checkout>("git-branch", "create", checkoutFrom);
+
+/**
  * Puts the session on a local branch. A branch that another worktree has checked out moves the
  * session to that worktree's folder; any other branch is switched to in the session's own folder.
  * Git's own refusal comes back as the error.

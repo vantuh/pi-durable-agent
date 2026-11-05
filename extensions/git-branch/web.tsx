@@ -1,14 +1,15 @@
-import { GitBranch, FolderGit2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, FolderGit2, GitBranch, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.tsx";
+    Command,
+    CommandEmpty,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
@@ -16,7 +17,14 @@ import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
 import { messageOf } from "../../shared/guards.ts";
-import { branch, branches, checkout, type Branch as BranchChoice, type Checkout } from "./refs.ts";
+import {
+    branch,
+    branches,
+    checkout,
+    create,
+    type Branch as BranchChoice,
+    type Checkout,
+} from "./refs.ts";
 
 const BADGE = "hidden h-4 max-w-full min-w-0 shrink px-1.5 sm:inline-flex [&>svg]:size-2.5";
 
@@ -59,78 +67,178 @@ function useCheckout(session: StatusProps["session"]): [Checkout | null, (next: 
 function Branch({ session }: StatusProps) {
     const [current, setCurrent] = useCheckout(session);
     const [names, setNames] = useState<BranchChoice[]>([]);
+    // False while the list loads, and after it could not be read: there is nothing to create against.
+    const [listed, setListed] = useState(false);
+    const [query, setQuery] = useState("");
+    const [pending, setPending] = useState(false);
+    const [open, setOpen] = useState(false);
+    const search = useRef<HTMLInputElement>(null);
     const id = session?.id ?? null;
 
     if (current === null || id === null) {
         return null;
     }
 
-    const load = (open: boolean) => {
-        if (open) {
-            void callAction(branches, undefined, id).then(setNames, () => {
+    const load = () => {
+        setQuery("");
+        setListed(false);
+        void (async () => {
+            try {
+                setNames(await callAction(branches, undefined, id));
+                setListed(true);
+            } catch (failure) {
                 setNames([]);
-            });
-        }
+                toast.error(messageOf(failure));
+            }
+        })();
+    };
+
+    const finish = (name: string) => {
+        setCurrent({ branch: name });
+        setOpen(false);
     };
 
     const switchTo = async (name: string) => {
-        try {
-            const done = await callAction(checkout, { branch: name }, id);
+        if (pending) {
+            return;
+        }
 
-            setCurrent({ branch: done.branch });
+        setPending(true);
+
+        try {
+            const moved = await callAction(checkout, { branch: name }, id);
+
+            finish(moved.branch);
 
             // The agent still has the old folder in its head; the draft tells it, and the person sends it.
-            if (done.worktree !== null) {
+            if (moved.worktree !== null) {
                 appendComposerDraft(
                     id,
-                    `Worktree changed to ${done.worktree} (branch ${done.branch}).`,
+                    `Worktree changed to ${moved.worktree} (branch ${moved.branch}).`,
                 );
             }
         } catch (failure) {
             toast.error(messageOf(failure));
+        } finally {
+            setPending(false);
         }
     };
 
+    const createBranch = async (name: string) => {
+        if (pending) {
+            return;
+        }
+
+        setPending(true);
+
+        try {
+            finish((await callAction(create, { branch: name }, id)).branch);
+        } catch (failure) {
+            toast.error(messageOf(failure));
+        } finally {
+            setPending(false);
+        }
+    };
+
+    const needle = query.trim().toLowerCase();
+    const shown = names.filter((each) => each.name.toLowerCase().includes(needle));
+    // The spaces around it are not part of a name; git judges the rest.
+    const wanted = query.trim();
+    // Git names are case-sensitive, so `main` does not exist because `Main` does.
+    const creatable = listed && wanted !== "" && !names.some((each) => each.name === wanted);
+
     return (
-        <DropdownMenu modal={false} onOpenChange={load}>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                setOpen(next);
+
+                if (next) {
+                    load();
+                }
+            }}
+        >
             {/* Not while the agent runs: its files would change under it. */}
-            <DropdownMenuTrigger asChild disabled={session?.busy === true}>
+            <PopoverTrigger asChild disabled={session?.busy === true}>
                 <Badge asChild title={`Branch ${current.branch}`} className={BADGE}>
                     <button type="button">
                         <GitBranch />
                         <span className="truncate">{current.branch}</span>
                     </button>
                 </Badge>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-                <ScrollArea viewportProps={{ className: "max-h-72" }}>
-                    <DropdownMenuRadioGroup
-                        value={current.branch}
-                        onValueChange={(name) => {
-                            void switchTo(name);
-                        }}
-                    >
-                        {names.map(({ name, worktree }) => (
-                            <DropdownMenuRadioItem key={name} value={name}>
-                                <span className="truncate">{name}</span>
-                                {worktree === null ? null : (
-                                    <span
-                                        title={worktree}
-                                        className="text-faint text-meta ml-auto flex shrink-0 items-center gap-1"
-                                    >
-                                        <FolderGit2 className="size-3" />
-                                        {worktree.split("/").pop()}
-                                    </span>
-                                )}
-                            </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
-                </ScrollArea>
-            </DropdownMenuContent>
-        </DropdownMenu>
+            </PopoverTrigger>
+            <PopoverContent
+                align="start"
+                size="menu"
+                className="w-96 max-w-[calc(100vw-1rem)]"
+                aria-label="Branch"
+                onOpenAutoFocus={(event) => {
+                    // The keys must work at once: a search box that waits for a click reads as broken.
+                    event.preventDefault();
+                    search.current?.focus();
+                }}
+            >
+                <Command shouldFilter={false} label="Branches">
+                    <CommandInput
+                        ref={search}
+                        value={query}
+                        onValueChange={setQuery}
+                        placeholder="Search branches"
+                    />
+                    <ScrollArea viewportProps={{ className: "max-h-72" }}>
+                        <CommandList label="Branches" className="pb-1">
+                            {shown.map(({ name, worktree }) => (
+                                <CommandItem
+                                    key={name}
+                                    value={name}
+                                    disabled={pending}
+                                    onSelect={() => {
+                                        void switchTo(name);
+                                    }}
+                                >
+                                    <span className="truncate">{name}</span>
+                                    {worktree === null ? null : (
+                                        <span
+                                            title={worktree}
+                                            className="text-faint text-meta ml-auto flex shrink-0 items-center gap-1"
+                                        >
+                                            <FolderGit2 className="size-3" />
+                                            {worktree.split("/").pop()}
+                                        </span>
+                                    )}
+                                    {name === current.branch ? (
+                                        <Check className="text-accent size-3 shrink-0" />
+                                    ) : null}
+                                </CommandItem>
+                            ))}
+                            {creatable ? (
+                                <CommandItem
+                                    // ":" cannot be in a git name, so this row cannot share a branch's value.
+                                    value={`create:${wanted}`}
+                                    disabled={pending}
+                                    onSelect={() => {
+                                        void createBranch(wanted);
+                                    }}
+                                >
+                                    <Plus className="size-3 shrink-0" />
+                                    <span className="truncate">Create branch “{wanted}”</span>
+                                </CommandItem>
+                            ) : null}
+                            {listed && shown.length === 0 && !creatable ? (
+                                <CommandEmpty>No branch matches.</CommandEmpty>
+                            ) : null}
+                        </CommandList>
+                    </ScrollArea>
+                </Command>
+            </PopoverContent>
+        </Popover>
     );
 }
 
+function SessionBranch(props: StatusProps) {
+    return <Branch key={props.session?.id} {...props} />;
+}
+
 export default {
-    status: [{ id: "branch", slot: "title", component: Branch }],
+    status: [{ id: "branch", slot: "title", component: SessionBranch }],
 } satisfies WebExtension;

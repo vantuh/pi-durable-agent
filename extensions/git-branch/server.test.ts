@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -21,6 +21,23 @@ void describe("git-branch branch action", () => {
 
         return action({ args: undefined, session: { id: 1, cwd } });
     };
+
+    const call = async (name: string, args: unknown, host = testHost(), cwd = dir) => {
+        const action = actions(host)[name];
+
+        assert.ok(action);
+
+        return await action({ args, session: { id: 1, cwd } });
+    };
+
+    const head = async (cwd = dir): Promise<string> =>
+        (await run("git", ["rev-parse", "--verify", "HEAD"], { cwd })).stdout.trim();
+
+    const named = async (ref: string, cwd = dir): Promise<boolean> =>
+        run("git", ["rev-parse", "--verify", "--quiet", ref], { cwd }).then(
+            () => true,
+            () => false,
+        );
 
     beforeEach(async () => {
         dir = await mkdtemp(join(tmpdir(), "git-branch-test-"));
@@ -84,14 +101,6 @@ void describe("git-branch branch action", () => {
     });
 
     void describe("switching", () => {
-        const call = async (name: string, args: unknown, host = testHost(), cwd = dir) => {
-            const action = actions(host)[name];
-
-            assert.ok(action);
-
-            return await action({ args, session: { id: 1, cwd } });
-        };
-
         beforeEach(async () => {
             await run("git", ["init", "-b", "topic"], { cwd: dir });
             await commit(dir);
@@ -231,6 +240,109 @@ void describe("git-branch branch action", () => {
                 assert.deepEqual(moves, []);
                 assert.deepEqual(await branch(dir), { branch: "free" });
             });
+        });
+    });
+
+    void describe("creating", () => {
+        beforeEach(async () => {
+            await run("git", ["init", "-b", "topic"], { cwd: dir });
+            await commit(dir);
+            await run("git", ["branch", "other"], { cwd: dir });
+        });
+
+        void it("creates the branch at the current commit and switches to it", async () => {
+            const before = await head();
+
+            assert.deepEqual(await call("create", { branch: "feature/slash" }), {
+                branch: "feature/slash",
+            });
+            assert.deepEqual(await branch(dir), { branch: "feature/slash" });
+            assert.equal(await head(), before);
+        });
+
+        void it("says the session changed", async () => {
+            const changed: number[] = [];
+            const host = testHost({
+                notifySessionChanged: (session) => {
+                    changed.push(session);
+                },
+            });
+
+            await call("create", { branch: "feature" }, host);
+
+            assert.deepEqual(changed, [1]);
+        });
+
+        void it("refuses a name git would refuse, and creates nothing", async () => {
+            for (const name of ["", "-x", "--detach", "a..b", "a b", "HEAD", "x.lock"]) {
+                const refused = await call("create", { branch: name }).then(
+                    () => false,
+                    () => true,
+                );
+
+                assert.equal(refused, true, JSON.stringify(name));
+            }
+
+            await assert.rejects(call("create", undefined));
+            await assert.rejects(call("create", { branch: 7 }));
+            assert.deepEqual(await branch(dir), { branch: "topic" });
+            assert.equal(await named("refs/heads/HEAD"), false);
+        });
+
+        void it("refuses a history shorthand instead of resolving it", async () => {
+            await run("git", ["switch", "-c", "prev"], { cwd: dir });
+            await run("git", ["switch", "topic"], { cwd: dir });
+
+            await assert.rejects(call("create", { branch: "@{-1}" }), /not a valid branch name/);
+            assert.deepEqual(await branch(dir), { branch: "topic" });
+        });
+
+        void it("leaves an existing branch as it is", async () => {
+            await run("git", ["switch", "other"], { cwd: dir });
+            await commit(dir);
+            const tip = await head();
+
+            await run("git", ["switch", "topic"], { cwd: dir });
+            await assert.rejects(call("create", { branch: "other" }), /already exists/);
+
+            assert.deepEqual(await branch(dir), { branch: "topic" });
+            assert.equal(
+                (await run("git", ["rev-parse", "other"], { cwd: dir })).stdout.trim(),
+                tip,
+            );
+        });
+
+        void it("does not create while the session is working", async () => {
+            const host = testHost({ sessionWorking: () => Promise.resolve(true) });
+
+            await assert.rejects(call("create", { branch: "feature" }, host));
+            assert.deepEqual(await branch(dir), { branch: "topic" });
+            assert.equal(await named("refs/heads/feature"), false);
+        });
+
+        void it("keeps uncommitted work", async () => {
+            await writeFile(join(dir, "note.txt"), "one\n");
+            await run("git", ["add", "note.txt"], { cwd: dir });
+            await commit(dir);
+            await writeFile(join(dir, "note.txt"), "two\n");
+            await writeFile(join(dir, "fresh.txt"), "new\n");
+
+            await call("create", { branch: "feature" });
+
+            assert.equal(await readFile(join(dir, "note.txt"), "utf8"), "two\n");
+            assert.equal(await readFile(join(dir, "fresh.txt"), "utf8"), "new\n");
+            assert.deepEqual(await branch(dir), { branch: "feature" });
+        });
+
+        void it("says why git refused, and stays where it was", async () => {
+            await run("git", ["branch", "a"], { cwd: dir });
+
+            // `refs/heads/a` is a file, so the folder `a/b` needs cannot be made.
+            await assert.rejects(
+                call("create", { branch: "a/b" }),
+                /cannot lock ref|cannot create/,
+            );
+            assert.deepEqual(await branch(dir), { branch: "topic" });
         });
     });
 

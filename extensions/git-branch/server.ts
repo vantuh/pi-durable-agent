@@ -87,6 +87,36 @@ async function branchesOf(cwd: string): Promise<Branch[]> {
         .map((name) => ({ name, worktree: elsewhere.get(name) ?? null }));
 }
 
+/** git's own reason for a failed command, which is what a person can act on. */
+function gitFailure(error: unknown, fallback: string): ActionError {
+    const stderr: unknown = error instanceof Error ? Reflect.get(error, "stderr") : undefined;
+
+    return new ActionError(
+        typeof stderr === "string" && stderr.trim() !== "" ? stderr.trim() : fallback,
+    );
+}
+
+/**
+ * The name unchanged, or a refusal: git's own rules for a branch name, minus the shorthands an
+ * older git expands here (`@{-1}`, which names somebody else's branch rather than a new one).
+ */
+async function checkedName(cwd: string, name: string): Promise<string> {
+    // A name that starts with "-" must never reach git as an option.
+    if (name === "" || name.startsWith("-")) {
+        throw new ActionError(`"${name}" is not a valid branch name`);
+    }
+
+    const { stdout } = await git(cwd, ["check-ref-format", "--branch", name]).catch(() => ({
+        stdout: "",
+    }));
+
+    if (stdout.trim() !== name) {
+        throw new ActionError(`"${name}" is not a valid branch name`);
+    }
+
+    return name;
+}
+
 export const actions = (host: Host): Record<string, Action> => ({
     async branch({ session }): Promise<Checkout | null> {
         const cwd = session?.cwd;
@@ -149,14 +179,7 @@ export const actions = (host: Host): Record<string, Action> => ({
                 await git(cwd, ["switch", found.name]);
             } catch (error) {
                 // git says why: local changes in the way.
-                const stderr: unknown =
-                    error instanceof Error ? Reflect.get(error, "stderr") : undefined;
-
-                throw new ActionError(
-                    typeof stderr === "string" && stderr.trim() !== ""
-                        ? stderr.trim()
-                        : "git switch failed",
-                );
+                throw gitFailure(error, "git switch failed");
             }
         } else {
             await host.setSessionCwd(session.id, found.worktree);
@@ -165,5 +188,38 @@ export const actions = (host: Host): Record<string, Action> => ({
         host.notifySessionChanged(session.id);
 
         return { branch: found.name, worktree: found.worktree };
+    },
+
+    async create({ args, session }): Promise<Checkout> {
+        const cwd = session?.cwd;
+        const name =
+            typeof args === "object" && args !== null ? Reflect.get(args, "branch") : undefined;
+
+        if (session === null || cwd === undefined || cwd === null) {
+            throw new ActionError("a session with a folder is needed to create a branch");
+        }
+
+        if (typeof name !== "string") {
+            throw new ActionError("args must be { branch: a new branch name }");
+        }
+
+        const wanted = await checkedName(cwd, name);
+
+        // The agent's files would change under a run that is going on.
+        if (await host.sessionWorking(session.id)) {
+            throw new ActionError("the agent is working; wait for it to finish");
+        }
+
+        try {
+            // At the current commit, in the session's own folder: uncommitted changes stay, and an
+            // existing branch is git's refusal, never an overwrite.
+            await git(cwd, ["switch", "-c", wanted]);
+        } catch (error) {
+            throw gitFailure(error, "git switch -c failed");
+        }
+
+        host.notifySessionChanged(session.id);
+
+        return { branch: wanted };
     },
 });
