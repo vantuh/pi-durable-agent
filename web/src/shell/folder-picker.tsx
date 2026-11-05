@@ -94,8 +94,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const right = useRef<HTMLDivElement | null>(null);
     /** The left row the caret last stood on, so Shift+Tab comes back to it. */
     const leftAt = useRef<HTMLElement | null>(null);
-    /** An arrow opened another folder: the pane takes the caret back. */
-    const returnFocus = useRef(false);
+    /** Opening the picker or another folder puts the caret on its first row. */
+    const returnFocus = useRef(true);
     /** A `place` is running: a second Enter would ask every option twice. */
     const starting = useRef(false);
     const recents = [...new Set(recent)].filter((folder) => !favourites.includes(folder));
@@ -308,13 +308,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 onOpenAutoFocus={(event) => {
                     // Radix focuses the first tabbable (the Up button) unless the default is cancelled.
                     event.preventDefault();
-                    // The row of the folder the picker opened at, or the list itself; the arrows start
-                    // from either, and Enter starts a session in the folder on screen.
-                    const row = rowsOf(left.current).find(
-                        (each) => each.getAttribute("data-folder") === start,
-                    );
-
-                    (row ?? left.current)?.focus();
+                    // The first row takes focus when the folder finishes loading.
+                    right.current?.focus();
                 }}
                 onCloseAutoFocus={(event) => {
                     if (restoreComposerFocus("close")) {
