@@ -8,7 +8,8 @@ export type ShellCommand =
     | "session.search"
     | "session.rename"
     | "session.prev"
-    | "session.next";
+    | "session.next"
+    | "sidebar.toggle";
 
 const handlers: Partial<Record<ShellCommand, () => void>> = {};
 

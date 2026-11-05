@@ -10,7 +10,7 @@ import { mergeKeymap, type Keymap } from "./lib.ts";
 export const meta = {
     title: "Hotkeys",
     description:
-        "Keyboard shortcuts for new session, the sidebar's folder menu, session search, renaming and switching sessions. Rebind them in data/hotkeys.json.",
+        "Keyboard shortcuts for new session, the sidebar's folder menu, session search, renaming, switching sessions and collapsing the sidebar. Rebind them in data/hotkeys.json.",
 };
 
 export default function hotkeys(host: Host) {

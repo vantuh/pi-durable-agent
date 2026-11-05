@@ -5,7 +5,13 @@ import { describe, it } from "node:test";
 
 import { parseHTML } from "linkedom";
 
-import { folderAt, nextRow, parentOf, rowsOf } from "../web/src/shell/folder-picker-keys.ts";
+import {
+    folderAt,
+    nextRow,
+    parentOf,
+    rowFor,
+    rowsOf,
+} from "../web/src/shell/folder-picker-keys.ts";
 
 /** One pane as the picker draws it: a row is a button carrying its folder, and a favourite row holds a star. */
 function pane(): { rows: HTMLElement[]; star: Element } {
@@ -76,6 +82,22 @@ void describe("nextRow", () => {
 
     void it("has nowhere to go in an empty list", () => {
         assert.equal(nextRow([], null, 1), undefined);
+    });
+});
+
+void describe("rowFor", () => {
+    void it("lands on the named folder's row, so a move back up comes back to the folder it left", () => {
+        const { rows } = pane();
+
+        assert.equal(folders(rowFor(rows, "/three")), "/three");
+    });
+
+    void it("takes the first row for no folder, and for one this list does not hold", () => {
+        const { rows } = pane();
+
+        assert.equal(folders(rowFor(rows, null)), "/one");
+        assert.equal(folders(rowFor(rows, "/elsewhere")), "/one");
+        assert.equal(rowFor([], "/one"), undefined);
     });
 });
 
