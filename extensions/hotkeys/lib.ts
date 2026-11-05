@@ -9,6 +9,7 @@ export const COMMANDS = [
     "session.rename",
     "session.prev",
     "session.next",
+    "sidebar.toggle",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -27,6 +28,7 @@ export const DEFAULT_KEYMAP: Keymap = {
         "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],
         "session.next": ["shift+right", "prefix+n"],
+        "sidebar.toggle": ["prefix+b"],
     },
 };
 

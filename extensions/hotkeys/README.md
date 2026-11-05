@@ -20,7 +20,8 @@ complete defaults:
         "session.search": ["prefix+f"],
         "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],
-        "session.next": ["shift+right", "prefix+n"]
+        "session.next": ["shift+right", "prefix+n"],
+        "sidebar.toggle": ["prefix+b"]
     }
 }
 ```
@@ -28,6 +29,11 @@ complete defaults:
 Two commands start a session: `session.new` takes the folder on screen at once and `session.new.pick`
 opens the folder picker first. The picker is bound by default; `session.new` is there for a key of
 your own.
+
+`sidebar.toggle` collapses and expands the sidebar to its rail, the same toggle as the button in its
+header: it saves the state the button saves, so the next visit starts the way the key left it. The
+rail exists from `lg` up; below that the sidebar is a full-screen sheet, where the key flips the saved
+state and nothing on screen moves.
 
 - Press the prefix, release it, then press the second key within 1.5 seconds. The status bar shows
   the armed prefix. A second prefix passes that key through to the browser; an unbound second key
