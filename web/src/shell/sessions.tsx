@@ -508,6 +508,8 @@ export const Sessions = memo(function Sessions({
         localStorage.setItem(COLLAPSED_KEY, collapsed ? "0" : "1");
         setCollapsed(!collapsed);
     };
+
+    useShellCommand("sidebar.toggle", toggleCollapsed);
     const [archived, setArchived] = useState(false);
     const [all, setAll] = useState(true);
     // What each filter extension keeps, by id; a filter that goes away takes its entry with it.

@@ -7,6 +7,9 @@
  * when the hidden row comes back.
  *
  * The app runs in a real browser: the keys, the dialog and the request are the ones the person uses.
+ *
+ * The sidebar's collapse key runs here too, over the same fixture: it is a shell command bound by an
+ * extension, and what it has to leave behind is the state the sidebar's own button saves.
  */
 
 import assert from "node:assert/strict";
@@ -54,6 +57,23 @@ const RENAME_KEY = [
     `window.dispatchEvent(new KeyboardEvent("keydown", { key: "a", code: "KeyA", ctrlKey: true }))`,
     `window.dispatchEvent(new KeyboardEvent("keydown", { key: "r", code: "KeyR" }))`,
 ].join(",");
+
+/**
+ * The prefix, then the key bound to `sidebar.toggle`, as a person presses them, and whether the state it
+ * saves is `stored`. A press before the keymap arrives saves nothing, so waiting on this presses again.
+ */
+const toggleKey = (stored: string): string => `(() => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a", code: "KeyA", ctrlKey: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "b", code: "KeyB" }));
+
+    return localStorage.getItem("sidebarCollapsed") === ${JSON.stringify(stored)};
+})()`;
+const STORED_COLLAPSED = `localStorage.getItem("sidebarCollapsed")`;
+/** The sidebar's own aside: the panel host is the other one, and it carries a slot name. */
+const SIDEBAR = `document.querySelector('aside:not([data-slot="panel-host"])')`;
+/** The rail is 37px and the open column 264, so the width says which one is on screen. */
+const RAIL = `(${SIDEBAR})?.getBoundingClientRect().width < 100`;
+const OPEN_SIDEBAR = `(${SIDEBAR})?.getBoundingClientRect().width > 200`;
 
 /** The search box, opened and given a query that matches neither session; it keeps the focus. */
 const SEARCH = `(() => {
@@ -162,6 +182,8 @@ type App = {
     read: (expression: string) => Promise<unknown>;
     /** Reads until the expression is true, or the wait runs out. */
     until: (expression: string, within: number) => Promise<boolean>;
+    /** Opens the app again on the same profile, so what it saved is what it starts from. */
+    reload: () => Promise<void>;
     /** The session ids the shell asked the server to rename. */
     renamed: number[];
     /** Pushes a session-list frame, as a background change to a title does. */
@@ -303,18 +325,20 @@ async function withApp(
             { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false },
             page,
         );
-        await connection.send(
-            "Page.navigate",
-            { url: `http://127.0.0.1:${String(address.port)}/?session=${String(open)}` },
-            page,
-        );
+
+        const url = `http://127.0.0.1:${String(address.port)}/?session=${String(open)}`;
+        const reload = async (): Promise<void> => {
+            await connection.send("Page.navigate", { url }, page);
+        };
+
+        await reload();
 
         const push = (rows: SessionSummary[]): void => {
             assert.ok(list !== undefined, "the list stream is open");
             writeEvent(list, `data: ${JSON.stringify({ type: "rows", rows, gone: [] })}\n\n`);
         };
 
-        await when({ read, until, renamed, push });
+        await when({ read, until, reload, renamed, push });
     } finally {
         if (browser !== undefined) {
             browser.kill();
@@ -330,7 +354,7 @@ async function withApp(
 }
 
 /** The app, or a skipped test: the two checks every case here needs before it can start. */
-async function withRenameApp(
+async function withSessionApp(
     t: { skip: (reason: string) => void },
     open: number,
     when: (app: App) => Promise<void>,
@@ -380,7 +404,7 @@ async function renamedSoFar(renamed: number[]): Promise<number[]> {
 
 void describe("the rename key", () => {
     void it("renames the open session that has no row of its own", async (t) => {
-        await withRenameApp(t, CHILD, async ({ read, until, renamed }) => {
+        await withSessionApp(t, CHILD, async ({ read, until, renamed }) => {
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
             assert.equal(await until(ONE_ROW, SHOWN_MS), true, "the child session has no row");
             assert.equal(await until(OPEN_RENAME, SHOWN_MS), true, "the rename form is open");
@@ -399,7 +423,7 @@ void describe("the rename key", () => {
     });
 
     void it("renames the open session that a search hides", async (t) => {
-        await withRenameApp(t, PARENT, async (app) => {
+        await withSessionApp(t, PARENT, async (app) => {
             const { read, until, renamed } = app;
 
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
@@ -413,7 +437,7 @@ void describe("the rename key", () => {
     });
 
     void it("gives the focus back when the fallback closes", async (t) => {
-        await withRenameApp(t, PARENT, async (app) => {
+        await withSessionApp(t, PARENT, async (app) => {
             const { read, until, renamed } = app;
 
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
@@ -454,7 +478,7 @@ void describe("the rename key", () => {
     });
 
     void it("keeps one rename form when the hidden row comes back", async (t) => {
-        await withRenameApp(t, PARENT, async (app) => {
+        await withSessionApp(t, PARENT, async (app) => {
             const { read, until, renamed, push } = app;
 
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
@@ -475,6 +499,39 @@ void describe("the rename key", () => {
                 [PARENT],
                 "the open session was renamed once",
             );
+        });
+    });
+});
+
+void describe("the sidebar's collapse key", () => {
+    void it("folds the sidebar, saves that, and starts folded on the next visit", async (t) => {
+        await withSessionApp(t, PARENT, async ({ read, until, reload }) => {
+            assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
+            assert.equal(await until(OPEN_SIDEBAR, SHOWN_MS), true, "the sidebar starts open");
+            assert.equal(await read(STORED_COLLAPSED), null, "nothing is saved yet");
+
+            assert.equal(await until(toggleKey("1"), SHOWN_MS), true, "the key saves it folded");
+            assert.equal(await until(RAIL, SHOWN_MS), true, "and the sidebar is the rail");
+            assert.equal(await read(STORED_COLLAPSED), "1", "the state is the button's own");
+
+            assert.equal(await until(toggleKey("0"), SHOWN_MS), true, "the key saves it open");
+            assert.equal(
+                await until(OPEN_SIDEBAR, SHOWN_MS),
+                true,
+                "and the sidebar is open again",
+            );
+
+            assert.equal(await until(toggleKey("1"), SHOWN_MS), true, "folded again");
+            assert.equal(await until(RAIL, SHOWN_MS), true, "the rail is back");
+
+            await reload();
+            assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is back on screen");
+            assert.equal(
+                await until(RAIL, SHOWN_MS),
+                true,
+                "the sidebar starts the way the key left it",
+            );
+            assert.equal(await read(STORED_COLLAPSED), "1");
         });
     });
 });

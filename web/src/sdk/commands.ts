@@ -12,6 +12,7 @@ export type ShellCommand =
     | "session.rename"
     | "session.prev"
     | "session.next"
+    | "sidebar.toggle"
     | `extension.${string}`;
 
 const handlers: Partial<Record<ShellCommand, () => void>> = {};

@@ -96,6 +96,7 @@ void test("prefix then a bound key runs its command, then goes idle", () => {
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyF")).command, "session.search");
     assert.equal(step(DEFAULT_KEYMAP, true, key("Comma")).command, "session.rename");
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyN")).command, "session.next");
+    assert.equal(step(DEFAULT_KEYMAP, true, key("KeyB")).command, "sidebar.toggle");
 });
 
 void test("Escape or an unbound key after the prefix cancels without a command", () => {

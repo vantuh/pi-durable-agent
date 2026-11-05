@@ -13,6 +13,7 @@ export const COMMANDS = [
     "session.rename",
     "session.prev",
     "session.next",
+    "sidebar.toggle",
     // An extension's own command, named `extension.<folder>.<command>`. The core names none of them.
     "extension.git-history.open",
 ] as const;
@@ -33,6 +34,7 @@ export const DEFAULT_KEYMAP: Keymap = {
         "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],
         "session.next": ["shift+right", "prefix+n"],
+        "sidebar.toggle": ["prefix+b"],
         // Git history's commit list, for the conversation on screen.
         "extension.git-history.open": ["prefix+g"],
     },

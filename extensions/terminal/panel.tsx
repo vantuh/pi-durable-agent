@@ -90,7 +90,15 @@ function themeOf(): ITheme {
 }
 
 /** The shell of one session, and the terminal that shows it. Keyed by the restart count: a new one starts fresh. */
-function Shell({ id, onRestart }: { id: number; onRestart: () => void }) {
+function Shell({
+    id,
+    expanded,
+    onRestart,
+}: {
+    id: number;
+    expanded: boolean;
+    onRestart: () => void;
+}) {
     const field = useRef<HTMLDivElement>(null);
     /** Keys typed so far, one request at a time; a stop waits for it before ending the shell. */
     const pending = useRef<Promise<unknown>>(Promise.resolve());
@@ -382,6 +390,13 @@ function Shell({ id, onRestart }: { id: number; onRestart: () => void }) {
         })();
     };
 
+    // Full screen takes the keyboard from the button that asked for it: the next thing typed is a command.
+    useEffect(() => {
+        if (expanded) {
+            terminal.current?.focus();
+        }
+    }, [expanded]);
+
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <Toolbar className="justify-end">
@@ -482,7 +497,7 @@ function Shell({ id, onRestart }: { id: number; onRestart: () => void }) {
     );
 }
 
-export function TerminalPanel({ session }: PanelProps) {
+export function TerminalPanel({ session, expanded }: PanelProps) {
     const id = session?.id ?? null;
     // A new shell is a new terminal: the effect starts again instead of reusing what the old one fitted.
     const [generation, setGeneration] = useState(0);
@@ -495,6 +510,7 @@ export function TerminalPanel({ session }: PanelProps) {
         <Shell
             key={generation}
             id={id}
+            expanded={expanded}
             onRestart={() => {
                 setGeneration((value) => value + 1);
             }}

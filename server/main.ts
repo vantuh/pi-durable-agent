@@ -21,7 +21,7 @@ import {
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import { recordOf } from "../shared/guards.ts";
+import { messageOf, recordOf } from "../shared/guards.ts";
 import type {
     ClientBlock,
     ClientEntry,
@@ -35,7 +35,7 @@ import type {
 import { buildShell } from "./build.ts";
 import { commitView } from "./commit-view.ts";
 import { executionEnv } from "./execution-env.ts";
-import { Extensions, type SessionRequest } from "./extensions.ts";
+import { type SessionPrompt, Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
 import { answer, openEventStream, readBody, type Route, sessionIdOf, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
@@ -52,6 +52,7 @@ import { sessionRoutes } from "./routes/sessions.ts";
 import { knownHost, sameOrigin } from "./same-origin.ts";
 import { sessionChanges } from "./session-changes.ts";
 import { SessionList } from "./session-list.ts";
+import { sessionPromptOf as renderSessionPrompt } from "./session-prompt.ts";
 import { type Opened, Sessions, supportedLevel } from "./sessions.ts";
 import { serveStatic } from "./static.ts";
 
@@ -374,6 +375,30 @@ async function sessionRequestOf(session: number): Promise<SessionRequest | undef
     const { messages } = await opened.conversation.context(context);
 
     return createSessionRequest(runtime, model, messages, agent.thinkingLevel);
+}
+
+/**
+ * The system prompt and tools an empty session's first request will carry, rendered without writing an
+ * entry or calling a model. Undefined once the session has entries.
+ */
+async function sessionPromptOf(session: number): Promise<SessionPrompt | undefined> {
+    const opened = await sessions.open(idOf(session));
+
+    if (opened === undefined) {
+        return undefined;
+    }
+
+    return await renderSessionPrompt({
+        conversation: opened.conversation,
+        models: runtime,
+        // The builder the Harness was opened with, so the sections see the same environment.
+        env: executionEnv(process.cwd()),
+        read: harness,
+        report: (error, what) => {
+            console.log(`session prompt: "${what}" failed: ${messageOf(error)}`);
+        },
+        context,
+    });
 }
 
 function liveOf(id: number, view: View): ClientLive {
@@ -748,6 +773,7 @@ async function boot(): Promise<void> {
             };
         },
         sessionRequest: sessionRequestOf,
+        sessionPrompt: sessionPromptOf,
         sessionTitle: (session) => sessions.title(idOf(session)),
         sessionName: (session) => sessions.name(idOf(session)),
         sessionOwner: (session) => sessions.owner(idOf(session)),

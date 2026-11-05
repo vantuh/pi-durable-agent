@@ -46,6 +46,17 @@ export function nextRow(
     return rows[(at + by + rows.length) % rows.length];
 }
 
+/**
+ * The row to stand on after a folder loads: the named folder's own row, so a move back up lands on the
+ * folder it left, and the first row when that folder is not one of them.
+ */
+export function rowFor(
+    rows: readonly HTMLElement[],
+    folder: string | null,
+): HTMLElement | undefined {
+    return (folder === null ? undefined : rows.find((row) => folderAt(row) === folder)) ?? rows[0];
+}
+
 /** The folder a target stands for: the row it sits in, not the star or the text beside it. */
 export function folderAt(target: Element | null): string | undefined {
     return target?.closest("[data-folder]")?.getAttribute("data-folder") ?? undefined;

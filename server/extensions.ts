@@ -19,6 +19,7 @@ import type {
     Model,
     ModelThinkingLevel,
     Provider,
+    Tool,
 } from "@earendil-works/pi-ai";
 import type {
     ConversationDocToken,
@@ -92,6 +93,13 @@ export type Host = {
      * cache warm without adding to its transcript. Undefined for a session the server does not know.
      */
     readonly sessionRequest: (session: number) => Promise<SessionRequest | undefined>;
+    /**
+     * The system prompt sections and tools an empty session's first request will carry, rendered as
+     * generation renders them: no entry is written and no model is called. Undefined for a session with
+     * entries, one the server does not know, one with no model chosen, or one whose model is not in the
+     * catalog.
+     */
+    readonly sessionPrompt: (session: number) => Promise<SessionPrompt | undefined>;
     /**
      * The name the sidebar shows for a session, as the owner set it or as its first question gives
      * it; null while it has neither. The core owns titles, so an extension that shows a session asks.
@@ -171,6 +179,19 @@ export type SessionRequest = {
         signal: AbortSignal,
         options?: SessionSendOptions,
     ) => Promise<AssistantMessage>;
+};
+
+/**
+ * An empty conversation's system prompt and tool set for its first request. Reading it writes nothing and
+ * sends nothing.
+ */
+export type SessionPrompt = {
+    /** The model the first request would use. */
+    readonly model: Model<Api>;
+    /** The sections the request would carry, in order, tagged as generation tags them. */
+    readonly sections: readonly { readonly key: string; readonly text: string }[];
+    /** The tool declarations the request would offer, in order. */
+    readonly tools: readonly Tool[];
 };
 
 /** A session as an extension sees it. `owner` is the session that started it, when a person did not. */
@@ -440,6 +461,7 @@ export class Extensions {
     readonly #registerModelProvider: Host["registerModelProvider"];
     readonly #contextWindow: Host["contextWindow"];
     readonly #sessionRequest: Host["sessionRequest"];
+    readonly #sessionPrompt: Host["sessionPrompt"];
     readonly #sessionTitle: Host["sessionTitle"];
     readonly #sessionName: Host["sessionName"];
     readonly #sessionOwner: Host["sessionOwner"];
@@ -481,6 +503,7 @@ export class Extensions {
         registerModelProvider?: Host["registerModelProvider"];
         contextWindow?: Host["contextWindow"];
         sessionRequest?: Host["sessionRequest"];
+        sessionPrompt?: Host["sessionPrompt"];
         sessionTitle?: Host["sessionTitle"];
         sessionName?: Host["sessionName"];
         sessionOwner?: Host["sessionOwner"];
@@ -502,6 +525,7 @@ export class Extensions {
         this.#registerModelProvider = options.registerModelProvider ?? (() => () => undefined);
         this.#contextWindow = options.contextWindow ?? (() => undefined);
         this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
+        this.#sessionPrompt = options.sessionPrompt ?? (() => Promise.resolve(undefined));
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
         this.#sessionOwner = options.sessionOwner ?? (() => Promise.resolve(undefined));
@@ -1011,6 +1035,7 @@ export class Extensions {
                 return undefined;
             },
             sessionRequest: (session) => this.#sessionRequest(session),
+            sessionPrompt: (session) => this.#sessionPrompt(session),
             sessionTitle: (session) => this.#sessionTitle(session),
             sessionName: (session) => this.#sessionName(session),
             sessionOwner: (session) => this.#sessionOwner(session),
