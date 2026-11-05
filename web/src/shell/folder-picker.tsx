@@ -28,7 +28,7 @@ import {
     setFavourites as saveFavourites,
 } from "../lib/api.ts";
 import { restoreComposerFocus } from "../sdk/composer.ts";
-import { bareFolder, folderAt, nextRow, parentOf, rowsOf } from "./folder-picker-keys.ts";
+import { bareFolder, folderAt, nextRow, parentOf, rowFor, rowsOf } from "./folder-picker-keys.ts";
 
 type Props = {
     start: string;
@@ -61,6 +61,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     /** The folder the picker opened on: its own row is the caret's home, until a move leaves it. */
     const [about, setAbout] = useState<string | null>(() => bareFolder(start));
     const [path, setPath] = useState(() => parentOf(start) ?? start);
+    /** The folder a move back up left behind: its row is where the caret lands, not the first one. */
+    const [cameFrom, setCameFrom] = useState<string | null>(null);
     /** The rows on screen answer for `path`; before they do, they name the folder before it. */
     const fresh = listed === path;
     const [hidden, setHidden] = useState(false);
@@ -153,8 +155,9 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         };
     }, [path, hidden, about]);
 
-    // A folder change puts the caret where it belongs: on the row of the folder the picker opened on, so
-    // Enter starts the session there; on the folder's first row after a move; on the pane with no row.
+    // A folder change puts the caret where it belongs: on the folder a move up came back from; on the row
+    // of the folder the picker opened on, so Enter starts the session there; on the folder's first row
+    // after a move; on the pane with no row.
     useEffect(() => {
         if (!returnFocus.current || !fresh) {
             return;
@@ -162,11 +165,10 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
         returnFocus.current = false;
 
-        const rows = rowsOf(right.current);
-        const row = about === null ? rows[0] : rows.find((each) => folderAt(each) === about);
+        const row = rowFor(rowsOf(right.current), cameFrom ?? about);
 
         (row ?? right.current)?.focus();
-    }, [fresh, about]);
+    }, [fresh, about, cameFrom]);
 
     useEffect(() => {
         const folders = lists === "" ? [] : lists.split("\0");
@@ -194,6 +196,10 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     /** Opens `next` in the pane, with no row picked: the rows on screen are about to be its own. */
     const go = (next: string | null | undefined): void => {
         if (typeof next === "string" && next !== "") {
+            // Moving up leaves the folder behind: its row in the parent is where the caret belongs.
+            const here = page?.path ?? path;
+
+            setCameFrom(parentOf(here) === bareFolder(next) ? here : null);
             setPath(next);
             setSelected(undefined);
             // The picker has moved: the folder it opened on is no longer the caret's home.
