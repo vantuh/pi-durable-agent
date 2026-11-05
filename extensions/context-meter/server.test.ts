@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { AssistantMessage, StopReason, Usage } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Model, StopReason, Tool, Usage } from "@earendil-works/pi-ai";
+import { Type } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
-import type { CommitListener, Host } from "../../server/sdk.ts";
+import type { CommitListener, Host, SessionPrompt } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { breakdown as breakdownRef } from "./refs.ts";
 import contextMeter, { actions } from "./server.ts";
@@ -85,12 +86,46 @@ const host: Host = testHost({
     toolOwner: (tool) => OWNERS.get(tool),
 });
 
-const commits: CommitListener[] = [];
+/** The model a session would send to, as the core resolves it for a prompt. */
+const MODEL: Model<Api> = {
+    id: "claude-opus-4",
+    name: "Claude Opus 4",
+    api: "anthropic-messages",
+    provider: "anthropic",
+    baseUrl: "https://example.test",
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    reasoning: false,
+    contextWindow: WINDOW,
+    maxTokens: 8192,
+};
 
-contextMeter({ ...host, onCommit: (listener) => commits.push(listener) });
+/** The prompt the core renders for a session's next request, tagged as generation tags it. */
+function promptOf(sections: [string, string][], tools: string[]): SessionPrompt {
+    return {
+        model: MODEL,
+        sections: sections.map(([key, text]) => ({ key, text })),
+        tools: tools.map((name): Tool => ({
+            name,
+            description: `what ${name} does`,
+            parameters: Type.Object({}),
+        })),
+    };
+}
 
-async function breakdownOf(id: number, entries: readonly EntryRecord[]) {
-    await commits[0]?.({ session: { id, cwd: "/work" }, entries, busy: false });
+/**
+ * Runs the action for one session's entries, with the prompt the core would render for it: the same view
+ * the server publishes, and what `host.sessionPrompt` answers.
+ */
+async function breakdownOf(id: number, entries: readonly EntryRecord[], prompt?: SessionPrompt) {
+    const listeners: CommitListener[] = [];
+
+    contextMeter({
+        ...host,
+        sessionPrompt: () => Promise.resolve(prompt),
+        onCommit: (listener) => listeners.push(listener),
+    });
+    await listeners[0]?.({ session: { id, cwd: "/work" }, entries, busy: false });
 
     const action = actions["breakdown"];
 
@@ -195,4 +230,57 @@ void test("counts a stop after tokens started, where the provider already priced
 
     assert.equal(full?.used, 190_000);
     assert.equal(full?.model, "anthropic/claude-opus-5");
+});
+
+void test("shows what a session with nothing in it will send, marked as an estimate", async () => {
+    const full = await breakdownOf(
+        5,
+        [],
+        promptOf(
+            [
+                ["rules", "Project folder: /work\n\nYou are a coding agent."],
+                ["notes", "<notes>\nkeep it small\n</notes>"],
+            ],
+            ["agent_spawn", "agent_send", "bash"],
+        ),
+    );
+
+    assert.equal(full?.estimate, true);
+    assert.equal(full?.calibrated, false);
+    assert.equal(full?.model, "anthropic/claude-opus-4");
+    assert.equal(full?.window, WINDOW);
+    // The tags a tagged section carries are not part of what the row says.
+    assert.deepEqual(
+        full?.sections.map((section) => [section.name, section.preview]),
+        [
+            ["rules", "Project folder: /work You are a coding agent."],
+            ["notes", "keep it small"],
+        ],
+    );
+    // The tools are grouped as an answer's are, and the sum is every row's own tokens.
+    assert.deepEqual(
+        full?.tools.map((row) => row.name),
+        ["subagents", "bash"],
+    );
+    assert.equal(full?.tools[0]?.parts?.length, 2);
+    assert.equal(
+        full?.used,
+        [...(full?.sections ?? []), ...(full?.tools ?? [])].reduce(
+            (sum, part) => sum + part.tokens,
+            0,
+        ),
+    );
+    assert.ok((full?.used ?? 0) > 0);
+});
+
+void test("has nothing to show when the core cannot name the session's model", async () => {
+    assert.equal(await breakdownOf(6, []), null);
+});
+
+void test("has nothing to show for a session that holds a question but no priced answer", async () => {
+    // The first question is already in the context: the first request's prompt would leave it out.
+    assert.equal(
+        await breakdownOf(7, [asked(7, "read the whole repository")], promptOf([], ["bash"])),
+        null,
+    );
 });

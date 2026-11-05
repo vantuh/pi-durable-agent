@@ -9,6 +9,7 @@ export {
     type FolderGroup,
     type Host,
     type HttpHandler,
+    type SessionPrompt,
     type SessionRequest,
     type SessionGoneListener,
     type SessionSendOptions,

@@ -101,6 +101,11 @@ function Group({ title, unit, parts }: { title: string; unit: string; parts: Par
 
 function Popup({ data }: { data: Breakdown }) {
     const fill = data.window > 0 ? data.used / data.window : 0;
+    const note = data.estimate
+        ? "Estimate: nothing has been sent yet. These are the system prompt and tools the first request will carry, at 3.5 characters per token."
+        : data.calibrated
+          ? "Approximate: sizes are scaled to the model's own count of the first request."
+          : "Approximate: 3.5 characters per token, not the model's own count.";
 
     return (
         <PopoverContent
@@ -117,6 +122,7 @@ function Popup({ data }: { data: Breakdown }) {
                         <span className="text-faint">context</span>
                         <span className="flex items-center gap-3">
                             <span className="text-ink">
+                                {data.estimate ? "≈" : null}
                                 {tokens(data.used)}
                                 {data.window > 0 ? ` of ${tokens(data.window)}` : ""}
                             </span>
@@ -135,11 +141,7 @@ function Popup({ data }: { data: Breakdown }) {
                     </div>
                     <Group title="system prompt" unit="sections" parts={data.sections} />
                     <Group title="tools" unit="tools" parts={data.tools} />
-                    <p className="text-faint">
-                        {data.calibrated
-                            ? "Approximate: sizes are scaled to the model's own count of the first request."
-                            : "Approximate: 3.5 characters per token, not the model's own count."}
-                    </p>
+                    <p className="text-faint">{note}</p>
                 </div>
             </ScrollArea>
         </PopoverContent>
@@ -151,6 +153,8 @@ function Context({ session }: StatusProps) {
     const [open, setOpen] = useState(false);
     const id = session?.id ?? null;
     const busy = session?.busy ?? false;
+    const model = session?.model ?? null;
+    const cwd = session?.cwd ?? null;
 
     useEffect(() => {
         if (id === null) {
@@ -176,8 +180,8 @@ function Context({ session }: StatusProps) {
         return () => {
             alive = false;
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) commits a new answer
-    }, [id, busy]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) commits a new answer; opening reads a prompt that may have changed with the model, the folder or the extensions
+    }, [id, busy, model, cwd, open]);
 
     if (data === null || data.window <= 0) {
         return null;
@@ -200,6 +204,7 @@ function Context({ session }: StatusProps) {
                         className="w-9"
                         aria-label="context"
                     />
+                    {data.estimate ? "≈" : null}
                     {percent(fill)}
                 </Button>
             </PopoverTrigger>

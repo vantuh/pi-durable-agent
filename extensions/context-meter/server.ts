@@ -1,7 +1,8 @@
 /**
  * How full the context is, under the composer: the last answer's tokens (prompt, cache,
  * and output: what the next request starts from) over the model's context window. Hovering it opens
- * what the context holds: system prompt sections and tools, with estimated sizes.
+ * what the context holds: system prompt sections and tools, with estimated sizes. Before a session's
+ * first request it holds what that request will carry, estimated, and says so.
  */
 
 import { defineExtension, type EntryRecord } from "@earendil-works/pi-durable";
@@ -21,6 +22,7 @@ const PREVIEW = 160;
 const views = new Map<number, readonly EntryRecord[]>();
 let windowOf: Host["contextWindow"] = () => undefined;
 let ownerOf: Host["toolOwner"] = () => undefined;
+let renderPrompt: Host["sessionPrompt"] = () => Promise.resolve(undefined);
 
 const estimate = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
 
@@ -187,6 +189,7 @@ function scaleOf(entries: readonly EntryRecord[]): number | undefined {
 export default function contextMeter(host: Host) {
     windowOf = host.contextWindow;
     ownerOf = host.toolOwner;
+    renderPrompt = host.sessionPrompt;
     host.onDispose(() => {
         views.clear();
     });
@@ -197,9 +200,48 @@ export default function contextMeter(host: Host) {
     return defineExtension({ name: host.name });
 }
 
+/**
+ * What the first request of a session with nothing in it will carry, estimated from the prompt's own text:
+ * no answer has priced it, so `used` is the sum of the parts rather than a count the model gave. The
+ * session's first question adds to it, and then the request prices the whole thing.
+ */
+async function initialOf(session: number): Promise<Breakdown | null> {
+    const prompt = await renderPrompt(session);
+
+    if (prompt === undefined) {
+        return null;
+    }
+
+    const sections = prompt.sections.map(({ key, text }) => ({
+        name: key,
+        preview: previewOf(key, text),
+        tokens: estimate(text),
+    }));
+    const tools = prompt.tools.map((tool) => ({
+        name: tool.name,
+        preview: tool.description.trim().replace(/\s+/g, " ").slice(0, PREVIEW),
+        tokens: estimate(JSON.stringify(tool)),
+    }));
+
+    return {
+        model: `${prompt.model.provider}/${prompt.model.id}`,
+        used: [...sections, ...tools].reduce((sum, part) => sum + part.tokens, 0),
+        window: prompt.model.contextWindow,
+        calibrated: false,
+        estimate: true,
+        sections,
+        tools: groupTools(tools, ownerOf),
+    };
+}
+
 export const actions: Record<string, Action> = {
-    breakdown({ session }): Breakdown | null {
+    async breakdown({ session }): Promise<Breakdown | null> {
         const entries = session === null ? undefined : views.get(session.id);
+
+        if (session !== null && entries?.length === 0) {
+            return await initialOf(session.id);
+        }
+
         const last = entries?.findLast((entry) => entry.kind === "pi.assistant" && counted(entry))
             ?.model?.[0];
 
@@ -220,6 +262,7 @@ export const actions: Record<string, Action> = {
             used: input + output + cacheRead + cacheWrite,
             window: windowOf(last.provider, last.model) ?? 0,
             calibrated: scale !== undefined,
+            estimate: false,
             sections: sections.map(scaled),
             tools: groupTools(tools.map(scaled), ownerOf),
         };
