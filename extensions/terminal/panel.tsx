@@ -195,6 +195,16 @@ function Shell({
                     });
             });
 
+            // A selection is a copy, as in the person's own terminal: no key to press. Ctrl+C keeps its
+            // meaning, so a server is still stopped by it and not swallowed as "copy".
+            const copied = term.onSelectionChange(() => {
+                const selected = term.getSelection();
+
+                if (selected !== "") {
+                    void navigator.clipboard.writeText(selected).catch(() => true);
+                }
+            });
+
             const fitted = new ResizeObserver(() => {
                 fit.fit();
 
@@ -217,6 +227,7 @@ function Shell({
 
             teardown = () => {
                 terminal.current = null;
+                copied.dispose();
                 fitted.disconnect();
                 flavour.disconnect();
                 term.dispose();
