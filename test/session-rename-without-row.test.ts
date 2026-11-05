@@ -94,6 +94,63 @@ const OPEN_RENAME = `(() => {
     return ${DIALOG_SHOWN};
 })()`;
 
+/** The row's actions trigger, opened as a pointer opens it: the menu listens for the press. */
+const ROW_ACTIONS = `document.querySelector('button[aria-label="Actions for a parent"]')`;
+const ACTIONS_FOCUSED = `document.activeElement === (${ROW_ACTIONS})`;
+const OPEN_ROW_ACTIONS = `(() => {
+    const trigger = ${ROW_ACTIONS};
+
+    trigger?.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }),
+    );
+
+    return true;
+})()`;
+const pickRename = `[...document.querySelectorAll('[role="menuitem"]')].find((each) => each.innerText.trim() === "Rename")`;
+const PICK_RENAME = `(() => {
+    const item = ${pickRename};
+
+    if (item === undefined) {
+        return false;
+    }
+
+    item.click();
+
+    return true;
+})()`;
+/** The same click, with the pointer moving on over that row while the menu it belongs to fades out. */
+const PICK_RENAME_AND_MOVE = `(() => {
+    const item = ${pickRename};
+
+    if (item === undefined) {
+        return false;
+    }
+
+    item.click();
+    item.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }));
+
+    return true;
+})()`;
+const MENU_SHOWN = `document.querySelector('[role="menu"]') !== null`;
+/** The row's rename form: a popover anchored to the row, not the fallback dialog. */
+const POPOVER_SHOWN = `document.querySelector('[aria-label="Rename session"]') !== null`;
+const POPOVER_FOCUSED = `document.activeElement === document.querySelector("#rename-session")`;
+const RENAME_VALUE = `document.querySelector("#rename-session")?.value`;
+/** A press somewhere else on the page: leaving the form with the mouse, not with the keyboard. */
+const PRESS_ELSEWHERE = `(() => {
+    const elsewhere = document.querySelector("textarea");
+
+    for (const type of ["pointerdown", "pointerup"]) {
+        elsewhere?.dispatchEvent(
+            new PointerEvent(type, { bubbles: true, button: 0, pointerType: "mouse" }),
+        );
+    }
+
+    elsewhere?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    return true;
+})()`;
+
 /** Escape, as the dialog's own layer hears it. */
 const ESCAPE = `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true })), true`;
 
@@ -188,6 +245,8 @@ type App = {
     renamed: number[];
     /** Pushes a session-list frame, as a background change to a title does. */
     push: (rows: SessionSummary[]) => void;
+    /** Real typing into whatever holds the keyboard, with the input events a keyboard sends. */
+    type: (text: string) => Promise<void>;
 };
 
 /** The app the person uses, served from its sources over a server whose list holds a child session. */
@@ -338,7 +397,11 @@ async function withApp(
             writeEvent(list, `data: ${JSON.stringify({ type: "rows", rows, gone: [] })}\n\n`);
         };
 
-        await when({ read, until, reload, renamed, push });
+        const type = async (text: string): Promise<void> => {
+            await connection.send("Input.insertText", { text }, page);
+        };
+
+        await when({ read, until, reload, renamed, push, type });
     } finally {
         if (browser !== undefined) {
             browser.kill();
@@ -499,6 +562,79 @@ void describe("the rename key", () => {
                 [PARENT],
                 "the open session was renamed once",
             );
+        });
+    });
+});
+
+void describe("the row's actions menu", () => {
+    void it("hands Rename to a form that keeps the caret", async (t) => {
+        await withSessionApp(t, PARENT, async ({ read, until, type, renamed }) => {
+            assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
+            assert.equal(await until(ONE_ROW, SHOWN_MS), true, "the session has a row");
+
+            const openMenu = async (): Promise<void> => {
+                assert.equal(await read(OPEN_ROW_ACTIONS), true, "the row's actions open");
+                assert.equal(await until(MENU_SHOWN, SHOWN_MS), true, "the menu is open");
+            };
+            const renameFromRow = async (): Promise<void> => {
+                await openMenu();
+                assert.equal(await read(PICK_RENAME), true, "the menu offers Rename");
+                assert.equal(await until(POPOVER_SHOWN, SHOWN_MS), true, "the rename form is open");
+            };
+
+            // The hand goes on over the row it clicked while the menu fades: a form opened on the select loses
+            // the caret to that row, one opened after the menu is gone takes it.
+            await openMenu();
+            assert.equal(await read(PICK_RENAME_AND_MOVE), true, "the menu offers Rename");
+            assert.equal(await until(POPOVER_SHOWN, SHOWN_MS), true, "the rename form is open");
+            assert.equal(
+                await until(POPOVER_FOCUSED, SHOWN_MS),
+                true,
+                "the field has the caret as it appears",
+            );
+            await delay(SETTLED_MS);
+            assert.equal(await read(POPOVER_SHOWN), true, "the form stays open");
+            assert.equal(await read(POPOVER_FOCUSED), true, "and keeps the caret");
+            await type("half a name");
+            assert.equal(await read(RENAME_VALUE), "half a name", "the typing lands in the field");
+
+            // Escape.
+            await read(ESCAPE);
+            assert.equal(await until(`!(${POPOVER_SHOWN})`, SHOWN_MS), true, "Escape closes it");
+            assert.equal(
+                await until(ACTIONS_FOCUSED, SHOWN_MS),
+                true,
+                "Escape gives the focus back",
+            );
+
+            // Cancel.
+            await renameFromRow();
+            await read(cancel("Cancel"));
+            assert.equal(await until(`!(${POPOVER_SHOWN})`, SHOWN_MS), true, "Cancel closes it");
+            assert.equal(
+                await until(ACTIONS_FOCUSED, SHOWN_MS),
+                true,
+                "Cancel gives the focus back",
+            );
+
+            // A press elsewhere on the page, which is the person leaving the form rather than the keyboard.
+            await renameFromRow();
+            await read(PRESS_ELSEWHERE);
+            assert.equal(
+                await until(`!(${POPOVER_SHOWN})`, SHOWN_MS),
+                true,
+                "a press outside closes it",
+            );
+
+            // The save, which has to reach the row's own session.
+            await renameFromRow();
+            await read(renameTo("renamed parent"));
+            assert.deepEqual(
+                await renamedSoFar(renamed),
+                [PARENT],
+                "the row's session was renamed",
+            );
+            assert.equal(await until(`!(${POPOVER_SHOWN})`, SHOWN_MS), true, "the save closes it");
         });
     });
 });

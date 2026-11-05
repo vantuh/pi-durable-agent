@@ -293,6 +293,9 @@ const SessionRow = memo(function SessionRow({
         [registerRow, session.id],
     );
     const actions = useRef<HTMLButtonElement>(null);
+    // The menu hands the form over only once it is gone: opening it on the select leaves the field without the
+    // caret, because a menu still fading takes the keyboard back a moment after the form asks for it.
+    const renameWhenClosed = useRef(false);
 
     return (
         <>
@@ -365,6 +368,13 @@ const SessionRow = memo(function SessionRow({
                                 align="end"
                                 onCloseAutoFocus={(event) => {
                                     event.preventDefault();
+
+                                    if (!renameWhenClosed.current) {
+                                        return;
+                                    }
+
+                                    renameWhenClosed.current = false;
+                                    onRename(session);
                                 }}
                             >
                                 {menu.map((item) => {
@@ -400,7 +410,7 @@ const SessionRow = memo(function SessionRow({
                                 {menu.length === 0 ? null : <DropdownMenuSeparator />}
                                 <DropdownMenuItem
                                     onSelect={() => {
-                                        onRename(session);
+                                        renameWhenClosed.current = true;
                                     }}
                                 >
                                     <Pencil />
