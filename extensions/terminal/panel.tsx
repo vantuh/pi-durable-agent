@@ -29,6 +29,8 @@ import { messageOf } from "../../shared/guards.ts";
 import { type Output, type Running, close, open, read, resize, state, write } from "./refs.ts";
 
 const RETRY_MS = 2000;
+/** The physical key behind a letter: `code` names the position, so it survives a non-Latin layout. */
+const KEY_LETTER = /^Key([A-Z])$/;
 const sleep = (ms: number): Promise<void> =>
     new Promise((done) => {
         setTimeout(done, ms);
@@ -154,14 +156,6 @@ function Shell({
             term.loadAddon(new ClipboardAddon());
             term.unicode.activeVersion = "11";
 
-            // The shell keeps every key it is given: the app closes a panel on Escape and arms its own
-            // prefix on Ctrl+A, and neither may take a key out of a terminal.
-            term.attachCustomKeyEventHandler((event) => {
-                event.stopPropagation();
-
-                return true;
-            });
-
             // The app's mono font is a webfont that swaps in, so the cell is measured before it lands
             // unless it is waited for; the local face needs no loading but is named in the same list.
             await document.fonts
@@ -186,14 +180,61 @@ function Shell({
                 rows: term.rows,
             });
 
-            term.onData((data) => {
+            /** A key into the shell, one write at a time: keys already queued go first. */
+            const send = (data: string): void => {
                 pending.current = pending.current
                     // A key queued before a restart must not reach the shell that replaced it.
                     .then(() => (alive() ? callAction(write, { data }, id) : true))
                     .catch((failure: unknown) => {
                         setProblem(messageOf(failure));
                     });
+            };
+
+            term.attachCustomKeyEventHandler((event) => {
+                // A non-Latin layout reports an unmapped keyCode, and keyCode is the only thing xterm reads
+                // Ctrl+C from: on a Cyrillic layout no interrupt ever left. `code` names the physical key,
+                // the same on every layout, so the control byte is worked out from it.
+                const letter = KEY_LETTER.exec(event.code)?.[1];
+
+                if (
+                    event.type === "keydown" &&
+                    letter !== undefined &&
+                    event.ctrlKey &&
+                    !event.shiftKey &&
+                    !event.altKey &&
+                    !event.metaKey &&
+                    (event.keyCode < 65 || event.keyCode > 90)
+                ) {
+                    send(String.fromCharCode(letter.charCodeAt(0) - 64));
+
+                    return false;
+                }
+
+                // On a keyboard remapped to PC-style Cmd shortcuts no Ctrl+C reaches the page at all. Cmd+C
+                // with nothing selected means the interrupt there, and only then: with a selection it is the
+                // copy the rest of the app expects.
+                if (
+                    event.type === "keydown" &&
+                    event.code === "KeyC" &&
+                    event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.shiftKey &&
+                    !event.altKey &&
+                    term.getSelection() === ""
+                ) {
+                    send("\u0003");
+
+                    return false;
+                }
+
+                // The shell keeps every key it is given: the app closes a panel on Escape and arms its own
+                // prefix on Ctrl+A, and neither may take a key out of a terminal.
+                event.stopPropagation();
+
+                return true;
             });
+
+            term.onData(send);
 
             // A selection is a copy, as in the person's own terminal: no key to press. Ctrl+C keeps its
             // meaning, so a server is still stopped by it and not swallowed as "copy".
