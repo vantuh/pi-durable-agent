@@ -142,11 +142,12 @@ const SESSIONS: SessionsEvent = {
 
 /** The repository's checkouts, as `git worktree list` names them, read from a folder inside one of them. */
 function worktreesAt(cwd: unknown): unknown[] {
+    // Each session here starts at the top of its worktree, so the root is the folder it starts in.
     const rows = [
-        { name: "main", path: MAIN, main: true },
-        { name: "feature-one", path: ONE, main: false },
-        { name: "feature-two", path: TWO, main: false },
-        { name: LONG, path: THREE, main: false },
+        { name: "main", path: MAIN, root: MAIN, main: true },
+        { name: "feature-one", path: ONE, root: ONE, main: false },
+        { name: "feature-two", path: TWO, root: TWO, main: false },
+        { name: LONG, path: THREE, root: THREE, main: false },
     ];
 
     return typeof cwd === "string" && rows.some((row) => row.path === cwd)

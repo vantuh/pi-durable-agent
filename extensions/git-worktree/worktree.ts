@@ -12,7 +12,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError } from "../../server/sdk.ts";
-import type { MadeWorktree, WorktreeChoice } from "./refs.ts";
+import { slugOf, type MadeWorktree, type WorktreeChoice } from "./refs.ts";
 import { mainOfRemembered, readRemembered, rememberWorktree } from "./remembered.ts";
 
 const run = promisify(execFile);
@@ -51,7 +51,7 @@ async function out(cwd: string, args: string[]): Promise<string> {
 }
 
 /** The top folder of the repository `cwd` is in, or undefined when it is in none. */
-async function repositoryOf(cwd: string): Promise<string | undefined> {
+export async function repositoryOf(cwd: string): Promise<string | undefined> {
     return (await out(cwd, ["rev-parse", "--show-toplevel"])) || undefined;
 }
 
@@ -64,16 +64,6 @@ async function repositoryName(cwd: string): Promise<string> {
 
     // The shared git dir sits in the repository's own folder, whatever worktree it was read from.
     return basename(dirname(common));
-}
-
-/** A folder name and branch name for what someone typed: what git accepts, in lowercase. */
-export function slugOf(name: string): string {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9._-]+/g, "-")
-        .replace(/^[-.]+|[-.]+$/g, "")
-        .slice(0, 40)
-        .replace(/[-.]+$/, "");
 }
 
 /** One worktree of this server's: its name, the folder it is, and whether that folder is still there. */
@@ -194,6 +184,8 @@ export async function worktreesOf(cwd: string): Promise<WorktreeChoice[]> {
                 branch === undefined ? basename(where) : branch.slice("branch refs/heads/".length),
             // A worktree may hold a file where the picked folder is a folder: the worktree itself then.
             path: isFolder(inside) ? inside : where,
+            // The worktree's own folder, whatever branch it is on: what a menu names it by.
+            root: where,
             main: at === 0,
             current: where === top,
         });
@@ -228,7 +220,7 @@ function hasGitFile(folder: string): boolean {
 }
 
 /** Whether `folder` is a folder: a name git lists may be a file, or gone. */
-function isFolder(folder: string): boolean {
+export function isFolder(folder: string): boolean {
     try {
         return statSync(folder).isDirectory();
     } catch {

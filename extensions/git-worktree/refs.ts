@@ -13,19 +13,47 @@ export type MakeArgs = { cwd: string; name: string };
 
 export type LinkedArgs = { folders: string[] };
 
-/**
- * One worktree of a repository: its name, the folder a session would start in, and whether it is the
- * main checkout and the one the picked folder is in.
- */
-export type WorktreeChoice = { name: string; path: string; main: boolean; current: boolean };
+/** A folder name and branch name for what someone typed: what git accepts, in lowercase. */
+export function slugOf(name: string): string {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]+/g, "-")
+        .replace(/^[-.]+|[-.]+$/g, "")
+        .slice(0, 40)
+        .replace(/[-.]+$/, "");
+}
 
 /**
- * A worktree a session works in: its name, its folder, whether that folder is still there, and whether
- * this server made it — only ours can be removed from here.
+ * One worktree of a repository: its name, the folder a session would start in, the worktree's own
+ * folder, and whether it is the main checkout and the one the picked folder is in.
  */
-export type WorktreeState = { name: string; folder: string; gone: boolean; ours: boolean };
+export type WorktreeChoice = {
+    name: string;
+    path: string;
+    root: string;
+    main: boolean;
+    current: boolean;
+};
 
-/** Whether `cwd` is a worktree this server made, and whether it is still there; null for any other folder. */
+/**
+ * A worktree a session works in: its name, its folder, whether that folder is still there, whether it
+ * is the main checkout, and whether this server made it — only ours can be removed from here.
+ */
+export type WorktreeState = {
+    name: string;
+    folder: string;
+    gone: boolean;
+    main: boolean;
+    ours: boolean;
+};
+
+/** What moving a session to a worktree did: the folder it works in now, and whether it moved at all. */
+export type Entered = { moved: boolean; path: string };
+
+/**
+ * The worktree `cwd` works in: this server's, someone else's, or its repository's main checkout; null for
+ * a folder outside git, and for one that is not there.
+ */
 export const state = actionRef<{ cwd: string }, WorktreeState | null>(
     "git-worktree",
     "state",
@@ -38,20 +66,22 @@ export const state = actionRef<{ cwd: string }, WorktreeState | null>(
             const name: unknown = Reflect.get(value, "name");
             const folder: unknown = Reflect.get(value, "folder");
             const gone: unknown = Reflect.get(value, "gone");
+            const main: unknown = Reflect.get(value, "main");
             const ours: unknown = Reflect.get(value, "ours");
 
             if (
                 typeof name === "string" &&
                 typeof folder === "string" &&
                 typeof gone === "boolean" &&
+                typeof main === "boolean" &&
                 typeof ours === "boolean"
             ) {
-                return { name, folder, gone, ours };
+                return { name, folder, gone, main, ours };
             }
         }
 
         throw new Error(
-            "the worktree must be its name, its folder, its state and its owner, or null",
+            "the worktree must be its name, its folder, its state, whether it is the main checkout and its owner, or null",
         );
     },
 );
@@ -71,6 +101,28 @@ export const remove = actionRef<{ cwd: string }, { removed: string }>(
         return { removed };
     },
 );
+
+function enteredFrom(value: unknown): Entered {
+    if (typeof value === "object" && value !== null) {
+        const moved: unknown = Reflect.get(value, "moved");
+        const path: unknown = Reflect.get(value, "path");
+
+        if (typeof moved === "boolean" && typeof path === "string") {
+            return { moved, path };
+        }
+    }
+
+    throw new Error("the move must be whether the session moved and the folder it works in");
+}
+
+/**
+ * Moves the session to one of its repository's worktrees, named by the worktree's own folder. The list
+ * is read again on the server, so a folder of another repository is refused.
+ */
+export const move = actionRef<{ worktree: string }, Entered>("git-worktree", "move", enteredFrom);
+
+/** Makes a worktree named after what the person typed and moves the session into it at once. */
+export const create = actionRef<{ name: string }, Entered>("git-worktree", "create", enteredFrom);
 
 /** Makes a worktree of `cwd`'s repository, named after what the person typed in the folder picker. */
 export const make = actionRef<MakeArgs, MadeWorktree>("git-worktree", "make", (value) => {
@@ -104,20 +156,22 @@ export const worktrees = actionRef<{ cwd: string }, WorktreeChoice[]>(
             const row = typeof entry === "object" && entry !== null ? entry : undefined;
             const name: unknown = row === undefined ? undefined : Reflect.get(row, "name");
             const path: unknown = row === undefined ? undefined : Reflect.get(row, "path");
+            const root: unknown = row === undefined ? undefined : Reflect.get(row, "root");
             const main: unknown = row === undefined ? undefined : Reflect.get(row, "main");
             const current: unknown = row === undefined ? undefined : Reflect.get(row, "current");
 
             if (
                 typeof name === "string" &&
                 typeof path === "string" &&
+                typeof root === "string" &&
                 typeof main === "boolean" &&
                 typeof current === "boolean"
             ) {
-                return { name, path, main, current };
+                return { name, path, root, main, current };
             }
 
             throw new Error(
-                "a worktree must be its name, its folder, whether it is the main checkout and whether it is the one picked",
+                "a worktree must be its name, its folder, its root, whether it is the main checkout and whether it is the one picked",
             );
         });
     },

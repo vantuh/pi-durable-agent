@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { promisify } from "node:util";
 
+import { slugOf } from "./refs.ts";
 import { mainOfRemembered } from "./remembered.ts";
 import {
     groupOf,
@@ -14,7 +15,6 @@ import {
     mainCheckoutOf,
     makeWorktree,
     removeWorktree,
-    slugOf,
     worktreeOf,
     worktreesAmong,
     worktreesOf,
@@ -474,15 +474,24 @@ void describe("git-worktree worktreesOf", () => {
             assert.deepEqual(choices[0], {
                 name: "main",
                 path: join(await realpath(repo), "src"),
+                root: await realpath(repo),
                 main: true,
                 current: true,
             });
             // git lists them by folder, and the worktrees this server makes sit under its data folder.
+            // The root is the worktree's own folder, whatever folder inside it the session starts in.
             assert.deepEqual(
-                choices.slice(1).map((choice) => [choice.name, choice.path, choice.main]),
+                choices
+                    .slice(1)
+                    .map((choice) => [choice.name, choice.path, choice.root, choice.main]),
                 [
-                    ["ours", join(await realpath(ours.worktree), "src"), false],
-                    ["theirs", join(await realpath(theirs), "src"), false],
+                    [
+                        "ours",
+                        join(await realpath(ours.worktree), "src"),
+                        await realpath(ours.worktree),
+                        false,
+                    ],
+                    ["theirs", join(await realpath(theirs), "src"), await realpath(theirs), false],
                 ],
             );
 

@@ -28,13 +28,31 @@ in a new one, so two sessions can work on the same repository without stepping o
   in `packages/app` of the worktree, whether it was made here or elsewhere.
 - Refused: a folder in no repository, and a repository with no commit yet. The worktree's branch
   stays after the session is deleted, with whatever was committed on it; nothing removes it yet.
-- **Beside the branch badge**, `extensions/git-worktree` shows the worktree the session is in: its
-  name, and a small × inside the badge. The × asks one question in a centred dialog — the folder,
-  what goes with it, and that the branch stays — and then removes the worktree through the `remove`
-  action. git removes it from the repository it belongs to, never from inside it: a shell there
-  would be standing in the folder being deleted. The branch is kept, and so is its commits; a
-  worktree with changes git would lose is **refused**, with git's own words shown in the dialog, and
-  nothing is removed. A worktree someone made elsewhere is shown the same way, without the ×.
+- **Beside the branch badge**, `extensions/git-worktree` shows the worktree the session works in,
+  named by its folder — the worktree's own folder name, never the branch it happens to be on, so
+  switching the branch in place does not rename it — and `Main checkout` for the repository's own
+  folder. It is shown on a phone too, and only for a session whose folder is in a git repository.
+- **The badge is the menu**: it lists the repository's worktrees, the one the session is in marked
+  and every row named by its folder with its branch beside it, searched case-insensitively as you
+  type over both the folder's name and the branch. Picking one moves the session there at once,
+  keeping its place inside the repository (a session in `packages/app` lands in `packages/app` of the
+  worktree) and appends `Worktree changed to <folder>` to the unsent draft, so the agent knows where
+  it is now; nothing is sent for you. A name no listed worktree's folder or branch has offers
+  `Create worktree "<slug>"`: it makes one under the data folder at the
+  current commit — clean, exactly as the folder picker does — and moves the session into it, or into
+  the worktree's root when the folder the session is in is not in the new worktree.
+  The server reads the repository's list again on every move, so a folder of another repository is
+  refused. Creation and moves are refused while the agent is running, with a second check before
+  moving. If a run starts during creation, the new worktree stays but the session does not move;
+  reopen the menu after the run ends to select it. The menu is a `Popover` with `Command` rows,
+  as the branch badge's is, and cut to the screen.
+- **The × beside the badge** — only on a worktree this server made — asks one question in a centred
+  dialog: the folder, what goes with it, and that the branch stays. It then removes the worktree
+  through the `remove` action. git removes it from the repository it belongs to, never from inside
+  it: a shell there would be standing in the folder being deleted. The branch is kept, and so are its
+  commits; a worktree with changes git would lose is **refused**, with git's own words shown in the
+  dialog, and nothing is removed. A worktree someone made elsewhere is shown the same way, without
+  the ×.
 - **In the sidebar,** a worktree's sessions appear under their repository's folder in the folder
   menu, read through `folderGroup` and `mainCheckoutOf`; the answer is kept per folder until the
   extension reloads, and a repository with no checkout of its own — a bare one — is nobody's. A worktree this server made is remembered in `git-worktree.json` under the
@@ -51,7 +69,7 @@ in a new one, so two sessions can work on the same repository without stepping o
   fails is work that needs the deleted folder: `bash` answers
   `Working directory does not exist: <folder>`. This is not a tool sandbox; calls using other
   existing paths can still work. Deleting a worktree from the terminal leaves the session like
-  that, so the header shows the worktree's name in red instead of the branch badges, with the
-  session's own folder in its tooltip. It is read through the `state` action of `git-worktree`, again
-  whenever the session's run state changes, so a worktree deleted while the app is open shows red at
-  the next message, not at once.
+  that, so the header shows the worktree's name in red — no menu, no ×, since there is nothing left
+  there — with the session's own folder in its tooltip. It is read through the `state` action of
+  `git-worktree`, again whenever the session's run state changes, so a worktree deleted while the app
+  is open shows red at the next message, not at once.
