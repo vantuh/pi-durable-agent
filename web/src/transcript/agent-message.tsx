@@ -34,15 +34,15 @@ export function AgentMessage({ text, author, onOpenSession }: Props) {
                     <ChevronRight className="text-faint size-3.5 shrink-0 transition-transform group-data-[state=open]/agent:rotate-90" />
                     <Bot className="text-agent size-3.5 shrink-0" />
                     <span className="text-agent shrink-0 font-medium">{author.name}</span>
-                    {author.model === undefined ? null : (
-                        <Badge title={author.model} className="max-w-40 sm:max-w-64">
-                            <span className="min-w-0 truncate">{shortModel(author.model)}</span>
-                        </Badge>
-                    )}
                     <span className="text-muted min-w-0 truncate group-data-[state=open]/agent:hidden">
                         {preview}
                     </span>
                 </CollapsibleTrigger>
+                {author.model === undefined ? null : (
+                    <Badge title={author.model} className="max-w-40 sm:max-w-64">
+                        <span className="min-w-0 truncate">{shortModel(author.model)}</span>
+                    </Badge>
+                )}
                 {session === undefined ? null : (
                     <Hint label={`Open ${author.name}'s conversation`}>
                         <Button asChild variant="ghost" size="icon-sm" className="shrink-0">

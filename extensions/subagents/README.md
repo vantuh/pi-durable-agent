@@ -290,8 +290,8 @@ see [the server contract](../../docs/server.md#messages-from-application-authors
 
 The transcript draws authored messages as left-hand cards with an agent-coloured stripe, bot icon,
 name, and a first-line preview. A report also shows its model's own name, without the provider, as
-a small badge beside the name: truncated on a phone, and the whole `provider/model` in its hover
-title. Cards are folded by default; expand to read Markdown. The open link navigates to the source
+a small badge on the right, before the open-conversation link: truncated on a phone, and the whole
+`provider/model` in its hover title. Cards are folded by default; expand to read Markdown. The open link navigates to the source
 conversation (an ordinary link also works in a new tab).
 
 While a report or instruction is queued, the composer shows its author and mode using the same

@@ -45,12 +45,17 @@ void describe("a message from an agent", () => {
     void it("names the model the author reported without its provider, and the whole of it on hover", async () => {
         const html = await renderCard({
             name: "Scout",
+            session: 4,
             model: "anthropic/claude-sonnet-4-6",
         });
 
         assert.match(html, /title="anthropic\/claude-sonnet-4-6"/, html);
         assert.match(html, /<span[^>]*truncate[^>]*>claude-sonnet-4-6<\/span>/, html);
         assert.ok(!html.includes(">anthropic/claude-sonnet-4-6<"), html);
+        const badge = html.indexOf('data-slot="badge"');
+
+        assert.ok(badge > html.indexOf("</button>"), "the badge follows the collapse trigger");
+        assert.ok(badge < html.indexOf("<a "), "the badge precedes the open-conversation link");
     });
 
     void it("draws no model badge for an author that reported none", async () => {
