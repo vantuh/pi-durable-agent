@@ -55,8 +55,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
 - **`FolderPicker` keys**: the caret is the selection — Up/Down move it inside the list it is in
   (left: Home, Computer, favourites, recents; right: the folder's subfolders). Tab crosses from the
   left list to the right one; there it follows the normal focus order, and Shift+Tab returns left. On the
-  right, Left goes to the parent folder and Right into the one under the caret, and the pane keeps
-  the caret with no row picked, so the arrows choose a child and Enter takes the folder just entered.
+  right, Left goes to the parent folder and Right into the one under the caret. After either move,
+  the first subfolder takes the caret; an empty folder focuses the pane itself.
   Enter, and the Open button alike, start a session in the highlighted row, or in the folder on
   screen when no row is highlighted (`web/src/shell/folder-picker-keys.ts`). `Ctrl+A` then `C` opens
   this picker (`session.new.pick`); each extension's option in the footer is asked about that same

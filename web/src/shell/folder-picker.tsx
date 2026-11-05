@@ -142,15 +142,14 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         };
     }, [path, hidden]);
 
-    // The pane takes the caret back, so Left leaves it and the arrows pick a child; no child is picked
-    // for the person, so Enter keeps the folder just entered.
+    // A folder change restores focus to its first row, or to the pane when it is empty.
     useEffect(() => {
         if (!returnFocus.current || !fresh) {
             return;
         }
 
         returnFocus.current = false;
-        right.current?.focus();
+        (rowsOf(right.current)[0] ?? right.current)?.focus();
     }, [fresh]);
 
     useEffect(() => {
