@@ -52,11 +52,17 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   parent owns `open`; each modal calls `onClose`. Below `lg` the sidebar is a full-screen `Sheet`
   (`components/ui/sheet.tsx`, the settings sheet's primitive), a modal like the rest: Escape closes
   it, focus stays inside, the conversation behind it is hidden from assistive technology.
-- **`FolderPicker` keys**: the caret is the selection — Up/Down move it inside the list it is in
+- **`FolderPicker` keys**: the picker opens on the parent of the session's folder, with that folder's
+  own row under the caret: Up/Down walk its siblings, Right goes into it, and Enter starts the new
+  session in the folder the current one works in. The root has no parent — the picker lists `/`
+  itself, picks no child, and Enter starts there. A current folder its parent's list does not show —
+  hidden, or kept out by an extension's `omit` — keeps a row of its own anyway, under the caret. A
+  parent that cannot be read is no place to pick from: the picker browses the current folder instead.
+  The caret is the selection — Up/Down move it inside the list it is in
   (left: Home, Computer, favourites, recents; right: the folder's subfolders). Tab crosses from the
-  left list to the right one; there it follows the normal focus order, and Shift+Tab returns left. On the
-  right, Left goes to the parent folder and Right into the one under the caret. On opening the
-  picker or after either move, the first subfolder takes the caret; an empty folder focuses the pane itself.
+  left list to the right one; there it follows the normal focus order, and Shift+Tab returns left.
+  On the right, Left goes to the parent folder and Right into the one under the caret; after either
+  move the first subfolder takes the caret, and an empty folder focuses the pane itself.
   Enter, and the Open button alike, start a session in the highlighted row, or in the folder on
   screen when no row is highlighted (`web/src/shell/folder-picker-keys.ts`). `Ctrl+A` then `C` opens
   this picker (`session.new.pick`); each extension's option in the footer is asked about that same

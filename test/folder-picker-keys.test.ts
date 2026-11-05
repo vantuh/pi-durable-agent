@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import { parseHTML } from "linkedom";
 
-import { folderAt, nextRow, rowsOf } from "../web/src/shell/folder-picker-keys.ts";
+import { folderAt, nextRow, parentOf, rowsOf } from "../web/src/shell/folder-picker-keys.ts";
 
 /** One pane as the picker draws it: a row is a button carrying its folder, and a favourite row holds a star. */
 function pane(): { rows: HTMLElement[]; star: Element } {
@@ -26,6 +26,20 @@ function pane(): { rows: HTMLElement[]; star: Element } {
 
 const folders = (row: HTMLElement | undefined): string | undefined =>
     row?.getAttribute("data-folder") ?? undefined;
+
+void describe("parentOf", () => {
+    void it("names the folder one step up, so the picker opens on the current folder's siblings", () => {
+        assert.equal(parentOf("/projects/app"), "/projects");
+        assert.equal(parentOf("/projects/app/"), "/projects");
+        assert.equal(parentOf("/projects"), "/");
+    });
+
+    void it("has no parent at the root, or for a path with nothing above it", () => {
+        assert.equal(parentOf("/"), null);
+        assert.equal(parentOf(""), null);
+        assert.equal(parentOf("app"), null);
+    });
+});
 
 void describe("rowsOf", () => {
     void it("lists the folder rows and leaves a row's star out", () => {

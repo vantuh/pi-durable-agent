@@ -1,7 +1,26 @@
 /**
- * The keyboard over the folder picker's two lists. Keys move the caret, which is the selection: the
- * rows are native buttons, so a mouse press and a focus are the same thing.
+ * The folder picker's paths, and the keyboard over its two lists. Keys move the caret, which is the
+ * selection: the rows are native buttons, so a mouse press and a focus are the same thing.
  */
+
+/** A folder as the server names folders: an absolute path, and no trailing slash. */
+export function bareFolder(path: string): string {
+    return path === "/" ? path : path.replace(/\/+$/, "");
+}
+
+/** The folder one step up, or null at the root: the picker opens there, on the current folder's row. */
+export function parentOf(path: string): string | null {
+    const full = bareFolder(path);
+
+    if (full === "" || full === "/") {
+        return null;
+    }
+
+    const cut = full.lastIndexOf("/");
+
+    // A relative path names no folder above it, so the picker keeps it as the one on screen.
+    return cut === -1 ? null : cut === 0 ? "/" : full.slice(0, cut);
+}
 
 /** The rows of one list, in the order they are drawn: a row is a button that names its folder. */
 export function rowsOf(list: Element | null): HTMLElement[] {

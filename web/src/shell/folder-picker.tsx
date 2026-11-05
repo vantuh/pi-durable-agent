@@ -28,7 +28,7 @@ import {
     setFavourites as saveFavourites,
 } from "../lib/api.ts";
 import { restoreComposerFocus } from "../sdk/composer.ts";
-import { folderAt, nextRow, rowsOf } from "./folder-picker-keys.ts";
+import { bareFolder, folderAt, nextRow, parentOf, rowsOf } from "./folder-picker-keys.ts";
 
 type Props = {
     start: string;
@@ -58,7 +58,9 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
     const [page, setPage] = useState<FolderPage | undefined>(undefined);
     /** The path `page` was read for: until they match, the rows on screen belong to the folder before. */
     const [listed, setListed] = useState<string | null>(null);
-    const [path, setPath] = useState(start);
+    /** The folder the picker opened on: its own row is the caret's home, until a move leaves it. */
+    const [about, setAbout] = useState<string | null>(() => bareFolder(start));
+    const [path, setPath] = useState(() => parentOf(start) ?? start);
     /** The rows on screen answer for `path`; before they do, they name the folder before it. */
     const fresh = listed === path;
     const [hidden, setHidden] = useState(false);
@@ -84,7 +86,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         setCollected((all) => ({ ...all, [id]: value }));
     }, []);
     const options = useNewSessionItems();
-    /** Folders an option keeps out of the lists: a worktree, whose main checkout is the folder to pick. */
+    /** The folders an option keeps out of the lists: a worktree, whose main checkout is the folder to pick. */
     const [leftOut, setLeftOut] = useState<ReadonlySet<string>>(new Set());
     const [favourites, setFavourites] = useState<string[]>([]);
     /** The stored list is here: a star pressed before it would save one folder over all of them. */
@@ -130,27 +132,41 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         void (async () => {
             const next = await listFolders(path, hidden);
 
-            if (alive) {
-                setPage(next);
-                setListed(path);
-                setError(next === undefined);
+            if (!alive) {
+                return;
             }
+
+            // A parent that cannot be read is no place to pick from: browse the folder it opened on.
+            if (next === undefined && about !== null && path !== about) {
+                setPath(about);
+
+                return;
+            }
+
+            setPage(next);
+            setListed(path);
+            setError(next === undefined);
         })();
 
         return () => {
             alive = false;
         };
-    }, [path, hidden]);
+    }, [path, hidden, about]);
 
-    // A folder change restores focus to its first row, or to the pane when it is empty.
+    // A folder change puts the caret where it belongs: on the row of the folder the picker opened on, so
+    // Enter starts the session there; on the folder's first row after a move; on the pane with no row.
     useEffect(() => {
         if (!returnFocus.current || !fresh) {
             return;
         }
 
         returnFocus.current = false;
-        (rowsOf(right.current)[0] ?? right.current)?.focus();
-    }, [fresh]);
+
+        const rows = rowsOf(right.current);
+        const row = about === null ? rows[0] : rows.find((each) => folderAt(each) === about);
+
+        (row ?? right.current)?.focus();
+    }, [fresh, about]);
 
     useEffect(() => {
         const folders = lists === "" ? [] : lists.split("\0");
@@ -180,6 +196,8 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
         if (typeof next === "string" && next !== "") {
             setPath(next);
             setSelected(undefined);
+            // The picker has moved: the folder it opened on is no longer the caret's home.
+            setAbout(null);
         }
     };
 
@@ -216,17 +234,28 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
 
     const trail = crumbs(page?.path ?? path);
     const picked = page?.path ?? path;
-    // The rows the pane draws, less what an option keeps out, and Home and Computer, which always stay.
+    /**
+     * The subfolders the pane draws: those an option leaves on offer, and the folder the picker opened
+     * on even when its parent's list leaves it out — hidden, or kept out — since Enter means it.
+     */
+    const subs = (page?.dirs ?? []).filter((dir) => dir.path === about || offered(dir.path));
+
+    if (about !== null && parentOf(about) === picked && !subs.some((dir) => dir.path === about)) {
+        subs.push({ name: about.slice(about.lastIndexOf("/") + 1), path: about });
+        subs.sort((one, other) => one.name.localeCompare(other.name));
+    }
+
+    // What Enter may pick: the rows on screen, Home and Computer, and the two stored lists.
     const shown = [
         ...(page === undefined ? [] : [page.home, "/"]),
-        ...(page?.dirs ?? []).map((dir) => dir.path).filter(offered),
+        ...subs.map((dir) => dir.path),
         ...favourites.filter(offered),
         ...recents.filter(offered),
     ];
     /** The row the caret picked, while the lists still offer it: one they dropped is no target. */
     const kept = shown.includes(selected ?? "") ? selected : undefined;
-    /** Where a session starts: the row picked, or the folder on screen while it is being read. */
-    const here = fresh ? (kept ?? picked) : path;
+    /** Where a session starts: the row picked, else the folder on screen, else the one still to come. */
+    const here = fresh ? (kept ?? picked) : (about ?? path);
 
     /** What this option says about going ahead: its own `blocked`, or what its `place` threw. */
     const refused = (option: FolderNewSessionItem): string | null =>
@@ -308,7 +337,7 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                 onOpenAutoFocus={(event) => {
                     // Radix focuses the first tabbable (the Up button) unless the default is cancelled.
                     event.preventDefault();
-                    // The first row takes focus when the folder finishes loading.
+                    // The current folder's row takes focus when its parent loads.
                     right.current?.focus();
                 }}
                 onCloseAutoFocus={(event) => {
@@ -509,37 +538,33 @@ export function FolderPicker({ start, recent, onClose, onOpen }: Props) {
                             {error ? (
                                 <Alert>Cannot read that folder.</Alert>
                             ) : (
-                                (page?.dirs ?? [])
-                                    .filter((dir) => offered(dir.path))
-                                    .map((dir) => (
-                                        <Item
-                                            key={dir.path}
-                                            asChild
-                                            size="sm"
-                                            className={`text-interface w-full text-left ${
-                                                kept === dir.path
-                                                    ? "bg-raised text-ink"
-                                                    : "text-ink hover:bg-raised"
-                                            }`}
+                                subs.map((dir) => (
+                                    <Item
+                                        key={dir.path}
+                                        asChild
+                                        size="sm"
+                                        className={`text-interface w-full text-left ${
+                                            kept === dir.path
+                                                ? "bg-raised text-ink"
+                                                : "text-ink hover:bg-raised"
+                                        }`}
+                                    >
+                                        <button
+                                            type="button"
+                                            data-folder={dir.path}
+                                            aria-current={kept === dir.path ? "true" : undefined}
+                                            onDoubleClick={() => {
+                                                go(dir.path);
+                                            }}
+                                            onClick={() => {
+                                                go(dir.path);
+                                            }}
                                         >
-                                            <button
-                                                type="button"
-                                                data-folder={dir.path}
-                                                aria-current={
-                                                    kept === dir.path ? "true" : undefined
-                                                }
-                                                onDoubleClick={() => {
-                                                    go(dir.path);
-                                                }}
-                                                onClick={() => {
-                                                    go(dir.path);
-                                                }}
-                                            >
-                                                <Folder className="text-info size-4 shrink-0" />
-                                                <span className="truncate">{dir.name}</span>
-                                            </button>
-                                        </Item>
-                                    ))
+                                            <Folder className="text-info size-4 shrink-0" />
+                                            <span className="truncate">{dir.name}</span>
+                                        </button>
+                                    </Item>
+                                ))
                             )}
                         </div>
                     </ScrollArea>

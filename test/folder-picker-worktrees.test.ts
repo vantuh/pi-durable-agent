@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -485,7 +485,19 @@ void describe("the folder picker of a session in a worktree", () => {
                 true,
                 "the picker read a folder",
             );
-            assert.deepEqual(asked.folders[0], MAIN, "it starts at the repository's own checkout");
+            assert.deepEqual(
+                asked.folders[0],
+                dirname(MAIN),
+                "it opens on the repository's own siblings, its row under the caret",
+            );
+            assert.equal(
+                await until(
+                    `document.activeElement?.getAttribute("data-folder") === ${JSON.stringify(MAIN)}`,
+                    SHOWN_MS,
+                ),
+                true,
+                "the current folder keeps its focused row even when the listing leaves it out",
+            );
             assert.equal(
                 await untilAsked((seen) => seen.sifted.length > 0),
                 true,
