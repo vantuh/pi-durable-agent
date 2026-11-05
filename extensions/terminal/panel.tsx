@@ -29,6 +29,8 @@ import { messageOf } from "../../shared/guards.ts";
 import { type Output, type Running, close, open, read, resize, state, write } from "./refs.ts";
 
 const RETRY_MS = 2000;
+/** How long the panel says that a selection went to the clipboard. */
+const COPIED_MS = 1200;
 /** The physical key behind a letter: `code` names the position, so it survives a non-Latin layout. */
 const KEY_LETTER = /^Key([A-Z])$/;
 const sleep = (ms: number): Promise<void> =>
@@ -112,6 +114,9 @@ function Shell({
     /** The program a Stop or a Restart would end, while the dialog asks about it. */
     const [ask, setAsk] = useState<{ what: "stop" | "restart"; process: string } | null>(null);
     const [problem, setProblem] = useState<string | null>(null);
+    /** A copy just happened, and is being said so for a moment: a silent one is a guess about the selection. */
+    const [said, setSaid] = useState(false);
+    const saidTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     /** A stop or a restart is on its way: a second click would end a shell that is already ending. */
     const busy = useRef(false);
     /** The same, for the buttons: a ref alone re-renders nothing. */
@@ -241,9 +246,17 @@ function Shell({
             const copied = term.onSelectionChange(() => {
                 const selected = term.getSelection();
 
-                if (selected !== "") {
-                    void navigator.clipboard.writeText(selected).catch(() => true);
+                if (selected === "") {
+                    return;
                 }
+
+                void navigator.clipboard.writeText(selected).catch(() => true);
+
+                setSaid(true);
+                clearTimeout(saidTimer.current);
+                saidTimer.current = setTimeout(() => {
+                    setSaid(false);
+                }, COPIED_MS);
             });
 
             const fitted = new ResizeObserver(() => {
@@ -268,6 +281,7 @@ function Shell({
 
             teardown = () => {
                 terminal.current = null;
+                clearTimeout(saidTimer.current);
                 copied.dispose();
                 fitted.disconnect();
                 flavour.disconnect();
@@ -452,6 +466,7 @@ function Shell({
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <Toolbar className="justify-end">
+                {said ? <output className="text-meta text-faint mr-auto">Copied</output> : null}
                 <Hint label="Stop the shell">
                     <Button
                         variant="ghost"
