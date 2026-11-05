@@ -31,6 +31,14 @@ export function cost(dollars: number): string {
     return `$${dollars.toFixed(dollars < 1 ? 3 : 2)}`;
 }
 
+/**
+ * A model's own name, without its provider: a chip or a badge has room for that, and the provider goes
+ * in the hover title.
+ */
+export function shortModel(model: string): string {
+    return model.slice(model.indexOf("/") + 1);
+}
+
 /** One decimal, without a trailing ".0": 1.5, 1, 12. */
 function trim(value: number): string {
     return value.toFixed(1).replace(/\.0$/, "");

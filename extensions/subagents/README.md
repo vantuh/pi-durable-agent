@@ -182,9 +182,9 @@ Important details:
   must be a supported string level for that model; invalid values (including null/numbers) and
   unsupported levels fail the spawn. There is no automatic clamping to a different level.
 - Missing-model profiles stay discoverable so spawn can explain the invalid frontmatter rather
-  than reporting an unknown profile. The report header still omits the actual model; inspect the
-  child's model/statistics if needed. A successful spawn is not proof that a later provider request
-  will succeed.
+  than reporting an unknown profile. The report card names the model that answered that report;
+  the child's own model and statistics are in its conversation. A successful spawn is not proof
+  that a later provider request will succeed.
 
 ### Changing a model from the Extensions dialog
 
@@ -268,13 +268,18 @@ A missing child conversation produces a failure report, as does an unanswered su
 
 Each submission has separate model content and application entry data:
 
-| Direction      | Entry kind              | `data.author`  | `data.session`         | `data.text`                            |
-| -------------- | ----------------------- | -------------- | ---------------------- | -------------------------------------- |
-| Parent → child | `subagents.instruction` | `Orchestrator` | Parent conversation ID | Task or follow-up text                 |
-| Child → parent | `subagents.report`      | Agent name     | Child conversation ID  | Answer text, without the report header |
+| Direction      | Entry kind              | `data.author`  | `data.session`         | `data.text`                            | `data.model`                 |
+| -------------- | ----------------------- | -------------- | ---------------------- | -------------------------------------- | ---------------------------- |
+| Parent → child | `subagents.instruction` | `Orchestrator` | Parent conversation ID | Task or follow-up text                 | none                         |
+| Child → parent | `subagents.report`      | Agent name     | Child conversation ID  | Answer text, without the report header | Provider/model of the answer |
 
 The model reads the submission's `content`. The UI prefers `data.text`, so the parent sees the
 report header in its model context while the person sees the answer under the agent's name.
+`data.model` is `provider/model` taken from the answer entry that was reported, with the engine
+the provider itself reported preferred when it named one; it is not looked up from the profile
+again, so a profile edited after the spawn cannot relabel a report. Failure reports carry no
+model, because nothing answered. A report or checkpoint written before this field existed simply
+has none, and the card draws no badge for it.
 **Reports are not length-limited today:** the full text enters both the parent's context and the
 report card. Folding the card saves screen space, not context tokens.
 
@@ -284,8 +289,10 @@ open-conversation link. This is a generic convention, not a core dependency on t
 see [the server contract](../../docs/server.md#messages-from-application-authors).
 
 The transcript draws authored messages as left-hand cards with an agent-coloured stripe, bot icon,
-name, and a first-line preview. They are folded by default; expand to read Markdown. The open link
-navigates to the source conversation (an ordinary link also works in a new tab).
+name, and a first-line preview. A report also shows its model's own name, without the provider, as
+a small badge beside the name: truncated on a phone, and the whole `provider/model` in its hover
+title. Cards are folded by default; expand to read Markdown. The open link navigates to the source
+conversation (an ordinary link also works in a new tab).
 
 While a report or instruction is queued, the composer shows its author and mode using the same
 agent styling. It can be withdrawn, but not edited and resent as the person's own message.
@@ -441,7 +448,8 @@ report files.
    `requestId: subagents:<reporter task ID>` and wait for that submission to settle.
 4. **Checkpoint transaction:** suppress a result if the record's `stops` differs from the reporter's
    captured counter; otherwise consult `stopped` for an unanswered submission. For an answer,
-   suppress a duplicate `reported` ID or append it and save the report text in the task checkpoint.
+   suppress a duplicate `reported` ID or append it, and save the report text and the answering
+   model in the task checkpoint.
 5. **Reporter, `report`:** submit the saved report to the parent with
    `requestId: subagents-report:<reporter task ID>`, then end the reporter task.
 

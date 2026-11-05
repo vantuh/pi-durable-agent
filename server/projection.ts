@@ -233,12 +233,17 @@ function filesOf(value: unknown): ClientAttachment[] {
 function authorOf(data: Record<string, unknown> | undefined): ClientAuthor | undefined {
     const name = stringOf(data, "author");
     const session = optionalNumber(data, "session");
+    const model = stringOf(data, "model");
 
     if (name === undefined || name === "") {
         return undefined;
     }
 
-    return session === undefined ? { name } : { name, session };
+    return {
+        name,
+        ...(session === undefined ? {} : { session }),
+        ...(model === undefined || model === "" ? {} : { model }),
+    };
 }
 
 function userOf(

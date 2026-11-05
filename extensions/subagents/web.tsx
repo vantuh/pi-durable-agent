@@ -6,7 +6,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu.tsx";
 import { Item, ItemTitle } from "@/components/ui/item.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
-import { tokens } from "@/lib/format.ts";
+import { shortModel, tokens } from "@/lib/format.ts";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type {
@@ -58,11 +58,6 @@ function useStrip(session: number | null, revision: number): Strip | null {
     }, [session, revision]);
 
     return found !== null && found.session === session ? found.strip : null;
-}
-
-// The provider is in the hover title; the chip has room for the model's own name.
-function shortModel(model: string): string {
-    return model.slice(model.indexOf("/") + 1);
 }
 
 function hover(agent: StripAgent): string {

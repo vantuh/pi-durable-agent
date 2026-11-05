@@ -43,9 +43,9 @@ export type ClientAttachment = {
 
 /**
  * Who wrote a message the person did not type, such as an agent's report; absent means the person. `session` is the
- * conversation it came from, when there is one to open.
+ * conversation it came from, when there is one to open. `model` is what that author said answered, when it said.
  */
-export type ClientAuthor = { name: string; session?: number };
+export type ClientAuthor = { name: string; session?: number; model?: string };
 
 export type ClientEntry =
     | {

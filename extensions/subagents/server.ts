@@ -113,19 +113,39 @@ type ReporterInput = {
     stops?: number;
 };
 /** `report` is what the parent's model reads; `text`, what its screen shows under the agent's name. */
-type ReporterState = { phase: "deliver" } | { phase: "report"; report?: string; text?: string };
+type ReporterState =
+    | { phase: "deliver" }
+    | { phase: "report"; report?: string; text?: string; model?: string };
 
-function answerText(entry: EntryRecord | undefined): string {
+function assistantOf(entry: EntryRecord | undefined): AssistantMessage | undefined {
     const message = entry?.model?.[0];
 
-    if (message?.role !== "assistant") {
-        return "";
+    return message?.role === "assistant" ? message : undefined;
+}
+
+function answerText(entry: EntryRecord | undefined): string {
+    return (
+        assistantOf(entry)
+            ?.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
+            .join("")
+            .trim() ?? ""
+    );
+}
+
+/**
+ * What the provider reported answering: its own engine when it named one, else the model it was asked for.
+ * The profile's model is no proof of either, and it is never asked again.
+ */
+function answerModel(entry: EntryRecord | undefined): string | undefined {
+    const message = assistantOf(entry);
+
+    if (message === undefined) {
+        return undefined;
     }
 
-    return message.content
-        .flatMap((part) => (part.type === "text" ? [part.text] : []))
-        .join("")
-        .trim();
+    const served = message.responseModel;
+
+    return `${message.provider}/${served === undefined || served === "" ? message.model : served}`;
 }
 
 /** Delivers one message to an agent and its answer, or why there is none, to the parent. */
@@ -177,12 +197,18 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                 const next = (
                     report?: string,
                     text?: string,
+                    model?: string,
                 ): NextTaskState<ReporterState, null> => ({
                     status: "running",
                     checkpoint:
                         report === undefined || text === undefined
                             ? { phase: "report" }
-                            : { phase: "report", report, text },
+                            : {
+                                  phase: "report",
+                                  report,
+                                  text,
+                                  ...(model === undefined ? {} : { model }),
+                              },
                 });
                 const failed = (why: string) =>
                     next(`[agent ${name} failed: ${why}]`, `Failed: ${why}`);
@@ -209,14 +235,18 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                 }
 
                 record.reported.push(settled.answer);
-                const answer =
-                    answerText(await tx.entry(AssistantEntry, settled.answer)) || "(no text)";
+                const entry = await tx.entry(AssistantEntry, settled.answer);
+                const answer = answerText(entry) || "(no text)";
 
-                return next(`[agent ${name} (${record.agent}) finished]\n\n${answer}`, answer);
+                return next(
+                    `[agent ${name} (${record.agent}) finished]\n\n${answer}`,
+                    answer,
+                    answerModel(entry),
+                );
             }, context);
         },
         report: async (task, runtime, context) => {
-            const { report, text } = task.state.checkpoint;
+            const { report, text, model } = task.state.checkpoint;
             const { name, conversationId } = task.input;
 
             if (report !== undefined) {
@@ -228,7 +258,12 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
                         content: report,
                         entry: {
                             kind: "subagents.report",
-                            data: { text: text ?? report, author: name, session: conversationId },
+                            data: {
+                                text: text ?? report,
+                                author: name,
+                                session: conversationId,
+                                ...(model === undefined ? {} : { model }),
+                            },
                         },
                         whenBusy: "steer",
                         requestId: `subagents-report:${task.id}`,

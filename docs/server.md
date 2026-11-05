@@ -101,6 +101,9 @@ uses a generic author convention in `server/projection.ts`, without knowing the 
 - An optional numeric `data.session` supplies `author.session`, the source conversation's ID.
   The browser offers an open-conversation link when it is present. It does not change which
   conversation receives the input.
+- An optional non-empty string `data.model` supplies `author.model`, the model that author says
+  answered it; the transcript draws it as a badge beside the name. Anything else, including an
+  absent field, leaves it out: nothing is inferred for an author that names no model.
 - Ordinary `pi.user` and `chat.user` entries also preserve author metadata when provided. An
   unknown application entry without a valid author remains `kind: "other"`.
 

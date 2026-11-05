@@ -291,8 +291,13 @@ void describe("subagents", () => {
 
         assert.deepEqual(
             await written(parent.id, "subagents.report"),
-            { text: "There are 42.", author: "Counter", session: childId },
-            "the screen shows the answer under the agent's name, with the way to its conversation",
+            {
+                text: "There are 42.",
+                author: "Counter",
+                session: childId,
+                model: profileModel,
+            },
+            "the screen shows the answer under the agent's name, the model that answered, and the way to its conversation",
         );
         assert.deepEqual(await written(childId, "subagents.instruction"), {
             text: "Count the files.",
@@ -310,6 +315,45 @@ void describe("subagents", () => {
         assert.equal((await userTexts(child.id)).at(-1), "Count again.");
         assert.deepEqual(continued?.model, { provider: faux.provider.id, modelId: "profile" });
         assert.equal(continued?.thinkingLevel, "low");
+    });
+
+    void it("names the engine the provider reported, not the model it was asked for", async () => {
+        const step = scripted(
+            // A router: the profile names one model, the provider says another served it.
+            () =>
+                Promise.resolve({
+                    ...fauxAssistantMessage("There are 42."),
+                    responseModel: "profile-2026-02-19",
+                }),
+            (said) =>
+                said === "count them"
+                    ? call("agent_spawn", { agent: "counter", task: "Count the files." })
+                    : fauxAssistantMessage("ok"),
+        );
+
+        faux.setResponses(Array.from({ length: 10 }, () => step));
+        await (
+            await parent.submit({ type: "input", content: "count them" }, context)
+        ).wait(context);
+        await reportersDone();
+        await parent.waitForIdle(context);
+
+        const childId = [...titles.keys()].at(0);
+        const entries = await harness.commit(
+            (tx) => tx.scanEntries({ conversationId: parent.id }, 100),
+            context,
+        );
+
+        assert.deepEqual(
+            entries.items.find((entry) => entry.kind === "subagents.report")?.data,
+            {
+                text: "There are 42.",
+                author: "Counter",
+                session: childId,
+                model: `${faux.provider.id}/profile-2026-02-19`,
+            },
+            "a report names the engine that answered it, as the answer entry says",
+        );
     });
 
     for (const test of [

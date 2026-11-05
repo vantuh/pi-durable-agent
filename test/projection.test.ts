@@ -193,6 +193,22 @@ void describe("messages the person did not type", () => {
         );
     });
 
+    void it("carries the model an author reported, and drops one it did not", () => {
+        const author = (data: Record<string, unknown>) => {
+            const projected = projectEntry(record("subagents.report", data));
+
+            return projected.kind === "user" ? projected.author : undefined;
+        };
+
+        assert.deepEqual(author({ author: "Scout", model: "faux/profile" }), {
+            name: "Scout",
+            model: "faux/profile",
+        });
+        assert.deepEqual(author({ author: "Scout", model: "" }), { name: "Scout" });
+        assert.deepEqual(author({ author: "Scout", model: 7 }), { name: "Scout" });
+        assert.deepEqual(author({ author: "Scout" }), { name: "Scout" });
+    });
+
     void it("keeps an application entry without an author out of the conversation", () => {
         assert.deepEqual(projectEntry(record("other.input", { text: "found it" })), {
             id: 3,
