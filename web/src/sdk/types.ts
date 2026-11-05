@@ -113,6 +113,11 @@ export type PageProps = {
     sub: string | undefined;
     /** Moves the page to another sub-location, adding a history step so Back returns. */
     navigate: (sub: string | undefined) => void;
+    /**
+     * The address's own step back — the frame's back arrow, without the click: to the parent
+     * sub-location, adding no history step of its own. Nothing at the page's root.
+     */
+    back: () => void;
     /** Back to the conversation. `composer` asks the shell to put the caret in the composer. */
     close: (focus?: "composer") => void;
 };

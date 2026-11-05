@@ -253,8 +253,10 @@ position and a running answer survive the visit.
   own `navigate(sub)` adds a step the same way, so Back walks its sub-locations. Session links
   (`/?session=N`, the sidebar, Home) drop the page; a deep link opens it directly.
 - **The component** gets `PageProps`: `session` (never null — a page exists inside one session),
-  `sub` (its own place from the address, undefined at the root), `navigate(sub)` and `close(focus?)`
-  (back to the conversation; `close("composer")` asks the shell to put the caret there).
+  `sub` (its own place from the address, undefined at the root), `navigate(sub)`, `back()` and
+  `close(focus?)` (back to the conversation; `close("composer")` asks the shell to put the caret
+  there). `back()` is the frame's back arrow without the click — to the parent sub-location, adding
+  no history step of its own — so a page's own keys go back the way a person's click does.
 - **The frame owns the way out.** Close always returns to the conversation. The back arrow appears
   only when the address has a sub-location, and goes to its parent — the sub without its last
   segment, or the page root. That step uses the history entry behind it only when that entry is the
@@ -365,6 +367,11 @@ setCommandKeys("session.new", null); // the command shows no key again
 - **One owner per command.** The last extension to state a command's keys keeps them, and
   `null` clears them, whoever stated them last. A folder states its keys from an effect and clears
   them in that effect's cleanup, so a folder that is turned off or deleted leaves no label behind.
+- **An extension's own command is named `extension.<folder>.<command>`.** `ShellCommand` accepts
+  any such name without the core knowing the folder, and the component that owns the action states
+  the handler with `useShellCommand`; `extensions/git-history`'s header item opens its commit list
+  that way. The key for it is stated in the folder that binds keys, here `extensions/hotkeys`, which
+  knows the name and nothing else about it.
 - **Stating the same sequence again wakes nobody**: the store compares what it holds, so an effect
   that runs on every render does not loop the hints that read it.
 - **Reading them:** `useCommandKeys(command)` in a component (it re-renders when the keys change),

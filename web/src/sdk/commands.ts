@@ -1,6 +1,9 @@
 import { useEffect, useSyncExternalStore } from "react";
 
-/** What the shell can be told to do from outside it, by name. */
+/**
+ * What the shell can be told to do from outside it, by name: the shell's own commands, and an
+ * extension's, named `extension.<folder>.<command>`, which the core never names itself.
+ */
 export type ShellCommand =
     | "session.new"
     | "session.new.pick"
@@ -8,7 +11,8 @@ export type ShellCommand =
     | "session.search"
     | "session.rename"
     | "session.prev"
-    | "session.next";
+    | "session.next"
+    | `extension.${string}`;
 
 const handlers: Partial<Record<ShellCommand, () => void>> = {};
 

@@ -1,6 +1,10 @@
 /** Key bindings, the keymap and the prefix state machine. Browser-safe: no imports. */
 
-/** The shell's commands (`ShellCommand`); `web.tsx` fails to compile when they drift apart. */
+/**
+ * The commands this keymap binds (`ShellCommand`), the shell's own and the extension commands it gives
+ * a default to. A command missing here is not bound, however a file names it: `web.tsx` compiles
+ * against this list, and the core narrows an extension command by its `extension.` prefix alone.
+ */
 export const COMMANDS = [
     "session.new",
     "session.new.pick",
@@ -9,6 +13,8 @@ export const COMMANDS = [
     "session.rename",
     "session.prev",
     "session.next",
+    // An extension's own command, named `extension.<folder>.<command>`. The core names none of them.
+    "extension.git-history.open",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -27,6 +33,8 @@ export const DEFAULT_KEYMAP: Keymap = {
         "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],
         "session.next": ["shift+right", "prefix+n"],
+        // Git history's commit list, for the conversation on screen.
+        "extension.git-history.open": ["prefix+g"],
     },
 };
 

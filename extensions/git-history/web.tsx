@@ -19,6 +19,7 @@ import {
     Suspense,
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -41,6 +42,7 @@ import { Toolbar } from "@/ui/pane.tsx";
 
 import { messageOf } from "../../shared/guards.ts";
 import { GitStatsItem } from "./badge.tsx";
+import { heldBy, landingRow, nextRow, pageStep } from "./keys.ts";
 import { PendingPane } from "./pending-pane.tsx";
 import { markSeen, seenCommits, setViewedCommit, unmarkSeen, viewedCommit } from "./preferences.ts";
 import {
@@ -70,6 +72,9 @@ const PatchPreview = lazy(async () => ({ default: (await loadPreview()).PatchPre
 /** Reviews whose feedback the composer has taken: reopening the page must not append or close again. */
 const reported = new Set<string>();
 const HASH = /^[0-9a-f]{4,64}$/i;
+
+/** An arrow press moves what an ordinary scroll box moves for one: a couple of lines of the diff. */
+const SCROLL_STEP = 40;
 
 /** The page's outline action: ghost's hover fill inside a border, with the ink the page's text has. */
 const button =
@@ -551,6 +556,7 @@ function CommitDetail({
     open,
     reread,
     active,
+    view,
     onReview,
     onReviewAgain,
     onRewritten,
@@ -565,13 +571,14 @@ function CommitDetail({
     reread: number;
     /** This detail is the layer on screen; a review on top of it makes it inactive for the keyboard. */
     active: boolean;
+    /** The diff's own scroller: the page scrolls it with the arrows, a couple of lines a press. */
+    view: RefObject<CodeViewHandle<undefined, undefined> | null>;
     onReview: (target: string) => Promise<void>;
     onReviewAgain: (target: string) => void;
     onRewritten: () => void;
 }) {
     const [editing, setEditing] = useState(false);
     const [starting, setStarting] = useState(false);
-    const view = useRef<CodeViewHandle<undefined, undefined>>(null);
     const title = useRef<HTMLHeadingElement>(null);
     // The header appears only once the diff is read (or cached), after the effect below has run.
     const takeTitle = useCallback(
@@ -583,12 +590,6 @@ function CommitDetail({
         },
         [active],
     );
-    // A page opens at its top, even when the commit was read before.
-    useEffect(() => {
-        if (open) {
-            view.current?.scrollTo({ type: "position", position: 0, behavior: "instant" });
-        }
-    }, [open]);
     // Entering the detail, or coming back from its review, lands the keyboard on what it is.
     useEffect(() => {
         if (active) {
@@ -827,7 +828,7 @@ function ReviewView({
 }
 
 /** The Git history page: the list at its root, a commit (or the working tree) at `<target>`, a review at `<target>/review`. */
-function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
+function GitHistoryPage({ session, sub, navigate, back, close }: PageProps) {
     const id = session.id;
     const place = placeOf(sub);
     const open = place.kind !== "list";
@@ -847,6 +848,8 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     const [starting, setStarting] = useState(false);
     // The message of a commit the loaded page of history stops short of, or an abbreviated sha's full one.
     const [looked, setLooked] = useState<Looked | null>(null);
+    // The detail's scroller, which the page's arrows move: it lives here because the keyboard is the page's.
+    const view = useRef<CodeViewHandle<undefined, undefined>>(null);
     const rows = useRef(new Map<string, HTMLButtonElement>());
     const layer = useRef(false);
     const latestReview = useRef<ReviewState | null>(null);
@@ -1042,6 +1045,104 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
         navigate(target);
     };
 
+    // The rows in the order they are drawn: the working tree first when it has changes, then the commits.
+    const targets = useMemo(
+        () =>
+            data === null
+                ? []
+                : [
+                      ...(data.changes > 0 ? [WORKING] : []),
+                      ...data.commits.map((each) => each.hash),
+                  ],
+        [data],
+    );
+
+    // A detail opens at its top, even when the commit was read before; another target mounts a new one.
+    useEffect(() => {
+        if (open) {
+            view.current?.scrollTo({ type: "position", position: 0, behavior: "instant" });
+        }
+    }, [open]);
+
+    // The list opens with the keyboard on a row — the one it rings, else its first — so the cursor is there
+    // to move and Enter opens at once. Only the first reading lands it: a refresh, or a field the person is
+    // typing in meanwhile, must not take the keyboard.
+    const landed = useRef(false);
+    useEffect(() => {
+        if (landed.current || data === null) {
+            return;
+        }
+
+        landed.current = true;
+
+        if (open || heldBy(document.activeElement)) {
+            return;
+        }
+
+        const target = landingRow(targets, viewed ?? undefined);
+
+        if (target !== undefined) {
+            rows.current.get(target)?.focus();
+        }
+    }, [data, open, targets, viewed]);
+
+    // The page owns its keys: the list's cursor, the detail's scroll, and Escape out of either. The page is
+    // reached from the header, whose button keeps the focus, so the listener is the window's; a key pressed
+    // in the page or on nothing at all is its, and a field, a dialog, a form, a terminal and an input method
+    // keep what they are typing.
+    const root = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent): void => {
+            const origin = event.target instanceof Element ? event.target : null;
+            // The frame's own Back and Close belong to this page; the sidebar's controls do not.
+            const host = root.current?.closest('[data-slot="page-host"]') ?? null;
+
+            if (origin !== document.body && host?.contains(origin) !== true) {
+                return;
+            }
+
+            const step = pageStep({
+                where: place.kind,
+                key: event.key,
+                modified: event.ctrlKey || event.altKey || event.metaKey || event.shiftKey,
+                held: heldBy(origin),
+                composing: event.isComposing,
+                taken: event.defaultPrevented,
+            });
+
+            if (step.kind === "none") {
+                return;
+            }
+
+            // The arrows are the page's here: the browser must not scroll what it would have scrolled.
+            event.preventDefault();
+
+            if (step.kind === "close") {
+                close("composer");
+            } else if (step.kind === "back") {
+                // The frame's own back arrow, key for key: a review leads to the commit under it.
+                back();
+            } else if (step.kind === "move") {
+                const drawn = targets
+                    .map((hash) => rows.current.get(hash))
+                    .filter((element) => element !== undefined);
+                nextRow(drawn, document.activeElement, step.by)?.focus();
+            } else {
+                // The diff's own scroller moves, as it does for a wheel: the element clamps at either end.
+                view.current
+                    ?.getInstance()
+                    ?.getContainerElement()
+                    ?.scrollBy({ top: step.by * SCROLL_STEP, behavior: "instant" });
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+
+        return () => {
+            window.removeEventListener("keydown", onKey);
+        };
+    });
+
     // A tick pressed takes its commit back out of the read list, and only out of it: the ring stays.
     const unread = (target: string): void => {
         setSeen(unmarkSeen(repo, target, seen));
@@ -1153,7 +1254,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
     );
 
     return (
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div ref={root} className="relative min-h-0 flex-1 overflow-hidden">
             <div
                 inert={open}
                 aria-hidden={open}
@@ -1284,6 +1385,7 @@ function GitHistoryPage({ session, sub, navigate, close }: PageProps) {
                         open={open}
                         reread={refresh}
                         active={place.kind === "commit"}
+                        view={view}
                         onReview={begin}
                         onReviewAgain={(target) => {
                             navigate(`${target}/review`);

@@ -66,6 +66,29 @@ listed without one. Tracked files stay in the list; at most 500 untracked files 
 a truncation notice when there are more. New symlinks are listed but never followed into files
 outside the checkout.
 
+## Keyboard
+
+With [hotkeys](../hotkeys/README.md) enabled, the prefix then `g` (`ctrl+a g` by default) opens this
+page's list for the conversation on screen. It is the shell command `extension.git-history.open`, so
+it can be rebound in `data/hotkeys.json` like the shell's own commands. The header badge draws it as
+the button's hint. The page's own keys need no extension:
+
+| Where    | Key                    | Does                                                            |
+| -------- | ---------------------- | --------------------------------------------------------------- |
+| The list | `ArrowDown`, `ArrowUp` | moves the cursor one row, wrapping at both ends                 |
+| The list | `Enter`                | opens the commit under the cursor                               |
+| The list | `Escape`               | back to the conversation, with the caret in the composer        |
+| A commit | `ArrowDown`, `ArrowUp` | scrolls the diff a couple of lines, stopping at its top and end |
+| A commit | `Escape`               | back to the list, with the cursor on the commit just read       |
+| A review | `Escape`               | back to its commit, as the frame's Back, without stopping it    |
+
+The page opens with the cursor on the row it rings — the commit last read in this folder — or on its
+first row. A row in focus is the cursor, so a mouse and the arrows agree: the next arrow starts from
+the row the pointer last pressed. Keys are left to whatever holds the keyboard: a field being typed
+into (the reword form, the sidebar's search), an open dialog or popover, a form, the terminal, an
+input method in the middle of a word, and any press a nearer component has already answered. The
+frame's own Back and Close take the page's keys as they do the mouse.
+
 ## Processes, settings and limits
 
 Requires `plannotator` on the **server process's PATH**. Tested with 0.28.27. No skill or model call

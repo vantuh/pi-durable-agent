@@ -20,7 +20,8 @@ complete defaults:
         "session.search": ["prefix+f"],
         "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],
-        "session.next": ["shift+right", "prefix+n"]
+        "session.next": ["shift+right", "prefix+n"],
+        "extension.git-history.open": ["prefix+g"]
     }
 }
 ```
@@ -38,6 +39,10 @@ your own.
   `up`, `down`), `escape`, `enter`, `tab`, `space`, and `, . - / [ ]`. A prefix needs Ctrl, Alt or
   Meta. A non-prefixed printable key also needs one of those modifiers.
 - Each mounted browser reads the map once. After editing the file, reload that page to apply it.
+- `extension.git-history.open` is [Git history](../git-history/README.md)'s commit list for the
+  conversation on screen. An extension's own command is named `extension.<folder>.<command>`: the
+  core knows no extension by name, and this file is the only place a key is given to one. It is
+  bound here rather than by the extension, and newer versions add their defaults to an older file.
 
 ## Fields and dialogs
 

@@ -48,6 +48,11 @@ export function PageHost({
         session,
         sub,
         navigate: onSub,
+        back: () => {
+            if (sub !== undefined) {
+                onBack(parentSub(sub));
+            }
+        },
         close: (focus) => {
             onClose(focus);
         },

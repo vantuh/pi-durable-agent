@@ -264,6 +264,15 @@ void test("mergeKeymap lays valid entries over the defaults and drops the rest",
     assert.deepEqual(Object.keys(merged.keys).toSorted(), [...COMMANDS].toSorted());
 });
 
+void test("an extension's command keeps its default when the file predates it", () => {
+    // A file written before git-history bound a key: the entry is missing, not empty.
+    const merged = mergeKeymap({ keys: { "session.search": "prefix+k" } });
+
+    assert.deepEqual(merged.keys["extension.git-history.open"], ["prefix+g"]);
+    assert.equal(step(merged, true, key("KeyG")).command, "extension.git-history.open");
+    assert.deepEqual(mergeKeymap(undefined).keys["extension.git-history.open"], ["prefix+g"]);
+});
+
 void test("mergeKeymap refuses a prefix without a modifier and a bare printable key", () => {
     assert.equal(mergeKeymap({ prefix: "prefix+a" }).prefix, DEFAULT_KEYMAP.prefix);
     assert.equal(mergeKeymap({ prefix: "a" }).prefix, DEFAULT_KEYMAP.prefix);

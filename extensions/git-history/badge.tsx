@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
+import { useShellCommand } from "@/sdk/commands.ts";
 import type { HeaderItemProps } from "@/sdk/types.ts";
+import { CommandKeys } from "@/ui/command-keys.tsx";
 
 import { messageOf } from "../../shared/guards.ts";
 import { HISTORY_PAGE, push, stats, WORKING, type GitStats } from "./refs.ts";
@@ -25,6 +27,13 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
     const [pushing, setPushing] = useState(false);
     const [refresh, setRefresh] = useState(0);
     const [confirm, setConfirm] = useState(false);
+
+    // The header is always mounted, so the page it belongs to is reachable by a key from the chat too.
+    useShellCommand("extension.git-history.open", () => {
+        if (session !== null) {
+            openPage(HISTORY_PAGE);
+        }
+    });
 
     useEffect(() => {
         if (id === null) {
@@ -127,36 +136,41 @@ function GitBadge({ session, openPage }: HeaderItemProps) {
         >
             <Badge title={description} className="bg-panel h-7 gap-2 tabular-nums [&>svg]:size-3.5">
                 {/* One target, so one highlight: the diff while there is one (its Back leads to the list), else the list. */}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Git history: ${changesLabel}. ${commitsLabel}`}
-                    className="-ml-1.5 h-5 gap-2 px-1.5 py-0"
-                    onClick={() => {
-                        openPage(
-                            HISTORY_PAGE,
-                            value.added + value.deleted > 0 ? WORKING : undefined,
-                        );
-                    }}
+                <Hint
+                    label="Git history"
+                    keys={<CommandKeys command="extension.git-history.open" />}
                 >
-                    <GitCompareArrows className="hidden size-3.5 sm:block" />
-                    <span className="text-ok">+{value.added}</span>
-                    <span className="text-danger">−{value.deleted}</span>
-                    <span className="border-edge flex items-center gap-1 border-l pl-2">
-                        <span
-                            className={`flex items-center gap-1 ${(compare?.ahead ?? 0) > 0 ? "text-warn" : ""}`}
-                        >
-                            <ArrowUp className="size-3" />
-                            {compare === null ? "?" : compare.ahead}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Git history: ${changesLabel}. ${commitsLabel}`}
+                        className="-ml-1.5 h-5 gap-2 px-1.5 py-0"
+                        onClick={() => {
+                            openPage(
+                                HISTORY_PAGE,
+                                value.added + value.deleted > 0 ? WORKING : undefined,
+                            );
+                        }}
+                    >
+                        <GitCompareArrows className="hidden size-3.5 sm:block" />
+                        <span className="text-ok">+{value.added}</span>
+                        <span className="text-danger">−{value.deleted}</span>
+                        <span className="border-edge flex items-center gap-1 border-l pl-2">
+                            <span
+                                className={`flex items-center gap-1 ${(compare?.ahead ?? 0) > 0 ? "text-warn" : ""}`}
+                            >
+                                <ArrowUp className="size-3" />
+                                {compare === null ? "?" : compare.ahead}
+                            </span>
+                            <span
+                                className={`flex items-center gap-1 ${(compare?.behind ?? 0) > 0 ? "text-danger-deep" : ""}`}
+                            >
+                                <ArrowDown className="size-3" />
+                                {compare === null ? "?" : compare.behind}
+                            </span>
                         </span>
-                        <span
-                            className={`flex items-center gap-1 ${(compare?.behind ?? 0) > 0 ? "text-danger-deep" : ""}`}
-                        >
-                            <ArrowDown className="size-3" />
-                            {compare === null ? "?" : compare.behind}
-                        </span>
-                    </span>
-                </Button>
+                    </Button>
+                </Hint>
                 <Hint
                     label={
                         canPush
