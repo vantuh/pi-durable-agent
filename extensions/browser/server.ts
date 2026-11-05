@@ -165,6 +165,10 @@ export default function createBrowser(host: Host) {
             log: host.log,
         });
 
+    host.onSessionGone((id) => {
+        browsers.forget(id);
+    });
+
     globalThis.piDurableBrowser = { browsers, store, version };
     instances.set(host, browsers);
     // The old version is disposed after the new one was built: close only when nothing replaced it.

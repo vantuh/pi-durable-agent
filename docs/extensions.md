@@ -10,6 +10,7 @@ extensions/git-branch/
   server.ts       default export (host) => Extension | undefined; may export `status` and `actions`
   server.test.ts  its tests, run by `pnpm test`; never loaded
   package.json    private workspace package: own dependencies and shared host peers
+  README.md       usage, configuration, behavior and limits of this extension
   refs.ts         action refs and types shared with `web.tsx`
   web.tsx         status items and settings sections (the browser loads it)
   sw.js           optional: plain script the build appends to the production service worker
@@ -210,8 +211,8 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
   missing file gives the defaults), validate `args` there, and apply the change in the browser at once
   (a small store in `web.tsx` can share it between an item and a section).
 - `extensions/push` is an example of a settings section with buttons, actions and a commit
-  listener ([push.md](push.md)). `extensions/git-branch` is an example of a `branch` action on
-  the server and a `title` status item: the branch of the session's folder. `extensions/git-worktree`
+  listener ([Push notifications](../extensions/push/README.md)). `extensions/git-branch` is an example
+  of a `branch` action on the server and a `title` status item: the branch of the session's folder. `extensions/git-worktree`
   shows the worktree beside it, and the button that removes one.
 
 ### The service worker facet
@@ -265,7 +266,7 @@ position and a running answer survive the visit.
 - **A badge** works as a panel's does: a component fed `StatusProps`, returning a count or nothing.
 - **`tab: false`** leaves the page out of the right sidebar's tabs and out of the Extensions button's
   fallback (and the button does not exist for an extension set whose only pages are tabless). The page
-  still routes and renders as any other, reached by its address or by a [header item](#header-items-and-git-statistics)'s `openPage`.
+  still routes and renders as any other, reached by its address or by a [header item](#header-items)'s `openPage`.
 - `extensions/git-history` is the example: the history list and a commit's detail are two
   sub-locations of one page, and it is `tab: false`, entered from its header badge.
 
@@ -335,7 +336,7 @@ session starts in, and a throw keeps the picker open. Either answer reaches the 
 which the option says next to its own field: no caption is drawn for it. A failure is said, not
 held, so a refusal worth another try can be retried; changing the option's values clears it.
 `extensions/git-worktree` makes the worktree there, so the session starts in it without the core
-knowing what a worktree is (see [Git worktrees](#git-worktrees)).
+knowing what a worktree is (see [Git worktrees](../extensions/git-worktree/README.md)).
 
 `omit(folders)` answers which of those folders the picker leaves out of its lists — favourites,
 recents and the folder being browsed alike — so an option can keep a folder it already offers from
@@ -387,12 +388,14 @@ setCommandKeys("session.new", null); // the command shows no key again
 | `log`                   | One line to the server's output                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `onDispose`             | Registers cleanup for the timers and subscriptions this version holds. It runs once: after a newer version is installed or the folder is removed and the tool calls, actions and HTTP requests this version had running have ended, or at once when the server stops. A disposer that throws is logged; the others still run                                                                                                                                                                                                                                                                                                                                                 |
 | `onCommit`              | Registers a listener `(view: CommitView) => void \| Promise<void>` called after every commit of every conversation, with `{ session: { id, cwd, owner? }, entries, busy }`; `owner` is the id of the session that started this one (a task-owned conversation), absent for a session a person created. It is removed when this version is replaced, turned off or deleted; a throw is logged without data                                                                                                                                                                                                                                                                    |
-| `sessionRequest`        | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. `send(messages, signal, options?)` takes `{ systemPrompt, maxTokens, cacheRetention, sessionId, reasoning }` for a request of its own — the messages you pass are what is sent, not the conversation's. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](#keep-warm)                                                                                                                                                    |
+| `onSessionGone`         | Registers a listener `(session: number) => void \| Promise<void>` called when a session is deleted, so a version can end what it opened for that session — a shell, a page — instead of holding it until the next reload. It is removed when this version is replaced, turned off or deleted; a throw is logged without data and stops neither the other listeners nor the delete. Deleting a session does not delete the sessions it started, so the hook fires for the one id only                                                                                                                                                                                         |
+| `sessionRequest`        | `(session) => Promise<{ model, messages, send } \| undefined>`: the conversation's model, the messages its next request would send, and one request on top through the same model runtime, on the hour-long cache. `send(messages, signal, options?)` takes `{ systemPrompt, maxTokens, cacheRetention, sessionId, reasoning }` for a request of its own — the messages you pass are what is sent, not the conversation's. For work that reuses the cache and adds nothing to the transcript; see [Keep warm](../extensions/keep-warm/README.md)                                                                                                                             |
 | `sessionTitle`          | `(session) => Promise<string \| null>`: the name the sidebar shows — the one set by hand from `app.title`, else the conversation's first question — or null while it has neither. Titles belong to the core, so an extension that names a conversation in its own UI asks instead of guessing                                                                                                                                                                                                                                                                                                                                                                                |
 | `sessionName`           | `(session) => Promise<string \| null>`: the name someone gave it, by hand or through an extension, without the first question the sidebar falls back to. This is the "is it named yet?" question; `sessionTitle` is the "what do I show?" one                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `sessionOwner`          | `(session) => Promise<number \| undefined>`: the id of the conversation that started this one, read from the conversation record. It does not depend on commit publication, so it answers while that conversation's own commits are still on their way; `undefined` covers a conversation a person created and one the core does not know at all                                                                                                                                                                                                                                                                                                                             |
 | `sessionWorking`        | `(session) => Promise<boolean>`: whether the session's own run is busy, or any session started from it, at any depth, still works. `SessionSummary.busy` stays the own run only; this is the question to ask before announcing that a session is done                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `setSessionTitle`       | `(session, title) => Promise<void>`: names the conversation for every browser, and an empty title goes back to the first question. The list is sent to the browsers at once, because a title is a document and no commit carries it                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `setSessionCwd`         | `(session, cwd) => Promise<void>`: moves the conversation to another folder; its next request runs there and its history stays. The caller checks the folder and that `sessionWorking` is false. The list is sent to the browsers at once                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `readDoc`               | `(doc, session) => Promise<value>`: the current value of a conversation document, or its initial value while that conversation has none. It is for the places a tool call's `api.snapshot` does not reach, a commit listener and an action. The extension passes its own `defineDoc` token. It only reads: it creates no document and moves no revision                                                                                                                                                                                                                                                                                                                      |
 | `notifySessionChanged`  | `(session) => void`: says that something about the session changed which its own commits do not show, such as a conversation this extension started for it. Within 250 ms the server sends that session's `live` event again with a new `revision`, and a web component reads it as `session.revision` in `StatusProps`. Many calls in the window make one event                                                                                                                                                                                                                                                                                                             |
 | `notify`                | `(notice: { level: "success" \| "error", message, session?, description? }) => void`: a toast in every open browser tab. With `session` it is that session's own toast, top right for six seconds, and it rides the session list stream, which every tab holds whether or not it shows a session: `message` is the session's title, `description` the line under it, a click opens the session, and a tab already showing that session stays silent, since its transcript shows what happened. Without `session` it is the plain notice the loader sends, in the bottom centre, on the conversation streams a tab showing a session holds. A throw is the caller's to handle |
@@ -487,50 +490,33 @@ to the watcher. What happens in `pnpm dev`:
 - Read or write the core's SQLite directly.
 - Add a name to `RESERVED`.
 
-## Subagents
+## Extension guides
 
-`extensions/subagents` lets a conversation delegate work to agents in separate durable
-conversations, following Pi Durable's background-task ownership pattern. Its complete usage and
-maintenance guide lives with the feature: [Subagents README](../extensions/subagents/README.md).
-Remaining proposals and historical verification notes are in its
-[handoff](../extensions/subagents/HANDOFF.md).
+Each extension's usage, configuration, behavior and limits live in its own `README.md`.
+This document holds the shared contract; feature guides link here instead of repeating it.
 
-- **Four tools:** `agent_spawn` starts a profile on a self-contained task; `agent_send` steers it or
-  continues it with its own context; `agent_stop` aborts its current run; `agent_status` lists agents
-  or shows one agent's working/idle state and a text preview. Names are local to the parent
-  conversation. The browser facet gives all four tools bot icons.
-- **Profiles:** Markdown with required `name`, `description`, and (at spawn) exact `model`, optional
-  `tools` and `thinking`, and instructions in the body. Read from `<Pi agent directory>/agents/`
-  (normally `~/.pi/agent/agents/`), then the nearest `.pi/agents/` above the session's cwd, overriding by name.
-  Edits affect future spawns without a restart, not agents already started.
-- **Profile-only model/thinking:** spawn accepts only `agent`, `task`, optional `name`, and
-  optional `cwd`; model/thinking overrides are rejected. Missing, malformed, unavailable, or
-  unauthenticated models return an error without creating an agent. Thinking must be supported by
-  the profile's model; omission means `off`, invalid/unsupported values fail. No fallback, mapping,
-  or silent clamping.
-- **Inheritance:** a child starts with the parent's agent configuration, not its transcript; the
-  profile supplies its model/thinking and applies instructions and optional tool restrictions.
-  The subagents extension is removed from children, preventing recursive delegation. Children share
-  the machine's permissions; this is not a sandbox. A child works in the parent's folder unless
-  `cwd` names another absolute folder, such as a worktree, in which case every tool call of that child
-  runs there.
-- **Reports:** background reporter tasks deliver answers automatically as steering input to the
-  parent. `subagents.instruction` names `Orchestrator`; `subagents.report` names the child agent.
-  Both use the generic [`data.author` convention](server.md#messages-from-application-authors) and
-  link to the source conversation. Cards fold on screen, but the full report enters model context.
-- **Stopping:** the parent's foreground Stop does not stop its background agents. `agent_stop`
-  suppresses the unanswered result of a stopped run, keeps its context, and permits a later send.
-  Direct input in the child creates no new reporter and therefore no automatic report to the parent.
-- **Changing a model:** the folder's `details.tsx` lists the profiles a spawn would see, with each
-  one's model and thinking level, and opens the composer's own model menu. The `setModel` action
-  writes `model:` and `thinking:` into that profile's Markdown frontmatter (`profile-model.ts`:
-  one line per key, symlinks resolved, line endings and mode kept, atomic replace, and a refusal
-  instead of a partial edit), so the next spawn uses it and a running agent keeps its own. It takes
-  a profile **name**, never a path, and resolves it through the same discovery, from `host.cwd` —
-  the dialog has no conversation. **Use default** removes both lines. See the local README.
-- **Current limits:** reports have no length bound; a child session is a main-list row only when
-  its parent is gone. There is no full-result status parameter, model mapping, `ask_question` tool, or
-  per-profile skill selection. See the local README before relying on stop/delete behavior.
+- [Anthropic subscription](../extensions/anthropic-subscription/README.md)
+- [Session names](../extensions/auto-session-name/README.md)
+- [Bash timeout](../extensions/bash-timeout/README.md)
+- [Caveman](../extensions/caveman/README.md)
+- [Code mode](../extensions/codemode/README.md)
+- [Dictation](../extensions/dictation/README.md)
+- [Git history and embedded review](../extensions/git-history/README.md)
+- [Git worktrees](../extensions/git-worktree/README.md)
+- [Hotkeys](../extensions/hotkeys/README.md)
+- [Image limit](../extensions/image-limit/README.md)
+- [Keep warm](../extensions/keep-warm/README.md)
+- [Kiro ACP models](../extensions/kiro-acp/README.md)
+- [MCP servers](../extensions/mcp/README.md)
+- [Notes](../extensions/notes/README.md)
+- [Pause](../extensions/pause/README.md)
+- [Ponytail](../extensions/ponytail/README.md)
+- [Push notifications](../extensions/push/README.md)
+- [Subagents](../extensions/subagents/README.md)
+- [Terminal](../extensions/terminal/README.md)
+- [Usage limits](../extensions/usage-limits/README.md)
+- [Fetching a page](../extensions/web-fetch/README.md)
+- [Web search](../extensions/web-search/README.md)
 
 ## Planned, with where each comes from
 
@@ -548,6 +534,8 @@ None of these exist yet. A folder is added when its feature is built, never as a
 3. Use it: the section, tool, or hook appears on the next request.
 4. Put its tests in the folder, as `server.test.ts`. `pnpm test` runs `test/` and `extensions/`. The
    loader reads only `server.ts` and the browser only `web.tsx`, so a test file is never installed.
+5. Document its usage, configuration, behavior and limits in the folder's `README.md`; add a link
+   under [Extension guides](#extension-guides). Keep shared API documentation in this file.
 
 Deleting the folder is the whole removal, tests included.
 
@@ -557,29 +545,14 @@ The browser has no extension-owned routes or URL space of its own. A page is a s
 its `sub` is a location inside that page, and the extension decides what it means. Anything that
 needs its own HTTP endpoints uses the raw HTTP seam ([Raw HTTP and composer drafts](#raw-http-and-composer-drafts)).
 
-## Header items and Git statistics
+## Header items
 
 `web.tsx` may export `header: [{ id, component }]`. A header item gets the same `StatusProps`
 as a status item plus `openPage(id, sub?)`, which opens one of the same extension's own pages (at
 `sub`, in one history step, closing any open panel). It renders before the Extensions toggle, follows
 the extension's enabled switch and has its own error boundary. The shell knows no feature by name.
 
-`extensions/git-history` uses this slot for a rounded `+added −deleted ↑ahead ↓behind` badge. Its
-icon and numbers are one button with one highlight: it opens the history page at uncommitted changes
-(`sub=working`, whose Back leads to the list) while there are changed lines, and the list otherwise.
-
-- Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
-  untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
-  not report a separate “modified lines” count. Binary files contribute no line counts.
-- An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
-- Commit counts compare against the configured upstream as of the **last fetch**. The extension
-  does not fetch or pull automatically. Without an upstream, the counters show `?` and Push is disabled.
-- Counts refresh after agent activity, after a push, and within about 3 s of a change in the working tree (see [Git history](git-history.md#how-the-badge-stays-current)); the browser's own poll is every minute.
-- Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
-  configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
-  upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
-- Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
-  beforehand. Failures are shown in the header popover and can be dismissed.
+[Git history](../extensions/git-history/README.md#header-badge-and-push) uses this slot for its badge.
 
 ## Blocks above the composer
 
@@ -669,7 +642,7 @@ the list.
   as they are not in the sidebar. Whoever started them counts them, so a count of the agents is
   the extension's own status item. A child whose parent is gone is a row like any session.
 
-## Composer items and Dictation
+## Composer items
 
 `web.tsx` may export `composer: [{ id, component }]`. The component renders in the composer's row,
 before Send, inside its own error boundary, and follows the extension's enabled switch. Its
@@ -677,39 +650,7 @@ props are `StatusProps` plus `field` (a ref to the message box), `setText(value)
 text as typing would, so the draft keeps it) and `onSent(listener)` (runs just before a message is
 sent; returns the way to stop listening). The shell knows no feature by name.
 
-`extensions/dictation` uses this slot for a mic, ported from Pi Pocket's `local-dictation`. The
-browser records with `MediaRecorder`, resamples what it heard to 16 kHz mono 16-bit PCM and posts it
-to this server's own routes, which transcribe it here with `transcribe-cpp` — a Handy whisper or
-parakeet GGUF on Metal. The Web Speech API is gone: no audio reaches a speech service, and dictating needs no
-network. A browser without `MediaRecorder`, or a page off https or localhost, shows no mic.
-
-- Three settings live in `dictation.json` in the data directory, and `details.tsx` — the Dictation
-  row in the Extensions dialog, expanded — is the only way to change them: `language` (Auto, English
-  or Ukrainian — `uk` stands in while the file does not exist yet, and `auto` passes no hint at all
-  so the model detects it), `model` (null for the first Handy GGUF found, else an absolute
-  `.gguf` path) and `idleMinutes` (0 to 1440, default 10). No environment variables, and no settings
-  section in the shell's panel. A file written before the model and the idle time were settings
-  still reads, taking the defaults for the two it lacks.
-- The model dropdown lists the whisper and parakeet GGUFs under `~/.cache/huggingface/hub` with
-  their names and sizes, the `large-v3-turbo` `Q8_0` first, and says so when there is none. A
-  parakeet ignores the language hint and detects it instead. The model holds ~900 MB
-  with Metal, so it loads when a recording starts and goes after `idleMinutes` without a dictation;
-  `0` lets it go as soon as the dictation that needed it ends. A failed load is tried again at the
-  next one, and a chosen model whose file is gone says which path it wanted.
-- The audio arrives in numbered parts of 300 000 bytes, joined back in number order and refused
-  past 32 MB; the parts of a recording the browser never finished sending go after ten minutes,
-  and anything under 0.35 s is a tap rather than a word.
-- A short rising tone marks the start of a recording and a falling one its end (`beep.ts`, Web
-  Audio; no files). The tone follows listening, not the text: transcription finishes later and says
-  nothing.
-- It never sends. Tap the mic again to stop, and the words go into the box at the caret, with a
-  space only where words would touch and a capital on a sentence's first word (`insert.ts`, no
-  React; its tests are plain strings). Leaving the page or turning the extension off drops a
-  recording in flight.
-- `server.ts` holds the model, the routes (`warm`, `audio`, `transcribe` under
-  `/api/extensions/dictation/http/`) and the two actions behind the settings, `settings` and
-  `saveSettings`, which validate every field with the rules the file is read with. `details.tsx`
-  asks for them only while the folder is installed and on; off, it says so instead.
+[Dictation](../extensions/dictation/README.md) uses this slot for its microphone.
 
 ## Provider request shaping
 
@@ -719,39 +660,6 @@ Registrations follow the extension's disposal lifecycle. The harness wraps both 
 turns and non-streaming compaction requests, preserving any existing `onPayload` callback.
 The core seam requires a server restart on first installation; subsequent extension changes
 and toggles apply live to new requests.
-
-## Kiro ACP models
-
-`extensions/kiro-acp` adds the local `kiro-cli`'s models as provider `kiro-acp`, through
-`@vantuh/pi-kiro-acp` from the checkout beside this one
-(`file:../../../pi-kiro-acp` in the extension's manifest). The dependency is
-installed _injected_, so the package shares this app's `@earendil-works/pi-ai` instead of loading a
-second copy; build it once there with `npm run build`, which is what writes the `dist/` the
-`./provider` subpath points at. A Git worktree needs that built sibling beside the worktree being
-installed, not just beside the primary checkout. A successful frozen install alone does not prove
-that this optional local provider is available; its import must succeed too.
-
-Pi keeps the conversation and the tools: Kiro sees the session's
-tools over an in-process MCP server, and its own built-ins are refused at the permission gate.
-`provider.close()` stops the `kiro-cli` processes it started, on reload, off, removal and shutdown.
-
-Kiro signs in through `kiro-cli` itself, so there is no key to add. The model picker's `scoped` tab
-lists only what `~/.pi/agent/settings.json` names in `enabledModels`; until `kiro-acp/<model>`
-entries are added there, the Kiro models sit in `all`.
-
-## Anthropic subscription request shaping
-
-`extensions/anthropic-subscription` adds the Claude Code billing system block to native
-Anthropic OAuth payloads, following Pi Pocket's `anthropic-subscription` feature and the
-billing recipe in `@gotgenes/pi-anthropic-auth`. It does not launch Claude Code, rewrite
-project prompts, suppress warnings, or guarantee subscription classification by Anthropic.
-API-key payloads and other providers are left unchanged. Existing billing blocks are not duplicated;
-messages, tools, and cache controls stay intact.
-
-It is enabled by default, like other folders; turn **Anthropic subscription** off in the
-Extensions dialog to send Pi's original payloads. The version defaults to `2.1.280` and can
-be overridden with `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION=X.Y.Z` before starting the server.
-A malformed override fails the extension load instead of silently sending a bad identity.
 
 ## Details in the Extensions dialog
 
@@ -769,21 +677,10 @@ not installed; the component must respect both props and show an honest offline 
 Polling and subscriptions must stop on collapse, disable or unmount. Tailwind scans
 extension folders too, so their details components can use theme utilities.
 
-Anthropic subscription details separate the selected billing version and its source from
-**Sent billing version**, parsed from the outgoing billing block. Existing blocks remain
-unchanged; an absent or unparseable version shows unavailable instead of the selected value.
-The last-request fields describe only Anthropic POST messages requests across all sessions;
-other providers and endpoints cannot overwrite them. Request fields are published as one
-snapshot, and late responses/retries cannot replace a more recently started request's snapshot.
-The learned floor is shared knowledge and may still be raised by an older request.
-These in-memory diagnostics reset on extension reload/disable and retain no message text,
-system prompt or token.
-The open details refresh every three seconds, with no polling while disabled or collapsed.
-A disabled folder shows only the bundled default, not a claim about the effective env override.
-The displayed version is not the transport's HTTP User-Agent, and an applied shape does
-not prove either a successful response or subscription billing.
+[Anthropic subscription](../extensions/anthropic-subscription/README.md#extension-details) uses this
+facet for request diagnostics and account lookup.
 
-### Resolved transport and OAuth detection
+## Resolved model transport
 
 `host.wrapModelFetch((next, model) => fetch)` wraps the final model HTTP transport,
 including its resolved authorization and User-Agent headers. Registrations follow the
@@ -791,59 +688,7 @@ same replacement/disposal lifecycle as payload shapers. Call the supplied `next`
 than global fetch, preserving caller transports, signals and streaming responses.
 Never log or retain credentials. Installing this new core capability requires a restart.
 
-Anthropic subscription now checks the actual outgoing Bearer OAuth token on POST messages
-requests instead of trusting a system-prompt identity marker. API keys and other providers
-pass through untouched, even if their prompts contain a Claude Code identity. The helper
-that builds the billing block assumes its caller has already checked OAuth authorization.
-
-### Billing-version synchronization
-
-For OAuth messages requests, the selected version is the numeric maximum of the bundled
-version, the learned minimum and the final `claude-cli/X.Y.Z` User-Agent token. The token
-may follow other whitespace-separated User-Agent tokens, but partial names and versions
-with extra components or suffixes do not match. The HTTP User-Agent itself
-is not rewritten. An explicit environment override is absolute, even when lower.
-Details show both billing and observed Pi versions and distinguish a transport-derived
-version. Unknown User-Agents fall back to the bundled version; no package registry or
-local Claude installation is queried. Existing billing blocks are not replaced.
-
-### Version rejection hints
-
-Only a structured HTTP 400 with `error.details.error_code=claude_code_version_too_old`
-is interpreted as a version rejection. A named required floor and recovery hint appear
-in extension details and are appended to the original SDK error message. The error code,
-status and request ID remain intact. Unknown wording produces a hint without inventing a
-floor. Successful streams, other HTTP errors and non-JSON responses are not consumed or
-rewritten. Diagnostic state keeps only the generated hint, floor and timestamp, not the
-raw upstream error. Explicit version overrides get a specific explanation. If the actual
-sent billing version already meets the required floor, the hint recommends updating Pi
-rather than setting the billing version to the same value. Unparseable existing blocks
-never result in a claim that their version met the floor.
-
-### Bounded version recovery
-
-A structured version rejection with a higher, explicitly named floor may replay the
-request exactly once with a rebuilt billing block. Only blocks generated by this extension
-are replayed; existing blocks, unknown floors, explicit overrides and aborted requests
-are never retried. Network failures, successful responses and other HTTP errors get no
-extension retry. The caller's transport and signal are used for both attempts.
-The learned minimum is shared across this extension's requests in memory and discarded
-on reload/disable. A second version rejection is surfaced with a hint, never chased.
-Details show the learned minimum and whether the last OAuth request's retry recovered.
-
-### On-demand account lookup
-
-**Check subscription** in the extension details queries Anthropic's undocumented
-`https://api.anthropic.com/api/oauth/profile` endpoint only when clicked. It shows the
-organization/subscription type and status, seat/rate-limit tiers, and whether extra usage
-is enabled. Missing or unfamiliar fields show Unknown. This does not report remaining
-quota or prove which pool a model request was billed against.
-
-Email and organization name are excluded from the server's result unless **Include email
-and organization** is explicitly checked. Unchecking clears the displayed profile. Nothing
-is persisted; there is no background profile polling. Lookup has a five-second timeout,
-disallows redirects and returns sanitized failures rather than raw auth errors or bodies.
-API-key or missing authorization causes no profile HTTP request. No model call is made.
+## Model authorization
 
 The generic `host.resolveModelAuth(provider, signal)` capability resolves current request
 authorization through ModelRuntime, including its normal refresh and credential locking.
@@ -864,416 +709,4 @@ Browser extensions may call `appendComposerDraft(sessionId, text, optionalUnique
 `@/sdk/composer.ts`. It appends without replacing existing input, updates a mounted composer, and
 keeps inactive-session drafts separate. An optional ID deduplicates repeated delivery during the
 page lifetime. It never submits a message. `extensions/git-history` uses both seams;
-see [Git history and embedded review](git-history.md).
-
-## Usage limits
-
-`extensions/usage-limits` shows the five-hour limit of the current conversation's provider as a
-meter in the `end` slot of the status bar (`5h ▮▮▯ 13%`, warn above 70%, danger above 90%). It
-follows `session.model` (`provider/modelId`, in `StatusProps`), so a new session or a model change
-shows the new provider's window. A click opens a popover above the button with every provider's
-windows and reset times; the current provider is highlighted.
-
-- Providers: Anthropic (OAuth only), OpenCode Go, OpenAI Codex, and Kiro. These are undocumented
-  endpoints; a failing provider is an error row, never a crash.
-- Anthropic and OpenCode Go tokens come from `host.resolveModelAuth` and never leave the server.
-- Pi's OpenAI token is refused by the ChatGPT usage endpoint (HTTP 401), so Codex reads the Codex
-  CLI's own sign-in from `$CODEX_HOME/auth.json` (`~/.codex/auth.json`). Without it Codex is absent.
-- The browser reads every five minutes and when the popover opens (the refresh button does the same).
-  A session switch only picks another row of the data already loaded. The server caches for four
-  minutes and skips a forced read when the last one is under 30 s old. A provider that answers 429 is
-  left alone for five minutes and keeps its last reading.
-- Kiro's plan credits are not on the ACP wire, so `readKiro` parses `kiro-cli chat --no-interactive
-  /usage` (a CLI format, not an API). Without `kiro-cli` the provider is absent. The credits bucket
-  is the status bar's meter for `kiro-acp` models, labelled `Credits` instead of `5h`. It does not
-  import `extensions/kiro-acp`.
-- **Which providers.** The row in the Extensions dialog expands (`details.tsx`) to one switch per
-  provider. The choice is stored in `usage-limits.json` in the data directory
-  (`{ "hidden": ["codex"] }`; a missing or broken file shows all). A hidden provider is not asked at
-  all and is not in the popover; if it is the current one, the status bar shows only the gauge icon.
-  Changes apply at once.
-
-## Keep warm
-
-`extensions/keep-warm` renews the conversation's prompt cache while you are away, so your next
-message reads the whole context at a tenth of the input price instead of writing it again. Ported
-from Ultimate's `extensions/keep-warm`, with the harness seam below instead of theirs.
-
-- **Why an hour.** Anthropic writes the prompt cache with `cache_control.ttl: "1h"` only when the
-  request asks for it. The core opens the harness with `stream: { cacheRetention: "long" }`, so every
-  request of every conversation asks; without it the cache dies after five minutes and no ping can
-  renew it. A cache read costs 0.1× the input price and renews the hour, a write costs 1.25× (five
-  minutes) or 2× (an hour), and only the new suffix is written.
-- **When it pings.** A timer outside the task scheduler looks once a minute. A ping is due when the
-  conversation's own last cache request is 55–60 minutes old, it has no run, it is on `anthropic`,
-  and your latest input to it is under 8 hours old. A cache already past its hour is cold: a ping
-  then would only pay to rebuild it.
-- **What it sends.** The conversation's next context exactly as the harness would send it — pi-durable
-  keeps the system sections and tool declarations inside the message stream — plus one user line
-  asking for `ok`. Nothing is written to the transcript, and nothing is queued: the request goes
-  straight through the model runtime, so `shapeModelRequests` and every installed fetch wrapper
-  (`anthropic-subscription`) shape it like any other.
-- **Never twice.** The attempt is stored as `interrupted` before the request is sent, so a crash
-  mid-request counts as a failure; a failure blocks further pings until the conversation's next real
-  request, so an outage or a rate limit is never retried in a loop. The switch, the conversations the
-  user stopped and the last ping are in `keep-warm.json` in the data directory
-  (`{ "off": true, "stop": { "3": 1793… }, "last": { "3": { … } } }`); the user's last input and the
-  last cached answer come from the commits, and a restart recovers them from the baseline views the
-  loader hands over.
-- **What it costs.** A ping's tokens are not in `pi.usage`: they belong to no entry, so the
-  conversation's spend does not include them. The popover shows what the last ping read and wrote.
-- **The chip.** `warm` in the `end` slot: an ember flame (`--role-ember`, Catppuccin's peach) while
-  it is on, dim while it is off. The popover has the switch, "Warm until 14:52" or "Cold since …",
-  the next ping or why none is coming, and the last ping's read and write.
-- **The switch is one for every conversation.** A ping is a spend, so the popover also lists what it
-  is spent on: "Also warming", one row per other conversation with a ping coming, the most recently
-  asked first, with the time of that ping. Rows come from the commits and the state file — the same
-  data the tick reads — so the list never promises a ping the tick will not send. A conversation
-  whose cache is already cold is not listed: it is not being warmed, and a ping would only pay to
-  rebuild it. Each row is named through `sessionTitle`, so it says what the sidebar says, a rename
-  included; when the core has no name yet — nothing asked, nothing written — the row falls back to
-  the folder the conversation works in, and to nothing else. A conversation the core can no longer
-  build a request for — deleted, unknown, or with no model chosen — is forgotten on the next tick,
-  so the list stops promising a ping that cannot run.
-
-The host members it uses are the two core seams: `sessionRequest(session)` answers the
-conversation's model, the messages its next request would send, and `send(messages, signal, options?)`,
-one request through the same model runtime; `sessionTitle(session)` answers the name the sidebar shows,
-so a row in "Also warming" never has to re-derive it in the browser.
-`busy` comes from `onCommit`, not from the seams.
-
-## Session names
-
-`extensions/auto-session-name` names a conversation from what it was about. Ported from the Pi
-extension of the same name, which carries Pi Web's "generate name" policy: the whole conversation
-under a character budget, the session's model, strict title parsing, and no fallback — a failed run
-leaves the name alone instead of naming the session after a fragment of the user's own message.
-
-- **The transcript.** `lib.ts` keeps the policy verbatim: 800 characters of each user turn, 300 of
-  an intermediate reply and 600 of the newest, 6000 across the session with 40% reserved for the
-  opening turns (a session states its goal early and then drifts into chores), tool calls and their
-  results dropped, both ends kept and the middle elided. It reads the conversation's model context
-  from `sessionRequest`, typed as pi-ai's `Message`: this copy has no branch for the roles only a Pi
-  session record has (`bashExecution`, `compactionSummary`, `custom`), because a compaction reaches
-  this app's model as the user message that carries its summary. That type is imported rather than
-  restated, so a message shape that changes upstream breaks the file instead of passing silently.
-- **The request.** The session's model at the cheapest thinking level it supports (Gemini's
-  unsupported `minimal` skipped), 512 output tokens shared with the reasoning, no prompt cache or
-  session id — too small to reuse a prefix or to warm one — and a 90-second abort. Its own system
-  prompt, one user message, the harness's fetch wrappers shaping it like any other request.
-- **Automatic, off by default.** `details.tsx` in the Extensions dialog turns it on; the setting is
-  `auto-session-name.json` in the data directory. Then a run that ends names its session **only while
-  the session has no name** — `sessionName`, not `sessionTitle`, because the first question is not a
-  name. A name set by hand is never replaced, and neither is one this extension set, so it happens
-  once per session. A failed call changes nothing and the next settle tries again.
-- **The menu item.** "Generate name" in a session row's menu is the explicit path, and the only one
-  that replaces a name: it keeps a name that landed while the title was generating, and says so.
-- **What it names.** The title lands in `app.title` through `setSessionTitle`, so the sidebar, the
-  header and every extension that asks `sessionTitle` see it. Clearing the name by hand returns the
-  session to its first question, and turns automatic naming on for it again.
-
-## MCP servers
-
-`extensions/mcp` reads the servers from Pi's own `mcp.json` (`<agent dir>/mcp.json`, so profiles
-work) and connects to them with `@earendil-works/pi-mcp`. The Extensions dialog lists them (`details.tsx`), each with a switch.
-
-- A server is `command` + `args` + `env` (stdio) or `url` + `headers` (Streamable HTTP). An `env` or
-  `headers` value starting with `!` is a shell command whose output is the value, as in Pi's other
-  files. `enabled: false` is the default for a server; the switch overrides it.
-- The switch is stored in `enabled.json` under the data directory's `mcp/`. `mcp.json` is never
-  written: Pi's CLI reads it too.
-- Servers that are on connect when the extension installs, in the background; a failure shows as
-  the server's status. Turning an extension off, reloading it or stopping the server closes them.
-- Pi gets one tool, `mcp`: no arguments lists the servers, `server` shows its tools with their input
-  schemas, `server` + `tool` + `arguments` calls one. A server's tools are not registered one by one:
-  there can be dozens, and the tool set of an extension is fixed when it is installed.
-- The list shows a stdio server's `command` only, never its arguments, environment or headers.
-- Not built: OAuth (`mcp-auth.json`), a project's own `.pi/mcp.json`, reading the file again while
-  a server is connected (turn it off and on), `exposure`, resources and prompts.
-
-## Web search
-
-`extensions/web-search` gives Pi one tool, `web_search`: `query` or `queries` (up to five, folded
-into one prompt, not one call each) and optional `urls` to read alongside. There is no search API
-and no key of its own: it asks a model with a built-in search tool, on a subscription already signed
-in, and returns that model's answer followed by `## Sources` and a `Searched with` line.
-
-- The order is ChatGPT, Claude, Kiro. A provider without a login, or whose call fails or times out,
-  hands over to the next; the error lists each reason. A stop ends the chain at once.
-- **ChatGPT**: Pi's `openai` "Sign in with ChatGPT" token, sent to `api.openai.com/v1/responses` with
-  the `web_search` tool on `gpt-6-luna`. An `sk-…` API key is skipped, so the API is never billed.
-- **Claude**: the `sk-ant-oat…` subscription token, sent to `/v1/messages` with the
-  `web_search_20260209` server tool on `claude-haiku-5-5`. The call does not go through Pi's model
-  transport, so it repeats the billing block of `anthropic-subscription` itself (an extension may not
-  import another), and its version recovery too: a 400 `claude_code_version_too_old` is replayed
-  once with the version it names, which later searches start from until the server restarts.
-  `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION` overrides both extensions and turns the learning off.
-- **Kiro**: `kiro-cli chat --no-interactive --output-format=stream-json` in an empty temporary
-  folder, trusting only Kiro's own `web_search` and `web_fetch`. The process group is killed on stop,
-  timeout or output past 4 MiB, so `kiro-cli-chat` does not outlive the call.
-- Timeouts: 60 s per HTTP provider, 90 s for Kiro. Errors carry a status and at most 200 characters
-  of body, never headers or tokens.
-- The names `web_search` and `queries` match the `pi-web-access` package the Pi CLI uses, so one
-  subagent profile works in both.
-
-## Fetching a page
-
-`extensions/web-fetch` gives Pi `fetch_content`: one `url`, and `offset` to read on. It returns
-`# <title>`, `URL: <final URL>` and the page as Markdown, at most 40 000 characters a call, with a
-note saying which `offset` continues it. A call is also kept under the harness's 50 KiB and 2000
-lines (the tool declares them), so multibyte or many-line pages return fewer characters, and the
-note's `offset` is always where the next call starts.
-
-- HTML goes through linkedom, Readability and Turndown (the path of `pi-web-access`'s `extract.ts`);
-  links are made absolute first, and inline `data:` images are replaced by their alt text. A page
-  Readability finds no article in (often one built by JavaScript) returns its title, URL and a line
-  saying there is no readable text. Plain text, Markdown and JSON come back as they are.
-- The charset comes from a BOM, then `Content-Type`, then a `<meta>` in the first 4 KiB (where
-  utf-16 and utf-32 are read as UTF-8, as browsers do), else UTF-8.
-- 30 s timeout, a 5 MiB cap on the body (reading stops there), and a content type that is not text,
-  HTML or JSON is refused before the body is read. PDFs are not read.
-- There is no guard against private addresses: the agent has `bash` and `curl` on the same machine,
-  so refusing them here would protect nothing.
-- The name `fetch_content` is the one `pi-web-access` uses, for the same reason as `web_search`.
-
-## Code mode
-
-`extensions/codemode` installs Pi Durable's own `codemode` extension next to every other tool: the
-model writes a JavaScript script that calls its tools as `await tools.<name>(args)` in a QuickJS
-sandbox (`@earendil-works/pi-codemode`, 256 MiB), and only the script's output reaches it. The
-model keeps all its tools as well; `modelTools` is not set.
-
-- A script survives a restart: it resumes where it was, without repeating finished calls.
-- The extension's name is `codemode`, as the folder's, so no renaming was needed.
-- The sandbox is closed when a version is replaced or the folder goes, once its running script
-  finishes on it, and at once when the server stops. A script a restart interrupts is not failed: it
-  replays on the next process's sandbox.
-- `pi-codemode` is a direct dependency, pinned to the version `pi-durable` uses.
-- Its `web.tsx` contributes a `toolViews` entry, so a call's `code` shows as highlighted JavaScript
-  instead of JSON with escaped newlines.
-
-## Git worktrees
-
-`extensions/git-worktree` puts a menu of the repository's worktrees in the folder picker, and a
-`New worktree` checkbox with a name field beside it. The menu offers the folder as picked — the
-main checkout, usually — and every worktree the repository already has, made by this server or by
-hand; the two are one answer, so ticking the box puts the folder back and picking a worktree unticks
-it. The choice belongs to the folder it was made for: browsing anywhere else, and opening the picker
-again, starts from the picked folder. Open then starts the session **in** the worktree chosen, or
-in a new one, so two sessions can work on the same repository without stepping on each other's files.
-
-- **Where it starts from:** the tip of the branch the folder is on, so local commits that were
-  never pushed come with it. Uncommitted changes and new files do not: a worktree is a clean place
-  to start. Ignored files would not be copied either way.
-- **Where it goes:** `worktrees/<repository>/<name>` under the server's data folder, never inside
-  your repository, so the folder you picked is left as it was. The repository's own name is the
-  folder even when the picker is open inside a worktree.
-- **The name** is slugified (lowercase, letters, digits, `.`, `_`, `-`, at most 40 characters) and
-  is both the folder's name and the new branch's. A name that is a branch already, or a folder that
-  is there already, refuses with a message under the picker.
-- **The menu** lists checkouts, not folders: `git worktree list` of the picked folder's repository,
-  the checkout the folder is in marked as the one picked, and a worktree whose folder is gone — or
-  that is no checkout at all, as a bare repository is — left out. Its first item is the folder as
-  picked, named `Main checkout` when that is the repository's own, so a folder inside a linked
-  worktree is offered under the worktree's own name. A worktree may hold a file where the picked
-  folder is a folder, and then the menu offers the worktree itself, not that name inside it. The
-  menu is cut to the screen, so a long branch name is truncated instead of widening it.
-- **The session folder keeps its place:** picking `packages/app` of a repository starts the session
-  in `packages/app` of the worktree, whether it was made here or elsewhere.
-- Refused: a folder in no repository, and a repository with no commit yet. The worktree's branch
-  stays after the session is deleted, with whatever was committed on it; nothing removes it yet.
-- **Beside the branch badge**, `extensions/git-worktree` shows the worktree the session is in: its
-  name, and a small × inside the badge. The × asks one question in a centred dialog — the folder,
-  what goes with it, and that the branch stays — and then removes the worktree through the `remove`
-  action. git removes it from the repository it belongs to, never from inside it: a shell there
-  would be standing in the folder being deleted. The branch is kept, and so is its commits; a
-  worktree with changes git would lose is **refused**, with git's own words shown in the dialog, and
-  nothing is removed. A worktree someone made elsewhere is shown the same way, without the ×.
-- **In the sidebar,** a worktree's sessions appear under their repository's folder in the folder
-  menu, read through `folderGroup` and `mainCheckoutOf`; the answer is kept per folder until the
-  extension reloads, and a repository with no checkout of its own — a bare one — is nobody's. A worktree this server made is remembered in `git-worktree.json` under the
-  data folder as it is made, so its sessions stay under the repository after the worktree is gone
-  and git has forgotten it. Turning `git-worktree` off makes them folders of their own again.
-- **The folder picker** reads that same answer, the `under` of a session row: a session working in a
-  worktree opens the picker at the repository's own checkout, and the `Recent` list keeps the
-  repository rather than the worktree. The worktrees themselves are left out of the picker's lists
-  through the option's `omit`, answered by the `linked` action: a folder whose `.git` is a file is
-  the cheap test for a linked worktree, and `mainCheckoutOf` confirms it before the row is hidden.
-  The menu is the `worktrees` action, git's own list of checkouts.
-- **When the worktree is deleted under the session**, nothing of the session is lost: its row keeps
-  the folder it was created in, the transcript stays readable, and the stream keeps working. What
-  ends is the work: every tool call answers `Working directory does not exist: <folder>`. Deleting
-  a worktree from the terminal leaves the session like that, so the header shows the worktree's
-  name in red instead of the branch badges, with the session's own folder in its tooltip. It is
-  read through the `state` action of `git-worktree`, again whenever the session's run state
-  changes, so a worktree deleted while the app is open shows red at the next message, not at once.
-
-## Notes
-
-`extensions/notes` is a personal scratchpad and to-do list per repository, the two tabs of the Notes
-panel. The agent never sees them: the extension has no tools, prompt sections or hooks.
-
-- **One note per repository.** The key is the main worktree found through `git rev-parse
-  --git-common-dir`, so every worktree and subfolder of a repository shares one note; a folder outside
-  git uses itself. A session without a folder has no note.
-- **Where it lives.** `notes/<repository-name>-<hash of its path>.md` in the data directory — never
-  in the project, so it is never committed. A missing file is an empty note. The note is plain text,
-  saved as you type; it is not rendered as Markdown.
-- **To-dos** are `{ id, title, description, done }` in `<same name>.todos.json`, in the order they
-  were dragged into (by the grip, so a phone still scrolls and taps). A checkbox strikes one through
-  and folds it into Done; a tap on the title opens its title and description for editing; delete is
-  immediate, with Undo in its toast. Each change is its own action (`addTodo`, `updateTodo`,
-  `moveTodo`, `removeTodo`, `restoreTodo`) applied in the server's queue and answered with the whole
-  list, so two tabs never overwrite each other. No priorities, dates, tags, archive or trash.
-- **Checkboxes moved once.** The first read of a repository's to-dos, when it has no list yet, moves
-  the note's `- [ ] title` / `- [x] title` lines into it and out of the note. Checkboxes typed
-  into the note later stay text.
-- **Conflicts.** `write` carries the content hash it was based on and is refused when the file has
-  changed since (another tab or device). The panel then offers to load the newer text or overwrite
-  it with yours. A panel with no unsaved edits re-reads the note when the window gets focus.
-- **The badge** on the Notes tab counts the open to-dos.
-
-## Hotkeys
-
-`extensions/hotkeys` binds keys to the shell's commands (`session.new`, `folder.pick`, from `@/sdk/commands.ts`) and to stepping through the sidebar's sessions; the defaults and `data/hotkeys.json` are described in its `lib.ts`. Keys bind by physical position (`event.code`), so a binding works on any keyboard layout. A field keeps the keys typed into it; a field inside `[data-shell-keys]` — the composer's textarea carries it — keeps only its typing, and the shell's keys (the session arrows) still reach it. The keymap is also stated to the core ([keys for a shell command](#keys-for-a-shell-command)): each command's first binding, so a core hint shows what runs it, and the folder's unmount clears them.
-
-## Image limit
-
-`extensions/image-limit` shrinks an image that a provider would refuse, before each request leaves:
-its `GenerationTask.beforeRequest` hook walks the whole model context, so an attachment, an image a
-tool returned and an image already committed all pass through it. The case it answers is Anthropic's
-"At least one of the image dimensions exceed max allowed size for many-image requests: 3000 pixels":
-an image that breaks a request stays in the history it came from, so every later turn fails too,
-until the session is abandoned.
-
-- **2000 px on the longest side**, the cap both providers use when a request carries more than one
-  image. Resizing is `resizeImage` from `@earendil-works/pi-coding-agent` — Photon in a worker, the
-  same code an image read by `files` already goes through — so no new dependency.
-- **Only an image over the limit is touched.** Everything else goes byte-identical, which is what
-  keeps the provider's prompt cache holding across turns; the decision is made on the dimensions the
-  decoder reports, not on encoded size. The library encodes PNG first and falls back to JPEG only
-  when a photo will not fit under its 4.5 MB cap, so an image with transparency stays PNG, and a
-  result also stays under the provider's 5 MB per-image limit. An image under 2000 px that is over
-  that 5 MB is left alone: a different limit, and not the one this answers.
-- **One decode per image.** Sized images are remembered by MIME type, payload length and a hash of
-  the payload — 128 of them, oldest evicted, cleared in `host.onDispose` — and a second request that
-  carries an image while it is being resized waits on the same work instead of starting a second
-  decode. The same image always leaves as the same bytes.
-- **It fails open.** An image the decoder cannot read, or one the encoder cannot get under the limit,
-  goes as it is: a shrinking pass never drops a part and never fails the request.
-- **The transcript is not rewritten.** The hook returns replacement messages for that request only,
-  so the conversation keeps the pixels the person sent, and compaction reads them as text anyway.
-- **Nothing to configure and no restart.** It is a hook like any other, installed and removed live;
-  turn it off in the Extensions dialog to send images exactly as they are.
-
-## Bash timeout
-
-`extensions/bash-timeout` puts two timers on every `bash` call, so a command that hangs cannot hold a
-conversation, a subagent or a nested call forever: an **idle guard** keyed to progress, and a
-**ceiling** keyed to wall clock. The idle guard catches the stuck command in seconds; the ceiling is
-the backstop for one that prints forever without finishing.
-
-The ceiling. A `beforeTool` hook sets the call's `timeout` (seconds) to the limit when the model gave
-none, an invalid one or a longer one; a shorter one is kept. The hook runs before intent, so the
-recorded call carries the limit.
-
-- **Who stops it.** Pi-durable's `NodeExecutionEnv`: on timeout it kills the command's process group
-  and the model gets `Command timed out after N seconds` with the output printed so far. The ceiling
-  adds no timer of its own.
-- **Whose clock it was.** pi's message gives the seconds but not whose: read plainly, an agent's
-  shared limit is indistinguishable from a timeout the model chose. When the limit is what applied,
-  `afterTool` adds one sentence to that message — the agent's shared bash limit (10 min), not a
-  timeout it asked for; the command was killed, not finished; split it into smaller steps or narrow
-  its scope. A timeout the model set for itself keeps pi's bare message, because that one really was
-  its own.
-- **Everyone hears about it.** A timeout the limit caused is said in every open browser tab, the
-  home page included, as the session's own toast, the shape a finished run has: the session's
-  title, `Bash timed out after 5 min · sleep 91; echo done · pi-durable-agent` under it, top-right
-  for six seconds, a click opens that session. The tab showing the session now stays silent,
-  because the red tool row is already there. A timeout the model asked for itself, being shorter
-  than the limit, is the model's own choice and is not reported; neither is any other error.
-  `beforeTool` records the whole decision — the limit in seconds, or that the model's own timeout
-  stays — in the call's task, and `afterTool` reads that same answer back, so a resumed attempt
-  cannot run on one timeout and be reported as another, and only the extension's own timeout counts.
-- **The limit.** Whole minutes, 1 to 120, default 10, in `bash-timeout.json` in the data directory
-  (`{ "minutes": 10 }`; a missing or broken file means the default). The row in the Extensions dialog
-  expands (`details.tsx`) to the input. The file is read on every call, so a change applies to the
-  next command; a command already running keeps the timeout it started with.
-
-The idle guard. A wrap on the tool itself (`wrapTool`, `idleGuard`): if the command prints nothing,
-on either stream, for `IDLE_SECONDS` (120, a constant in `refs.ts`, not a setting), the wrap cancels
-a child of the call's context. `@earendil-works/chord`'s `withCancel` gives that child, so the
-environment kills the command's process group and the caller's own Stop still reaches it.
-
-- **It observes instead of rewriting.** The wrap proxies `api.output` to stamp the last activity and
-  forwards the chunk and its `skipped` count unchanged, so the output window, the spill file and the
-  retained tail stay pi's, and the model keeps whatever the command had already printed.
-- **What the model reads.** One error diagnostic, code `bash_idle`: `No output for 120s, so the
-  command was killed. Retry with a command that prints progress, or find out why it is silent.` The
-  verdict travels in the result, so `afterTool` recognises it without a memo — which is also why the
-  idle branch runs before the ceiling's memo check: a call the model gave its own shorter timeout is
-  never touched by the ceiling, and the idle guard kills it anyway.
-- **Everyone hears about it.** An idle kill is said in every open browser tab the way the ceiling's
-  is: `Bash idle for 2 min · pnpm test · pi-durable-agent`, the same toast, the same suppression in
-  the tab already showing that session. The wait is read back from the kill itself, so an
-  `IDLE_SECONDS` edited below a minute is named in seconds instead of rounding to `0 min`.
-- **What is left alone.** A normal end, the ceiling's timeout and the caller's abort are rethrown
-  untouched. The environment reports a timeout ahead of an abort, so a command that hits both stays a
-  timeout — the right precedence, and never two notices for one call. No opt-out: a per-call exception
-  would turn "stuck" back into "ten minutes stuck".
-- **No false alarm on Stop.** Only an abort while the caller's own signal is still live counts as a
-  hang; pressing Stop is not reported.
-- **The cost.** Output is an imperfect measure of progress: a step that is legitimately silent for two
-  minutes — a buffered compile, a slow pull — is killed. The kill is recoverable, the model sees the
-  output so far and is told why, and 120 s is deliberately generous. A command printing steadily while
-  stuck satisfies the idle guard; only the ceiling stops that, which is why both timers stay.
-
-## Caveman and Ponytail
-
-Two voices, one folder each: `extensions/caveman` and `extensions/ponytail`. Both are **off by
-default**, and both are built the same way — one section, one switch, one state file — and they
-differ in one thing only: who the voice reaches. Caveman never reaches a conversation a tool
-started; ponytail reaches every conversation, subagents included.
-
-The rules are not here. Each folder adds one system prompt section whose text is the body of the Pi
-skill of its name — `~/.pi/agent/skills/caveman/SKILL.md`, `~/.pi/agent/skills/ponytail/SKILL.md` —
-read through `skillsFor` on every prompt build, so editing the skill shows up on the next run and the
-repo holds no copy to drift. The section opens with one line that says why it is on (this app's
-status bar, not the chat) and that the phrase in a message which would switch it off in chat does
-not switch it here. Ponytail's line adds that the level is `full`, because lite and ultra are levels
-a `/ponytail` argument picks and there is no `/ponytail` command here.
-
-- **The switch** is a chip in the status bar's `end` slot, like keep-warm's: a stone for caveman, a
-  unicorn for ponytail, lit in `text-accent` and `text-ok` when on and faded to `text-faint/60` when
-  off. The popover holds one `Switch` and one line saying what the voice changes: caveman — every
-  conversation you start, never a subagent; ponytail — every conversation, subagents included.
-- **The unicorn** is `ponytail/icon.tsx`, built with lucide's `createLucideIcon` so it carries the
-  same grid, stroke and props as every other chip. Lucide has no horse: the body is Tabler Icons'
-  `horse` (MIT, Copyright (c) 2020-2026 Paweł Kuna, kept in the file), the horn and its notch are
-  drawn here, and the result was checked at the chip's 14 px.
-- **The state** is one boolean for the whole app, `caveman.json` and `ponytail.json` in the data
-  directory, `{ "on": true }`; a missing, broken or non-boolean `on` means off. A failed save leaves
-  the mode it had. The chip reads it when the conversation opens and again whenever the popover
-  opens, because another tab or a phone runs the same switch; a token per reading means an answer
-  that arrives late never overwrites a newer one or a toggle, a reading that starts while a save is
-  running is dropped as stale, and every toggle re-reads once it is done so the switch settles on
-  what the server stored. Nothing polls: a conversation whose first reading fails gets three bounded
-  tries five seconds apart, so an unreachable server is not asked forever, and the chip appears only
-  once a real state is known.
-- **Caveman is parent-only.** A conversation that a tool started has an owner, and pi-durable's
-  `createAgent()` copies the owner's agent, so the child inherits the parent's extension selection
-  and would otherwise inherit the voice too. Caveman's owner comes from two places: the commits,
-  through `onCommit` and `SessionRef.owner`, and the record itself, through `host.sessionOwner` —
-  the immutable owner read from the conversation record. The commits alone are not enough: a new
-  conversation's first commit is published after an asynchronous chain (`setImmediate`, the view
-  opening, the cwd and owner lookups), while the harness builds a child's first request off
-  microtasks, so the child would render the section before its baseline view arrived. Caveman
-  therefore returns no section at all for a conversation with an owner, caches what the record
-  answers (an `undefined` answer is a person's conversation too, and `Map.has` tells "asked and
-  ownerless" from "never asked"), and asks nothing again for a conversation a commit already named.
-- **Ponytail reaches everyone.** It keeps no ownership machinery: no commit listener, no record
-  read, no owner check. A subagent answers in the same voice its parent does, deliberately — the
-  lazy-senior rules are as useful inside a worker as at the top, and the smallest change that works
-  is exactly what a child is for.
-- **The skill must exist.** The check runs at load time and throws, naming the skill, so the
-  Extensions dialog says what is wrong instead of offering a switch that does nothing.
+see [Git history and embedded review](../extensions/git-history/README.md).

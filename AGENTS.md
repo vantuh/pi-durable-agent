@@ -103,6 +103,7 @@ extensions/files/
   server.ts      default export (host) => the tools, prompt sections, and hooks it installs;
                  may also export `status` and `actions`
   server.test.ts its tests; `pnpm test` runs `test/` and `extensions/`
+  README.md      usage, configuration, behavior and limits of this extension
   refs.ts        action refs and types shared by `server.ts` and `web.tsx`, safe for the browser
   web.tsx        what it adds to the browser: status-bar items and settings sections
   api.ts         its typed contract: what other extensions may call, and its tier  (not built yet)
@@ -110,6 +111,8 @@ extensions/files/
 
 - **One folder, one extension, named after the folder.** The loader replaces by name, so a name
   that drifts installs twice. `coding-tools` is reserved by the core.
+- **Documentation lives with the extension.** Keep feature-specific guides in its `README.md`,
+  not in `docs/`. Shared contracts stay in `docs/extensions.md`, with links to the local guides.
 - **Dependencies will be declared, not imported** (`api.ts` with `need` / `want`) once there is a
   second extension that needs the first. Until then: no extension imports another.
 - **The loader loads live.** A folder is installed on save, kept as it was when its file breaks,

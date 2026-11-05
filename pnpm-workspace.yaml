@@ -4,4 +4,5 @@ packages:
 allowBuilds:
     "@google/genai": false
     koffi: false
+    node-pty: true
     protobufjs: false

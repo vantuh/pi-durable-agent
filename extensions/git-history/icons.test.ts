@@ -12,7 +12,7 @@ void describe("the icon subset", () => {
         const used = [...source.matchAll(/\\u\{?([0-9a-f]{4,6})\}?/g)].map((match) =>
             Number.parseInt(match[1] ?? "", 16),
         );
-        const documented = await read("../../docs/git-history.md");
+        const documented = await read("./README.md");
         const listed = (/--unicodes=([0-9a-f,]+)/.exec(documented)?.[1] ?? "")
             .split(",")
             .map((codepoint) => Number.parseInt(codepoint, 16));

@@ -210,6 +210,18 @@ void test("a field that opted into the shell's keys lets the session arrows thro
     assert.equal(step(DEFAULT_KEYMAP, false, ctrlA).armed, true);
 });
 
+void test("a terminal keeps the prefix its own shell needs", () => {
+    // The terminal's textarea: `data-own-keys` on the container, as the panel writes it.
+    const terminal = {
+        tagName: "TEXTAREA",
+        isContentEditable: false,
+        closest: (selector: string) => (selector === "[data-own-keys]" ? {} : null),
+    };
+
+    assert.equal(fieldKeeps(terminal, DEFAULT_KEYMAP, ctrlA), true);
+    assert.equal(fieldKeeps(terminal, DEFAULT_KEYMAP, key("ArrowLeft", { shiftKey: true })), true);
+});
+
 void test("a dialog owns the keyboard, an alert dialog too", () => {
     const { document } = parseHTML(`
         <div role="dialog"><button id="in-dialog"></button></div>

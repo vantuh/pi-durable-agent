@@ -99,6 +99,45 @@ void describe("Extensions disposers", () => {
         assert.equal(extensions.requestShapers.length, 0);
     });
 
+    void it("tells the live version that a session is gone, and nobody else", async () => {
+        const GONE = "__extensionTestGone";
+        const told = (): string[] => {
+            const value: unknown = Reflect.get(globalThis, GONE);
+
+            assert.ok(Array.isArray(value));
+
+            return value.filter((entry): entry is string => typeof entry === "string");
+        };
+        const telling = (tag: string, fails = false): string => `export default function (host) {
+            host.onSessionGone((session) => {
+                globalThis.${GONE}.push(${JSON.stringify(tag)} + ":" + session);
+                ${fails ? 'throw new Error("boom");' : ""}
+            });
+            return { name: host.name };
+        }`;
+
+        Reflect.set(globalThis, GONE, []);
+        await write("quiet", telling("quiet"));
+        await write("loud", telling("loud", true));
+        await extensions.load();
+
+        // A listener that throws neither reaches the other folder nor stops the forget.
+        extensions.forget(7);
+        assert.deepEqual(told().sort(), ["loud:7", "quiet:7"]);
+
+        // The replacement's listener answers; the one it replaced is gone with its version.
+        await write("quiet", telling("next"));
+        await extensions.load();
+        extensions.forget(8);
+        assert.deepEqual(told().sort(), ["loud:7", "loud:8", "next:8", "quiet:7"]);
+
+        await rm(join(dir, "loud"), { recursive: true });
+        await rm(join(dir, "quiet"), { recursive: true });
+        await extensions.load();
+        extensions.forget(9);
+        assert.deepEqual(told().sort(), ["loud:7", "loud:8", "next:8", "quiet:7"]);
+    });
+
     void it("keeps the live model provider when the replacement's build fails", async () => {
         // Mimics the real registry: replace by id, and unregister only what is still in place.
         const providers = new Map<string, unknown>();

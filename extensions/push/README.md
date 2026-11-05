@@ -2,7 +2,7 @@
 
 `extensions/push` sends a Web Push notification to your devices when Pi finishes an answer.
 Everything is in that folder; the core only gives it `host.onCommit`, the `?session=ID` link and the
-worker facet ([extensions.md](extensions.md)).
+worker facet ([extensions.md](../../docs/extensions.md)).
 
 ## When it sends
 

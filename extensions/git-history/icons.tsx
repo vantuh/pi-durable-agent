@@ -5,7 +5,7 @@ import iconsUrl from "./icons.woff2?url";
 /**
  * The marks are Nerd Font glyphs, the 27 below (6.6 KB), subsetted from the JetBrains Mono Nerd
  * Font a terminal uses: the same pictures an editor shows, without an icon package. Regenerate
- * with the command in docs/git-history.md when a new kind of file needs a mark.
+ * with the command in extensions/git-history/README.md when a new kind of file needs a mark.
  */
 const FONT = "git-history-icons";
 

@@ -60,6 +60,13 @@ export type Host = {
      */
     readonly onCommit: (listener: CommitListener) => void;
     /**
+     * Calls `listener` when a session is deleted, before nothing else holds it: a page or a process a
+     * version opened for that session is its to end. It is removed when a newer version replaces this
+     * one, when the folder goes or is turned off, and when the server stops. A throw or rejection is
+     * logged without data and stops neither the other listeners nor the delete itself.
+     */
+    readonly onSessionGone: (listener: SessionGoneListener) => void;
+    /**
      * Says which folder a session's folder is shown under in the sidebar's folder menu, such as the
      * repository a worktree belongs to; undefined leaves it a folder of its own. A throw or
      * rejection counts as "a folder of its own". It goes with this extension version.
@@ -109,6 +116,11 @@ export type Host = {
     readonly sessionWorking: (session: number) => Promise<boolean>;
     /** Names a session: the sidebar shows it from then on, and an empty title goes back to the first question. */
     readonly setSessionTitle: (session: number, title: string) => Promise<void>;
+    /**
+     * Moves a session to another folder: the next request of its agent runs there, and its history
+     * stays. The caller checks that the folder is right and that the session is not working.
+     */
+    readonly setSessionCwd: (session: number, cwd: string) => Promise<void>;
     /**
      * The current value of a conversation document, or its initial value while that conversation has
      * none. It is for the places a tool call's `api.snapshot` does not reach: a commit listener and an
@@ -176,6 +188,9 @@ export type CommitView = {
 };
 
 export type CommitListener = (view: CommitView) => void | Promise<void>;
+
+/** Told when a session is deleted, so a version can let go of what it held for it. */
+export type SessionGoneListener = (session: number) => void | Promise<void>;
 
 export type Disposer = () => void | Promise<void>;
 
@@ -414,6 +429,8 @@ export class Extensions {
     readonly #lastViews = new Map<number, CommitView>();
     /** Per folder, the commit listeners of the version that is live now. */
     readonly #commits = new Map<string, CommitListener[]>();
+    /** Per folder, the session-gone listeners of the version that is live now. */
+    readonly #gone = new Map<string, SessionGoneListener[]>();
     /** Per folder, the folder resolvers of the version that is live now. */
     readonly #groups = new Map<string, readonly FolderGroup[]>();
 
@@ -429,6 +446,7 @@ export class Extensions {
     readonly #sessionSeen: Host["sessionSeen"];
     readonly #sessionWorking: Host["sessionWorking"];
     readonly #setSessionTitle: Host["setSessionTitle"];
+    readonly #setSessionCwd: Host["setSessionCwd"];
     readonly #readDoc: Host["readDoc"];
     readonly #sessionListChanged: () => void;
     readonly #sessionChanged: (session: number) => void;
@@ -469,6 +487,7 @@ export class Extensions {
         sessionSeen?: Host["sessionSeen"];
         sessionWorking?: Host["sessionWorking"];
         setSessionTitle?: Host["setSessionTitle"];
+        setSessionCwd?: Host["setSessionCwd"];
         readDoc?: Host["readDoc"];
         sessionListChanged?: () => void;
         sessionChanged?: (session: number) => void;
@@ -489,6 +508,7 @@ export class Extensions {
         this.#sessionSeen = options.sessionSeen ?? (() => Promise.resolve(false));
         this.#sessionWorking = options.sessionWorking ?? (() => Promise.resolve(false));
         this.#setSessionTitle = options.setSessionTitle ?? (() => Promise.resolve());
+        this.#setSessionCwd = options.setSessionCwd ?? (() => Promise.resolve());
         this.#readDoc = options.readDoc ?? ((doc) => Promise.resolve(doc.definition.initial()));
         this.#sessionListChanged = options.sessionListChanged ?? (() => undefined);
         this.#sessionChanged = options.sessionChanged ?? (() => undefined);
@@ -644,6 +664,10 @@ export class Extensions {
     /** Forgets a session that is gone, so no version that loads later is replayed its last view. */
     forget(session: number): void {
         this.#lastViews.delete(session);
+
+        for (const [folder, listeners] of [...this.#gone]) {
+            this.#goneDeliver(folder, listeners, session);
+        }
     }
 
     #deliver(folder: string, listeners: readonly CommitListener[], view: CommitView): void {
@@ -654,6 +678,18 @@ export class Extensions {
                 });
             } catch {
                 this.#log(`extensions: ${folder}: commit listener threw`);
+            }
+        }
+    }
+
+    #goneDeliver(folder: string, listeners: readonly SessionGoneListener[], session: number): void {
+        for (const listener of listeners) {
+            try {
+                void Promise.resolve(listener(session)).catch(() => {
+                    this.#log(`extensions: ${folder}: session-gone listener rejected`);
+                });
+            } catch {
+                this.#log(`extensions: ${folder}: session-gone listener threw`);
             }
         }
     }
@@ -721,6 +757,7 @@ export class Extensions {
 
         this.#http.clear();
         this.#commits.clear();
+        this.#gone.clear();
         this.#groups.clear();
         this.#lastViews.clear();
 
@@ -751,11 +788,19 @@ export class Extensions {
 
             const attempt = newVersion();
             const commits: CommitListener[] = [];
+            const gone: SessionGoneListener[] = [];
             const groups: FolderGroup[] = [];
             const activations: (() => void)[] = [];
 
             try {
-                const built = await this.#build(folder, attempt, commits, groups, activations);
+                const built = await this.#build(
+                    folder,
+                    attempt,
+                    commits,
+                    gone,
+                    groups,
+                    activations,
+                );
 
                 if (built === "disabled") {
                     this.#drop(folder, "disabled");
@@ -777,6 +822,7 @@ export class Extensions {
                     folder,
                     commits.length === 0 ? undefined : commits,
                 );
+                this.#setOrDelete(this.#gone, folder, gone.length === 0 ? undefined : gone);
 
                 // Rows carry the answer, so they are read again when this folder had or has one.
                 if (this.#groups.has(folder) || groups.length > 0) {
@@ -808,6 +854,7 @@ export class Extensions {
                 if (this.#disabled.has(folder)) {
                     this.#drop(folder, "disabled");
                     this.#commits.delete(folder);
+                    this.#gone.delete(folder);
                     await this.#release(folder, true);
                 }
             }
@@ -817,6 +864,7 @@ export class Extensions {
             if (!present.has(folder)) {
                 this.#drop(folder, "removed");
                 this.#commits.delete(folder);
+                this.#gone.delete(folder);
                 await this.#release(folder, true);
                 if (changed !== undefined) {
                     notices.push({ level: "success", message: `Extension “${folder}” removed` });
@@ -904,6 +952,7 @@ export class Extensions {
         folder: string,
         attempt: Version,
         commits: CommitListener[],
+        gone: SessionGoneListener[],
         groups: FolderGroup[],
         activations: (() => void)[],
     ): Promise<
@@ -968,6 +1017,7 @@ export class Extensions {
             sessionSeen: (session) => this.#sessionSeen(session),
             sessionWorking: (session) => this.#sessionWorking(session),
             setSessionTitle: (session, title) => this.#setSessionTitle(session, title),
+            setSessionCwd: (session, cwd) => this.#setSessionCwd(session, cwd),
             readDoc: (doc, session) => this.#readDoc(doc, session),
             setSessionMark: (session, mark) => {
                 const marks = this.#marks.get(folder) ?? new Map<number, string>();
@@ -1026,6 +1076,9 @@ export class Extensions {
             },
             onCommit: (listener) => {
                 commits.push(listener);
+            },
+            onSessionGone: (listener) => {
+                gone.push(listener);
             },
             folderGroup: (resolve) => {
                 groups.push(resolve);

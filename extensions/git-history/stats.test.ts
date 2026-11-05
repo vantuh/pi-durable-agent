@@ -100,6 +100,7 @@ void describe("git-history stats", () => {
             ahead: 0,
             behind: 0,
             upstream: null,
+            worktree: null,
         });
         await mkdir(join(repo, "sub"));
         assert.deepEqual(await stats(join(repo, "sub")), await stats());
@@ -124,6 +125,7 @@ void describe("git-history stats", () => {
             ahead: 0,
             behind: 0,
             upstream: null,
+            worktree: null,
         });
         await assert.rejects(call("push"), /No upstream/);
     });
@@ -205,6 +207,80 @@ void describe("git-history stats", () => {
         await assert.rejects(call("push"), /No commits/);
     });
 
+    void describe("linked worktrees", () => {
+        // A space and a newline in the path: `git worktree list -z` is what keeps them intact.
+        const link = async () => {
+            await writeFile(join(repo, "file"), "one\n");
+            await commit();
+            const tree = join(dir, "tree\nwith space");
+            await git(repo, "worktree", "add", "-b", "feat", tree);
+            return tree;
+        };
+        void it("counts own and missing commits against the main checkout's branch", async () => {
+            const tree = await link();
+            assert.deepEqual((await stats(tree))?.worktree, {
+                base: "main",
+                ahead: 0,
+                behind: 0,
+            });
+            await writeFile(join(tree, "own"), "one\n");
+            await commit(tree);
+            const own = await stats(tree);
+            assert.deepEqual(own?.worktree, { base: "main", ahead: 1, behind: 0 });
+            // The upstream fields keep their meaning: no remote here, so Push stays disabled.
+            assert.equal(own?.upstream, null);
+            assert.equal(own?.ahead, 0);
+            await writeFile(join(repo, "theirs"), "one\n");
+            await commit(repo);
+            assert.deepEqual((await stats(tree))?.worktree, { base: "main", ahead: 1, behind: 1 });
+        });
+        void it("counts a detached linked HEAD", async () => {
+            const tree = await link();
+            await writeFile(join(tree, "own"), "one\n");
+            await commit(tree);
+            await git(tree, "checkout", "--detach");
+            assert.deepEqual((await stats(tree))?.worktree, { base: "main", ahead: 1, behind: 0 });
+        });
+        void it("leaves an ordinary checkout on its upstream arrows", async () => {
+            await link();
+            assert.equal((await stats())?.worktree, null);
+        });
+        void it("reads a main checkout whose own path holds a newline", async () => {
+            const main = join(dir, "main\nrepo");
+            await mkdir(main);
+            await git(main, "init", "-b", "main");
+            await writeFile(join(main, "file"), "one\n");
+            await commit(main);
+            // The main record's path is the checkout itself: an ordinary checkout, not a linked one.
+            assert.equal((await stats(main))?.worktree, null);
+            const tree = join(dir, "linked");
+            await git(main, "worktree", "add", "-b", "feat", tree);
+            assert.deepEqual((await stats(tree))?.worktree, {
+                base: "main",
+                ahead: 0,
+                behind: 0,
+            });
+        });
+        void it("falls back without a main branch or a working tree", async () => {
+            const tree = await link();
+            await git(repo, "checkout", "--detach");
+            assert.equal((await stats(tree))?.worktree, null);
+            const bare = join(dir, "bare.git");
+            await git(dir, "init", "--bare", bare);
+            assert.equal(await stats(bare), null);
+        });
+        void it("leaves a linked worktree of a bare repository alone", async () => {
+            await writeFile(join(repo, "file"), "one\n");
+            await commit();
+            const bare = join(dir, "bare.git");
+            await git(dir, "clone", "--bare", repo, bare);
+            const tree = join(dir, "from bare");
+            await git(bare, "worktree", "add", "-b", "feat", tree);
+            // A bare main has no checkout to compare with, even though its branches are here.
+            assert.equal((await stats(tree))?.worktree, null);
+        });
+    });
+
     void describe("watching", () => {
         let time: number;
         let heard: number[];
@@ -252,6 +328,23 @@ void describe("git-history stats", () => {
                 await writeFile(join(repo, "file"), "one\n");
                 await watcher.poll();
                 assert.deepEqual(heard, []);
+            } finally {
+                watcher.dispose();
+            }
+        });
+        void it("announces a change only the worktree comparison sees", async () => {
+            const tree = join(dir, "linked");
+            await git(repo, "worktree", "add", "-b", "feat", tree);
+            const watcher = watching();
+            try {
+                await watcher.actions.stats({ args: undefined, session: { id: 3, cwd: tree } });
+                await watcher.poll();
+                assert.deepEqual(heard, []);
+                // Only the main checkout moves, so only the compared arrows change.
+                await writeFile(join(repo, "extra"), "one\n");
+                await commit(repo);
+                await watcher.poll();
+                assert.deepEqual(heard, [3]);
             } finally {
                 watcher.dispose();
             }

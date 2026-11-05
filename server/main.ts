@@ -758,6 +758,11 @@ async function boot(): Promise<void> {
             await sessions.setTitle(idOf(session), title);
             listChanged(session);
         },
+        // The folder is in a document too, so no commit carries it to the browsers: the list goes again.
+        setSessionCwd: async (session, folder) => {
+            await sessions.setCwd(idOf(session), folder);
+            listChanged(session);
+        },
         readDoc: (doc, session) => sessions.readDoc(doc, idOf(session)),
         sessionListChanged: listChanged,
         sessionChanged: changes.notify,

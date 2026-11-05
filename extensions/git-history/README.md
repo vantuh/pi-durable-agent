@@ -3,7 +3,7 @@
 `extensions/git-history` adds **Git history**, a page in place of the conversation: the list is its
 root and a commit is a sub-page. It has no tab in the right sidebar (`tab: false`); the header badge
 (`+added −deleted ↑ahead ↓behind` and Push, see
-[Header items](extensions.md#header-items-and-git-statistics)) is the way in, and the same folder
+[Header badge and push](#header-badge-and-push)) is the way in, and the same folder
 serves the badge's counts and push. It runs in the selected session's working folder, not a
 browser-supplied filesystem path.
 
@@ -58,12 +58,13 @@ browser-supplied filesystem path.
   The index and the working tree are never touched; no dirty-tree guard is needed. The branch moves
   with a compare-and-swap on its old id, so a branch that changed meanwhile fails the save instead
   of losing a commit; the reflog keeps the old history. Git's own refusal (a pushed commit, a commit
-  of another branch) is shown in the form. This is the only Git write in this extension; it still
-  never fetches, checks out or pushes.
+  of another branch) is shown in the form. Reword and the explicitly confirmed header Push are
+  the extension's Git writes; it never fetches or checks out.
 
 The read-only history preview stops at 400 KiB of diff: the files that fit keep theirs, the rest are
-listed without one, and no file is dropped from the list. New symlinks are listed but never followed
-into files outside the checkout.
+listed without one. Tracked files stay in the list; at most 500 untracked files are included, with
+a truncation notice when there are more. New symlinks are listed but never followed into files
+outside the checkout.
 
 ## Processes, settings and limits
 
@@ -85,6 +86,34 @@ currently survive session switching, not a page reload.
 Remote Git checks and automatic CLI updates are disabled for these processes. Other Plannotator
 features follow the user's configuration; optional AI/provider actions inside its UI are separate
 from merely opening a review and can invoke their own tools when explicitly requested.
+
+## Header badge and push
+
+`extensions/git-history` uses the [header slot](../../docs/extensions.md#header-items) for a rounded
+`+added −deleted ↑ahead ↓behind` badge. Its icon and numbers are one button with one highlight:
+it opens the history page at uncommitted changes
+(`sub=working`, whose Back leads to the list) while there are changed lines, and the list otherwise.
+
+- Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
+  untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
+  not report a separate “modified lines” count. Binary files contribute no line counts.
+- An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
+- In an ordinary checkout, commit counts compare against the configured upstream as of the **last
+  fetch**. The extension does not fetch or pull automatically. Without an upstream, the counters
+  show `?` and Push is disabled.
+- In a **linked worktree** (`git worktree add`), the arrows compare HEAD with the branch the main
+  checkout has checked out **now**, not the branch the worktree was started from: ↑ commits here
+  that branch does not contain, ↓ commits of that branch missing here. Both come from local refs —
+  there is no fetch — and are the unique commits on each side, not a lifetime total. A main checkout
+  on a detached or unborn HEAD, or a bare one, offers no base, so the badge keeps the upstream
+  arrows. The badge's title and accessible label name the branch it compares with. Push is
+  unaffected: it still counts and names the configured upstream in its confirmation.
+- Counts refresh after agent activity, after a push, and within about 3 s of a change in the working tree (see [Git history](#how-the-badge-stays-current)); the browser's own poll is every minute.
+- Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
+  configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
+  upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
+- Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
+  beforehand. Failures are shown in the header popover and can be dismissed.
 
 ## How the badge stays current
 
@@ -121,7 +150,7 @@ without an icon package. The colour is a theme role picked by family: `text-info
 `text-agent` for components, `text-warn` for JavaScript and JSON, `text-accent` for styles and
 media, `text-ok` for shells, `text-spark` for config and data, `text-ember` for markup, SQL and
 Rust. A kind of file that has no mark yet falls back to plain lines; a new one goes into
-`icons.tsx` and the subset is rebuilt:
+`icons.tsx` and the subset is rebuilt. Run from the repository root:
 
 ```bash
 uvx --with fonttools --with brotli python -c "

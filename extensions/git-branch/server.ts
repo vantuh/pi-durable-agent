@@ -1,18 +1,20 @@
 /** The git branch of the session's folder, under its title, and a menu to switch it. */
 
 import { execFile } from "node:child_process";
+import { realpath } from "node:fs/promises";
 import { promisify } from "node:util";
 
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
-import type { Checkout } from "./refs.ts";
+import type { Branch, Checkout, Moved } from "./refs.ts";
 
 const run = promisify(execFile);
 
 export const meta = {
     title: "Git branch",
-    description: "Shows the git branch of the session's folder, under its title, and switches it.",
+    description:
+        "Shows the git branch of the session's folder, under its title, and switches it, or moves the session to the worktree that has the branch.",
 };
 
 export default function gitBranch(host: Host) {
@@ -21,11 +23,68 @@ export default function gitBranch(host: Host) {
 
 const git = (cwd: string, args: string[]) => run("git", args, { cwd, timeout: 5000 });
 
-/** The local branches of the folder's repository, the current one included. */
-async function localBranches(cwd: string): Promise<string[]> {
-    const { stdout } = await git(cwd, ["for-each-ref", "--format=%(refname:short)", "refs/heads"]);
+/** The folder of every worktree that has a branch checked out, by branch. A worktree git calls prunable is left out. */
+async function checkedOut(cwd: string): Promise<Map<string, string>> {
+    // NUL-separated, so a folder name with a newline or a quote comes back as it is.
+    const { stdout } = await git(cwd, ["worktree", "list", "--porcelain", "-z"]);
+    const places = new Map<string, string>();
+    let path: string | undefined;
+    let name: string | undefined;
+    let gone = false;
 
-    return stdout.split("\n").filter((name) => name !== "");
+    const flush = () => {
+        if (path !== undefined && name !== undefined && !gone) {
+            places.set(name, path);
+        }
+
+        path = undefined;
+        name = undefined;
+        gone = false;
+    };
+
+    for (const field of stdout.split("\0")) {
+        if (field === "") {
+            flush();
+        } else if (field.startsWith("worktree ")) {
+            path = field.slice("worktree ".length);
+        } else if (field.startsWith("branch refs/heads/")) {
+            name = field.slice("branch refs/heads/".length);
+        } else if (field.startsWith("prunable")) {
+            gone = true;
+        }
+    }
+
+    flush();
+
+    return places;
+}
+
+/**
+ * The local branches of the folder's repository; those another worktree has checked out say where,
+ * as a folder that exists now.
+ */
+async function branchesOf(cwd: string): Promise<Branch[]> {
+    const { stdout } = await git(cwd, ["for-each-ref", "--format=%(refname:short)", "refs/heads"]);
+    const { stdout: top } = await git(cwd, ["rev-parse", "--show-toplevel"]);
+    // Only git's own newline goes: a folder name may end in a space.
+    const here = await realpath(top.replace(/\n$/, ""));
+    const places = await checkedOut(cwd);
+    const elsewhere = new Map<string, string>();
+
+    for (const [name, path] of places) {
+        // Git prints the path as the worktree was added; the session's folder may reach it by another
+        // way. A folder that is gone cannot take a session, so its branch is not offered as a move.
+        const real = await realpath(path).catch(() => undefined);
+
+        if (real !== undefined && real !== here) {
+            elsewhere.set(name, real);
+        }
+    }
+
+    return stdout
+        .split("\n")
+        .filter((name) => name !== "")
+        .map((name) => ({ name, worktree: elsewhere.get(name) ?? null }));
 }
 
 export const actions = (host: Host): Record<string, Action> => ({
@@ -55,13 +114,13 @@ export const actions = (host: Host): Record<string, Action> => ({
         }
     },
 
-    async branches({ session }): Promise<string[]> {
+    async branches({ session }): Promise<Branch[]> {
         const cwd = session?.cwd;
 
-        return cwd === undefined || cwd === null ? [] : await localBranches(cwd).catch(() => []);
+        return cwd === undefined || cwd === null ? [] : await branchesOf(cwd).catch(() => []);
     },
 
-    async checkout({ args, session }): Promise<Checkout> {
+    async checkout({ args, session }): Promise<Moved> {
         const cwd = session?.cwd;
         const name =
             typeof args === "object" && args !== null ? Reflect.get(args, "branch") : undefined;
@@ -71,26 +130,40 @@ export const actions = (host: Host): Record<string, Action> => ({
         }
 
         // Only an existing local branch: a name that starts with "-" must never reach git as an option.
-        if (typeof name !== "string" || !(await localBranches(cwd)).includes(name)) {
+        const found =
+            typeof name === "string"
+                ? (await branchesOf(cwd)).find((each) => each.name === name)
+                : undefined;
+
+        if (found === undefined) {
             throw new ActionError("args must be { branch: an existing local branch }");
         }
 
-        try {
-            await git(cwd, ["switch", name]);
-        } catch (error) {
-            // git says why: local changes in the way, or the branch is checked out in another worktree.
-            const stderr: unknown =
-                error instanceof Error ? Reflect.get(error, "stderr") : undefined;
+        // The agent's files would change under a run that is going on.
+        if (await host.sessionWorking(session.id)) {
+            throw new ActionError("the agent is working; wait for it to finish");
+        }
 
-            throw new ActionError(
-                typeof stderr === "string" && stderr.trim() !== ""
-                    ? stderr.trim()
-                    : "git switch failed",
-            );
+        if (found.worktree === null) {
+            try {
+                await git(cwd, ["switch", found.name]);
+            } catch (error) {
+                // git says why: local changes in the way.
+                const stderr: unknown =
+                    error instanceof Error ? Reflect.get(error, "stderr") : undefined;
+
+                throw new ActionError(
+                    typeof stderr === "string" && stderr.trim() !== ""
+                        ? stderr.trim()
+                        : "git switch failed",
+                );
+            }
+        } else {
+            await host.setSessionCwd(session.id, found.worktree);
         }
 
         host.notifySessionChanged(session.id);
 
-        return { branch: name };
+        return { branch: found.name, worktree: found.worktree };
     },
 });
