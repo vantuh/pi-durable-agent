@@ -233,7 +233,38 @@ export function isFolder(folder: string): boolean {
  * remembered when it was made once the worktree is gone.
  */
 export async function groupOf(dataDir: string, cwd: string): Promise<string | undefined> {
-    return (await mainCheckoutOf(cwd)) ?? mainOfRemembered(await readRemembered(dataDir), cwd);
+    const main = await mainCheckoutOf(cwd);
+
+    if (main !== undefined) {
+        return main;
+    }
+
+    const remembered = await readRemembered(dataDir);
+    const known = mainOfRemembered(remembered, cwd);
+    const mine = worktreeOf(dataDir, cwd);
+
+    if (known !== undefined || mine?.gone !== true) {
+        return known;
+    }
+
+    // Older worktrees have no record of their own; only agreeing siblings can identify their repository.
+    const candidates = new Set(
+        [...remembered]
+            .filter(([folder]) => dirname(folder) === dirname(mine.folder))
+            .map(([, repository]) => repository),
+    );
+    const mains = new Set(
+        await Promise.all(
+            [...candidates].map(
+                async (candidate) =>
+                    (await mainCheckoutOf(candidate)) ?? (await repositoryOf(candidate)),
+            ),
+        ),
+    );
+
+    mains.delete(undefined);
+
+    return mains.size === 1 ? [...mains][0] : undefined;
 }
 
 /**

@@ -69,7 +69,14 @@ in a new one, so two sessions can work on the same repository without stepping o
   fails is work that needs the deleted folder: `bash` answers
   `Working directory does not exist: <folder>`. This is not a tool sandbox; calls using other
   existing paths can still work. Deleting a worktree from the terminal leaves the session like
-  that, so the header shows the worktree's name in red — no menu, no ×, since there is nothing left
-  there — with the session's own folder in its tooltip. It is read through the `state` action of
+  that, so the header shows the worktree's name in red, without the ×. The red badge still opens
+  the worktree menu: for a worktree this server made, its remembered repository supplies the list,
+  so picking `Main checkout` moves the session out of the deleted worktree. The matching subfolder
+  is kept when it exists; otherwise the session moves to the checkout's root. Creation stays off
+  until the session has moved, and moves are still refused while the agent runs. Older worktrees
+  without their own record use remembered siblings under the same repository folder, only when
+  their available checkouts agree on one repository. If no repository can be identified, or the
+  main checkout is gone too, the menu has no choices.
+  The badge is read through the `state` action of
   `git-worktree`, again whenever the session's run state changes, so a worktree deleted while the app
   is open shows red at the next message, not at once.

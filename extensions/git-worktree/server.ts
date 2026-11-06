@@ -1,5 +1,7 @@
 /** A worktree of the session's repository, so what one session does stays apart from what another does. */
 
+import { join, relative } from "node:path";
+
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
@@ -121,12 +123,33 @@ async function enter(host: Host, id: number, path: string, moved: boolean): Prom
     return { moved, path };
 }
 
+/** A deleted worktree still belongs to its remembered repository, but is no longer a current choice. */
+async function choicesOf(host: Host, cwd: string): Promise<WorktreeChoice[]> {
+    const mine = worktreeOf(host.dataDir, cwd);
+
+    if (mine?.gone !== true) {
+        return worktreesOf(cwd);
+    }
+
+    const main = await groupOf(host.dataDir, cwd);
+
+    if (main === undefined) {
+        return [];
+    }
+
+    return (await worktreesOf(main)).map((choice) => {
+        const inside = join(choice.root, relative(mine.folder, cwd));
+
+        return { ...choice, path: isFolder(inside) ? inside : choice.root, current: false };
+    });
+}
+
 export const actions = (host: Host): Record<string, Action> => ({
     make({ args }): Promise<MadeWorktree> {
         return makeWorktree(host.dataDir, text(args, "cwd"), text(args, "name"));
     },
     worktrees({ args }): Promise<WorktreeChoice[]> {
-        return worktreesOf(text(args, "cwd"));
+        return choicesOf(host, text(args, "cwd"));
     },
     linked({ args }): Promise<string[]> {
         return worktreesAmong(foldersOf(args));
@@ -138,7 +161,7 @@ export const actions = (host: Host): Record<string, Action> => ({
         const { id, cwd } = await ready(host, session);
         const wanted = text(args, "worktree");
         // Read again here: the folder the caller named may be of another repository, or gone since.
-        const found = (await worktreesOf(cwd)).find((each) => each.root === wanted);
+        const found = (await choicesOf(host, cwd)).find((each) => each.root === wanted);
 
         if (found === undefined) {
             throw new ActionError("`worktree` must be a worktree of the session's repository.");

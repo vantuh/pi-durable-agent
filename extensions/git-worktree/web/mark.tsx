@@ -57,19 +57,6 @@ export function Mark({ session }: StatusProps) {
         return null;
     }
 
-    if (worktree.gone) {
-        return (
-            <Badge
-                tone="danger"
-                title={`The worktree ${worktree.name} was deleted: this session's folder is gone`}
-                className={WORKTREE}
-            >
-                <FolderX />
-                <span className="truncate">{worktree.name}</span>
-            </Badge>
-        );
-    }
-
     const choices = found.at === cwd ? found.choices : [];
     const wanted = query.trim();
     const needle = wanted.toLowerCase();
@@ -90,7 +77,7 @@ export function Mark({ session }: StatusProps) {
             choice.name === wanted ||
             choice.name === slug,
     );
-    const creatable = found.at === cwd && slug !== "" && !taken;
+    const creatable = !worktree.gone && found.at === cwd && slug !== "" && !taken;
 
     const goTo = async (root: string) => {
         if (pending) {
@@ -151,17 +138,20 @@ export function Mark({ session }: StatusProps) {
                     <PopoverTrigger asChild disabled={session?.busy === true || pending}>
                         <Badge
                             asChild
+                            tone={worktree.gone ? "danger" : "muted"}
                             title={
-                                worktree.main
-                                    ? `The main checkout ${worktree.folder}`
-                                    : worktree.ours
-                                      ? `Worktree ${worktree.folder}, made by this server`
-                                      : `Worktree ${worktree.folder}, made elsewhere`
+                                worktree.gone
+                                    ? `The worktree ${worktree.name} was deleted: choose a checkout to move this session`
+                                    : worktree.main
+                                      ? `The main checkout ${worktree.folder}`
+                                      : worktree.ours
+                                        ? `Worktree ${worktree.folder}, made by this server`
+                                        : `Worktree ${worktree.folder}, made elsewhere`
                             }
                             className={WORKTREE}
                         >
                             <button type="button">
-                                <FolderGit2 />
+                                {worktree.gone ? <FolderX /> : <FolderGit2 />}
                                 <span className="truncate">{worktree.name}</span>
                             </button>
                         </Badge>
@@ -231,7 +221,7 @@ export function Mark({ session }: StatusProps) {
                     </PopoverContent>
                 </Popover>
 
-                {worktree.ours ? (
+                {worktree.ours && !worktree.gone ? (
                     /* Beside the pill, not in it: the pill is the menu's trigger, and a button inside a
                        button takes neither click. */
                     <Hint label={`Remove the worktree ${worktree.name}`}>

@@ -161,6 +161,88 @@ void describe("git-worktree actions", () => {
             assert.deepEqual(moved, [[7, await realpath(repo)]]);
         });
 
+        void it("lists the main checkout and moves there after git has removed the worktree", async () => {
+            await init();
+            const ours = await makeWorktree(data, repo, "gone");
+            const main = await realpath(repo);
+
+            await git(repo, ["worktree", "remove", ours.worktree]);
+
+            assert.deepEqual(await call("worktrees", { cwd: ours.path }, ours.path), [
+                { name: "main", root: main, path: main, main: true, current: false },
+            ]);
+            assert.deepEqual(await call("move", { worktree: main }, ours.path), {
+                moved: true,
+                path: main,
+            });
+            assert.deepEqual(moved, [[7, main]]);
+            assert.deepEqual(changed, [7]);
+        });
+
+        void it("recovers an old deleted worktree from a remembered sibling's repository", async () => {
+            await init();
+            const remembered = await makeWorktree(data, repo, "remembered");
+            const old = join(data, "worktrees", "repo", "structure");
+            const main = await realpath(repo);
+
+            await git(repo, ["worktree", "add", "-q", "-b", "structure", old]);
+            await git(repo, ["worktree", "remove", old]);
+
+            const sibling = await realpath(remembered.worktree);
+
+            assert.deepEqual(await call("worktrees", { cwd: old }, old), [
+                { name: "main", root: main, path: main, main: true, current: false },
+                { name: "remembered", root: sibling, path: sibling, main: false, current: false },
+            ]);
+            assert.deepEqual(await call("move", { worktree: main }, old), {
+                moved: true,
+                path: main,
+            });
+            assert.deepEqual(moved, [[7, main]]);
+
+            const other = join(dir, "other", "repo");
+
+            await initRepo(other);
+            await makeWorktree(data, other, "another-repository");
+
+            assert.deepEqual(await call("worktrees", { cwd: old }, old), []);
+            await assert.rejects(
+                call("move", { worktree: main }, old),
+                /must be a worktree of the session's repository/,
+            );
+            assert.deepEqual(moved, []);
+        });
+
+        void it("keeps the missing worktree's subfolder, or falls back to the main root", async () => {
+            await init();
+            await mkdir(join(repo, "packages", "app"), { recursive: true });
+            await writeFile(join(repo, "packages", "app", "file"), "deep\n");
+            await git(repo, ["add", "packages"]);
+            await git(repo, ["commit", "-qm", "deep"]);
+            const ours = await makeWorktree(data, join(repo, "packages", "app"), "gone");
+            const main = await realpath(repo);
+
+            await git(repo, ["worktree", "remove", ours.worktree]);
+
+            assert.deepEqual(await call("move", { worktree: main }, ours.path), {
+                moved: true,
+                path: join(main, "packages", "app"),
+            });
+            assert.deepEqual(await call("move", { worktree: main }, join(ours.worktree, "loose")), {
+                moved: true,
+                path: main,
+            });
+            await assert.rejects(
+                call("move", { worktree: dir }, ours.path),
+                /must be a worktree of the session's repository/,
+            );
+            await assert.rejects(
+                call("move", { worktree: main }, ours.path, [false, true]),
+                /the agent is working/,
+            );
+            assert.deepEqual(moved, []);
+        });
+
         void it("does not move a session already in that worktree, and says where it is", async () => {
             await init();
             const ours = await makeWorktree(data, repo, "ours");
