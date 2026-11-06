@@ -46,8 +46,9 @@ ANSI is deliberately not interpreted, because that would change the source text.
 
 `@pierre/diffs` 1.6.4 uses its native Highlights backend for edit cards and Git diff lists. The shared
 options and prefetch both select `preferredHighlighter: "highlights"`, so whichever opens first uses
-the same backend. Diff syntax colours still come from the shared role theme. Shiki remains an upstream
-dependency, but these renderers do not select its backend.
+the same backend. Diff syntax colours still come from the shared role theme. `vite.config.ts` aliases
+every `shiki` path to `shiki-stub.ts`, so no Shiki code or grammar reaches `dist`; a Diffs upgrade that
+imports a Shiki name the stub lacks fails the build, which is how the one backend stays out.
 Highlights uses lexers rather than TextMate grammars: token boundaries and classifications differ,
 and some Shiki languages/aliases (for example `nushell`, `pkl`, `hjson`) now stay plain. Streaming
 still uses the existing 150 ms debounce and full-block tokenization, not a second incremental pipeline.

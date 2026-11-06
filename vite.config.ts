@@ -49,9 +49,15 @@ export default defineConfig({
         },
     ],
     resolve: {
-        alias: {
-            "@": fileURLToPath(new URL("./web/src", import.meta.url)),
-        },
+        alias: [
+            { find: "@", replacement: fileURLToPath(new URL("./web/src", import.meta.url)) },
+            // Diffs' Shiki backend is never selected, and its grammar catalog is 4.6 MB of chunks
+            // nothing requests; `shiki-stub.ts` keeps the unused backend compiling and unreachable.
+            {
+                find: /^shiki(\/.*)?$/,
+                replacement: fileURLToPath(new URL("./shiki-stub.ts", import.meta.url)),
+            },
+        ],
     },
     server: {
         port: 5190,
@@ -68,8 +74,8 @@ export default defineConfig({
             output: {
                 // Vendor code is not app code: in the entry chunk, every edit to the app re-ships all of
                 // it. Split the eager vendor code instead, so the entry is the size of our own code.
-                // `$initial` keeps lazy chunks — shiki grammars, @pierre/diffs — as they are: each is named
-                // after what it holds and fetched only when a code block or a diff needs it.
+                // `$initial` keeps lazy chunks — Highlights lexers, @pierre/diffs — as they are: each is
+                // named after what it holds and fetched only when a code block or a diff needs it.
                 codeSplitting: {
                     groups: [
                         {
