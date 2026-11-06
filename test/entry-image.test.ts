@@ -15,6 +15,7 @@ import { getRequestListener } from "@hono/node-server";
 import { projectEntry } from "../server/projection.ts";
 import { conversationRoutes } from "../server/routes/conversation.ts";
 import { type Opened, Sessions } from "../server/sessions.ts";
+import { listen } from "./fixtures/serve.ts";
 
 const PIXEL = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
 
@@ -66,6 +67,8 @@ void describe("images a tool returned", () => {
             void listener(request, response);
         });
 
+        let close: (() => Promise<void>) | undefined;
+
         try {
             const first = await sessions.create(dir);
             const second = await sessions.create(dir);
@@ -113,17 +116,13 @@ void describe("images a tool returned", () => {
             assert.ok(projectedText?.kind === "toolResult");
             assert.equal(projectedText.images, undefined);
 
-            await new Promise<void>((done) => {
-                server.listen(0, "127.0.0.1", done);
-            });
+            const listening = await listen(server);
 
-            const address = server.address();
-
-            assert.ok(address !== null && typeof address !== "string");
+            ({ close } = listening);
 
             const get = (session: number, entry: number, index: number) =>
                 fetch(
-                    `http://127.0.0.1:${String(address.port)}/api/entry-image?session=${String(session)}&entry=${String(entry)}&index=${String(index)}`,
+                    `${listening.base}/api/entry-image?session=${String(session)}&entry=${String(entry)}&index=${String(index)}`,
                 );
 
             const served = await get(first.id, Number(entries.withImage.id), 0);
@@ -142,12 +141,7 @@ void describe("images a tool returned", () => {
             );
             assert.equal((await get(first.id, Number(entries.withImage.id), -1)).status, 400);
         } finally {
-            server.closeAllConnections();
-            await new Promise<void>((done) => {
-                server.close(() => {
-                    done();
-                });
-            });
+            await close?.();
             await harness.close(BACKGROUND_CONTEXT);
             await rm(dir, { recursive: true, force: true });
         }

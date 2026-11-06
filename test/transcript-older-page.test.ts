@@ -9,7 +9,6 @@
 
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -20,13 +19,12 @@ import { createModels, fauxProvider } from "@earendil-works/pi-ai";
 import { type Conversation, createRegistry, Harness } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { createServer as createViteServer } from "vite";
 
-import type { Chromium } from "../extensions/browser/server/cdp.ts";
 import { historyPage } from "../server/history.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import { projectEntry } from "../server/projection.ts";
 import { defaultAnswer } from "./fixtures/api-defaults.ts";
+import { findChromium, withBrowserApp, type ApiHandler, type Found } from "./fixtures/browser.ts";
 
 const OLDEST = "older question 0";
 /** More than the window's 50 entries hold of the turns before it. */
@@ -47,11 +45,6 @@ const TAIL_SHOWN = `${SCROLLER} !== undefined`;
 const TAIL_FITS = `${SCROLLER}.querySelector("[aria-hidden]").getBoundingClientRect().bottom >
     ${SCROLLER}.getBoundingClientRect().top`;
 const OLDER_SHOWN = `document.body.innerText.includes(${JSON.stringify(OLDEST)})`;
-
-/** A record read by key: what Chromium hands back from `Runtime.evaluate` is untyped JSON. */
-function field(value: unknown, key: string): unknown {
-    return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
-}
 
 type Seeded = {
     dir: string;
@@ -115,44 +108,12 @@ type Screen = {
     until: (expression: string, within: number) => Promise<boolean>;
 };
 
-/** The Chromium the app is opened in, as the extension that owns it exposes it. */
-type Browser = {
-    launch: (executable: string, profile: string, extra: readonly string[]) => Promise<Chromium>;
-    findBrowser: () => string | undefined;
-};
-
-/**
- * Driving Chromium is an extension's job, so the core's tests cannot import it statically: a checkout without
- * `extensions/browser` would fail to run this file instead of skipping it.
- */
-async function loadBrowser(): Promise<Browser | undefined> {
-    try {
-        const [cdp, discovery] = await Promise.all([
-            import("../extensions/browser/server/cdp.ts"),
-            import("../extensions/browser/server/discovery.ts"),
-        ]);
-
-        return {
-            launch: (executable, profile, extra) => cdp.Chromium.launch(executable, profile, extra),
-            findBrowser: discovery.findBrowser,
-        };
-    } catch (error) {
-        // Only an absent folder skips: a file that is there and broken must fail the test, not hide it.
-        if (!(error instanceof Error) || Reflect.get(error, "code") !== "ERR_MODULE_NOT_FOUND") {
-            throw error;
-        }
-
-        return undefined;
-    }
-}
-
 /**
  * The app the person uses, served from its sources, over one conversation whose window leaves the oldest turns out and draws a short tail, and
  * opened in a real browser. Everything it needs, it asks for on its own; `when` looks at what it does.
  */
 async function withApp(
-    chromium: Browser,
-    executable: string,
+    found: Found,
     options: {
         /** Every `/api/history` answer is a 500. */
         fails?: boolean;
@@ -185,25 +146,7 @@ async function withApp(
         release();
     }
 
-    // A cache of its own: `node_modules/.vite` belongs to the dev server, and a second Vite writing its
-    // dependencies there makes that server re-optimize and reload the page under the person using it.
-    const viteCache = await mkdtemp(join(tmpdir(), "older-page-vite-"));
-    const vite = await createViteServer({
-        server: { middlewareMode: true, hmr: false },
-        cacheDir: viteCache,
-        appType: "spa",
-    });
-    const server = createServer((request, response) => {
-        const url = new URL(request.url ?? "/", "http://127.0.0.1");
-
-        if (!url.pathname.startsWith("/api/")) {
-            vite.middlewares(request, response, () => {
-                response.writeHead(404).end();
-            });
-
-            return;
-        }
-
+    const api: ApiHandler = (_request, response, url) => {
         if (url.pathname === "/api/health") {
             answer(response, 200, {
                 model: "faux/m1",
@@ -301,104 +244,37 @@ async function withApp(
 
         // Everything else the shell asks for is not what this test is about: an empty answer keeps it quiet.
         answer(response, 200, defaultAnswer(url.pathname));
-    });
-    const profile = await mkdtemp(join(tmpdir(), "older-page-browser-"));
-    let browser: Chromium | undefined;
+    };
 
     try {
-        await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-        const address = server.address();
+        await withBrowserApp(found, api, async (page) => {
+            const watch = await seeded.conversation.watch(BACKGROUND_CONTEXT);
+            const firstInWindow = Number(watch.value.entries[0]?.id);
 
-        assert.ok(address !== null && typeof address === "object");
-
-        browser = await chromium.launch(executable, profile, []);
-        const connection = browser.connection;
-        const opened = await connection.send("Target.createTarget", { url: "about:blank" });
-        const attached = await connection.send("Target.attachToTarget", {
-            targetId: opened.targetId,
-            flatten: true,
-        });
-        const page = String(attached.sessionId);
-        const read = async (expression: string): Promise<unknown> => {
-            const result = await connection.send(
-                "Runtime.evaluate",
-                { expression, returnByValue: true, awaitPromise: true },
-                page,
-            );
-
-            return field(field(result, "result"), "value");
-        };
-        const seen = async (expression: string): Promise<boolean> => {
-            const value = await read(expression);
-
-            return value === true;
-        };
-        const until = async (expression: string, within: number): Promise<boolean> => {
-            const end = Date.now() + within;
-
-            while (Date.now() < end) {
-                if (await seen(expression)) {
-                    return true;
-                }
-
-                await delay(100);
-            }
-
-            return await seen(expression);
-        };
-        const watch = await seeded.conversation.watch(BACKGROUND_CONTEXT);
-        const firstInWindow = Number(watch.value.entries[0]?.id);
-
-        await watch.stop();
-
-        await connection.send("Page.enable", {}, page);
-        await connection.send(
-            "Page.navigate",
-            { url: `http://127.0.0.1:${String(address.port)}/?session=${String(session)}` },
-            page,
-        );
-
-        await when({
-            marker: firstInWindow,
-            asked,
-            release,
-            seen,
-            until,
+            await watch.stop();
+            await page.open(`/?session=${String(session)}`);
+            await when({
+                marker: firstInWindow,
+                asked,
+                release,
+                seen: page.seen,
+                until: page.until,
+            });
         });
     } finally {
-        if (browser !== undefined) {
-            browser.kill();
-            await browser.exited;
-        }
-
-        server.closeAllConnections();
-        await new Promise<void>((done) => server.close(() => done()));
-        await vite.close();
-        await rm(viteCache, { recursive: true, force: true });
         await seeded.close();
-        await rm(profile, { recursive: true, force: true });
     }
 }
 
 void describe("the transcript's older pages", () => {
     void it("asks for them when the tail fits the view", async (t) => {
-        const chromium = await loadBrowser();
+        const found = await findChromium(t);
 
-        if (chromium === undefined) {
-            t.skip("needs extensions/browser to drive Chromium");
-
+        if (found === undefined) {
             return;
         }
 
-        const executable = chromium.findBrowser();
-
-        if (executable === undefined) {
-            t.skip("this machine has no Chromium to open the app in");
-
-            return;
-        }
-
-        await withApp(chromium, executable, { hold: true }, async (screen) => {
+        await withApp(found, { hold: true }, async (screen) => {
             assert.equal(
                 await screen.until(TAIL_SHOWN, LOAD_MS),
                 true,
@@ -449,23 +325,13 @@ void describe("the transcript's older pages", () => {
     // The ask moved into the layout effect, which runs on every commit: a failed answer changes the state, the state
     // changes the commit, and an unguarded effect asks again — a restart or a dropped connection would be a burst.
     void it("asks once for a page that never arrives", async (t) => {
-        const chromium = await loadBrowser();
+        const found = await findChromium(t);
 
-        if (chromium === undefined) {
-            t.skip("needs extensions/browser to drive Chromium");
-
+        if (found === undefined) {
             return;
         }
 
-        const executable = chromium.findBrowser();
-
-        if (executable === undefined) {
-            t.skip("this machine has no Chromium to open the app in");
-
-            return;
-        }
-
-        await withApp(chromium, executable, { fails: true }, async (screen) => {
+        await withApp(found, { fails: true }, async (screen) => {
             assert.equal(
                 await screen.until(TAIL_SHOWN, LOAD_MS),
                 true,

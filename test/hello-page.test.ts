@@ -9,10 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 
@@ -25,39 +22,17 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 
 import type { ClientHistory, ServerEvent } from "../shared/protocol.ts";
 import { parseEvent, parseHistory } from "../web/src/lib/event.ts";
+import { cleanUp, sandbox, startServer } from "./fixtures/server.ts";
 
-const REPO = join(import.meta.dirname, "..");
-const MAIN = join(REPO, "server", "main.ts");
 /** Text of one entry: a question and its answer are about 6 KB together. */
 const TEXT_BYTES = 3000;
 /** Turns of the long session: about five times the newest page, and far past any budget of the phone's first screen. */
 const TURNS = 60;
 /** The first frame of a stream is written at once; a stream that held it would miss this. */
 const FRAME_MS = 5000;
-const roots: string[] = [];
-const running: ChildProcess[] = [];
 
 /** One conversation as it was seeded: its id, and every entry it holds, oldest first. */
 type Seeded = { session: number; entries: number[] };
-
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
 
 /** A conversation with `turns` questions and answers, seeded through the harness a run writes through. */
 async function seed(dataDir: string, cwd: string, turns: number): Promise<Seeded> {
@@ -107,13 +82,10 @@ async function seed(dataDir: string, cwd: string, turns: number): Promise<Seeded
 }
 
 /** A real server in a temporary folder over the seeded data, and the sessions it was given. */
-async function sandbox(turns: readonly number[]): Promise<{ base: string; seeded: Seeded[] }> {
-    const root = await mkdtemp(join(tmpdir(), "hello-page-"));
-    const cwd = join(root, "cwd");
-    const dataDir = join(root, "data");
+async function seededServer(turns: readonly number[]): Promise<{ base: string; seeded: Seeded[] }> {
+    const box = await sandbox("hello-page");
+    const { cwd, dataDir } = box;
 
-    roots.push(root);
-    await mkdir(join(cwd, "extensions"), { recursive: true });
     await mkdir(dataDir, { recursive: true });
 
     const seeded: Seeded[] = [];
@@ -122,38 +94,9 @@ async function sandbox(turns: readonly number[]): Promise<{ base: string; seeded
         seeded.push(await seed(dataDir, cwd, count));
     }
 
-    const port = await freePort();
-    const child = spawn(process.execPath, [MAIN], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: dataDir,
-            MODEL: "p/m",
-            PORT: String(port),
-        },
-    });
-    let output = "";
+    const { base } = await startServer({ box, env: { MODEL: "p/m" } });
 
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
-    });
-
-    return { base: `http://127.0.0.1:${String(port)}`, seeded };
+    return { base, seeded };
 }
 
 /** The `hello` a conversation's stream starts with, read with the browser's parser and dropped at once. */
@@ -216,19 +159,11 @@ async function history(base: string, session: number, before: number): Promise<C
     return page;
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("the hello that opens a session", () => {
     void it("carries the newest page of a long session, and history reaches the entries it left out", async () => {
-        const { base, seeded } = await sandbox([TURNS]);
+        const { base, seeded } = await seededServer([TURNS]);
         const long = seeded[0];
 
         assert.ok(long !== undefined, "the long session was seeded");
@@ -270,7 +205,7 @@ void describe("the hello that opens a session", () => {
     });
 
     void it("carries every entry of a session that fits, and says there is nothing older", async () => {
-        const { base, seeded } = await sandbox([2]);
+        const { base, seeded } = await seededServer([2]);
         const short = seeded[0];
 
         assert.ok(short !== undefined, "the short session was seeded");

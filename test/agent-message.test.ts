@@ -1,24 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
 
 import type { ClientAuthor } from "../shared/protocol.ts";
+import { startVite } from "./fixtures/vite.ts";
 
 /** The card is TSX, which `node --test` cannot strip: it is loaded the way the app loads it. */
 async function renderCard(author: ClientAuthor): Promise<string> {
-    // A cache of its own: `node_modules/.vite` belongs to the dev server, and a second Vite writing its
-    // dependencies there makes that server re-optimize and reload the page under the person using it.
-    const cacheDir = await mkdtemp(join(tmpdir(), "agent-message-vite-"));
-    const server = await createServer({
-        server: { middlewareMode: true, hmr: false },
-        cacheDir,
-        appType: "custom",
+    const { vite: server, stop } = await startVite("custom", {
         // Nothing to prebundle: the card is imported for a render, not served.
         optimizeDeps: { noDiscovery: true },
     });
@@ -36,8 +27,7 @@ async function renderCard(author: ClientAuthor): Promise<string> {
             ),
         );
     } finally {
-        await server.close();
-        await rm(cacheDir, { recursive: true, force: true, maxRetries: 3 });
+        await stop();
     }
 }
 

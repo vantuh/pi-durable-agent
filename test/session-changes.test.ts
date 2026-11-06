@@ -1,17 +1,11 @@
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { ServerEvent } from "../shared/protocol.ts";
-
-const MAIN = join(import.meta.dirname, "../server/main.ts");
-const roots: string[] = [];
-const running: ChildProcess[] = [];
+import { cleanUp, sandbox, startServer } from "./fixtures/server.ts";
 
 // Calls `host.notifySessionChanged` for the session an action is called from, as an extension would.
 const NOTIFIER = `export default (host) => ({ name: host.name });
@@ -23,62 +17,15 @@ export const actions = (host) => ({
 });
 `;
 
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
-
 async function serverWithNotifier(): Promise<{ base: string; output: () => string }> {
-    const root = await mkdtemp(join(tmpdir(), "session-changes-"));
+    const box = await sandbox("session-changes");
 
-    roots.push(root);
-    await mkdir(join(root, "cwd", "extensions", "notifier"), { recursive: true });
-    await writeFile(join(root, "cwd", "extensions", "notifier", "server.ts"), NOTIFIER);
+    await mkdir(join(box.cwd, "extensions", "notifier"), { recursive: true });
+    await writeFile(join(box.cwd, "extensions", "notifier", "server.ts"), NOTIFIER);
 
-    const port = await freePort();
-    const child = spawn(process.execPath, [MAIN], {
-        cwd: join(root, "cwd"),
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PORT: String(port),
-            PI_DURABLE_DATA_DIR: join(root, "data"),
-        },
-    });
-    let output = "";
+    const { base, output } = await startServer({ box });
 
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
-    });
-
-    return { base: `http://127.0.0.1:${String(port)}`, output: () => output };
+    return { base, output };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<unknown> {
@@ -124,15 +71,7 @@ function liveEvents(base: string, session: number): { events: ServerEvent[]; sto
     return { events, stop: () => abort.abort() };
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("host.notifySessionChanged", () => {
     void it("sends the session's live state again with a new revision, once per burst", async () => {

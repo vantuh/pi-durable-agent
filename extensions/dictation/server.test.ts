@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import type { Host } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
 import { testHost } from "../../test/fixtures/host.ts";
+import { listen } from "../../test/fixtures/serve.ts";
 import dictation, { actions, candidates, Dictation, http, models } from "./server.ts";
 import { MAX_BYTES, Parts, toSamples } from "./server/parts.ts";
 import { DictationStore } from "./server/store.ts";
@@ -160,16 +161,10 @@ void describe("the routes", () => {
             void routes({ request, response, path: request.url ?? "/" });
         });
 
-        await new Promise<void>((resolve) => {
-            server.listen(0, "127.0.0.1", resolve);
-        });
-
-        const address = server.address();
-
-        assert.ok(address !== null && typeof address !== "string");
+        const { base, close } = await listen(server);
 
         try {
-            const response = await fetch(`http://127.0.0.1:${String(address.port)}/audio`, {
+            const response = await fetch(`${base}/audio`, {
                 method: "POST",
                 body: "{not json",
             });
@@ -178,12 +173,7 @@ void describe("the routes", () => {
             assert.equal(response.status, 400, "a body it cannot read is bad input, not a failure");
             assert.equal(payload?.["error"], "body is not JSON");
         } finally {
-            await new Promise<void>((resolve) => {
-                server.close(() => {
-                    resolve();
-                });
-                server.closeAllConnections();
-            });
+            await close();
             await rm(dir, { recursive: true, force: true });
         }
     });
@@ -425,15 +415,7 @@ void describe("a model the settings no longer name", () => {
                 void routes({ request, response, path: request.url ?? "/" });
             });
 
-            await new Promise<void>((resolve) => {
-                server.listen(0, "127.0.0.1", resolve);
-            });
-
-            const address = server.address();
-
-            assert.ok(address !== null && typeof address !== "string");
-
-            const base = `http://127.0.0.1:${String(address.port)}`;
+            const { base, close } = await listen(server);
             const warm = async () => {
                 const response = await fetch(`${base}/warm`, { method: "POST", body: "{}" });
                 const body: unknown = JSON.parse(await response.text());
@@ -471,12 +453,7 @@ void describe("a model the settings no longer name", () => {
                     await dispose();
                 }
 
-                await new Promise<void>((resolve) => {
-                    server.close(() => {
-                        resolve();
-                    });
-                    server.closeAllConnections();
-                });
+                await close();
                 await rm(dir, { recursive: true, force: true });
             }
         },

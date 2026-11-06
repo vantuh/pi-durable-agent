@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { promisify } from "node:util";
 
+import { git, initRepo, run } from "../../../test/fixtures/git.ts";
 import { slugOf } from "../refs.ts";
 import { mainOfRemembered } from "./remembered.ts";
 import {
@@ -20,33 +19,16 @@ import {
     worktreesOf,
 } from "./worktree.ts";
 
-const run = promisify(execFile);
-
 void describe("git-worktree", () => {
     let dir: string;
     let repo: string;
     let data: string;
 
-    const git = (cwd: string, args: string[]) =>
-        run(
-            "git",
-            ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args],
-            { cwd },
-        );
-
     const branch = async (cwd: string): Promise<string> =>
         (await git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])).stdout.trim();
 
     /** A repository with one commit holding `file`, and no other. */
-    const init = async (): Promise<void> => {
-        await run("git", ["init", "-b", "main", repo]);
-        await git(repo, ["config", "user.name", "t"]);
-        await git(repo, ["config", "user.email", "t@t"]);
-        await git(repo, ["config", "commit.gpgsign", "false"]);
-        await writeFile(join(repo, "file"), "first\n");
-        await git(repo, ["add", "file"]);
-        await git(repo, ["commit", "-m", "first"]);
-    };
+    const init = (): Promise<void> => initRepo(repo);
 
     beforeEach(async () => {
         dir = await mkdtemp(join(tmpdir(), "git-worktree-test-"));
@@ -261,21 +243,7 @@ void describe("git-worktree linkedWorktreeOf", () => {
 
             await run("git", ["init", "-q", "-b", "main", main]);
             await mkdir(join(linked));
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "commit",
-                    "-q",
-                    "--allow-empty",
-                    "-m",
-                    "x",
-                ],
-                { cwd: main },
-            );
+            await git(main, ["commit", "-q", "--allow-empty", "-m", "x"]);
             await run("git", ["worktree", "add", "-q", "-b", "other", linked], { cwd: main });
 
             // git answers with the path it resolved, and /var is a link to /private/var.
@@ -298,21 +266,6 @@ void describe("git-worktree mainCheckoutOf", () => {
         try {
             const repo = join(at, "repo");
             const data = join(at, "data");
-            const git = (cwd: string, args: string[]) =>
-                run(
-                    "git",
-                    [
-                        "-c",
-                        "user.name=t",
-                        "-c",
-                        "user.email=t@t",
-                        "-c",
-                        "commit.gpgsign=false",
-                        ...args,
-                    ],
-                    { cwd },
-                );
-
             await run("git", ["init", "-q", "-b", "main", repo]);
             await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
             await mkdir(join(repo, "src"));
@@ -338,21 +291,6 @@ void describe("git-worktree mainCheckoutOf", () => {
             // Inside another repository's root: the folder around it is no checkout of this one.
             const bare = join(outer, "bare.git");
             const linked = join(outer, "outside");
-            const git = (cwd: string, args: string[]) =>
-                run(
-                    "git",
-                    [
-                        "-c",
-                        "user.name=t",
-                        "-c",
-                        "user.email=t@t",
-                        "-c",
-                        "commit.gpgsign=false",
-                        ...args,
-                    ],
-                    { cwd },
-                );
-
             await run("git", ["init", "-q", "-b", "main", repo]);
             await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
             await run("git", ["init", "-q", "-b", "main", outer]);
@@ -385,21 +323,6 @@ void describe("git-worktree groupOf", () => {
         try {
             const repo = join(at, "repo");
             const data = join(at, "data");
-            const git = (cwd: string, args: string[]) =>
-                run(
-                    "git",
-                    [
-                        "-c",
-                        "user.name=t",
-                        "-c",
-                        "user.email=t@t",
-                        "-c",
-                        "commit.gpgsign=false",
-                        ...args,
-                    ],
-                    { cwd },
-                );
-
             await run("git", ["init", "-q", "-b", "main", repo]);
             await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
 
@@ -441,21 +364,6 @@ void describe("git-worktree worktreesOf", () => {
             const repo = join(at, "repo");
             const data = join(at, "data");
             const theirs = join(at, "theirs");
-            const git = (cwd: string, args: string[]) =>
-                run(
-                    "git",
-                    [
-                        "-c",
-                        "user.name=t",
-                        "-c",
-                        "user.email=t@t",
-                        "-c",
-                        "commit.gpgsign=false",
-                        ...args,
-                    ],
-                    { cwd },
-                );
-
             await run("git", ["init", "-q", "-b", "main", repo]);
             await mkdir(join(repo, "src"));
             await writeFile(join(repo, "src", "file"), "first\n");
@@ -515,23 +423,7 @@ void describe("git-worktree worktreesOf", () => {
             const fresh = join(at, "fresh-clone");
 
             await run("git", ["init", "-q", "-b", "main", repo]);
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-q",
-                    "--allow-empty",
-                    "-m",
-                    "first",
-                ],
-                { cwd: repo },
-            );
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
             await run("git", ["worktree", "add", "-q", "--detach", fresh], { cwd: repo });
 
             assert.deepEqual(
@@ -551,23 +443,7 @@ void describe("git-worktree worktreesOf", () => {
             const odd = join(at, "with\nbreak");
 
             await run("git", ["init", "-q", "-b", "main", repo]);
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-q",
-                    "--allow-empty",
-                    "-m",
-                    "first",
-                ],
-                { cwd: repo },
-            );
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
             await run("git", ["worktree", "add", "-q", "-b", "odd", odd], { cwd: repo });
 
             // The path is one line of git's own output unless it is read as NUL-terminated.
@@ -593,36 +469,8 @@ void describe("git-worktree worktreesOf", () => {
             await run("git", ["init", "-q", "-b", "main", repo]);
             await mkdir(join(repo, "src"));
             await writeFile(join(repo, "src", "file"), "first\n");
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "add",
-                    "src",
-                ],
-                { cwd: repo },
-            );
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-q",
-                    "-m",
-                    "first",
-                ],
-                { cwd: repo },
-            );
+            await git(repo, ["add", "src"]);
+            await git(repo, ["commit", "-q", "-m", "first"]);
 
             const made = await makeWorktree(data, repo, "ours");
 
@@ -651,21 +499,6 @@ void describe("git-worktree worktreesOf", () => {
             // Inside another repository's root: the folder around it is no checkout of this one.
             const bare = join(outer, "bare.git");
             const linked = join(outer, "outside");
-            const git = (cwd: string, args: string[]) =>
-                run(
-                    "git",
-                    [
-                        "-c",
-                        "user.name=t",
-                        "-c",
-                        "user.email=t@t",
-                        "-c",
-                        "commit.gpgsign=false",
-                        ...args,
-                    ],
-                    { cwd },
-                );
-
             await run("git", ["init", "-q", "-b", "main", repo]);
             await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
             await run("git", ["init", "-q", "-b", "main", outer]);
@@ -691,23 +524,7 @@ void describe("git-worktree worktreesOf", () => {
             const data = join(at, "data");
 
             await run("git", ["init", "-q", "-b", "main", repo]);
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-q",
-                    "--allow-empty",
-                    "-m",
-                    "first",
-                ],
-                { cwd: repo },
-            );
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
 
             const made = await makeWorktree(data, repo, "gone");
 
@@ -735,23 +552,7 @@ void describe("git-worktree worktreesAmong", () => {
             const plain = join(at, "plain");
 
             await run("git", ["init", "-q", "-b", "main", repo]);
-            await run(
-                "git",
-                [
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-q",
-                    "--allow-empty",
-                    "-m",
-                    "first",
-                ],
-                { cwd: repo },
-            );
+            await git(repo, ["commit", "-q", "--allow-empty", "-m", "first"]);
             await mkdir(plain);
 
             const ours = await makeWorktree(data, repo, "ours");

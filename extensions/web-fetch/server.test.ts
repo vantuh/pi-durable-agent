@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { boundOutput } from "@earendil-works/chord/output";
 
 import { testHost } from "../../test/fixtures/host.ts";
+import { listen } from "../../test/fixtures/serve.ts";
 import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
 import webFetch from "./server.ts";
 import { MAX_CHARS, fetchPage, format, type Page } from "./server/page.ts";
@@ -15,35 +16,18 @@ type Site = { url: string; close: () => Promise<void> };
 
 /** A real local server: the boundary is HTTP itself, so nothing is stubbed. */
 async function serve(routes: Record<string, Route>): Promise<Site> {
-    const server = createServer((request, response) => {
-        const route = routes[request.url ?? "/"];
-        if (route === undefined) {
-            response.writeHead(404, { "content-type": "text/plain" }).end("not found");
-            return;
-        }
-        route(response);
-    });
+    const { base, close } = await listen(
+        createServer((request, response) => {
+            const route = routes[request.url ?? "/"];
+            if (route === undefined) {
+                response.writeHead(404, { "content-type": "text/plain" }).end("not found");
+                return;
+            }
+            route(response);
+        }),
+    );
 
-    await new Promise<void>((resolve) => {
-        server.listen(0, "127.0.0.1", resolve);
-    });
-
-    const address = server.address();
-    if (address === null || typeof address === "string") {
-        throw new Error("the test server has no port");
-    }
-
-    return {
-        url: `http://127.0.0.1:${address.port}`,
-        close: async () => {
-            server.closeAllConnections();
-            await new Promise<void>((resolve) => {
-                server.close(() => {
-                    resolve();
-                });
-            });
-        },
-    };
+    return { url: base, close };
 }
 
 /** The served page, or a failed assertion instead of a union every test has to narrow. */

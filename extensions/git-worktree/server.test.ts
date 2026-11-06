@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { promisify } from "node:util";
 
+import { git, initRepo, run } from "../../test/fixtures/git.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { actions } from "./server.ts";
 import { makeWorktree } from "./server/worktree.ts";
-
-const run = promisify(execFile);
 
 void describe("git-worktree actions", () => {
     let dir: string;
@@ -21,13 +18,6 @@ void describe("git-worktree actions", () => {
     let moved: [number, string][];
     /** Every session the last action call said changed, in order. */
     let changed: number[];
-
-    const git = (cwd: string, args: string[]) =>
-        run(
-            "git",
-            ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args],
-            { cwd },
-        );
 
     const head = async (cwd: string): Promise<string> =>
         (await git(cwd, ["rev-parse", "HEAD"])).stdout.trim();
@@ -66,12 +56,7 @@ void describe("git-worktree actions", () => {
     };
 
     /** A repository with one commit holding `file`, and no other. */
-    const init = async (): Promise<void> => {
-        await run("git", ["init", "-q", "-b", "main", repo]);
-        await writeFile(join(repo, "file"), "first\n");
-        await git(repo, ["add", "file"]);
-        await git(repo, ["commit", "-qm", "first"]);
-    };
+    const init = (): Promise<void> => initRepo(repo);
 
     /** A linked worktree of the repository, made by hand, as its own folder's real path. */
     const linked = async (): Promise<string> => {

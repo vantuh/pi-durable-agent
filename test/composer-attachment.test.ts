@@ -7,18 +7,20 @@
 
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
-import { createServer as createViteServer } from "vite";
-
-import type { Chromium } from "../extensions/browser/server/cdp.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import type { ClientEntry, ServerEvent, SessionsEvent } from "../shared/protocol.ts";
 import { defaultAnswer } from "./fixtures/api-defaults.ts";
+import {
+    findChromium,
+    withBrowserApp,
+    type ApiHandler,
+    type Found,
+    type Page,
+} from "./fixtures/browser.ts";
 
 const SESSION = 1;
 const FILE = "a.txt";
@@ -33,11 +35,6 @@ const FILE_SHOWN = `document.body.innerText.includes(${JSON.stringify(FILE)})`;
 const FILE_UPLOADED = `${FILE_SHOWN} && !document.body.innerText.includes("Uploading")`;
 /** The status bar says what went wrong, so the send really reached a server that refuses messages. */
 const REFUSED_SHOWN = `document.body.innerText.includes("the server refused the message")`;
-
-/** A record read by key: what Chromium hands back from `Runtime.evaluate` is untyped JSON. */
-function field(value: unknown, key: string): unknown {
-    return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
-}
 
 function hello(): ServerEvent {
     const entries: ClientEntry[] = [];
@@ -103,66 +100,13 @@ const SEND = `(() => {
     return true;
 })()`;
 
-type Browser = {
-    launch: (executable: string, profile: string, extra: readonly string[]) => Promise<Chromium>;
-    findBrowser: () => string | undefined;
-};
-
-/**
- * Driving Chromium is an extension's job, so the core's tests cannot import it statically: a checkout without
- * `extensions/browser` would fail to run this file instead of skipping it.
- */
-async function loadBrowser(): Promise<Browser | undefined> {
-    try {
-        const [cdp, discovery] = await Promise.all([
-            import("../extensions/browser/server/cdp.ts"),
-            import("../extensions/browser/server/discovery.ts"),
-        ]);
-
-        return {
-            launch: (executable, profile, extra) => cdp.Chromium.launch(executable, profile, extra),
-            findBrowser: discovery.findBrowser,
-        };
-    } catch (error) {
-        // Only an absent folder skips: a file that is there and broken must fail the test, not hide it.
-        if (!(error instanceof Error) || Reflect.get(error, "code") !== "ERR_MODULE_NOT_FOUND") {
-            throw error;
-        }
-
-        return undefined;
-    }
-}
-
 /**
  * The app the person uses, served from its sources over a server that takes uploads and refuses messages.
  */
-async function withApp(
-    chromium: Browser,
-    executable: string,
-    when: (read: (expression: string) => Promise<unknown>) => Promise<void>,
-): Promise<void> {
+async function withApp(found: Found, when: (page: Page) => Promise<void>): Promise<void> {
     const uploads = await mkdtemp(join(tmpdir(), "composer-uploads-"));
     const sent: string[] = [];
-    // A cache of its own: `node_modules/.vite` belongs to the dev server, and a second Vite writing its
-    // dependencies there makes that server re-optimize and reload the page under the person using it.
-    const viteCache = await mkdtemp(join(tmpdir(), "composer-vite-"));
-    const profile = await mkdtemp(join(tmpdir(), "composer-browser-"));
-    const vite = await createViteServer({
-        server: { middlewareMode: true, hmr: false },
-        cacheDir: viteCache,
-        appType: "spa",
-    });
-    const server = createServer((request, response) => {
-        const url = new URL(request.url ?? "/", "http://127.0.0.1");
-
-        if (!url.pathname.startsWith("/api/")) {
-            vite.middlewares(request, response, () => {
-                response.writeHead(404).end();
-            });
-
-            return;
-        }
-
+    const api: ApiHandler = (request, response, url) => {
         if (url.pathname === "/api/health") {
             answer(response, 200, {
                 cwd: uploads,
@@ -217,91 +161,29 @@ async function withApp(
 
         // Everything else the shell asks for is not what this test is about: an empty answer keeps it quiet.
         answer(response, 200, defaultAnswer(url.pathname));
-    });
-    let browser: Chromium | undefined;
+    };
 
     try {
-        await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-        const address = server.address();
+        await withBrowserApp(found, api, async (page) => {
+            await page.open(`/?session=${String(SESSION)}`);
+            await when(page);
 
-        assert.ok(address !== null && typeof address === "object");
-
-        browser = await chromium.launch(executable, profile, []);
-        const connection = browser.connection;
-        const opened = await connection.send("Target.createTarget", { url: "about:blank" });
-        const attached = await connection.send("Target.attachToTarget", {
-            targetId: opened.targetId,
-            flatten: true,
+            assert.deepEqual(sent, ["refused"], "one message was sent, and the server refused it");
         });
-        const page = String(attached.sessionId);
-        const read = async (expression: string): Promise<unknown> => {
-            const result = await connection.send(
-                "Runtime.evaluate",
-                { expression, returnByValue: true, awaitPromise: true },
-                page,
-            );
-
-            return field(field(result, "result"), "value");
-        };
-
-        await connection.send("Page.enable", {}, page);
-        await connection.send(
-            "Page.navigate",
-            { url: `http://127.0.0.1:${String(address.port)}/?session=${String(SESSION)}` },
-            page,
-        );
-
-        await when(read);
-
-        assert.deepEqual(sent, ["refused"], "one message was sent, and the server refused it");
     } finally {
-        if (browser !== undefined) {
-            browser.kill();
-            await browser.exited;
-        }
-
-        server.closeAllConnections();
-        await new Promise<void>((done) => server.close(() => done()));
-        await vite.close();
-        await rm(viteCache, { recursive: true, force: true });
-        await rm(profile, { recursive: true, force: true });
         await rm(uploads, { recursive: true, force: true });
     }
 }
 
 void describe("a message the server refuses", () => {
     void it("keeps the files the person attached to it", async (t) => {
-        const chromium = await loadBrowser();
+        const found = await findChromium(t);
 
-        if (chromium === undefined) {
-            t.skip("needs extensions/browser to drive Chromium");
-
+        if (found === undefined) {
             return;
         }
 
-        const executable = chromium.findBrowser();
-
-        if (executable === undefined) {
-            t.skip("this machine has no Chromium to open the app in");
-
-            return;
-        }
-
-        await withApp(chromium, executable, async (read) => {
-            const until = async (expression: string, within: number): Promise<boolean> => {
-                const end = Date.now() + within;
-
-                while (Date.now() < end) {
-                    if ((await read(expression)) === true) {
-                        return true;
-                    }
-
-                    await delay(100);
-                }
-
-                return (await read(expression)) === true;
-            };
-
+        await withApp(found, async ({ read, until }) => {
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
 
             assert.equal(await read(PASTE), 1, "the paste carried a file");

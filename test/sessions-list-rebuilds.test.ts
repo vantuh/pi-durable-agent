@@ -6,88 +6,30 @@
  */
 
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { SessionSummary, SessionListEvent } from "../shared/protocol.ts";
 import { withSessionsEvent } from "../web/src/lib/session-list.ts";
+import { cleanUp, linkExtension, REPO, sandbox, startServer } from "./fixtures/server.ts";
 
-const REPO = join(import.meta.dirname, "..");
 /** Tool rounds one answer takes; each is an assistant entry plus its result. */
 const ROUNDS = 20;
 /** A debounce is 100 ms: this covers the last frame of a run plus the settle that follows it. */
 const SETTLE_MS = 600;
-const roots: string[] = [];
-const running: ChildProcess[] = [];
-
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
 
 /** A real server in a temporary folder, with a faux model that calls a tool repeatedly, and nothing else. */
 async function sandboxServer(): Promise<{ base: string; output: () => string; cwd: string }> {
-    const root = await mkdtemp(join(tmpdir(), "sessions-list-rebuilds-"));
-    const cwd = join(root, "cwd");
+    const box = await sandbox("sessions-list-rebuilds");
 
-    roots.push(root);
-    await mkdir(join(cwd, "extensions", "fauxmodel"), { recursive: true });
-    await symlink(
-        join(REPO, "test", "fixtures", "faux-tool-loop-model.ts"),
-        join(cwd, "extensions", "fauxmodel", "server.ts"),
-    );
-
-    const port = await freePort();
-    const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: join(root, "data"),
-            MODEL: "fx/m1",
-            PORT: String(port),
-        },
-    });
-    let output = "";
-
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
+    await linkExtension(box, "fauxmodel", {
+        "server.ts": join(REPO, "test", "fixtures", "faux-tool-loop-model.ts"),
     });
 
-    return { base: `http://127.0.0.1:${String(port)}`, output: () => output, cwd };
+    const { base, output, cwd } = await startServer({ box, env: { MODEL: "fx/m1" } });
+
+    return { base, output, cwd };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<unknown> {
@@ -181,15 +123,7 @@ async function startSession(base: string, cwd: string): Promise<number> {
     return Number(Reflect.get(created, "session"));
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("the session list during a run", () => {
     void it("is not rebuilt for entries that cannot change a row", async () => {

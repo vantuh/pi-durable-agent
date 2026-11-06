@@ -1,96 +1,34 @@
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { SessionSummary, SessionListEvent } from "../shared/protocol.ts";
 import { withSessionsEvent } from "../web/src/lib/session-list.ts";
-
-const REPO = join(import.meta.dirname, "..");
-const roots: string[] = [];
-const running: ChildProcess[] = [];
-
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
+import { cleanUp, linkExtension, REPO, sandbox, startServer } from "./fixtures/server.ts";
 
 /** A real server in a temporary folder with the subagents extension and a faux model, nothing else. */
 async function sandboxServer(): Promise<{ base: string; output: () => string; cwd: string }> {
-    const root = await mkdtemp(join(tmpdir(), "new-agent-busy-"));
-    const cwd = join(root, "cwd");
+    const box = await sandbox("new-agent-busy");
 
-    roots.push(root);
-    await mkdir(join(cwd, "extensions", "subagents"), { recursive: true });
-    await mkdir(join(cwd, "extensions", "fauxmodel"), { recursive: true });
-    await mkdir(join(cwd, ".pi", "agents"), { recursive: true });
-
-    for (const file of ["server.ts", "profiles.ts", "refs.ts"]) {
-        await symlink(
-            join(REPO, "extensions", "subagents", file),
-            join(cwd, "extensions", "subagents", file),
-        );
-    }
-
-    await symlink(
-        join(REPO, "test", "fixtures", "faux-agent-model.ts"),
-        join(cwd, "extensions", "fauxmodel", "server.ts"),
-    );
+    await linkExtension(box, "subagents", {
+        "server.ts": join(REPO, "extensions", "subagents", "server.ts"),
+        "profiles.ts": join(REPO, "extensions", "subagents", "profiles.ts"),
+        "refs.ts": join(REPO, "extensions", "subagents", "refs.ts"),
+    });
+    await linkExtension(box, "fauxmodel", {
+        "server.ts": join(REPO, "test", "fixtures", "faux-agent-model.ts"),
+    });
+    await mkdir(join(box.cwd, ".pi", "agents"), { recursive: true });
     await writeFile(
-        join(cwd, ".pi", "agents", "counter.md"),
+        join(box.cwd, ".pi", "agents", "counter.md"),
         "---\nname: counter\ndescription: Counts files.\ntools: read\nmodel: fx/m1\nthinking: low\n---\nCount.\n",
     );
 
-    const port = await freePort();
-    const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: join(root, "data"),
-            MODEL: "fx/m1",
-            PORT: String(port),
-        },
-    });
-    let output = "";
+    const { base, output, cwd } = await startServer({ box, env: { MODEL: "fx/m1" } });
 
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
-    });
-
-    return { base: `http://127.0.0.1:${String(port)}`, output: () => output, cwd };
+    return { base, output, cwd };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<unknown> {
@@ -136,15 +74,7 @@ function watchList(base: string): { lists: SessionSummary[][]; stop: () => void 
     return { lists, stop: () => abort.abort() };
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("an agent started after the server did", () => {
     void it("shows as working in the session list and for extensions, without anyone opening it", async () => {

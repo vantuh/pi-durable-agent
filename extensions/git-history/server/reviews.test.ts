@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { listen } from "../../../test/fixtures/serve.ts";
 import { git } from "./git.ts";
 import { plannotatorCookies, reviewProxy, scopedCookies } from "./proxy.ts";
 import { Reviews } from "./reviews.ts";
@@ -53,17 +54,7 @@ void describe("embedded review lifecycle and proxy", () => {
         const server = createServer((request, response) => {
             void handler({ request, response, path: request.url ?? "/" });
         });
-        await new Promise<void>((resolve) => {
-            server.listen(0, "127.0.0.1", resolve);
-        });
-        const address = server.address();
-        assert.ok(address !== null && typeof address !== "string");
-        base = `http://127.0.0.1:${String(address.port)}`;
-        close = () =>
-            new Promise<void>((resolve) => {
-                server.close(() => resolve());
-                server.closeAllConnections();
-            });
+        ({ base, close } = await listen(server));
     });
     afterEach(async () => {
         await close();

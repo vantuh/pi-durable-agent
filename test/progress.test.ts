@@ -1,32 +1,21 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
+
+import { startVite } from "./fixtures/vite.ts";
 
 /** The primitive is TSX, which `node --test` cannot strip: it is loaded the way the app loads it. */
 async function renderProgress(value: number): Promise<string> {
-    // A cache of its own: `node_modules/.vite` belongs to the dev server, and a second Vite writing its
-    // dependencies there makes that server re-optimize and reload the page under the person using it.
-    const cacheDir = await mkdtemp(join(tmpdir(), "progress-vite-"));
-    const server = await createServer({
-        server: { middlewareMode: true, hmr: false },
-        cacheDir,
-        appType: "custom",
-    });
+    const { vite: server, stop } = await startVite("custom");
 
     try {
         const { Progress } = await server.ssrLoadModule("/src/components/ui/progress.tsx");
 
         return renderToStaticMarkup(createElement(Progress, { value, "aria-label": "x" }));
     } finally {
-        await server.close();
-        // Vite can still be writing its dependency cache as it closes, so the first removal may race it.
-        await rm(cacheDir, { recursive: true, force: true, maxRetries: 5 });
+        await stop();
     }
 }
 

@@ -6,81 +6,23 @@
  */
 
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { SessionSummary, SessionListEvent } from "../shared/protocol.ts";
+import { cleanUp, startServer } from "./fixtures/server.ts";
 
-const REPO = join(import.meta.dirname, "..");
 /** A debounce is 100 ms: this covers the last frame a burst can send plus the settle after it. */
 const SETTLE_MS = 600;
-const roots: string[] = [];
-const running: ChildProcess[] = [];
-
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
 
 /** A real server in a temporary folder, with no extensions: sessions, their rows, and nothing else. */
 async function sandboxServer(): Promise<{ base: string; output: () => string; cwd: string }> {
-    const root = await mkdtemp(join(tmpdir(), "sessions-stream-frames-"));
-    const cwd = join(root, "cwd");
-
-    roots.push(root);
-    await mkdir(join(cwd, "extensions"), { recursive: true });
-
-    const port = await freePort();
-    const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: join(root, "data"),
-            MODEL: "fx/m1",
-            PORT: String(port),
-        },
-    });
-    let output = "";
-
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
+    const { base, output, cwd } = await startServer({
+        prefix: "sessions-stream-frames",
+        env: { MODEL: "fx/m1" },
     });
 
-    return { base: `http://127.0.0.1:${String(port)}`, output: () => output, cwd };
+    return { base, output, cwd };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<unknown> {
@@ -169,15 +111,7 @@ function sorted(ids: number[]): number[] {
     return [...ids].sort((left, right) => left - right);
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("the session list stream", () => {
     void it("starts a client with the whole list, then sends the one row a rename changed", async () => {

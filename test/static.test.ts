@@ -7,6 +7,7 @@ import { after, before, describe, it } from "node:test";
 import { brotliDecompressSync, gunzipSync } from "node:zlib";
 
 import { serveStatic } from "../server/static.ts";
+import { listen } from "./fixtures/serve.ts";
 
 const BIG = "export const line = 'compressible text';\n".repeat(200);
 
@@ -32,12 +33,7 @@ void describe("static serving", () => {
         const server = createServer((request, response) => {
             void serveStatic(root, request, response);
         });
-        await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-        const address = server.address();
-        assert.ok(address !== null && typeof address === "object");
-        port = address.port;
-        base = `http://127.0.0.1:${port}`;
-        close = () => new Promise((done) => server.close(() => done()));
+        ({ port, base, close } = await listen(server));
     });
 
     after(async () => {

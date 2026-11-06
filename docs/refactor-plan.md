@@ -411,6 +411,22 @@ lists the steps that move the extensions to it.
 
 ## Phase 9: tests and scripts
 
-- [ ] `test/fixtures/`: one helper for a free port, a temporary `PI_DURABLE_DATA_DIR`, and a running
-      test server, replacing the copies in each test file.
-- [ ] `pnpm dev:web` and `pnpm dev:server` beside `pnpm dev`, so either side runs alone.
+- [x] `test/fixtures/`: one helper for a free port, a temporary `PI_DURABLE_DATA_DIR`, and a running
+      test server, replacing the copies in each test file, in three groups:
+    - [x] The real server (`server.ts`: `sandbox`, `linkExtension`, `startServer`, `spawnServer`, `cleanUp`):
+          twelve tests no longer probe a port, make a data folder or spawn `server/main.ts` themselves. `fe1f7f9`
+    - [x] The app's Vite and Chromium (`vite.ts`, `browser.ts`): ten tests (four render a component, six open
+          the shell in Chromium). Vite now gets `ws: false` as well as `hmr: false`, which ends the repeated
+          "Port 24678 is already in use". `c93bea3`
+    - [x] Temporary git repositories (`git.ts`: `git`, `initRepo`, `run`): four test files. `5716b7d`
+    - [x] A `node:http` server on a free port (`serve.ts`: `listen`): seven test files and `browser.ts`.
+          `8a66db4`
+- [x] `pnpm dev:web` and `pnpm dev:server` beside `pnpm dev`, so either side runs alone: `scripts/dev.ts`
+      takes `web` (Vite alone; the rest of the arguments go to Vite) or `server` (the supervised server
+      alone). Documented in [running.md](running.md). Checked on ports 18788 and 15191 with an empty `HOME`
+      and a temporary data folder: each answered, stopped on SIGINT, and left no process behind. `2a71558`
+- [x] A test server's `close` (`listen` in `serve.ts`) lets a response in flight finish before it cuts the
+      connection: `static.test.ts` failed 4 runs in 30 with a "Premature close" from its teardown, and
+      passed 30 of 30 after. `c6f1eb3`
+- [x] Independent review of phase 9: no blocker; one P2 (the comment in `git.ts` claimed more than it
+      does) fixed in the commit below.

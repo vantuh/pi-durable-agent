@@ -7,7 +7,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { createRegistry } from "@earendil-works/pi-durable";
-import { getRequestListener } from "@hono/node-server";
 import { Hono } from "hono";
 
 import { ActionNotFound } from "../server/errors.ts";
@@ -16,7 +15,7 @@ import type { ApiEnv } from "../server/http.ts";
 import { extensionRoutes } from "../server/routes/extensions.ts";
 import { sameOrigin } from "../server/same-origin.ts";
 import { recordOf } from "../shared/guards.ts";
-import { serve } from "./fixtures/serve.ts";
+import { listen, serve, type Listening } from "./fixtures/serve.ts";
 
 void describe("extension HTTP", () => {
     let root: string;
@@ -43,36 +42,14 @@ void describe("extension HTTP", () => {
             });
         };`;
     /** The extension routes on a real port: the Hono adapter is part of what is under test. */
-    async function serveRoutes(): Promise<{ base: string; close: () => Promise<void> }> {
-        const listener = getRequestListener(
+    const serveRoutes = (): Promise<Listening> =>
+        serve(
             extensionRoutes({
                 extensions,
                 attach: () => Promise.resolve(undefined),
                 ownerOf: () => Promise.resolve(undefined),
-            }).fetch,
+            }),
         );
-        const server = createServer((request, response) => {
-            void listener(request, response);
-        });
-
-        await new Promise<void>((done) => {
-            server.listen(0, "127.0.0.1", done);
-        });
-
-        const address = server.address();
-
-        assert.ok(address !== null && typeof address !== "string");
-
-        return {
-            base: `http://127.0.0.1:${String(address.port)}`,
-            close: async () => {
-                server.closeAllConnections();
-                await new Promise<void>((done) => {
-                    server.close(() => done());
-                });
-            },
-        };
-    }
     beforeEach(async () => {
         root = await mkdtemp(join(tmpdir(), "extension-http-"));
         await mkdir(join(root, "sample"));
@@ -91,17 +68,7 @@ void describe("extension HTTP", () => {
                     response.end();
                 });
         });
-        await new Promise<void>((resolve) => {
-            server.listen(0, "127.0.0.1", resolve);
-        });
-        const address = server.address();
-        assert.ok(address !== null && typeof address !== "string");
-        base = `http://127.0.0.1:${String(address.port)}`;
-        close = () =>
-            new Promise<void>((resolve) => {
-                server.close(() => resolve());
-                server.closeAllConnections();
-            });
+        ({ base, close } = await listen(server));
     });
     afterEach(async () => {
         await close();

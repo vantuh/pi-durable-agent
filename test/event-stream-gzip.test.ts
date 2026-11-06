@@ -6,19 +6,15 @@
  */
 
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { get as httpGet } from "node:http";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { createGunzip, gunzipSync, type Gunzip } from "node:zlib";
 
 import type { ServerEvent, SessionsEvent, SessionSummary } from "../shared/protocol.ts";
+import { cleanUp, linkExtension, REPO, sandbox, startServer } from "./fixtures/server.ts";
 
-const REPO = join(import.meta.dirname, "..");
 /** Rows that make the list worth compressing; a row is a few hundred bytes. */
 const ROWS = 12;
 /** A message whose entry alone is past the kilobyte where a gzip answer starts to gain. */
@@ -27,72 +23,18 @@ const BIG_TEXT = "x".repeat(8000);
 const FIRST_FRAME_MS = 500;
 /** A list change is debounced by 100 ms, then written at once; this fails a frame held in the compressor. */
 const NEXT_FRAME_MS = 3000;
-const roots: string[] = [];
-const running: ChildProcess[] = [];
-
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
 
 /** A real server in a temporary folder, with a faux model that answers through a tool loop, and nothing else. */
 async function sandboxServer(): Promise<{ base: string; output: () => string; cwd: string }> {
-    const root = await mkdtemp(join(tmpdir(), "event-stream-gzip-"));
-    const cwd = join(root, "cwd");
+    const box = await sandbox("event-stream-gzip");
 
-    roots.push(root);
-    await mkdir(join(cwd, "extensions", "fauxmodel"), { recursive: true });
-    await symlink(
-        join(REPO, "test", "fixtures", "faux-tool-loop-model.ts"),
-        join(cwd, "extensions", "fauxmodel", "server.ts"),
-    );
-
-    const port = await freePort();
-    const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: join(root, "data"),
-            MODEL: "fx/m1",
-            PORT: String(port),
-        },
-    });
-    let output = "";
-
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
+    await linkExtension(box, "fauxmodel", {
+        "server.ts": join(REPO, "test", "fixtures", "faux-tool-loop-model.ts"),
     });
 
-    return { base: `http://127.0.0.1:${String(port)}`, output: () => output, cwd };
+    const { base, output, cwd } = await startServer({ box, env: { MODEL: "fx/m1" } });
+
+    return { base, output, cwd };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<unknown> {
@@ -341,15 +283,7 @@ async function firstFrame(
     }
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("the bytes a phone waits for", () => {
     void it("are gzipped for a client that takes it, and identical to the plain ones", async () => {

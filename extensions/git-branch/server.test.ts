@@ -1,15 +1,12 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { promisify } from "node:util";
 
+import { git, run } from "../../test/fixtures/git.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { actions } from "./server.ts";
-
-const run = promisify(execFile);
 
 void describe("git-branch branch action", () => {
     let dir: string;
@@ -47,23 +44,7 @@ void describe("git-branch branch action", () => {
         await rm(dir, { recursive: true, force: true });
     });
 
-    const commit = (cwd: string) =>
-        run(
-            "git",
-            [
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@t",
-                "-c",
-                "commit.gpgsign=false",
-                "commit",
-                "--allow-empty",
-                "-m",
-                "x",
-            ],
-            { cwd },
-        );
+    const commit = (cwd: string) => git(cwd, ["commit", "--allow-empty", "-m", "x"]);
 
     void it("gives the branch of a git folder", async () => {
         await run("git", ["init", "-b", "topic"], { cwd: dir });

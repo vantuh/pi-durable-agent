@@ -1,28 +1,18 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { promisify } from "node:util";
 
+import { git, initRepo } from "../../test/fixtures/git.ts";
 import { asTodos, type Note, type Todo, type WriteResult } from "./refs.ts";
 import { actions, noteFile, repositoryOf, takeTasks, todosFile } from "./server.ts";
-
-const run = promisify(execFile);
 
 void describe("notes", () => {
     let dir: string;
     let data: string;
     let repo: string;
     let worktree: string;
-
-    const git = (cwd: string, args: string[]) =>
-        run(
-            "git",
-            ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args],
-            { cwd },
-        );
 
     const call = (name: string, cwd: string | null, args?: unknown): Promise<unknown> => {
         const action = actions({ dataDir: data })[name];
@@ -63,10 +53,7 @@ void describe("notes", () => {
         repo = join(dir, "repo");
         worktree = join(dir, "repo-wt");
         await mkdir(join(repo, "src"), { recursive: true });
-        await run("git", ["init", "-b", "main", repo]);
-        await writeFile(join(repo, "file"), "first\n");
-        await git(repo, ["add", "file"]);
-        await git(repo, ["commit", "-m", "first"]);
+        await initRepo(repo);
         await git(repo, ["worktree", "add", "-b", "feature", worktree]);
     });
 

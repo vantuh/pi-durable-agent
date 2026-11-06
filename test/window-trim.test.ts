@@ -6,11 +6,8 @@
  */
 
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { get as httpGet } from "node:http";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
@@ -25,35 +22,14 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import type { ClientEntry, ServerEvent } from "../shared/protocol.ts";
 import { START, withEvent } from "../web/src/lib/conversation-state.ts";
 import { parseEvent, parseHistory } from "../web/src/lib/event.ts";
+import { cleanUp, linkExtension, REPO, sandbox, startServer } from "./fixtures/server.ts";
 
-const REPO = join(import.meta.dirname, "..");
 /** The window's first size: a session seeded with more entries than this opens with `before` set. */
 const WINDOW = 50;
 /** Two entries a run, and one more written by the first: the window passes its maximum of 100 on the 26th. */
 const SEEDED_TURNS = 30;
 const RUNS = 26;
 const RUN_MS = 10_000;
-const roots: string[] = [];
-const running: ChildProcess[] = [];
-
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
 
 /** A conversation of `fx/m1` with `turns` questions and answers, written the way a run writes them. */
 async function seed(dataDir: string, cwd: string, turns: number): Promise<number> {
@@ -96,51 +72,17 @@ async function seed(dataDir: string, cwd: string, turns: number): Promise<number
 }
 
 /** A real server over a session seeded with `turns` turns, with the faux model that answers "ok". */
-async function sandbox(turns: number): Promise<{ base: string; session: number }> {
-    const root = await mkdtemp(join(tmpdir(), "window-trim-"));
-    const cwd = join(root, "cwd");
-    const dataDir = join(root, "data");
+async function seededServer(turns: number): Promise<{ base: string; session: number }> {
+    const box = await sandbox("window-trim");
+    const { cwd, dataDir } = box;
 
-    roots.push(root);
-    await mkdir(join(cwd, "extensions", "fauxmodel"), { recursive: true });
     await mkdir(dataDir, { recursive: true });
-    await symlink(
-        join(REPO, "test", "fixtures", "faux-ok-model.ts"),
-        join(cwd, "extensions", "fauxmodel", "server.ts"),
-    );
+    await linkExtension(box, "fauxmodel", {
+        "server.ts": join(REPO, "test", "fixtures", "faux-ok-model.ts"),
+    });
 
     const session = await seed(dataDir, cwd, turns);
-    const port = await freePort();
-    const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: dataDir,
-            MODEL: "fx/m1",
-            PORT: String(port),
-        },
-    });
-    const base = `http://127.0.0.1:${String(port)}`;
-    let output = "";
-
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(base)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
-    });
+    const { base } = await startServer({ box, env: { MODEL: "fx/m1" } });
 
     return { base, session };
 }
@@ -189,19 +131,11 @@ async function until(what: string, ready: () => boolean): Promise<void> {
     assert.fail(`${what} did not happen within ${String(RUN_MS)} ms`);
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("a browser holding entries the view window has dropped", () => {
     void it("is sent appends past the trim, and keeps every entry it holds", async () => {
-        const { base, session } = await sandbox(SEEDED_TURNS);
+        const { base, session } = await seededServer(SEEDED_TURNS);
         const stream = watch(base, session);
 
         await until("the hello", () => stream.events.length > 0);

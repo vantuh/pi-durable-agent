@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { Gzip } from "node:zlib";
 
 import { openEventStream, writeEvent } from "../server/http.ts";
+import { listen } from "./fixtures/serve.ts";
 
 type Sent = { response: ServerResponse; gzip: Gzip | undefined };
 
@@ -22,15 +23,8 @@ void describe("writeEvent", () => {
             opened(response);
         });
 
-        await new Promise<void>((done) => {
-            server.listen(0, "127.0.0.1", done);
-        });
-
-        const address = server.address();
-
-        assert.ok(address !== null && typeof address !== "string");
-
-        const reader = connect(address.port, "127.0.0.1");
+        const { port, close } = await listen(server);
+        const reader = connect(port, "127.0.0.1");
 
         reader.write("GET / HTTP/1.1\r\nhost: 127.0.0.1\r\n\r\n");
         reader.pause();
@@ -48,12 +42,7 @@ void describe("writeEvent", () => {
             assert.ok(stream.writableLength <= 1_100_000, String(stream.writableLength));
         } finally {
             reader.destroy();
-            server.closeAllConnections();
-            await new Promise<void>((done) => {
-                server.close(() => {
-                    done();
-                });
-            });
+            await close();
         }
     });
 
@@ -68,15 +57,8 @@ void describe("writeEvent", () => {
             opened({ response, gzip: openEventStream(request, response) });
         });
 
-        await new Promise<void>((done) => {
-            server.listen(0, "127.0.0.1", done);
-        });
-
-        const address = server.address();
-
-        assert.ok(address !== null && typeof address !== "string");
-
-        const reader = connect(address.port, "127.0.0.1");
+        const { port, close } = await listen(server);
+        const reader = connect(port, "127.0.0.1");
 
         reader.write("GET / HTTP/1.1\r\nhost: 127.0.0.1\r\naccept-encoding: gzip\r\n\r\n");
         reader.pause();
@@ -98,12 +80,7 @@ void describe("writeEvent", () => {
             );
         } finally {
             reader.destroy();
-            server.closeAllConnections();
-            await new Promise<void>((done) => {
-                server.close(() => {
-                    done();
-                });
-            });
+            await close();
         }
     });
 });

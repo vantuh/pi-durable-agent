@@ -13,20 +13,15 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import { createServer, type ServerResponse } from "node:http";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { type ServerResponse } from "node:http";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createServer as createViteServer } from "vite";
-
-import type { Chromium } from "../extensions/browser/server/cdp.ts";
 import { answer, readJson, writeEvent } from "../server/http.ts";
 import { recordOf } from "../shared/guards.ts";
 import type { SessionSummary, SessionsEvent } from "../shared/protocol.ts";
 import { defaultAnswer } from "./fixtures/api-defaults.ts";
+import { findChromium, withBrowserApp, type ApiHandler, type Found } from "./fixtures/browser.ts";
 
 const FOLDER = "/Users/vantuh/work/rename-me";
 /** The session the person started from. */
@@ -178,11 +173,6 @@ const renameTo = (name: string): string => `(() => {
     return true;
 })()`;
 
-/** A record read by key: what Chromium hands back from `Runtime.evaluate` is untyped JSON. */
-function field(value: unknown, key: string): unknown {
-    return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
-}
-
 const PARENT_ROW: SessionSummary = {
     id: PARENT,
     archived: false,
@@ -205,36 +195,6 @@ const CHILD_ROW: SessionSummary = {
 
 const SESSIONS: SessionsEvent = { type: "sessions", sessions: [PARENT_ROW, CHILD_ROW] };
 
-type Browser = {
-    launch: (executable: string, profile: string, extra: readonly string[]) => Promise<Chromium>;
-    findBrowser: () => string | undefined;
-};
-
-/**
- * Driving Chromium is an extension's job, so the core's tests cannot import it statically: a checkout without
- * `extensions/browser` would fail to run this file instead of skipping it.
- */
-async function loadBrowser(): Promise<Browser | undefined> {
-    try {
-        const [cdp, discovery] = await Promise.all([
-            import("../extensions/browser/server/cdp.ts"),
-            import("../extensions/browser/server/discovery.ts"),
-        ]);
-
-        return {
-            launch: (executable, profile, extra) => cdp.Chromium.launch(executable, profile, extra),
-            findBrowser: discovery.findBrowser,
-        };
-    } catch (error) {
-        // Only an absent folder skips: a file that is there and broken must fail the test, not hide it.
-        if (!(error instanceof Error) || Reflect.get(error, "code") !== "ERR_MODULE_NOT_FOUND") {
-            throw error;
-        }
-
-        return undefined;
-    }
-}
-
 /** What a test is handed once the app is on screen. */
 type App = {
     read: (expression: string) => Promise<unknown>;
@@ -252,33 +212,13 @@ type App = {
 
 /** The app the person uses, served from its sources over a server whose list holds a child session. */
 async function withApp(
-    chromium: Browser,
-    executable: string,
+    found: Found,
     open: number,
     when: (app: App) => Promise<void>,
 ): Promise<void> {
     const renamed: number[] = [];
     let list: ServerResponse | undefined;
-    // A cache of its own: `node_modules/.vite` belongs to the dev server, and a second Vite writing its
-    // dependencies there makes that server re-optimize and reload the page under the person using it.
-    const viteCache = await mkdtemp(join(tmpdir(), "rename-vite-"));
-    const profile = await mkdtemp(join(tmpdir(), "rename-browser-"));
-    const vite = await createViteServer({
-        server: { middlewareMode: true, hmr: false },
-        cacheDir: viteCache,
-        appType: "spa",
-    });
-    const server = createServer((request, response) => {
-        const url = new URL(request.url ?? "/", "http://127.0.0.1");
-
-        if (!url.pathname.startsWith("/api/")) {
-            vite.middlewares(request, response, () => {
-                response.writeHead(404).end();
-            });
-
-            return;
-        }
-
+    const api: ApiHandler = (request, response, url) => {
         if (url.pathname === "/api/health") {
             answer(response, 200, {
                 cwd: FOLDER,
@@ -338,57 +278,20 @@ async function withApp(
 
         // Everything else the shell asks for is not what this test is about: an empty answer keeps it quiet.
         answer(response, 200, defaultAnswer(url.pathname));
-    });
-    let browser: Chromium | undefined;
+    };
 
-    try {
-        await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-        const address = server.address();
-
-        assert.ok(address !== null && typeof address === "object");
-
-        browser = await chromium.launch(executable, profile, []);
-        const connection = browser.connection;
-        const opened = await connection.send("Target.createTarget", { url: "about:blank" });
-        const attached = await connection.send("Target.attachToTarget", {
-            targetId: opened.targetId,
-            flatten: true,
-        });
-        const page = String(attached.sessionId);
-        const read = async (expression: string): Promise<unknown> => {
-            const result = await connection.send(
-                "Runtime.evaluate",
-                { expression, returnByValue: true, awaitPromise: true },
-                page,
-            );
-
-            return field(field(result, "result"), "value");
-        };
-        const until = async (expression: string, within: number): Promise<boolean> => {
-            const end = Date.now() + within;
-
-            while (Date.now() < end) {
-                if ((await read(expression)) === true) {
-                    return true;
-                }
-
-                await delay(100);
-            }
-
-            return (await read(expression)) === true;
-        };
-
-        await connection.send("Page.enable", {}, page);
+    await withBrowserApp(found, api, async (page) => {
         // A desktop window: below `lg` the sidebar is a sheet, and a sheet that is closed holds no focusable box.
-        await connection.send(
-            "Emulation.setDeviceMetricsOverride",
-            { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false },
-            page,
-        );
+        await page.send("Emulation.setDeviceMetricsOverride", {
+            width: 1280,
+            height: 800,
+            deviceScaleFactor: 1,
+            mobile: false,
+        });
 
-        const url = `http://127.0.0.1:${String(address.port)}/?session=${String(open)}`;
+        const url = `/?session=${String(open)}`;
         const reload = async (): Promise<void> => {
-            await connection.send("Page.navigate", { url }, page);
+            await page.open(url);
         };
 
         await reload();
@@ -399,22 +302,11 @@ async function withApp(
         };
 
         const type = async (text: string): Promise<void> => {
-            await connection.send("Input.insertText", { text }, page);
+            await page.send("Input.insertText", { text });
         };
 
-        await when({ read, until, reload, renamed, push, type });
-    } finally {
-        if (browser !== undefined) {
-            browser.kill();
-            await browser.exited;
-        }
-
-        server.closeAllConnections();
-        await new Promise<void>((done) => server.close(() => done()));
-        await vite.close();
-        await rm(viteCache, { recursive: true, force: true });
-        await rm(profile, { recursive: true, force: true });
-    }
+        await when({ read: page.read, until: page.until, reload, renamed, push, type });
+    });
 }
 
 /** The app, or a skipped test: the two checks every case here needs before it can start. */
@@ -423,23 +315,13 @@ async function withSessionApp(
     open: number,
     when: (app: App) => Promise<void>,
 ): Promise<void> {
-    const chromium = await loadBrowser();
+    const found = await findChromium(t);
 
-    if (chromium === undefined) {
-        t.skip("needs extensions/browser to drive Chromium");
-
+    if (found === undefined) {
         return;
     }
 
-    const executable = chromium.findBrowser();
-
-    if (executable === undefined) {
-        t.skip("this machine has no Chromium to open the app in");
-
-        return;
-    }
-
-    await withApp(chromium, executable, open, when);
+    await withApp(found, open, when);
 }
 
 /** The sidebar with a query that hides every row, and the focus left in the search box. */

@@ -231,6 +231,12 @@ the neighbour it disagrees with.
 - **Tests share their setup.** The free `PORT`, the temporary `PI_DURABLE_DATA_DIR` and the test
   server live in `test/fixtures/`, imported rather than copied. The mistake it prevents: sixty copies
   of a start-up that drift into writing the working `data/state.sqlite`.
+  `test/fixtures/server.ts` is the real server: `sandbox(prefix)` makes the folders, `linkExtension`
+  puts extensions in them, `startServer({ box, env })` starts it and returns when it listens (`spawnServer`
+  returns at once, for a test that expects it to refuse), and the file ends with `after(cleanUp)`. A test
+  that must write into the data folder first (a seeded database) takes `sandbox`, seeds, then starts.
+  A test that serves its own `node:http` handler gets its port from `listen(server)` in `fixtures/serve.ts`
+  (`serve(app)` for a Hono app), never from `server.listen(0)` and `server.address()` written out again.
 - **A copy of the working database is not disposable.** A server started on it resumes the runs that
   were in flight and runs their tools for real, with the owner's logins. Try a build against real data
   only with `HOME` pointed at an empty folder, so a resumed run finds no login and stops before a
@@ -240,3 +246,12 @@ the neighbour it disagrees with.
   typed client no longer falls back for a missing field (`/api/extensions` answering `{}` once gave an
   empty list, and now leaves the shell waiting). `test/api-client.test.ts` runs the client against the
   real server; it is where a route's wire format is pinned.
+- **A test that opens the app starts it through `test/fixtures/`.** `startVite()` (`vite.ts`) is the
+  app's sources with `hmr: false` and `ws: false`, in a cache of its own; `findChromium(t)` and
+  `withBrowserApp(found, api, run)` (`browser.ts`) add the fake server, the Chromium and their teardown, and
+  hand `run` a page with `open`, `read`, `until`. The test writes only `api`, the answers for `/api/...`.
+  `hmr: false` alone leaves a socket on port 24678 in middleware mode; two Vites at once printed "Port
+  24678 is already in use". The mistake it prevents: six copies of the same launch and teardown.
+- **A test that needs a repository uses `test/fixtures/git.ts`.** `git(cwd, args)` runs with its own
+  identity and signing off, and `initRepo(repo)` makes `main` with one commit holding `file`. The mistake
+  it prevents: a copy of the `-c user.name=...` list in every test, one of which forgot `gpgsign`.

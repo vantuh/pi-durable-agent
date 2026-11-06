@@ -6,21 +6,16 @@
  */
 
 import assert from "node:assert/strict";
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createServer as createNetServer } from "node:net";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { ExtensionNotice } from "../shared/protocol.ts";
+import { cleanUp, sandbox, startServer } from "./fixtures/server.ts";
 
-const REPO = join(import.meta.dirname, "..");
 /** One round trip and a flush: long enough for a frame either stream would carry to have arrived. */
 const SETTLE_MS = 600;
-const roots: string[] = [];
-const running: ChildProcess[] = [];
 
 /** An extension whose action says a notice the test asks for: about a session, or about the app. */
 const PROBE = `
@@ -46,66 +41,16 @@ export const actions = (host) => ({
 });
 `;
 
-async function freePort(): Promise<number> {
-    const probe = createNetServer();
-
-    await new Promise<void>((done) => {
-        probe.listen(0, "127.0.0.1", done);
-    });
-
-    const address = probe.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-    await new Promise<void>((done) => {
-        probe.close(() => {
-            done();
-        });
-    });
-
-    return address.port;
-}
-
 /** A real server in a temporary folder, with one extension that says what a test tells it to. */
 async function sandboxServer(): Promise<{ base: string; output: () => string }> {
-    const root = await mkdtemp(join(tmpdir(), "session-notices-"));
-    const cwd = join(root, "cwd");
+    const box = await sandbox("session-notices");
 
-    roots.push(root);
-    await mkdir(join(cwd, "extensions", "probe"), { recursive: true });
-    await writeFile(join(cwd, "extensions", "probe", "server.ts"), PROBE);
+    await mkdir(join(box.cwd, "extensions", "probe"), { recursive: true });
+    await writeFile(join(box.cwd, "extensions", "probe", "server.ts"), PROBE);
 
-    const port = await freePort();
-    const child = spawn(process.execPath, [join(REPO, "server", "main.ts")], {
-        cwd,
-        env: {
-            PATH: process.env["PATH"] ?? "",
-            HOME: root,
-            PI_CODING_AGENT_DIR: join(root, "agent"),
-            PI_DURABLE_DATA_DIR: join(root, "data"),
-            MODEL: "fx/m1",
-            PORT: String(port),
-        },
-    });
-    let output = "";
+    const { base, output } = await startServer({ box, env: { MODEL: "fx/m1" } });
 
-    running.push(child);
-    await new Promise<void>((done, fail) => {
-        const onData = (chunk: Buffer): void => {
-            output += chunk.toString();
-
-            if (output.includes(`http://127.0.0.1:${String(port)}`)) {
-                done();
-            }
-        };
-
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", () => {
-            fail(new Error(output));
-        });
-    });
-
-    return { base: `http://127.0.0.1:${String(port)}`, output: () => output };
+    return { base, output };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<void> {
@@ -191,15 +136,7 @@ async function noticesAfter(
     return watching.frames.slice(from).flatMap((frame) => noticeIn(frame) ?? []);
 }
 
-after(async () => {
-    for (const child of running) {
-        child.kill("SIGKILL");
-    }
-
-    for (const root of roots) {
-        await rm(root, { recursive: true, force: true });
-    }
-});
+after(cleanUp);
 
 void describe("a notice an extension sends", () => {
     void it("reaches a tab holding only the list, and about the app only the conversation stream", async () => {
