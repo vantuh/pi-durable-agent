@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "dependencies": {
-        "web-push": "3.6.7"
+        "web-push": "4.0.0"
     },
     "devDependencies": {
         "@types/web-push": "3.6.4"

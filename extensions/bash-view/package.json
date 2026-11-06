@@ -7,7 +7,7 @@
     },
     "peerDependencies": {
         "@earendil-works/pi-durable": "1.5.0",
-        "lucide-react": "^1.61.0",
+        "lucide-react": "^1.70.0",
         "react": "^19.3.1"
     }
 }

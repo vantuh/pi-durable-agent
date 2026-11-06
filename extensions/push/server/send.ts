@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 
-import webpush from "web-push";
+import { sendNotification } from "web-push";
 
 import type { DeviceSubscription } from "../refs.ts";
 import { type PushStore, withoutEndpoints } from "./store.ts";
@@ -18,7 +18,7 @@ export type Transport = (
 /** web-push encrypts the payload and signs the VAPID token; this code does neither. */
 export const sendWithWebPush: Transport = async (device, payload, vapid) => {
     try {
-        const result = await webpush.sendNotification(device, payload, {
+        const result = await sendNotification(device, payload, {
             vapidDetails: vapid,
             TTL: 3600,
             timeout: SEND_TIMEOUT_MS,

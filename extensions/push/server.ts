@@ -4,7 +4,7 @@
  */
 
 import { defineExtension } from "@earendil-works/pi-durable";
-import webpush from "web-push";
+import { generateVAPIDKeys } from "web-push";
 
 import { ActionError, type Action, type CommitView, type Host } from "../../server/sdk.ts";
 import { normalizeContact } from "./refs.ts";
@@ -48,7 +48,7 @@ export function pushActions(store: PushStore): Record<string, Action> {
             }
 
             return await store.update((file) => {
-                const vapid = file.vapid ?? webpush.generateVAPIDKeys();
+                const vapid = file.vapid ?? generateVAPIDKeys();
 
                 return {
                     file: { ...file, contact, vapid },
