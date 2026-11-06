@@ -140,9 +140,31 @@ the neighbour it disagrees with.
   throws `ERR_INVALID_THIS` (honojs/node-server#408).
 - **`c.req.path` and `c.req.param()` are decoded.** Where the exact bytes matter (a path handed on to
   an extension, a strict decode that must reject `%ZZ`), read `new URL(c.req.url).pathname`.
-- **A route that parses a JSON body with a `session` sets `changedSession` right after parsing**, so
-  the list refresh after it stays targeted. The mistake it prevents: a whole-list rebuild for one
-  renamed session.
+- **A route reads its JSON body through `jsonBody(schema, message)`** (`server/validate.ts`), and its
+  handler reads the result from `c.req.valid("json")`. Not Hono's own JSON validator, which needs a JSON
+  `Content-Type`, refuses an empty body and has no size limit; `hono/body-limit` would add the limit, but
+  for a chunked body it builds `new Request(c.req.raw)`, which breaks on Node 26.11 and later (see
+  above). `jsonBody` goes through `readJson`, so the 100 MB limit (413) and "body is not JSON" (400)
+  stay. The mistake it prevents: a client without `Content-Type: application/json` silently sending
+  `{}`.
+- **A schema is named after its request (`TitleBody`, `HistoryQuery`) and lives in the route file that
+  uses it.** A schema the browser needs at run time moves to `shared/` when it does.
+- **A query goes through `queryOf(schema, message)`** (`zValidator("query")` with the same refusal). A
+  number in it is `QueryNumber.pipe(PositiveId)`: `QueryNumber` reads the text as `Number(text)` does
+  (the code that read `Number(c.req.query(key))` keeps its meaning), and the schema's input stays a
+  string for `hc`. A key sent twice arrives as an array and fails a string field.
+- **The schema checks the shape; the handler keeps the checks that need state or an order.** "Session
+  not found" (404) and "text is required" (400, only after the session is found) stay in the handler,
+  so the order of answers does not change.
+- **A refusal is one sentence per route** (`jsonBody`'s `message`, a string or a function of the path of
+  the first failing field), answered as `{ error }` with 400. The mistake it prevents: Zod's issue list
+  reaching a browser that shows `error` as text.
+- **A field the route always ignored when mistyped is `lenient(...)`**, not strict: a body that worked
+  before keeps working. A field with a fallback value is `.default(x).catch(x)`: `.catch` alone leaves
+  the key required in `z.input`, and `hc` would demand it. `test/route-inputs.types.ts` holds the least
+  input of every route.
+- **`jsonBody` sets `changedSession`** from the body's `session`, whether or not the rest passes. A route
+  never sets it. The mistake it prevents: a whole-list rebuild for one renamed session.
 
 ### Extensions and tests
 

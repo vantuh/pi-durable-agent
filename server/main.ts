@@ -39,7 +39,13 @@ import { commitView } from "./commit-view.ts";
 import { executionEnv } from "./execution-env.ts";
 import { type SessionPrompt, Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
-import { type ApiEnv, openEventStream, RESPONSE_ALREADY_SENT, writeEvent } from "./http.ts";
+import {
+    type ApiEnv,
+    openEventStream,
+    RESPONSE_ALREADY_SENT,
+    routeFailed,
+    writeEvent,
+} from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { blocksSince, listSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
@@ -700,22 +706,13 @@ app.use("*", async (c, next) => {
     }
 });
 
-// As the hand-written dispatcher answered a route that threw: a 500 naming the reason.
-app.onError((error, c) => {
-    if (c.env.outgoing.headersSent) {
-        c.env.outgoing.end();
-
-        return RESPONSE_ALREADY_SENT;
-    }
-
-    return c.json({ error: error instanceof Error ? error.message : "the request failed" }, 500);
-});
+app.onError(routeFailed);
 
 /**
  * The whole surface: the gates, then every route. `boot` mounts it once the state the routes read exists, and
  * the listener serves this same instance, so this return type is the app's type, not a table of regexes.
  */
-function mountRoutes(deps: {
+export function mountRoutes(deps: {
     conversation: Parameters<typeof conversationRoutes>[0];
     sessions: Parameters<typeof sessionRoutes>[0];
     models: Parameters<typeof modelRoutes>[0];

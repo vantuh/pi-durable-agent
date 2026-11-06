@@ -8,11 +8,14 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { createRegistry } from "@earendil-works/pi-durable";
 import { getRequestListener } from "@hono/node-server";
+import { Hono } from "hono";
 
 import { ActionNotFound, Extensions } from "../server/extensions.ts";
+import type { ApiEnv } from "../server/http.ts";
 import { extensionRoutes } from "../server/routes/extensions.ts";
 import { sameOrigin } from "../server/same-origin.ts";
 import { recordOf } from "../shared/guards.ts";
+import { serve } from "./fixtures/serve.ts";
 
 void describe("extension HTTP", () => {
     let root: string;
@@ -197,6 +200,42 @@ void describe("extension HTTP", () => {
 
             assert.equal(toggle.status, 400);
             assert.deepEqual(await toggle.json(), { error: "URI malformed" });
+        } finally {
+            await server.close();
+        }
+    });
+    void it("does not mark the session an extension request names as changed", async () => {
+        // An extension changes a row only through the host: its request body is not the list's business.
+        const marked: (number | undefined)[] = [];
+        const app = new Hono<ApiEnv>()
+            .use("*", async (c, next) => {
+                await next();
+                marked.push(c.get("changedSession"));
+            })
+            .route(
+                "/",
+                extensionRoutes({
+                    extensions,
+                    attach: () => Promise.resolve(undefined),
+                    ownerOf: () => Promise.resolve(undefined),
+                }),
+            );
+        const server = await serve(app);
+
+        try {
+            const action = await fetch(`${server.base}/api/extensions/sample/actions/go`, {
+                method: "POST",
+                body: JSON.stringify({ session: 7 }),
+            });
+            const toggle = await fetch(`${server.base}/api/extensions/sample`, {
+                method: "PUT",
+                body: JSON.stringify({ session: 7 }),
+            });
+
+            // Both name a valid session; one finds no such session, the other has no `enabled`.
+            assert.equal(action.status, 404);
+            assert.equal(toggle.status, 400);
+            assert.deepEqual(marked, [undefined, undefined]);
         } finally {
             await server.close();
         }

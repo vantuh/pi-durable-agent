@@ -5,6 +5,7 @@ import { constants, createGzip, gzipSync, type Gzip } from "node:zlib";
 
 import type { HttpBindings } from "@hono/node-server";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
+import type { ErrorHandler } from "hono";
 
 import { ActionError, ActionNotFound } from "./extensions.ts";
 
@@ -41,24 +42,31 @@ export class HttpError extends Error {
     }
 }
 
-/** The request's body, refused past `limit` bytes: a route that takes a bigger one names its own limit. */
+/**
+ * The request's body, refused past `limit` bytes: a route that takes a bigger one names its own limit. What
+ * follows the limit is read and dropped, not cut off, so the refusal can still reach the client that is sending.
+ */
 export function readBytes(request: IncomingMessage, limit = MAX_BODY): Promise<Buffer> {
     return new Promise((done, reject) => {
         const chunks: Buffer[] = [];
         let size = 0;
 
-        request.on("data", (chunk: Buffer) => {
+        const onData = (chunk: Buffer): void => {
             size += chunk.length;
 
             if (size > limit) {
-                request.destroy();
+                chunks.length = 0;
+                request.off("data", onData);
+                request.resume();
                 reject(new HttpError(413, "body is too large"));
 
                 return;
             }
 
             chunks.push(chunk);
-        });
+        };
+
+        request.on("data", onData);
         request.on("end", () => {
             done(Buffer.concat(chunks));
         });
@@ -79,17 +87,6 @@ export async function readJson(request: IncomingMessage, limit = MAX_BODY): Prom
     } catch {
         throw new HttpError(400, "body is not JSON");
     }
-}
-
-export function string(value: unknown): string | undefined {
-    return typeof value === "string" ? value : undefined;
-}
-
-/** A session id is a positive integer; anything else is `undefined`. */
-export function sessionIdOf(value: unknown): number | undefined {
-    return typeof value === "number" && Number.isSafeInteger(value) && value > 0
-        ? value
-        : undefined;
 }
 
 /**
@@ -198,6 +195,23 @@ export function answer(
     });
     response.end(gzipped ?? text);
 }
+
+/**
+ * What a route that threw answers: an `HttpError` its own status, any other failure 500, each naming the reason.
+ * A response already begun is ended where it stands.
+ */
+export const routeFailed: ErrorHandler<ApiEnv> = (error, c) => {
+    if (c.env.outgoing.headersSent) {
+        c.env.outgoing.end();
+
+        return RESPONSE_ALREADY_SENT;
+    }
+
+    return Response.json(
+        { error: error instanceof Error ? error.message : "the request failed" },
+        { status: error instanceof HttpError ? error.status : 500 },
+    );
+};
 
 /** 404 for something unknown, 400 for bad input, the `HttpError`'s own status, 500 for any other failure. */
 export function answerError(response: ServerResponse, error: unknown, fallback: string): void {

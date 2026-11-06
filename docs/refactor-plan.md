@@ -57,13 +57,39 @@ they were.
 
 ## Phase 2: Zod validation
 
-- [ ] Add `zod` and `@hono/zod-validator`.
-- [ ] One route file at a time (`sessions`, `models`, `files`, `conversation`, `extensions`): replace
-      `recordOf` and field checks with `zValidator` schemas; error bodies and statuses stay as they are.
-- [ ] Record `changedSession` in one place (the validated body) instead of per route.
-- [ ] Map `HttpError` in `app.onError`, so an oversized `/api/files` body answers 413, not 500.
-- [ ] Decide whether the HEAD guard stays.
-- [ ] Remove helpers the schemas made unused (`recordOf` callers, ad hoc narrowing).
+- [x] Add `zod` and `@hono/zod-validator`: `build: add zod and @hono/zod-validator`. `b6fa987`
+- [x] Pin what every route answers to input it refuses, on the real server, before touching a route:
+      `test(server): pin what the routes answer to input they refuse` (`test/route-answers.test.ts`). `6e65a8c`
+- [x] One route file at a time: replace `recordOf` and field checks with schemas; error bodies and
+      statuses stay as they are. The body is read by `jsonBody` in `server/validate.ts`, not by Hono's
+      JSON validator (see [conventions.md](conventions.md#hono-routes)); a query goes through
+      `queryOf`, which wraps `zValidator("query")`.
+    - [x] `sessions`: `refactor(server): validate the session routes with Zod` `95c3026`
+    - [x] `models`: `refactor(server): validate the model routes with Zod` `ee13c1a`
+    - [x] `files`: `refactor(server): validate the file routes with Zod` `ee982c6`
+    - [x] `conversation`: `refactor(server): validate the conversation routes with Zod` `db313f4`
+    - [x] `extensions`: `refactor(server): validate the extension routes with Zod` `1160f6f`
+    - The three inline routes of `mountRoutes` (`/api/build`, `/api/restart`, `/api/health`) read no
+      input, so they have no schema.
+- [x] Record `changedSession` in one place: `jsonBody` sets it from the body's `session`, checked or
+      refused; no route sets it (`test/validate.test.ts`).
+- [x] Map `HttpError` in `app.onError`, so an oversized `/api/files` body answers 413, not 500:
+      `5e16142` `fix(server): answer an HttpError with its own status`. `readBytes` also stops destroying the
+      socket past the limit (the client saw a reset, never an answer) and drops the rest of the body.
+- [x] Decide whether the HEAD guard stays: it stays. Hono answers HEAD from the GET route, and the
+      GET routes of `/api/events` and `/api/sessions/events` open an event stream and register a client
+      with no reader; `/api/uploads` and `/api/entry-image` write bytes by hand. The guard keeps HEAD an
+      unknown request there, as before; an extension's own HTTP still takes every method.
+- [x] Remove helpers the schemas made unused: `string()` and `sessionIdOf()` in `server/http.ts`,
+      `parseActionBody()` in `server/extensions.ts`, the `recordOf` calls in the routes. `readJson` stays
+      (`jsonBody` and the extension SDK use it); `shared/guards.ts` stays (`projection.ts` and
+      `extensions/git-history` use it).
+- [x] Review fixes: `jsonBody` marks no session for extension routes (`marksSession: false`), and
+      fields with a `.catch` fallback also get `.default`, so `hc` may leave them out
+      (`test/route-inputs.types.ts`): `fix(server): keep extension bodies out of the list refresh and
+      the fallback fields optional` `cffe552`.
+- [x] Independent review of `43fa317..2ae79be`: no blockers, no runtime regressions; its two notes
+      are the fixes above.
 
 ## Phase 3: typed browser client (`hc`)
 

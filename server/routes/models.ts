@@ -4,10 +4,17 @@ import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-work
 import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import { type ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { Hono } from "hono";
+import { z } from "zod";
 
-import { recordOf } from "../../shared/guards.ts";
-import { type ApiEnv, readJson, sessionIdOf, string } from "../http.ts";
+import type { ApiEnv } from "../http.ts";
 import { type Sessions, supportedLevel } from "../sessions.ts";
+import { jsonBody } from "../validate.ts";
+
+const ModelBody = z.object({ provider: z.string(), modelId: z.string() });
+const DefaultBody = z.object({
+    model: ModelBody,
+    thinkingLevel: z.enum(MODEL_THINKING_LEVELS),
+});
 
 /** Read through the manager that saves it, so a model added here is in the next read. */
 export function enabledModels(): string[] | undefined {
@@ -110,61 +117,41 @@ export function modelRoutes(deps: {
                         : { ...stored.model, thinkingLevel: stored.thinkingLevel },
             });
         })
-        .post("/api/scoped", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
+        .post(
+            "/api/scoped",
+            jsonBody(ModelBody, "provider and modelId are required"),
+            async (c) => {
+                const { provider, modelId } = c.req.valid("json");
+                const available = await models.getAvailable();
 
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
+                await addEnabledModel(
+                    `${provider}/${modelId}`,
+                    available.map((model) => `${model.provider}/${model.id}`),
+                );
 
-            const provider = string(payload?.["provider"]);
-            const modelId = string(payload?.["modelId"]);
+                return c.json({ provider, modelId }, 200);
+            },
+        )
+        .delete(
+            "/api/scoped",
+            jsonBody(ModelBody, "provider and modelId are required"),
+            async (c) => {
+                const { provider, modelId } = c.req.valid("json");
 
-            if (provider === undefined || modelId === undefined) {
-                return c.json({ error: "provider and modelId are required" }, 400);
-            }
+                await removeEnabledModel(`${provider}/${modelId}`);
 
-            const available = await models.getAvailable();
+                return c.json({ provider, modelId }, 200);
+            },
+        )
+        .post(
+            "/api/default",
+            jsonBody(DefaultBody, "model and thinkingLevel are required"),
+            async (c) => {
+                const { model, thinkingLevel } = c.req.valid("json");
 
-            await addEnabledModel(
-                `${provider}/${modelId}`,
-                available.map((model) => `${model.provider}/${model.id}`),
-            );
+                await sessions.setDefaults(model, thinkingLevel);
 
-            return c.json({ provider, modelId }, 200);
-        })
-        .delete("/api/scoped", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const provider = string(payload?.["provider"]);
-            const modelId = string(payload?.["modelId"]);
-
-            if (provider === undefined || modelId === undefined) {
-                return c.json({ error: "provider and modelId are required" }, 400);
-            }
-
-            await removeEnabledModel(`${provider}/${modelId}`);
-
-            return c.json({ provider, modelId }, 200);
-        })
-        .post("/api/default", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const model = recordOf(payload?.["model"]);
-            const provider = string(model?.["provider"]);
-            const modelId = string(model?.["modelId"]);
-            const thinkingLevel = MODEL_THINKING_LEVELS.find(
-                (known) => known === payload?.["thinkingLevel"],
-            );
-
-            if (provider === undefined || modelId === undefined || thinkingLevel === undefined) {
-                return c.json({ error: "model and thinkingLevel are required" }, 400);
-            }
-
-            await sessions.setDefaults({ provider, modelId }, thinkingLevel);
-
-            return c.json({ provider, modelId, thinkingLevel }, 200);
-        });
+                return c.json({ ...model, thinkingLevel }, 200);
+            },
+        );
 }

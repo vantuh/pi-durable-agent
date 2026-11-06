@@ -3,18 +3,17 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { Hono } from "hono";
+import { z } from "zod";
 
-import { recordOf } from "../../shared/guards.ts";
 import type { SessionSummary } from "../../shared/protocol.ts";
-import {
-    answer,
-    type ApiEnv,
-    readJson,
-    RESPONSE_ALREADY_SENT,
-    sessionIdOf,
-    string,
-} from "../http.ts";
+import { answer, type ApiEnv, RESPONSE_ALREADY_SENT } from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
+import { jsonBody, lenient, PositiveId } from "../validate.ts";
+
+const CreateBody = z.object({ cwd: lenient(z.string()) });
+const ArchiveBody = z.object({ session: PositiveId, archived: z.boolean() });
+const SessionBody = z.object({ session: PositiveId });
+const TitleBody = z.object({ session: PositiveId, title: z.string() });
 
 export function sessionRoutes(deps: {
     sessions: Sessions;
@@ -39,51 +38,32 @@ export function sessionRoutes(deps: {
 
             return RESPONSE_ALREADY_SENT;
         })
-        .post("/api/sessions", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const cwd = string(payload?.["cwd"]);
+        .post("/api/sessions", jsonBody(CreateBody), async (c) => {
+            const { cwd } = c.req.valid("json");
             const conversation = await sessions.create(cwd ?? process.cwd());
 
             await attach(Number(conversation.id));
 
             return c.json({ session: Number(conversation.id) }, 201);
         })
-        .post("/api/sessions/archive", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-            const id = sessionIdOf(payload?.["session"]);
+        .post(
+            "/api/sessions/archive",
+            jsonBody(ArchiveBody, "Expected a session id and archived boolean"),
+            async (c) => {
+                const { session, archived } = c.req.valid("json");
+                const opened = await attach(session);
 
-            c.set("changedSession", id);
+                if (opened === undefined) {
+                    return c.json({ error: "Session not found" }, 404);
+                }
 
-            const archived = payload?.["archived"];
+                await sessions.setArchived(opened.id, archived);
 
-            if (id === undefined || typeof archived !== "boolean") {
-                return c.json({ error: "Expected a session id and archived boolean" }, 400);
-            }
-
-            const opened = await attach(id);
-
-            if (opened === undefined) {
-                return c.json({ error: "Session not found" }, 404);
-            }
-
-            await sessions.setArchived(opened.id, archived);
-
-            return c.json({ ok: true }, 200);
-        })
-        .post("/api/sessions/delete", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-            const id = sessionIdOf(payload?.["session"]);
-
-            c.set("changedSession", id);
-
-            if (id === undefined) {
-                return c.json({ error: "Expected a session id" }, 400);
-            }
-
-            const opened = await attach(id);
+                return c.json({ ok: true }, 200);
+            },
+        )
+        .post("/api/sessions/delete", jsonBody(SessionBody, "Expected a session id"), async (c) => {
+            const opened = await attach(c.req.valid("json").session);
 
             if (opened === undefined) {
                 return c.json({ error: "Session not found" }, 404);
@@ -94,39 +74,24 @@ export function sessionRoutes(deps: {
 
             return c.json({ ok: true }, 200);
         })
-        .post("/api/sessions/title", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-            const id = sessionIdOf(payload?.["session"]);
+        .post(
+            "/api/sessions/title",
+            jsonBody(TitleBody, "Expected a session id and a title string"),
+            async (c) => {
+                const { session, title } = c.req.valid("json");
+                const opened = await attach(session);
 
-            c.set("changedSession", id);
+                if (opened === undefined) {
+                    return c.json({ error: "Session not found" }, 404);
+                }
 
-            const title = payload?.["title"];
+                await sessions.setTitle(opened.id, title.trim().slice(0, 80));
 
-            if (id === undefined || typeof title !== "string") {
-                return c.json({ error: "Expected a session id and a title string" }, 400);
-            }
-
-            const opened = await attach(id);
-
-            if (opened === undefined) {
-                return c.json({ error: "Session not found" }, 404);
-            }
-
-            await sessions.setTitle(opened.id, title.trim().slice(0, 80));
-
-            return c.json({ ok: true }, 200);
-        })
-        .post("/api/sessions/seen", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-            const id = sessionIdOf(payload?.["session"]);
-
-            c.set("changedSession", id);
-
-            if (id === undefined) {
-                return c.json({ error: "Expected a session id" }, 400);
-            }
-
-            const opened = await attach(id);
+                return c.json({ ok: true }, 200);
+            },
+        )
+        .post("/api/sessions/seen", jsonBody(SessionBody, "Expected a session id"), async (c) => {
+            const opened = await attach(c.req.valid("json").session);
 
             if (opened === undefined) {
                 return c.json({ error: "Session not found" }, 404);

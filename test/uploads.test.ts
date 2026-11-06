@@ -1,42 +1,15 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, it } from "node:test";
 
-import { getRequestListener } from "@hono/node-server";
-
 import { fileRoutes } from "../server/routes/files.ts";
 import { recordOf } from "../shared/guards.ts";
+import { serve as serveApp } from "./fixtures/serve.ts";
 
 /** The files app on a real port: the upload answers are read as the composer reads them. */
-async function serve(dataDir: string) {
-    const listener = getRequestListener(fileRoutes({ dataDir }).fetch);
-    const server = createServer((request, response) => {
-        void listener(request, response);
-    });
-
-    await new Promise<void>((done) => {
-        server.listen(0, "127.0.0.1", done);
-    });
-
-    const address = server.address();
-
-    assert.ok(address !== null && typeof address !== "string");
-
-    return {
-        base: `http://127.0.0.1:${String(address.port)}`,
-        close: async () => {
-            server.closeAllConnections();
-            await new Promise<void>((done) => {
-                server.close(() => {
-                    done();
-                });
-            });
-        },
-    };
-}
+const serve = (dataDir: string) => serveApp(fileRoutes({ dataDir }));
 
 void describe("GET /api/uploads", () => {
     void it("serves an uploaded file and nothing beside the uploads folder", async () => {

@@ -8,7 +8,7 @@ import { setTimeout } from "node:timers/promises";
 import { createRegistry, type Registry } from "@earendil-works/pi-durable";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import { ActionError, ActionNotFound, Extensions, parseActionBody } from "../server/extensions.ts";
+import { ActionError, ActionNotFound, Extensions } from "../server/extensions.ts";
 import type { ExtensionNotice } from "../shared/protocol.ts";
 
 const CALLS = "__extensionTestCalls";
@@ -827,28 +827,6 @@ export default function (host) {
                 extensions.call(folder, "value", call),
                 (error) => error instanceof ActionNotFound,
             );
-        }
-    });
-
-    void it("checks the action request body", () => {
-        assert.deepEqual(parseActionBody(undefined), { session: undefined, args: undefined });
-        assert.deepEqual(parseActionBody({}), { session: undefined, args: undefined });
-        assert.deepEqual(parseActionBody({ session: 3, args: { a: 1 } }), {
-            session: 3,
-            args: { a: 1 },
-        });
-
-        for (const bad of [
-            [],
-            "x",
-            5,
-            null,
-            { session: 0 },
-            { session: -1 },
-            { session: 1.5 },
-            { session: "1" },
-        ]) {
-            assert.throws(() => parseActionBody(bad), ActionError);
         }
     });
 

@@ -216,8 +216,13 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
 after the route. Each `server/routes/<group>.ts` returns a chained sub-app, so a route declares its
 path and method instead of a regular expression in a table.
 
-Validation is still hand-written: a route reads its own body. Because the typed browser client
-(`hc`) comes next, a route answers with `c.json(body, status)` rather than writing JSON by hand.
+A route checks its input with a Zod schema, declared in the route file: `jsonBody` for the JSON body
+and `queryOf` for the query string (`server/validate.ts`), and the handler reads the result from
+`c.req.valid("json")` or `c.req.valid("query")`. A refused request answers 400 with `{ error }`, one
+sentence per route. `jsonBody` reads the body through `readJson`, so a body past 100 MB answers 413 and
+one that is not JSON answers 400, and it records the session the body names for the list refresh.
+Because the typed browser client (`hc`) comes next, a route answers with `c.json(body, status)` rather
+than writing JSON by hand.
 Three things do write the response, and return `RESPONSE_ALREADY_SENT` so the adapter leaves it
 alone: the two event streams, a file's bytes (`/api/entry-image`, `/api/uploads`, and the two answers
 gzipped for size, `/api/sessions` and `/api/history`), and an extension's own HTTP, which still hands

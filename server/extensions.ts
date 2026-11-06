@@ -257,28 +257,6 @@ export class ActionError extends Error {}
 /** Thrown for an unknown extension or action; the route answers 404. */
 export class ActionNotFound extends Error {}
 
-/** Checks the body of an action request: an object or nothing, and a positive integer `session`. */
-export function parseActionBody(body: unknown): { session: number | undefined; args: unknown } {
-    if (body === undefined) {
-        return { session: undefined, args: undefined };
-    }
-
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-        throw new ActionError("the body must be a JSON object");
-    }
-
-    const session: unknown = Reflect.get(body, "session");
-
-    if (session !== undefined && !(Number.isSafeInteger(session) && Number(session) > 0)) {
-        throw new ActionError("session must be a positive integer");
-    }
-
-    return {
-        session: typeof session === "number" ? session : undefined,
-        args: Reflect.get(body, "args"),
-    };
-}
-
 export type LoadFailure = { folder: string; reason: string };
 
 /** A folder's optional named export `meta`: what the owner sees in the list of extensions. */

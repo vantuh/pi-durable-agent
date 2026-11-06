@@ -6,11 +6,12 @@ import { homedir } from "node:os";
 import { basename, extname, join, resolve, sep } from "node:path";
 
 import { Hono } from "hono";
+import { z } from "zod";
 
-import { recordOf } from "../../shared/guards.ts";
 import { writeJsonFile } from "../atomic-write.ts";
-import { type ApiEnv, readBytes, readJson, RESPONSE_ALREADY_SENT, sessionIdOf } from "../http.ts";
+import { type ApiEnv, readBytes, RESPONSE_ALREADY_SENT } from "../http.ts";
 import { readJsonFile } from "../json-file.ts";
+import { jsonBody, lenient, queryOf, StringList } from "../validate.ts";
 
 export const IMAGE_TYPES: Record<string, string> = {
     ".png": "image/png",
@@ -20,31 +21,24 @@ export const IMAGE_TYPES: Record<string, string> = {
     ".webp": "image/webp",
 };
 
+const FavouritesBody = z.object({ folders: StringList });
+/** `hidden=1` shows the folders that start with a dot. */
+const FsQuery = z.object({
+    path: lenient(z.string()),
+    hidden: lenient(z.string()).transform((value) => value === "1"),
+});
+const UploadsQuery = z.object({ path: lenient(z.string()) });
+
 export function fileRoutes({ dataDir }: { dataDir: string }) {
     const uploadDir = join(dataDir, "uploads");
     const favouritesFile = join(dataDir, "favourites.json");
 
-    async function readFavourites(): Promise<string[]> {
-        const parsed = await readJsonFile(favouritesFile);
-
-        return Array.isArray(parsed)
-            ? parsed.filter((entry): entry is string => typeof entry === "string")
-            : [];
-    }
-
     return new Hono<ApiEnv>()
         .get("/api/favourites", async (c) => {
-            return c.json({ folders: await readFavourites() });
+            return c.json({ folders: StringList.parse(await readJsonFile(favouritesFile)) });
         })
-        .put("/api/favourites", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const raw = payload?.["folders"];
-            const folders = Array.isArray(raw)
-                ? raw.filter((entry): entry is string => typeof entry === "string")
-                : [];
+        .put("/api/favourites", jsonBody(FavouritesBody), async (c) => {
+            const { folders } = c.req.valid("json");
 
             await writeJsonFile(favouritesFile, folders);
 
@@ -72,12 +66,11 @@ export function fileRoutes({ dataDir }: { dataDir: string }) {
                 201,
             );
         })
-        .get("/api/fs", async (c) => {
-            const wanted = c.req.query("path") ?? homedir();
+        .get("/api/fs", queryOf(FsQuery), async (c) => {
+            const { hidden, path: wanted = homedir() } = c.req.valid("query");
             const path = resolve(
                 wanted.startsWith("~") ? join(homedir(), wanted.slice(1)) : wanted,
             );
-            const hidden = c.req.query("hidden") === "1";
 
             try {
                 const entries = await readdir(path, { withFileTypes: true });
@@ -97,8 +90,8 @@ export function fileRoutes({ dataDir }: { dataDir: string }) {
                 return c.json({ error: "cannot read that folder" }, 400);
             }
         })
-        .get("/api/uploads", async (c) => {
-            const wanted = resolve(c.req.query("path") ?? "");
+        .get("/api/uploads", queryOf(UploadsQuery), async (c) => {
+            const wanted = resolve(c.req.valid("query").path ?? "");
 
             if (!wanted.startsWith(uploadDir + sep)) {
                 return c.json({ error: "not an uploaded file" }, 403);

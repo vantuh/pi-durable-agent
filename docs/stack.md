@@ -23,6 +23,7 @@ The first choice, recorded so later decisions can be read against it. Versions a
 | Zoom       | `react-zoom-pan-pinch` 4.2.0           | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
 | Agent      | `@earendil-works/pi-durable` 1.4.0     | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
 | Routing    | Hono 4, `@hono/node-server` 2          | Typed routes and validators now, one typed browser client (`hc`) later     | A framework in the server; the raw paths depend on its adapter    |
+| Validation | Zod 4, `@hono/zod-validator`           | One schema is a route's checked input and `hc`'s typed input               | Two dependencies; `jsonBody` reads the body itself                |
 | Lint       | `oxlint`                               | Fast, no plugin zoo                                                        | Rule coverage is smaller than ESLint's                            |
 | Format     | `oxfmt`                                | 4 spaces, 100 columns, sorted imports and Tailwind classes                 | Young tool; formatting may shift between versions                 |
 | Packages   | pnpm 11                                | Matches the other repos                                                    | —                                                                 |

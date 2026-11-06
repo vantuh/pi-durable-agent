@@ -2,16 +2,19 @@
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { Hono } from "hono";
+import { z } from "zod";
 
-import {
-    ActionError,
-    ActionNotFound,
-    type Extensions,
-    parseActionBody,
-    type SessionRef,
-} from "../extensions.ts";
-import { answer, answerError, type ApiEnv, readJson, RESPONSE_ALREADY_SENT } from "../http.ts";
+import { ActionNotFound, type Extensions, type SessionRef } from "../extensions.ts";
+import { answer, answerError, type ApiEnv, RESPONSE_ALREADY_SENT } from "../http.ts";
 import type { Opened } from "../sessions.ts";
+import { jsonBody, PositiveId } from "../validate.ts";
+
+/** An object or nothing: what an action is called with, and the session it is called from. */
+export const ActionBody = z.object({
+    session: PositiveId.optional(),
+    args: z.unknown().optional(),
+});
+const ToggleBody = z.object({ enabled: z.boolean() });
 
 /**
  * An extension's URL, matched against the path as it was sent: `c.req.path` is decoded, and an extension has
@@ -30,10 +33,6 @@ function segmentOf(pattern: RegExp, pathname: string, index: number): string {
     }
 
     return decodeURIComponent(match[index] ?? "");
-}
-
-function badBody(error: unknown): never {
-    throw new ActionError(error instanceof Error ? error.message : "the body is not valid");
 }
 
 export function extensionRoutes(deps: {
@@ -73,45 +72,56 @@ export function extensionRoutes(deps: {
 
             return RESPONSE_ALREADY_SENT;
         })
-        .post("/api/extensions/:name/actions/:action", async (c) => {
-            const pathname = new URL(c.req.url).pathname;
+        .post(
+            "/api/extensions/:name/actions/:action",
+            jsonBody(
+                ActionBody,
+                (path) =>
+                    path[0] === "session"
+                        ? "session must be a positive integer"
+                        : "the body must be a JSON object",
+                { whole: true, marksSession: false },
+            ),
+            async (c) => {
+                const pathname = new URL(c.req.url).pathname;
+                const parsed = c.req.valid("json");
 
-            // 400 for bad input, 404 for an unknown extension, action or session, 500 for any other failure.
-            try {
-                const parsed = parseActionBody(await readJson(c.env.incoming).catch(badBody));
-                let session: SessionRef | null = null;
+                // 400 for bad input, 404 for an unknown extension, action or session, 500 for any other failure.
+                try {
+                    let session: SessionRef | null = null;
 
-                if (parsed.session !== undefined) {
-                    const opened = await attach(parsed.session);
+                    if (parsed.session !== undefined) {
+                        const opened = await attach(parsed.session);
 
-                    if (opened === undefined) {
-                        return c.json({ error: "no such session" }, 404);
+                        if (opened === undefined) {
+                            return c.json({ error: "no such session" }, 404);
+                        }
+
+                        const agent = await opened.conversation.agent(context);
+
+                        const owner = await ownerOf(parsed.session);
+
+                        session = {
+                            id: parsed.session,
+                            cwd: agent.cwd ?? null,
+                            ...(owner === undefined ? {} : { owner }),
+                        };
                     }
 
-                    const agent = await opened.conversation.agent(context);
+                    const result = await extensions.call(
+                        segmentOf(EXTENSION_ACTION, pathname, 1),
+                        segmentOf(EXTENSION_ACTION, pathname, 2),
+                        { args: parsed.args, session },
+                    );
 
-                    const owner = await ownerOf(parsed.session);
+                    return c.json({ result }, 200);
+                } catch (error) {
+                    answerError(c.env.outgoing, error, "the action failed");
 
-                    session = {
-                        id: parsed.session,
-                        cwd: agent.cwd ?? null,
-                        ...(owner === undefined ? {} : { owner }),
-                    };
+                    return RESPONSE_ALREADY_SENT;
                 }
-
-                const result = await extensions.call(
-                    segmentOf(EXTENSION_ACTION, pathname, 1),
-                    segmentOf(EXTENSION_ACTION, pathname, 2),
-                    { args: parsed.args, session },
-                );
-
-                return c.json({ result }, 200);
-            } catch (error) {
-                answerError(c.env.outgoing, error, "the action failed");
-
-                return RESPONSE_ALREADY_SENT;
-            }
-        })
+            },
+        )
         .get("/api/extensions", (c) => {
             return c.json({
                 installed: extensions.names,
@@ -119,29 +129,26 @@ export function extensionRoutes(deps: {
                 extensions: extensions.list,
             });
         })
-        .put("/api/extensions/:name", async (c) => {
-            const pathname = new URL(c.req.url).pathname;
+        .put(
+            "/api/extensions/:name",
+            jsonBody(ToggleBody, "the body must be { enabled: boolean }", { marksSession: false }),
+            async (c) => {
+                const pathname = new URL(c.req.url).pathname;
 
-            // 400 for a body that is not `{ enabled: boolean }`, 404 for an unknown folder.
-            try {
-                const parsed: unknown = await readJson(c.env.incoming).catch(badBody);
-                const enabled: unknown =
-                    typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-                        ? Reflect.get(parsed, "enabled")
-                        : undefined;
+                // 404 for an unknown folder.
+                try {
+                    return c.json(
+                        await extensions.setEnabled(
+                            segmentOf(EXTENSION_TOGGLE, pathname, 1),
+                            c.req.valid("json").enabled,
+                        ),
+                        200,
+                    );
+                } catch (error) {
+                    answerError(c.env.outgoing, error, "the change failed");
 
-                if (typeof enabled !== "boolean") {
-                    throw new ActionError("the body must be { enabled: boolean }");
+                    return RESPONSE_ALREADY_SENT;
                 }
-
-                return c.json(
-                    await extensions.setEnabled(segmentOf(EXTENSION_TOGGLE, pathname, 1), enabled),
-                    200,
-                );
-            } catch (error) {
-                answerError(c.env.outgoing, error, "the change failed");
-
-                return RESPONSE_ALREADY_SENT;
-            }
-        });
+            },
+        );
 }

@@ -7,24 +7,60 @@ import { basename, extname } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
+import { z } from "zod";
 
-import { recordOf } from "../../shared/guards.ts";
 import { runCommand } from "../commands.ts";
 import { entryAt, historyPage } from "../history.ts";
-import {
-    answer,
-    type ApiEnv,
-    readJson,
-    RESPONSE_ALREADY_SENT,
-    sessionIdOf,
-    string,
-} from "../http.ts";
+import { answer, type ApiEnv, RESPONSE_ALREADY_SENT } from "../http.ts";
 import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
 import type { Opened, Sessions } from "../sessions.ts";
 import { expandSkillCommand, skillsFor } from "../skills.ts";
+import { jsonBody, lenient, PositiveId, queryOf, QueryNumber, StringList } from "../validate.ts";
 import { IMAGE_TYPES } from "./files.ts";
+
+/** A session a body names: none means the root one, and anything else must be an id. */
+const BodySession = PositiveId.nullish();
+/**
+ * The browser asks before it knows its session (`?session=NaN`): a query session that is no id means the root
+ * one.
+ */
+const QuerySession = lenient(QueryNumber.pipe(PositiveId));
+const BAD_SESSION = "session must be a positive integer";
+
+const ModelBody = z.object({ provider: z.string(), modelId: z.string() });
+
+const MessageBody = z.object({
+    session: BodySession,
+    text: z.string().default("").catch(""),
+    files: StringList,
+    mode: lenient(z.enum(["interrupt", "steer", "followUp"])),
+});
+const WithdrawBody = z.object({ session: BodySession, id: PositiveId });
+const AbortBody = z.object({ session: BodySession });
+const AgentBody = z.object({
+    session: BodySession,
+    model: lenient(ModelBody),
+    thinkingLevel: lenient(z.enum(MODEL_THINKING_LEVELS)),
+});
+const CommandBody = z.object({
+    session: BodySession,
+    name: z.string().default("").catch(""),
+    args: z.string().default("").catch(""),
+});
+
+const SessionQuery = z.object({ session: QuerySession });
+const HistoryQuery = z.object({
+    session: QuerySession,
+    before: QueryNumber.pipe(PositiveId).optional(),
+});
+/** A missing index means the first picture. */
+const EntryImageQuery = z.object({
+    session: QueryNumber.pipe(PositiveId),
+    entry: QueryNumber.pipe(PositiveId),
+    index: QueryNumber.pipe(z.int().nonnegative()).default(0),
+});
 
 type Content = Extract<Parameters<Conversation["submit"]>[0], { type: "input" }>["content"];
 
@@ -64,23 +100,9 @@ export function conversationRoutes(deps: {
 }) {
     const { sessions, attach } = deps;
 
-    /** The session a request names, the root one when it names none, `undefined` when the id is not valid. */
-    function sessionFrom(value: unknown): number | undefined {
-        return value === undefined || value === null ? deps.rootId() : sessionIdOf(value);
-    }
-
-    /** The browser asks before it knows its session (`?session=NaN`): an invalid query id means the root one. */
-    function querySession(c: Context<ApiEnv>): number {
-        return sessionIdOf(Number(c.req.query("session"))) ?? deps.rootId();
-    }
-
-    function badSession(c: Context<ApiEnv>) {
-        return c.json({ error: "session must be a positive integer" }, 400);
-    }
-
     return new Hono<ApiEnv>()
-        .get("/api/events", async (c) => {
-            const opened = await attach(querySession(c));
+        .get("/api/events", queryOf(SessionQuery), async (c) => {
+            const opened = await attach(c.req.valid("query").session ?? deps.rootId());
 
             if (opened === undefined) {
                 return c.json({ error: "no such session" }, 404);
@@ -90,90 +112,65 @@ export function conversationRoutes(deps: {
 
             return RESPONSE_ALREADY_SENT;
         })
-        .get("/api/history", async (c) => {
-            const id = querySession(c);
-            const raw = c.req.query("before");
-            const before = raw === undefined ? undefined : sessionIdOf(Number(raw));
+        .get(
+            "/api/history",
+            queryOf(HistoryQuery, "before must be a positive entry id"),
+            async (c) => {
+                const { session, before } = c.req.valid("query");
+                const opened = await attach(session ?? deps.rootId());
 
-            if (raw !== undefined && before === undefined) {
-                return c.json({ error: "before must be a positive entry id" }, 400);
-            }
+                if (opened === undefined) {
+                    return c.json({ error: "no such session" }, 404);
+                }
 
-            const opened = await attach(id);
+                // A page carries whole entries, so it can be big: answered by hand for its gzip.
+                answer(
+                    c.env.outgoing,
+                    200,
+                    await historyPage({
+                        conversation: opened.conversation,
+                        context,
+                        ...(before === undefined ? {} : { before }),
+                    }),
+                    c.env.incoming,
+                );
 
-            if (opened === undefined) {
-                return c.json({ error: "no such session" }, 404);
-            }
+                return RESPONSE_ALREADY_SENT;
+            },
+        )
+        .get(
+            "/api/entry-image",
+            queryOf(EntryImageQuery, "session, entry and index are required"),
+            async (c) => {
+                const { session, entry, index } = c.req.valid("query");
+                const opened = await attach(session);
+                const stored =
+                    opened === undefined
+                        ? undefined
+                        : await entryAt({
+                              conversation: opened.conversation,
+                              context,
+                              id: entry,
+                          });
+                const image = stored === undefined ? undefined : toolImageOf(stored, index);
 
-            // A page carries whole entries, so it can be big: answered by hand for its gzip.
-            answer(
-                c.env.outgoing,
-                200,
-                await historyPage({
-                    conversation: opened.conversation,
-                    context,
-                    ...(before === undefined ? {} : { before }),
-                }),
-                c.env.incoming,
-            );
+                if (image === undefined) {
+                    return c.json({ error: "no such image" }, 404);
+                }
 
-            return RESPONSE_ALREADY_SENT;
-        })
-        .get("/api/entry-image", async (c) => {
-            const id = sessionIdOf(Number(c.req.query("session")));
-            const entry = sessionIdOf(Number(c.req.query("entry")));
-            // A missing index means the first picture.
-            const index = Number(c.req.query("index") ?? 0);
+                c.env.outgoing.writeHead(200, {
+                    "content-type": image.mimeType,
+                    "x-content-type-options": "nosniff",
+                    "cache-control": "private, max-age=3600",
+                });
+                c.env.outgoing.end(image.bytes);
 
-            if (
-                id === undefined ||
-                entry === undefined ||
-                !Number.isSafeInteger(index) ||
-                index < 0
-            ) {
-                return c.json({ error: "session, entry and index are required" }, 400);
-            }
-
-            const opened = await attach(id);
-            const stored =
-                opened === undefined
-                    ? undefined
-                    : await entryAt({
-                          conversation: opened.conversation,
-                          context,
-                          id: entry,
-                      });
-            const image = stored === undefined ? undefined : toolImageOf(stored, index);
-
-            if (image === undefined) {
-                return c.json({ error: "no such image" }, 404);
-            }
-
-            c.env.outgoing.writeHead(200, {
-                "content-type": image.mimeType,
-                "x-content-type-options": "nosniff",
-                "cache-control": "private, max-age=3600",
-            });
-            c.env.outgoing.end(image.bytes);
-
-            return RESPONSE_ALREADY_SENT;
-        })
-        .post("/api/messages", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const text = string(payload?.["text"]) ?? "";
-            const id = sessionFrom(payload?.["session"]);
-
-            if (id === undefined) {
-                return badSession(c);
-            }
-
-            const opened = await attach(id);
-            const files = Array.isArray(payload?.["files"])
-                ? payload["files"].filter((file): file is string => typeof file === "string")
-                : [];
+                return RESPONSE_ALREADY_SENT;
+            },
+        )
+        .post("/api/messages", jsonBody(MessageBody, BAD_SESSION), async (c) => {
+            const { session, text, files, mode } = c.req.valid("json");
+            const opened = await attach(session ?? deps.rootId());
 
             if (opened === undefined) {
                 return c.json({ error: "no such session" }, 404);
@@ -183,7 +180,6 @@ export function conversationRoutes(deps: {
                 return c.json({ error: "text is required" }, 400);
             }
 
-            const mode = string(payload?.["mode"]);
             // `/skill:name request` carries the skill's instructions; the screen keeps showing what was typed.
             const cwd = (await opened.conversation.agent(context))?.cwd ?? process.cwd();
             const expanded = text.startsWith("/skill:")
@@ -228,47 +224,29 @@ export function conversationRoutes(deps: {
 
             return c.json({ ok: true }, 202);
         })
-        .post("/api/queued/withdraw", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
+        .post(
+            "/api/queued/withdraw",
+            jsonBody(WithdrawBody, (path) =>
+                path[0] === "id" ? "id must be a positive integer" : BAD_SESSION,
+            ),
+            async (c) => {
+                const { session, id } = c.req.valid("json");
+                const opened = await attach(session ?? deps.rootId());
 
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
+                if (opened === undefined) {
+                    return c.json({ error: "no such session" }, 404);
+                }
 
-            const id = sessionFrom(payload?.["session"]);
-            const item = sessionIdOf(payload?.["id"]);
+                // A submission id is a number at run time; the brand lives only in the type.
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value passed a positive-integer check
+                const submission = id as SubmissionId;
+                const result = await deps.harness.abortSubmission(submission, context, opened.id);
 
-            if (id === undefined) {
-                return badSession(c);
-            }
-
-            if (item === undefined) {
-                return c.json({ error: "id must be a positive integer" }, 400);
-            }
-
-            const opened = await attach(id);
-
-            if (opened === undefined) {
-                return c.json({ error: "no such session" }, 404);
-            }
-
-            // A submission id is a number at run time; the brand lives only in the type.
-            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value passed a positive-integer check
-            const submission = item as SubmissionId;
-            const result = await deps.harness.abortSubmission(submission, context, opened.id);
-
-            return c.json({ result }, 200);
-        })
-        .post("/api/abort", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const id = sessionFrom(payload?.["session"]);
-
-            if (id === undefined) {
-                return badSession(c);
-            }
-
-            const opened = await attach(id);
+                return c.json({ result }, 200);
+            },
+        )
+        .post("/api/abort", jsonBody(AbortBody, BAD_SESSION), async (c) => {
+            const opened = await attach(c.req.valid("json").session ?? deps.rootId());
 
             if (opened !== undefined) {
                 await opened.conversation.abort(context);
@@ -276,23 +254,9 @@ export function conversationRoutes(deps: {
 
             return c.json({ ok: true }, 202);
         })
-        .post("/api/agent", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const id = sessionFrom(payload?.["session"]);
-
-            if (id === undefined) {
-                return badSession(c);
-            }
-
-            const opened = await attach(id);
-            const model = recordOf(payload?.["model"]);
-            const provider = string(model?.["provider"]);
-            const modelId = string(model?.["modelId"]);
-            const level = string(payload?.["thinkingLevel"]);
-            const thinkingLevel = MODEL_THINKING_LEVELS.find((known) => known === level);
+        .post("/api/agent", jsonBody(AgentBody, BAD_SESSION), async (c) => {
+            const { session, model, thinkingLevel } = c.req.valid("json");
+            const opened = await attach(session ?? deps.rootId());
 
             if (opened === undefined) {
                 return c.json({ error: "no such session" }, 404);
@@ -300,9 +264,7 @@ export function conversationRoutes(deps: {
 
             await opened.conversation.configure(
                 {
-                    ...(provider === undefined || modelId === undefined
-                        ? {}
-                        : { model: { provider, modelId } }),
+                    ...(model === undefined ? {} : { model }),
                     ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
                 },
                 context,
@@ -310,20 +272,9 @@ export function conversationRoutes(deps: {
 
             return c.json({ ok: true }, 202);
         })
-        .post("/api/commands", async (c) => {
-            const payload = recordOf(await readJson(c.env.incoming));
-
-            c.set("changedSession", sessionIdOf(payload?.["session"]));
-
-            const name = string(payload?.["name"]) ?? "";
-            const args = string(payload?.["args"]) ?? "";
-            const id = sessionFrom(payload?.["session"]);
-
-            if (id === undefined) {
-                return badSession(c);
-            }
-
-            const opened = await attach(id);
+        .post("/api/commands", jsonBody(CommandBody, BAD_SESSION), async (c) => {
+            const { session, name, args } = c.req.valid("json");
+            const opened = await attach(session ?? deps.rootId());
 
             if (opened === undefined) {
                 return c.json({ error: "no such session" }, 404);
@@ -348,8 +299,8 @@ export function conversationRoutes(deps: {
                 );
             }
         })
-        .get("/api/skills", async (c) => {
-            const opened = await attach(querySession(c));
+        .get("/api/skills", queryOf(SessionQuery), async (c) => {
+            const opened = await attach(c.req.valid("query").session ?? deps.rootId());
             const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
 
             return c.json({
@@ -359,8 +310,8 @@ export function conversationRoutes(deps: {
                 })),
             });
         })
-        .get("/api/project-files", async (c) => {
-            const opened = await attach(querySession(c));
+        .get("/api/project-files", queryOf(SessionQuery), async (c) => {
+            const opened = await attach(c.req.valid("query").session ?? deps.rootId());
             const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
 
             return c.json({ files: await projectFiles(cwd) });
