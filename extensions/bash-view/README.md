@@ -29,6 +29,28 @@ holds for every `bash` step and is saved in this browser; the default is **Forma
   become badges in words (`writes /tmp/test.log`, `errors into output`, `hides errors`), and the
   line between two rows says what joins them (`if it succeeds`, `if it fails`, `output into`).
 
+## Embedded Python and JavaScript
+
+All three views highlight static interpreter code inside the command's existing frame, without a
+second panel, header or duplicate copy of the code:
+
+- `python -c '...'` and `python3 -c '...'`;
+- `node -e '...'` and `node --eval '...'`;
+- stdin heredocs, such as `python3 <<'PY'` or `node <<'JS'`, with an optional `-` stdin argument.
+
+Shell syntax stays highlighted as Bash; embedded code uses Python or JavaScript highlighting.
+The text keeps its shell quotes, escapes, heredoc delimiters, tabs and redirects. Code is not
+reformatted or executed. Raw and Formatted retain one copy button for the complete command.
+
+Complete lines of embedded code have a subtle theme background, a left marker and a visual inset,
+including blank lines. The shell header and heredoc delimiter stay outside that marked region.
+The inset never adds spaces to the displayed or copied command. Inline code that shares a shell
+line keeps syntax highlighting without marking the whole shell line.
+
+Interpreter paths such as `/usr/bin/python3` work. Before the code argument, Python accepts the
+flag-only options `-u`, `-B`, `-I`, `-S`, `-E`, `-s`, `-O` and `-OO`; Node accepts
+`--input-type=module` and `--input-type=commonjs`.
+
 ## Behavior
 
 - The browser half (`web.tsx`) adds a tool view for `bash`; `details.tsx` holds the view choice;
@@ -43,11 +65,17 @@ holds for every `bash` step and is saved in this browser; the default is **Forma
 
 ## Limits
 
+- Inline colouring follows the source spelling; shell escapes and concatenated quote segments can make
+  embedded token colours approximate. The displayed and copied text is always preserved.
+- Embedded highlighting skips shell expansions, dynamic `eval`, interpreter wrappers, unknown options,
+  ANSI-C quoted arguments, and unquoted heredocs with backslashes. Ambiguous input keeps Bash highlighting.
+- A heredoc uses an embedded grammar only when it is the command's sole stdin redirect and the interpreter
+  is not running a script file or inline code. Incomplete heredocs keep Bash highlighting.
 - A command that does not parse (also one still streaming in) shows as written, in every view.
-- A command with a heredoc or a here-string (`<<`) shows as written: splitting the line a heredoc
-  starts on could move its body.
+- Heredoc headers and bodies stay together, including any other statements on the same header line.
+  Commands before and after that block still format normally. Here-strings do not block formatting.
 - A statement already written over several lines, and an `if`, loop, subshell or `{ }` group, stays
-  as written; in Panels it is plain text, without highlighting.
+  as written. Panels highlight these rows too.
 - A short pipeline stays one row, with the first command's icon and its redirects left in the text.
 - A wrapper's options are recognised only by their look (`-u`, `3`, `X=1`): `sudo -u root rm` takes
   `root` as the program.

@@ -1,7 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 
-import { CodeBlock } from "@/ui/markdown/code-block.tsx";
-
+import { CommandCode } from "./command-code.tsx";
 import { layout, split } from "./layout.ts";
 import { currentMode, watchMode } from "./mode.ts";
 import { Panels } from "./panels.tsx";
@@ -14,6 +13,6 @@ export function BashView({ command }: { command: string }) {
     return parts !== undefined ? (
         <Panels source={command} parts={parts} />
     ) : (
-        <CodeBlock code={mode === "raw" ? command : layout(command)} lang="bash" />
+        <CommandCode command={mode === "raw" ? command : layout(command)} framed />
     );
 }

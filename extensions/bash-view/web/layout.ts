@@ -1,4 +1,12 @@
-import { parse, type AndOr, type Command, type PipelineNode, type Statement } from "unbash";
+import {
+    forEachChild,
+    parse,
+    type AndOr,
+    type Command,
+    type PipelineNode,
+    type Statement,
+    type SyntaxNode,
+} from "unbash";
 
 const INDENT = "  ";
 /** A chain this short reads at a glance on one line, as `git status | head` does. */
@@ -96,17 +104,25 @@ function unfold(node: Statement | AndOr | PipelineNode, depth: number): Part[] {
     return rows;
 }
 
+function heredocEnd(node: SyntaxNode): number {
+    if (node.type === "HereDoc") {
+        return node.closing?.end ?? node.body.end;
+    }
+
+    let end = 0;
+
+    forEachChild(node, (child) => {
+        end = Math.max(end, heredocEnd(child));
+    });
+
+    return end;
+}
+
 /**
  * The command as rows: one statement each, and every long `&&`, `||` and `|` chain one part each. A statement already
  * written over several lines is one `code` row. Undefined for a command that does not parse.
  */
 export function split(command: string): Part[] | undefined {
-    // shortcut: a heredoc body follows its line, so splitting that line could move the body; such a command stays as
-    // written (a `<<<` here-string too), until heredoc nodes are tracked.
-    if (command.includes("<<")) {
-        return undefined;
-    }
-
     const script = parse(command);
 
     if (script.errors !== undefined && script.errors.length > 0) {
@@ -116,15 +132,31 @@ export function split(command: string): Part[] | undefined {
     const parts: Part[] = [];
     let at = 0;
 
-    for (const statement of script.commands) {
+    for (let index = 0; index < script.commands.length; index += 1) {
+        const statement = script.commands[index];
+
+        if (statement === undefined) {
+            continue;
+        }
+
         gap(command.slice(at, statement.pos), parts);
 
-        const text = command.slice(statement.pos, statement.end);
+        let end = Math.max(statement.end, heredocEnd(statement));
+        let next = script.commands[index + 1];
+
+        // A heredoc consumes the next newline, so all statements on its header line must stay together.
+        while (next !== undefined && next.pos < end) {
+            end = Math.max(end, next.end, heredocEnd(next));
+            index += 1;
+            next = script.commands[index + 1];
+        }
+
+        const text = command.slice(statement.pos, end);
 
         parts.push(
             ...(text.includes("\n") ? [{ kind: "code", text } as const] : unfold(statement, 0)),
         );
-        at = statement.end;
+        at = end;
     }
 
     gap(command.slice(at), parts);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 
 import { layout } from "./layout.ts";
@@ -57,6 +58,42 @@ void describe("layout", () => {
             layout(script),
             ["#!/bin/bash", "set -e", "# strict", "", "if true; then\n  echo a\nfi"].join("\n"),
         );
+    });
+
+    void it("formats commands around heredocs without moving their headers or bodies", () => {
+        const body = "import {parse} from './parser.js';\nconsole.log(parse('echo hi'));";
+        const source = `sed -n '260,380p' types.d.ts; cat traversal.d.ts; node --input-type=module <<'JS'\n${body}\nJS\necho done; pwd`;
+
+        assert.equal(
+            layout(source),
+            `sed -n '260,380p' types.d.ts\ncat traversal.d.ts\nnode --input-type=module <<'JS'\n${body}\nJS\necho done\npwd`,
+        );
+    });
+
+    void it("keeps statements and multiple heredocs on the same header line together", () => {
+        const block = "cat <<'A'; cat <<'B' && echo ready\nfirst\nA\nsecond\nB";
+
+        assert.equal(layout(`pwd; ${block}\nls; date`), `pwd\n${block}\nls\ndate`);
+        assert.equal(layout("echo 'a << b'; pwd"), "echo 'a << b'\npwd");
+        assert.equal(layout("cat <<< 'hello'; pwd"), "cat <<< 'hello'\npwd");
+    });
+
+    void it("keeps heredoc execution unchanged when statements move to separate lines", () => {
+        const source = [
+            String.raw`printf 'before\n'; cat <<'A'; cat <<-'B' && printf 'after\n'`,
+            "first ; && 'quoted'",
+            "A",
+            "\tsecond",
+            "\tB",
+            String.raw`printf 'tail\n'; printf 'done\n'`,
+        ].join("\n");
+        const original = spawnSync("bash", ["-c", source], { encoding: "utf8" });
+        const formatted = spawnSync("bash", ["-c", layout(source)], { encoding: "utf8" });
+
+        assert.equal(original.status, 0, original.stderr);
+        assert.equal(formatted.status, 0, formatted.stderr);
+        assert.equal(original.stdout, "before\nfirst ; && 'quoted'\nsecond\nafter\ntail\ndone\n");
+        assert.equal(formatted.stdout, original.stdout);
     });
 
     void it("leaves a heredoc and a command that does not parse as written", () => {

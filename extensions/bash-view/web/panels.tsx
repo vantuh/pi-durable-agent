@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PANE } from "@/ui/pane.tsx";
 
+import { CommandCode } from "./command-code.tsx";
 import { bare, JOINS, program, redirectLabel } from "./describe.ts";
 import type { Part } from "./layout.ts";
 
@@ -116,7 +117,9 @@ export function Panels({ source, parts }: { source: string; parts: readonly Part
                             key={index}
                             className="text-code text-ink font-mono break-all whitespace-pre-wrap"
                         >
-                            {part.text}
+                            <code>
+                                <CommandCode command={part.text} />
+                            </code>
                         </pre>
                     );
                 }
@@ -141,7 +144,9 @@ export function Panels({ source, parts }: { source: string; parts: readonly Part
                             />
                             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                                 <code className="text-code text-ink font-mono break-all">
-                                    {bare(source, part.pos, part.end, part.command)}
+                                    <CommandCode
+                                        command={bare(source, part.pos, part.end, part.command)}
+                                    />
                                 </code>
                                 {(part.command?.redirects ?? []).map((redirect) => (
                                     <Badge key={redirect.pos} className="max-w-full">
