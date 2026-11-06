@@ -1,6 +1,6 @@
 /**
- * How much of the input came from the provider's cache, over the answers still in the context:
- * cache reads over everything the requests sent (fresh input, cache reads, cache writes).
+ * How much of the input came from the provider's cache, over the answers in the view's window (the newest 50 to
+ * 100 entries): cache reads over everything the requests sent (fresh input, cache reads, cache writes).
  */
 
 import { defineExtension } from "@earendil-works/pi-durable";
@@ -39,6 +39,6 @@ export const status: StatusProvider = ({ entries }) => {
         slot: "composer",
         label: "cache",
         text: `${String(percent)}%`,
-        title: `${String(percent)}% of the input came from the cache`,
+        title: `${String(percent)}% of the input in the recent answers came from the cache`,
     };
 };

@@ -19,7 +19,7 @@ export const meta = {
 const CHARS_PER_TOKEN = 3.5;
 const PREVIEW = 160;
 
-const views = new Map<number, readonly EntryRecord[]>();
+let contextOf: Host["sessionContext"] = () => Promise.resolve(undefined);
 let windowOf: Host["contextWindow"] = () => undefined;
 let ownerOf: Host["toolOwner"] = () => undefined;
 let renderPrompt: Host["sessionPrompt"] = () => Promise.resolve(undefined);
@@ -190,12 +190,7 @@ export default function contextMeter(host: Host) {
     windowOf = host.contextWindow;
     ownerOf = host.toolOwner;
     renderPrompt = host.sessionPrompt;
-    host.onDispose(() => {
-        views.clear();
-    });
-    host.onCommit((view) => {
-        views.set(view.session.id, view.entries);
-    });
+    contextOf = host.sessionContext;
 
     return defineExtension({ name: host.name });
 }
@@ -236,7 +231,9 @@ async function initialOf(session: number): Promise<Breakdown | null> {
 
 export const actions: Record<string, Action> = {
     async breakdown({ session }): Promise<Breakdown | null> {
-        const entries = session === null ? undefined : views.get(session.id);
+        // Not a commit's `entries`, which is a window of the newest 50 to 100: the rows replay the system
+        // entries from the start and calibrate on the first answer.
+        const entries = session === null ? undefined : await contextOf(session.id);
 
         if (session !== null && entries?.length === 0) {
             return await initialOf(session.id);

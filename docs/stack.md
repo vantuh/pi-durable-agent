@@ -21,7 +21,7 @@ The first choice, recorded so later decisions can be read against it. Versions a
 | Components | `shadcn/ui`, copied in on demand       | The code lands in the repo, so it can be edited freely                     | Each component brings Radix packages                              |
 | Icons      | `lucide-react`                         | What `shadcn` expects                                                      | One dependency for tree-shaken icons                              |
 | Zoom       | `react-zoom-pan-pinch` 4.2.0           | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
-| Agent      | `@earendil-works/pi-durable` 1.4.0     | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
+| Agent      | `@earendil-works/pi-durable` 1.5.0     | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
 | Routing    | Hono 4, `@hono/node-server` 2          | Typed routes and validators, and the browser's typed client (`hc`)         | A framework in the server; the raw paths depend on its adapter    |
 | Validation | Zod 4, `@hono/zod-validator`           | One schema is a route's checked input and `hc`'s typed input               | Two dependencies; `jsonBody` reads the body itself                |
 | Lint       | `oxlint`                               | Fast, no plugin zoo                                                        | Rule coverage is smaller than ESLint's                            |

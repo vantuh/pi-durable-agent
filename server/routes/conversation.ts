@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { basename, extname } from "node:path";
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
+import type { Harness, SubmissionId, UserInput } from "@earendil-works/pi-durable";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -69,9 +69,7 @@ const EntryImageQuery = z.object({
     index: QueryNumber.pipe(z.int().nonnegative()).default(0),
 });
 
-type Content = Extract<Parameters<Conversation["submit"]>[0], { type: "input" }>["content"];
-
-async function contentOf(files: readonly string[], text: string): Promise<Content> {
+async function contentOf(files: readonly string[], text: string): Promise<UserInput> {
     const images: { type: "image"; data: string; mimeType: string }[] = [];
     const mentioned: string[] = [];
 
@@ -103,7 +101,7 @@ export function conversationRoutes(deps: {
     /** Withdraws one queued input, which deletes its `pi.inbox` item in the harness's own commit. */
     harness: Harness;
     /** Starts the event stream of an opened session on this response. */
-    stream: (request: IncomingMessage, response: ServerResponse, opened: Opened) => Promise<void>;
+    stream: (request: IncomingMessage, response: ServerResponse, opened: Opened) => void;
 }) {
     const { sessions, attach } = deps;
 
@@ -115,7 +113,7 @@ export function conversationRoutes(deps: {
                 return c.json({ error: "no such session" }, 404);
             }
 
-            await deps.stream(c.env.incoming, c.env.outgoing, opened);
+            deps.stream(c.env.incoming, c.env.outgoing, opened);
 
             return RESPONSE_ALREADY_SENT;
         })

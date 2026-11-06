@@ -7,19 +7,27 @@ import type { Harness } from "@earendil-works/pi-durable";
  * Returns the way to stop.
  */
 export function observeNewConversations(
-    harness: Pick<Harness, "subscribeCommits">,
+    harness: Pick<Harness, "observeCommits">,
     observe: (id: number) => void,
 ): () => void {
-    return harness.subscribeCommits((publication) => {
-        for (const change of publication.changes) {
-            if (change.type === "conversation") {
-                const id = Number(change.value.id);
+    const observation = harness.observeCommits({
+        advance: (publication) => {
+            for (const change of publication.changes) {
+                if (change.type === "conversation") {
+                    const id = Number(change.value.id);
 
-                // The listener must not call the Session, which `observe` does.
-                setImmediate(() => {
-                    observe(id);
-                });
+                    // The observer must not call the Session, which `observe` does.
+                    setImmediate(() => {
+                        observe(id);
+                    });
+                }
             }
-        }
+        },
+        // The Session closing with the harness is the only end, and the caller has stopped by then.
+        end: () => {},
     });
+
+    return () => {
+        observation.detach();
+    };
 }

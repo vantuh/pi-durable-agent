@@ -125,8 +125,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   returns focus to the composer. The page's body
   does not scroll by itself: the page owns its one scroll.
 - **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
-    - **What is loaded**: the event stream carries the active view, which starts at the newest
-      compaction; the entries before it are asked for as the reader scrolls up. Within 240px of the
+    - **What is loaded**: the event stream carries a window of the newest 50 to 100 entries; the
+      entries before it are asked for as the reader scrolls up. Within 240px of the
       top, `web/src/lib/conversation.ts` calls `/api/history?before=<oldest id>`
       ([server.md](server.md)), and the page is added in front. The spinner (`earlier messages`)
       sits at the top of the transcript and sticks there while a page is on its way. The scroll

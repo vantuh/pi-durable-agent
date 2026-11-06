@@ -12,7 +12,7 @@ void describe("live compaction", () => {
                 compactions: [
                     {
                         taskId: 3,
-                        reason: "threshold",
+                        trigger: "threshold",
                         blocking: true,
                         attempt: 1,
                     },
@@ -38,7 +38,7 @@ void describe("live compaction", () => {
                 compactions: [
                     {
                         taskId: 4,
-                        reason: "manual",
+                        trigger: "manual",
                         blocking: false,
                         attempt: 2,
                         retry: { at: 1, error: "429" },
@@ -55,7 +55,13 @@ void describe("live compaction", () => {
 
     void it("keeps the failure the harness keeps, until a compaction succeeds", () => {
         const failed = projectLive(
-            { compactionFailure: { taskId: 5, reason: "manual", error: "Compaction failed: 429" } },
+            {
+                compactionFailure: {
+                    taskId: 5,
+                    trigger: "manual",
+                    error: "Compaction failed: 429",
+                },
+            },
             undefined,
             undefined,
         );
@@ -64,12 +70,42 @@ void describe("live compaction", () => {
         assert.equal(failed.compacting, undefined, "nothing is running any more");
         assert.equal(
             projectLive(
-                { compactionFailure: { taskId: 5, reason: "manual" } },
+                { compactionFailure: { taskId: 5, trigger: "manual" } },
                 undefined,
                 undefined,
             ).compactionFailed,
             undefined,
             "no text to show, so no mark",
+        );
+    });
+});
+
+void describe("a streamed answer's tool calls", () => {
+    const streaming = (...content: unknown[]) =>
+        projectLive({ generation: { message: { content } } }, undefined, undefined).blocks;
+    const call = (id: string, args: unknown) => ({
+        type: "toolCall",
+        id,
+        name: "write",
+        arguments: args,
+    });
+
+    void it("leaves out the arguments of the call still being written, which grow with every commit", () => {
+        assert.deepEqual(streaming(call("a", { path: "big.txt", content: "row 1" })), [
+            { type: "toolCall", id: "a", name: "write", args: {} },
+        ]);
+    });
+
+    void it("carries the arguments of a call the answer has moved past", () => {
+        const done = { path: "big.txt", content: "all of it" };
+
+        assert.deepEqual(
+            streaming(call("a", done), call("b", { path: "next" }), { type: "text", text: "x" }),
+            [
+                { type: "toolCall", id: "a", name: "write", args: done },
+                { type: "toolCall", id: "b", name: "write", args: { path: "next" } },
+                { type: "text", text: "x" },
+            ],
         );
     });
 });

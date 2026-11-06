@@ -59,7 +59,7 @@ void describe("images a tool returned", () => {
                 attach: (id) => Promise.resolve(open.find((each) => Number(each.id) === id)),
                 rootId: () => 0,
                 harness,
-                stream: () => Promise.resolve(),
+                stream: () => undefined,
             }).fetch,
         );
         const server = createServer((request, response) => {

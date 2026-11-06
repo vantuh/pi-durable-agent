@@ -391,6 +391,24 @@ void describe("bash timeout", () => {
         ]);
     });
 
+    void it("leaves a result the harness wrote for a call that never reached beforeTool, as Pi 1.5 hands it on", async () => {
+        const { captured, api, settle } = callIn(dir);
+        const refused = { id: "call-9", name: "bash", arguments: { cmd: "sleep 91" } };
+        const result: ToolExecutionResult = {
+            isError: true,
+            diagnostics: [
+                {
+                    severity: "error",
+                    code: "invalid_arguments",
+                    message: "command: required property is missing",
+                },
+            ],
+        };
+
+        assert.equal(await settle(refused, result, api), undefined);
+        assert.deepEqual(captured.said, [], "no notice for a command that never ran");
+    });
+
     void it("keeps the one decision a call was admitted with, whatever the setting says later", async () => {
         const capped = callIn(dir, 5);
         const asked = { id: "call-6", name: "bash", arguments: { command: "sleep 91" } };

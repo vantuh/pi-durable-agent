@@ -43,14 +43,19 @@ function labelOf(value: unknown, fallback: string): string {
     return typeof value === "number" ? String(value) : fallback;
 }
 
-function blocksOf(content: unknown): ClientBlock[] {
+/**
+ * The blocks of a message. In a streamed one the last block may still be written, and Pi 1.5 shows a tool call's
+ * arguments as far as they are parsed; each live frame would carry all of them again, so the call is sent without
+ * until the answer moves past it or the entry commits it, as it was before 1.5.
+ */
+function blocksOf(content: unknown, streaming = false): ClientBlock[] {
     const blocks: ClientBlock[] = [];
 
     if (!Array.isArray(content)) {
         return blocks;
     }
 
-    for (const raw of content) {
+    for (const [at, raw] of content.entries()) {
         const part = recordOf(raw);
         const type = stringOf(part, "type");
 
@@ -75,7 +80,7 @@ function blocksOf(content: unknown): ClientBlock[] {
                 type: "toolCall",
                 id: stringOf(part, "id") ?? "",
                 name: stringOf(part, "name") ?? "?",
-                args: part["arguments"] ?? {},
+                args: streaming && at === content.length - 1 ? {} : (part["arguments"] ?? {}),
             });
         }
     }
@@ -455,7 +460,7 @@ export function projectLive(value: unknown, usage: unknown, inbox: unknown): Cli
     if (message !== undefined) {
         const startedAt = optionalNumber(message, "timestamp");
 
-        out.blocks = blocksOf(message["content"]);
+        out.blocks = blocksOf(message["content"], true);
 
         if (startedAt !== undefined) {
             out.startedAt = startedAt;

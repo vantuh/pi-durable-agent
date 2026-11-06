@@ -41,7 +41,7 @@ The core stays honest by two rules:
 | Language | TypeScript 7, `strict`, `erasableSyntaxOnly`                        |
 | Server   | `node:http` for the socket, Hono 4 for the route table              |
 | Input    | Zod 4 schemas beside the routes, `@hono/zod-validator`              |
-| Agent    | `@earendil-works/pi-durable` 1.4.0, pinned exactly                  |
+| Agent    | `@earendil-works/pi-durable` 1.5.0, pinned exactly                  |
 | Browser  | React 19, Vite 8                                                    |
 | Styles   | Tailwind 4 through `@tailwindcss/vite`; Catppuccin as CSS variables |
 | Checks   | `oxfmt`, `oxlint --type-aware`, `tsc --noEmit` — one gate           |

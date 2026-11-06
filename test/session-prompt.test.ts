@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import { createModels, fauxAssistantMessage, fauxProvider, Type } from "@earendil-works/pi-ai";
+import { createModels, fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai";
 import {
     type Conversation,
     createRegistry,
@@ -68,13 +68,17 @@ async function made(options: { withModel?: boolean; wrap?: boolean } = {}): Prom
             defineTool({
                 name: "probe",
                 description: "does nothing",
-                parameters: Type.Object({ value: Type.String() }),
+                parameters: {
+                    type: "object",
+                    properties: { value: { type: "string" } },
+                    required: ["value"],
+                },
                 execute: () => Promise.resolve({ output: [{ type: "text", text: "done" }] }),
             }),
             defineTool({
                 name: "loaded_later",
                 description: "offered only once loaded",
-                parameters: Type.Object({}),
+                parameters: { type: "object", properties: {} },
                 deferred: true,
                 execute: () => Promise.resolve({ output: [{ type: "text", text: "done" }] }),
             }),

@@ -13,8 +13,9 @@ import type { Gzip } from "node:zlib";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import {
-    type Conversation,
     type ConversationId,
+    type ConversationView,
+    type EntryRecord,
     createRegistry,
     Harness,
 } from "@earendil-works/pi-durable";
@@ -38,7 +39,6 @@ import { buildShell } from "./build.ts";
 import { commitView } from "./commit-view.ts";
 import { executionEnv } from "./execution-env.ts";
 import { type SessionPrompt, Extensions, type SessionRequest } from "./extensions.ts";
-import { hasOlder } from "./history.ts";
 import {
     type ApiEnv,
     openEventStream,
@@ -64,7 +64,7 @@ import { sessionPromptOf as renderSessionPrompt } from "./session-prompt.ts";
 import { type Opened, Sessions, supportedLevel } from "./sessions.ts";
 import { serveStatic } from "./static.ts";
 
-type View = Awaited<ReturnType<Conversation["viewState"]>>["value"];
+type View = ConversationView;
 
 const context = BACKGROUND_CONTEXT;
 const DIST = resolve(import.meta.dirname, "../dist");
@@ -335,11 +335,6 @@ function viewOf(id: number): View {
     return current.view;
 }
 
-/** The first entry of a session as `hello` will carry it, `undefined` before it has any. */
-function firstEntryId(id: number): number | undefined {
-    return entriesOf(viewOf(id))[0]?.id;
-}
-
 function windowOf(provider: string, modelId: string): number | undefined {
     return models.getModels().find((model) => model.provider === provider && model.id === modelId)
         ?.contextWindow;
@@ -382,6 +377,13 @@ async function sessionRequestOf(session: number): Promise<SessionRequest | undef
     const { messages } = await opened.conversation.context(context);
 
     return createSessionRequest(runtime, model, messages, agent.thinkingLevel);
+}
+
+/** The entries one conversation's next request is built from: the newest head marker, then everything since. */
+async function sessionContextOf(session: number): Promise<readonly EntryRecord[] | undefined> {
+    const opened = await sessions.open(idOf(session));
+
+    return opened === undefined ? undefined : (await opened.conversation.context(context)).entries;
 }
 
 /**
@@ -456,27 +458,28 @@ function sendLive(id: number): void {
     }
 }
 
-/** Sends what changed since the last commit: only new entries when nothing was rewritten. */
+/**
+ * Sends what changed since the last commit: the entries above the newest one already sent. The view is a window
+ * that drops its oldest entries when it grows past its maximum, and ids only grow, so the entries a browser holds
+ * are never sent again and never replaced.
+ */
 function publish(opened: Opened, view: View): void {
     const live = liveOf(opened.id, view);
     const entries = entriesOf(view);
-    const ids = entries.map((entry) => entry.id);
-    const grows = ids.length > opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
-    const unchanged =
-        ids.length === opened.sent.length && opened.sent.every((id, at) => id === ids[at]);
-    // The one entry a row shows: the question that names the session. A row's time is when its newest run
-    // started, which is not an entry: the entries a run appends change nothing in the list.
-    const asked = entries.findIndex((entry) => entry.kind === "user" && entry.text.trim() !== "");
-    const named = asked !== -1 && asked >= opened.sent.length;
+    const fresh = entries.filter((entry) => entry.id > opened.newestSent);
+    // The one entry a row shows: the question that names the session, which only a window that starts the
+    // transcript can hold. A row's time is when its newest run started, which is not an entry: the entries a run
+    // appends change nothing in the list.
+    const asked =
+        view.before === undefined
+            ? entries.find((entry) => entry.kind === "user" && entry.text.trim() !== "")
+            : undefined;
+    const named = asked !== undefined && asked.id > opened.newestSent;
+    const unchanged = fresh.length === 0;
 
-    if (grows) {
-        const fresh = entries.slice(opened.sent.length);
-
-        opened.sent = ids;
+    if (!unchanged) {
+        opened.newestSent = Math.max(...fresh.map((entry) => entry.id));
         broadcast({ type: "entries", session: opened.id, entries: fresh });
-    } else if (!unchanged) {
-        opened.sent = ids;
-        broadcast({ type: "entries", session: opened.id, entries });
     }
 
     // A run starting or ending moves the row's mark and its unseen state; a first question names it.
@@ -559,16 +562,22 @@ async function attachOnce(id: number): Promise<Opened | undefined> {
         return opened;
     }
 
-    const view = await opened.conversation.viewState(context);
+    const watch = await opened.conversation.watch(context);
 
     opened.watched = true;
-    opened.sent = view.value.entries.map((entry) => Number(entry.id));
+    opened.newestSent = Number(watch.value.entries.at(-1)?.id ?? 0);
     attached.set(id, () => {
-        view.dispose();
+        void watch.stop();
     });
-    observe(opened, view.value);
-    view.subscribe((state) => {
-        observe(opened, state);
+    observe(opened, watch.value);
+    watch.start((call) => {
+        if (call.kind === "value") {
+            observe(opened, call.value);
+        } else {
+            console.error("pi-durable-agent: the view of a session failed", call.error);
+        }
+
+        return Promise.resolve();
     });
 
     return opened;
@@ -593,37 +602,13 @@ function detach(id: number): void {
  * Starts the event stream of a session: the newest page of the state first, then every change. The page is cut
  * from the state `publish` stored for the attached view, the same state the browsers were sent up to, so no
  * commit can reach this client ahead of the `hello` that already carries it; nothing may await from reading
- * that state to sending it, and the entries it left out are older history the transcript pages back.
+ * that state to sending it. Older history is what the view's `before` and the byte cut left out, and the
+ * transcript pages it back.
  */
-async function stream(
-    request: IncomingMessage,
-    response: ServerResponse,
-    opened: Opened,
-): Promise<void> {
+function stream(request: IncomingMessage, response: ServerResponse, opened: Opened): void {
     const id = Number(opened.id);
-    const opening = helloPage(entriesOf(viewOf(id)));
-    // A page cut from the view needs no read to know it has older entries: the ones it left out are older.
-    let more = opening.cut;
-    let first = opening.entries[0]?.id;
-
-    // `hasOlder` reads through the conversation's line, where a commit can land ahead of it: its answer is
-    // about the first entry it asked with, so ask again until that entry stays put.
-    while (!more && first !== undefined) {
-        more = await hasOlder({ conversation: opened.conversation, context, id: first });
-
-        const now = firstEntryId(id);
-
-        if (now === first) {
-            break;
-        }
-
-        first = now;
-    }
-
-    // Read after the awaits: a commit that lands while `hasOlder` runs would reach no client at all.
     const view = viewOf(id);
     const page = helloPage(entriesOf(view));
-
     const live = liveOf(id, view);
     const client: Client = {
         response,
@@ -645,7 +630,7 @@ async function stream(
         entries: page.entries,
         live,
         model: MODEL,
-        more: page.cut || more,
+        more: page.cut || view.before !== undefined,
     });
 }
 
@@ -835,6 +820,7 @@ async function boot(): Promise<void> {
         },
         sessionRequest: sessionRequestOf,
         sessionPrompt: sessionPromptOf,
+        sessionContext: sessionContextOf,
         sessionTitle: (session) => sessions.title(idOf(session)),
         sessionName: (session) => sessions.name(idOf(session)),
         sessionOwner: (session) => sessions.owner(idOf(session)),
@@ -881,9 +867,9 @@ async function boot(): Promise<void> {
                 registry,
                 settings: { stream: STREAM },
                 env: executionEnv(cwd),
-                onReport: (error, info) => {
-                    if (info.type === "session_failed") {
-                        console.error("pi-durable-agent: storage session failed", error);
+                onReport: (report) => {
+                    if (report.kind === "storage_failed") {
+                        console.error("pi-durable-agent: storage session failed", report.error);
                     }
                 },
             },

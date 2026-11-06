@@ -88,7 +88,13 @@ itself an error.
 
 - imports end in `.ts`: `import { db } from "./db.ts"`;
 - no `enum`, no parameter properties, no `namespace`;
-- no imports from `web/`.
+- no imports from `web/`;
+- **name a Pi type by its export, not by `Parameters<...>`** of an overloaded method: `Parameters`
+  reads the last overload (`Conversation.submit`'s is the `Tx` one), and `Extract` over it ends in
+  `never` without an error where the type is made. Use `UserInput` and the other exported types.
+- **A stream frame carries what the browser lacks, by id.** Entry ids only grow and the browser
+  upserts by id, so `publish` sends the entries above `Opened.newestSent`; it never compares the
+  window with the last one, because the view window trims its oldest entries.
 
 ## Browser files
 
@@ -198,6 +204,10 @@ the neighbour it disagrees with.
 - **Tests share their setup.** The free `PORT`, the temporary `PI_DURABLE_DATA_DIR` and the test
   server live in `test/fixtures/`, imported rather than copied. The mistake it prevents: sixty copies
   of a start-up that drift into writing the working `data/state.sqlite`.
+- **A copy of the working database is not disposable.** A server started on it resumes the runs that
+  were in flight and runs their tools for real, with the owner's logins. Try a build against real data
+  only with `HOME` pointed at an empty folder, so a resumed run finds no login and stops before a
+  tool call. The mistake it prevents: a smoke test that re-ran the very conversation that started it.
 - **A fake server in a browser test answers the real shape of every route the shell reads**, through
   `defaultAnswer()` in `test/fixtures/api-defaults.ts`. The
   typed client no longer falls back for a missing field (`/api/extensions` answering `{}` once gave an

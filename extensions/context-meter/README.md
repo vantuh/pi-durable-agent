@@ -33,4 +33,7 @@ and, on a click, what the context holds — the system prompt sections and the t
 It reads `host.sessionPrompt(session)` for the pre-request prompt — the core seam beside
 `sessionRequest`, which renders the sections and tool declarations an empty session's first request
 will carry, without writing an entry or calling a model, and answers nothing once the session has
-entries — and `host.contextWindow`, `host.toolOwner` and `onCommit` for everything else.
+entries. `host.sessionContext(session)` gives it the entries the next request is built from, read when
+the popover asks: a commit's `entries` is only the view's window of the newest 50 to 100, which leaves
+out the system entries the rows replay and the first answer the ratio comes from. `host.contextWindow`
+and `host.toolOwner` do the rest.

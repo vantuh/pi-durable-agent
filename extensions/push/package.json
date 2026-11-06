@@ -9,7 +9,7 @@
         "@types/web-push": "3.6.4"
     },
     "peerDependencies": {
-        "@earendil-works/pi-durable": "1.4.0",
+        "@earendil-works/pi-durable": "1.5.0",
         "react": "^19.3.1"
     }
 }

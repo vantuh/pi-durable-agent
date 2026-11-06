@@ -160,7 +160,7 @@ export type ClientLive = {
 
 /**
  * Older entries, as `GET /api/history` answers them: the durable transcript, oldest of the page first. The event
- * stream only carries the active view, which starts at the newest compaction; this is how the start is reached.
+ * stream only carries a window of the newest 50 to 100 entries; this is how the start is reached.
  */
 export type ClientHistory = {
     entries: ClientEntry[];
@@ -190,7 +190,7 @@ export type ServerEvent = { session: number } & (
           /** The log holds entries older than these, so the screen has a start still to ask for. */
           more: boolean;
       }
-    /** The active view as it is: the browser adds by id and never swaps, so a rewrite needs no flag. */
+    /** The entries above the newest the browser was sent: it adds by id and never swaps, so a trim of the window needs no flag. */
     | { type: "entries"; entries: ClientEntry[] }
     | { type: "live"; live: ClientLive }
     | { type: "extension-notice"; notice: ExtensionNotice }

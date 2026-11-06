@@ -10,7 +10,10 @@ import { type Conversation, createRegistry, Harness } from "@earendil-works/pi-d
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 
-import { hasOlder, historyPage } from "../server/history.ts";
+import { historyPage } from "../server/history.ts";
+
+/** The entries a view's window holds first. */
+const WINDOW = 50;
 
 /** One conversation of a throwaway session, with the entries `write` appends. */
 async function withConversation(
@@ -69,7 +72,7 @@ async function logOf(conversation: Conversation): Promise<number[]> {
 }
 
 void describe("historyPage", () => {
-    void it("reaches the entries a compaction set aside, which the view no longer carries", async () => {
+    void it("pages back from a compaction marker, which the view keeps in place", async () => {
         await withConversation(
             async (conversation) => {
                 for (let turn = 0; turn < 6; turn += 1) {
@@ -84,26 +87,29 @@ void describe("historyPage", () => {
                 await appendTurn(conversation, "question 6");
             },
             async (conversation) => {
-                const view = await conversation.viewState(BACKGROUND_CONTEXT);
-                const marker = view.value.entries[0];
+                const log = await logOf(conversation);
+                const watch = await conversation.watch(BACKGROUND_CONTEXT);
+                const marker = watch.value.entries.find((entry) => entry.kind === "pi.compaction");
 
-                assert.equal(
-                    marker?.kind,
-                    "pi.compaction",
-                    "the view starts at the compaction marker",
+                await watch.stop();
+
+                assert.ok(marker !== undefined, "the marker is in the view");
+                assert.deepEqual(
+                    ids(watch.value.entries),
+                    log,
+                    "the view starts at the conversation's start, not at the marker",
                 );
-                assert.equal(view.value.entries.length, 4, "and holds nothing from before it");
 
                 const page = await historyPage({
                     conversation,
                     context: BACKGROUND_CONTEXT,
-                    before: Number(marker?.id),
+                    before: Number(marker.id),
                 });
 
                 assert.deepEqual(
                     ids(page.entries),
-                    (await logOf(conversation)).filter((id) => id < Number(marker?.id)),
-                    "everything the compaction set aside comes back, oldest first",
+                    log.filter((id) => id < Number(marker.id)),
+                    "everything before the marker comes back, oldest first",
                 );
                 assert.equal(page.more, false, "the conversation starts where the page starts");
             },
@@ -213,24 +219,40 @@ void describe("historyPage", () => {
         );
     });
 
-    void it("says whether the screen is missing the start, so a spinner is not shown for nothing", async () => {
-        await withConversation(
-            async (conversation) => {
-                await appendTurn(conversation, "question");
-                await appendTurn(conversation, "another question");
-            },
-            async (conversation) => {
-                const [first, , , fourth] = await logOf(conversation);
+    void it("names the entry before its window, so the screen knows whether it is missing the start", async () => {
+        const filler = (conversation: Conversation, count: number) =>
+            conversation.commit(async (tx) => {
+                for (let at = 0; at < count; at += 1) {
+                    await tx.appendEntry(conversation.id, { kind: "app.filler" });
+                }
+            }, BACKGROUND_CONTEXT);
 
+        await withConversation(
+            (conversation) => filler(conversation, WINDOW),
+            async (conversation) => {
+                const watch = await conversation.watch(BACKGROUND_CONTEXT);
+
+                await watch.stop();
+                assert.equal(watch.value.entries.length, WINDOW);
                 assert.equal(
-                    await hasOlder({ conversation, context: BACKGROUND_CONTEXT, id: first ?? 0 }),
-                    false,
-                    "the first entry on screen is the conversation's first entry",
+                    watch.value.before,
+                    undefined,
+                    "a window that holds the whole log has nothing before it",
                 );
+            },
+        );
+        await withConversation(
+            (conversation) => filler(conversation, WINDOW + 1),
+            async (conversation) => {
+                const log = await logOf(conversation);
+                const watch = await conversation.watch(BACKGROUND_CONTEXT);
+
+                await watch.stop();
+                assert.deepEqual(ids(watch.value.entries), log.slice(1));
                 assert.equal(
-                    await hasOlder({ conversation, context: BACKGROUND_CONTEXT, id: fourth ?? 0 }),
-                    true,
-                    "an entry further in leaves older entries to ask for",
+                    Number(watch.value.before),
+                    log[0],
+                    "one entry more than the window leaves the first one before it",
                 );
             },
         );

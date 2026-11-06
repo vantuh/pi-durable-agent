@@ -101,6 +101,12 @@ export type Host = {
      */
     readonly sessionPrompt: (session: number) => Promise<SessionPrompt | undefined>;
     /**
+     * The entries the conversation's next request is built from: its newest head marker, then everything since.
+     * A commit listener's `entries` is only the view's window, the newest 50 to 100, so this is the way to read
+     * the whole of it. Undefined for a session the server does not know.
+     */
+    readonly sessionContext: (session: number) => Promise<readonly EntryRecord[] | undefined>;
+    /**
      * The name the sidebar shows for a session, as the owner set it or as its first question gives
      * it; null while it has neither. The core owns titles, so an extension that shows a session asks.
      */
@@ -204,6 +210,7 @@ export type SessionRef = {
 /** One conversation after a commit: what a commit listener may read. */
 export type CommitView = {
     readonly session: SessionRef;
+    /** The view's window: the newest 50 entries, up to 100 before it is trimmed, not the whole conversation. */
     readonly entries: readonly EntryRecord[];
     readonly busy: boolean;
 };
@@ -440,6 +447,7 @@ export class Extensions {
     readonly #contextWindow: Host["contextWindow"];
     readonly #sessionRequest: Host["sessionRequest"];
     readonly #sessionPrompt: Host["sessionPrompt"];
+    readonly #sessionContext: Host["sessionContext"];
     readonly #sessionTitle: Host["sessionTitle"];
     readonly #sessionName: Host["sessionName"];
     readonly #sessionOwner: Host["sessionOwner"];
@@ -482,6 +490,7 @@ export class Extensions {
         contextWindow?: Host["contextWindow"];
         sessionRequest?: Host["sessionRequest"];
         sessionPrompt?: Host["sessionPrompt"];
+        sessionContext?: Host["sessionContext"];
         sessionTitle?: Host["sessionTitle"];
         sessionName?: Host["sessionName"];
         sessionOwner?: Host["sessionOwner"];
@@ -504,6 +513,7 @@ export class Extensions {
         this.#contextWindow = options.contextWindow ?? (() => undefined);
         this.#sessionRequest = options.sessionRequest ?? (() => Promise.resolve(undefined));
         this.#sessionPrompt = options.sessionPrompt ?? (() => Promise.resolve(undefined));
+        this.#sessionContext = options.sessionContext ?? (() => Promise.resolve(undefined));
         this.#sessionTitle = options.sessionTitle ?? (() => Promise.resolve(null));
         this.#sessionName = options.sessionName ?? (() => Promise.resolve(null));
         this.#sessionOwner = options.sessionOwner ?? (() => Promise.resolve(undefined));
@@ -1014,6 +1024,7 @@ export class Extensions {
             },
             sessionRequest: (session) => this.#sessionRequest(session),
             sessionPrompt: (session) => this.#sessionPrompt(session),
+            sessionContext: (session) => this.#sessionContext(session),
             sessionTitle: (session) => this.#sessionTitle(session),
             sessionName: (session) => this.#sessionName(session),
             sessionOwner: (session) => this.#sessionOwner(session),

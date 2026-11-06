@@ -410,9 +410,13 @@ void describe("subagents", () => {
             tools: "tools: {read: true}",
             error: /tools.*list of names/,
         },
-        { label: "model override", extra: { model: profileModel }, error: /additional/i },
-        { label: "thinking override", extra: { thinking: "low" }, error: /additional/i },
-        { label: "thinkingLevel override", extra: { thinkingLevel: "low" }, error: /additional/i },
+        { label: "model override", extra: { model: profileModel }, error: /unknown field/i },
+        { label: "thinking override", extra: { thinking: "low" }, error: /unknown field/i },
+        {
+            label: "thinkingLevel override",
+            extra: { thinkingLevel: "low" },
+            error: /unknown field/i,
+        },
     ]) {
         void it(`rejects ${test.label} without creating an agent`, async () => {
             if (test.fields !== undefined || test.tools !== undefined) {
@@ -730,7 +734,11 @@ void describe("subagents", () => {
 
             assert.equal(spawned.isError, true, cwd);
             assert.ok(spawned.text.includes(cwd), spawned.text);
-            assert.doesNotMatch(spawned.text, /additional/i, "refused by the tool, not the schema");
+            assert.doesNotMatch(
+                spawned.text,
+                /unknown field/i,
+                "refused by the tool, not the schema",
+            );
             assert.deepEqual(spawned.childIds, [], cwd);
         }
 

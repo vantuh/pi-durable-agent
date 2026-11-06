@@ -1,8 +1,8 @@
 /**
  * What the screen holds, kept in step with the server. This is the reducer of the event stream, on its own so it can be
- * run without a browser: entries are immutable and the log only grows, so the list is an upsert by id. A compaction
- * rewrites the active view and the server answers with a shorter list, but the entries the browser already has are
- * still the conversation — dropping them is what made a long session lose its start.
+ * run without a browser: entries are immutable and the log only grows, so the list is an upsert by id. The server
+ * sends the entries above the newest one it sent, and its view window drops its oldest as it grows, but the entries
+ * the browser already has are still the conversation — dropping them would make a long session lose its start.
  */
 
 import type {

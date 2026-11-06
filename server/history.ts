@@ -1,7 +1,7 @@
 /**
- * The transcript beyond the browser's window. `main.ts` streams the active view, and that view starts at the newest
- * head marker: everything a compaction set aside, the start of a long conversation, is only in the entry log. This
- * file pages that log back, one turn at a time, so the screen can ask for what it has not got yet.
+ * The transcript beyond the browser's window. `main.ts` streams the view, a window of the newest 50 to 100 entries,
+ * and everything older is only in the entry log. This file pages that log back, one turn at a time, so the screen
+ * can ask for what it has not got yet.
  */
 
 import type { Context } from "@earendil-works/chord/context";
@@ -13,23 +13,6 @@ import { projectEntry } from "./projection.ts";
 /** Entries read from storage in one scan, and the most one answer holds before it stops and says there is more. */
 const CHUNK = 40;
 const PAGE_MAX = 400;
-
-/** Whether the log keeps entries older than `id`: what `hello` answers the screen about paging. */
-export async function hasOlder(options: {
-    conversation: Conversation;
-    context: Context;
-    id: number;
-}): Promise<boolean> {
-    const oldest = await options.conversation.entries(
-        { order: "ascending" },
-        1,
-        undefined,
-        options.context,
-    );
-    const first = oldest.items[0];
-
-    return first !== undefined && Number(first.id) < options.id;
-}
 
 /** One entry of the conversation's log by id, `undefined` when this conversation has no such entry. */
 export async function entryAt(options: {

@@ -6,7 +6,7 @@ The core server, as it is now: several conversations, one event stream, one way 
 POST /api/messages  ──▶ conversation.submit()  ──▶ durable generation task
                                               │ commits
                                               ▼
-GET /api/events     ◀── broadcast()  ◀── viewState.subscribe()
+GET /api/events     ◀── broadcast()  ◀── Conversation.watch()
 GET /api/history        { entries, more } of the durable log, older than `before`
 GET /api/health         { ok, model, cwd, home, session }
 GET /api/extensions     { installed, failed, extensions: [{ name, title, description, enabled, installed, error? }] }
@@ -16,7 +16,7 @@ POST /api/restart       { ok } then exit 75, for `scripts/serve.ts` to start the
 POST /api/build         { ok, log } rebuilds `dist/` with the checkout's Vite; no restart needed
 ```
 
-- `server/main.ts` — the HTTP surface, the harness, the subscription.
+- `server/main.ts` — the HTTP surface, the harness, the watch of each conversation.
 - `server/history.ts` — the older transcript, paged back from the entry log.
 - `server/extensions.ts` — the loader ([extensions.md](extensions.md)).
 - `server/projection.ts` — the harness's committed view → `shared/protocol.ts`.
@@ -24,9 +24,10 @@ POST /api/build         { ok, log } rebuilds `dist/` with the checkout's Vite; n
 
 ## Why the view, not the callbacks
 
-`root.viewState()` is committed state. Every event on the wire is derived from it, never from a
-stream handler. A browser that connects mid-run gets a `hello` with the newest page of the transcript
-and the live state, so nothing has to be replayed and nothing can arrive out of order.
+`Conversation.watch()` hands over the conversation's committed state: a window of its entries and its
+documents. Every event on the wire is derived from it, never from a stream handler. A browser that
+connects mid-run gets a `hello` with the newest page of the transcript and the live state, so nothing
+has to be replayed and nothing can arrive out of order.
 
 ## Bytes over a slow link
 
@@ -38,28 +39,30 @@ A compressed stream flushes every frame as it is written, so the first paint cos
 body under a kilobyte stays plain.
 
 `hello` is also cut by bytes: the newest entries up to `HELLO_BYTES` (128 KB, about a second at
-1 Mbit/s and about 35 KB gzipped). Opening a session shows its last turns; a session whose view was
-cut says `more`, and the transcript asks `/api/history` for the rest as it scrolls up, exactly as it
-already does for what a compaction set aside. The newest entry is always sent, so one huge entry
-cannot open an empty screen.
+1 Mbit/s and about 35 KB gzipped). Opening a session shows its last turns; a session whose window
+does not start the conversation, or that this cut shortened, says `more`, and the transcript asks
+`/api/history` for the rest as it scrolls up. The newest entry is always sent, so one huge entry
+cannot open an empty screen. The window counts entries, not bytes (an answer or a tool call can be
+hundreds of kilobytes), so the cut stays: 100 entries can be far over 128 KB.
 
-## The view is not the whole conversation
+## The view is a window
 
-The view is the **active** transcript: it starts at the newest head marker. A compaction — automatic
-when a request would not fit the model's window, and a model with a smaller window can bring that on
-by itself — writes a `pi.compaction` entry with a head, and from then on the view no longer carries
-anything before it. The entries are still in storage; they are simply not in the view.
+The view holds the newest **50 entries** and grows with appends to **100**; past that it drops its
+oldest in one step, back to 50. Head markers such as `pi.compaction` stay where they were written, and
+a compaction hides nothing: the entries it summarized are in the window like any other. A view that opened on
+50 entries or fewer holds the whole conversation until it passes 100.
 
-So the start of a long conversation is reached through `GET /api/history`, not through the stream:
+The view says what is before it: `view.before`, the id of the entry just ahead of the window, absent
+when the window starts the conversation. So the start of a long conversation is reached through
+`GET /api/history`, not through the stream:
 
 ```text
 GET /api/history?session=7&before=7463   → { entries: [...], more: false }
 ```
 
-`hello` carries the same fact in one bit: `more`, true when there is older history than the oldest
-entry it just sent. A page it cut from the view is older history by definition, so that answer costs
-no read; a page that is the whole view asks the log (`hasOlder()`), so a screen that already holds
-the whole conversation never asks for a page it cannot get.
+`hello` carries the same fact in one bit: `more`, true when the view has a `before` or the byte cut left
+entries out. It is read from the same value the page is cut from, so there is no read and no race,
+and a screen that already holds the whole conversation never asks for a page it cannot get.
 
 `before` is the oldest entry the browser already has; the answer is older than it, oldest entry
 first. `server/history.ts` reads the entry log (`conversation.entries()`, descending with its
@@ -68,14 +71,21 @@ without the assistant that called it would be dropped by the transcript's groupi
 whether older entries are left. Nothing here is cached: the log is append-only, so a page asked for
 twice is the same page.
 
-## Entries: tail or replace
+Extensions get the window too: a commit listener's `entries` is the window, and `host.sessionContext`
+reads the entries the next request is built from.
 
-`entries` are immutable, so a commit usually only appends. The server remembers the ids every
-connected browser already has:
+## Entries: appends by id
 
-- the new ids **extend** what was sent → send only the tail, `replace: false`;
-- anything else changed (a reset or a compaction rewrote the active transcript) → send all of it,
-  `replace: true`.
+`entries` are immutable and ids only grow, so a commit only appends, and the browser upserts by id.
+The server keeps one number per session, the newest entry id it has sent, and a commit sends the
+entries of the window above it. It never compares the window with the last one: the window drops its
+oldest entries when it is trimmed, which would look like a rewrite and send 50 entries a browser
+already holds. A browser keeps every entry it was sent; the window only limits what the server
+computes and what a new `hello` carries.
+
+Known limit: if one watch call folds more than 50 appended entries (the watch merges the commits made
+while its listener runs), the entries between what a browser holds and the window are never sent. A
+commit that writes a few entries, a subagent's or a run's, cannot do that.
 
 The live answer is not an entry. It arrives as `live`, at most one frame per 250 ms per session
 (`LIVE_FRAME_MS`; the first goes at once, the commits inside a window become one at its end, and an
@@ -84,8 +94,10 @@ A `text` or `thinking` block in a `live` frame carries only the end the client l
 the offset it starts at; the server remembers what each client holds, and a block that is not a
 continuation of it goes whole, without `from`. A `toolCall` block carries its `args` only when they
 differ from the block the client holds at that position (same `id` and `name`, equal JSON); a call
-that was already sent goes without them, and the client keeps what it has. A running tool's output
-is not sent.
+that was already sent goes without them, and the client keeps what it has. The call still being
+written, the last block of the streamed answer, goes out with `args: {}`: Pi 1.5 parses its arguments
+as they stream, and every frame would carry them whole again. They arrive once the answer moves past
+the call, or with the entry. A running tool's output is not sent.
 
 ## Messages from application authors
 

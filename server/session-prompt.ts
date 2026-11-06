@@ -22,7 +22,7 @@ import type {
 import type { SessionPrompt } from "./extensions.ts";
 import type { ModelCatalog } from "./sessions.ts";
 
-// shortcut: follows pi-durable 1.4.0 internals; replace when a public prompt-preview API exists.
+// shortcut: follows pi-durable 1.5.0 internals; replace when a public prompt-preview API exists.
 /**
  * The agent's sections as the first request would send them: rendered in order, tagged unless the section
  * asked not to be, an `undefined` section left out, and a throw reported and left out too.

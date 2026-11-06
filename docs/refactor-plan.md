@@ -151,26 +151,48 @@ they were.
 
 ## Phase 4: pi 1.5
 
-Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md) (being written).
+Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Live check on a database written by 1.4: it opens on 1.5, `/api/history` and the
+`hello` of its session are whole.
 
-- [ ] Stop the server; back up `data/state.sqlite` (with `-wal`/`-shm`). 1.5 migrates 1.4 data on
-      read; 1.4 cannot read what 1.5 wrote.
-- [ ] Bump `pi-durable`, `pi-ai`, `pi-coding-agent` and `chord` to 1.5.0 together, pinned exactly.
-- [ ] Keep `typebox` as a direct dependency where extensions import it; fix the `Type` import from
+- [ ] The owner's step: stop the **main** server and copy the **main** repo's `data/state.sqlite` (with
+      `-wal`/`-shm`) before it first starts on 1.5, after the merge. 1.5 migrates 1.4 data on read; 1.4
+      cannot read what 1.5 wrote. This worktree's own `data/` is empty and was not backed up. Never
+      start a server on a copy taken from a running server: it resumes the runs in flight and runs
+      their tools for real ([pi-1.5-migration.md](pi-1.5-migration.md), step 1).
+- [x] Bump `pi-durable`, `pi-ai`, `pi-coding-agent`, `chord`, and the two that ride with them, `pi-codemode` and
+      `pi-mcp`, to 1.5.0 together, pinned exactly: `7201235`, with the next three bullets.
+- [x] Keep `typebox` as a direct dependency where extensions import it; fix the `Type` import from
       `pi-ai` in two files, `extensions/context-meter/server.test.ts:5` (also `:111`) and
       `test/session-prompt.test.ts:12` (also `:71`, `:77`), with plain JSON Schema objects
       (`{ type: "object", properties: {} }`): no new dependency.
-- [ ] Rewrite `viewState` to `Conversation.watch` in place in `server/main.ts`; adapt `publish()` to
+- [x] Rewrite `viewState` to `Conversation.watch` in place in `server/main.ts`; adapt `publish()` to
       the windowed view (50 entries, trimmed past 100).
-- [ ] `subscribeCommits` to `observeCommits` (`server/new-conversations.ts`); `onReport(report)`
+- [x] Found by `test/live-frames.test.ts`: 1.5 shows a streamed call's arguments as parsed, and every live
+      frame carried them whole again (104 KB of live frames for a 20 KB call, 55 KB on 1.4). The last
+      block of a streamed message, if it is a call, goes out with `{}` until the answer moves past it.
+- [x] `subscribeCommits` to `observeCommits` (`server/new-conversations.ts`); `onReport(report)`
       with `kind` (`server/main.ts`); `compactionFailure.reason` to `trigger`.
-- [ ] `extensions/context-meter/server.ts` (~197, ~239) keeps `view.entries` per session and sums its
-      breakdown over it. In 1.5 that is a window of 50 to 100 entries, so the breakdown would count
-      only the recent part: read the whole conversation another way (`Conversation.context()`, see the
-      code-impact table in [pi-1.5-migration.md](pi-1.5-migration.md)) or say that the split is for the
-      recent window.
-- [ ] Replace `hasOlder` and the retry loop in `stream()` with `view.before`.
-- [ ] Optional: show `pi.live.runFailure` in the transcript, so a failed run is not silent.
+- [x] Done with a new host member, `host.sessionContext(session)` (the conversation's `context().entries`,
+      read when the popover asks), so the meter measures the whole context again; a commit's `entries`
+      stays the window and its type says so — `44aae64`. The meter had summed its breakdown over
+      `view.entries`, which in 1.5 is a window of 50 to 100 entries.
+- [x] `hello` byte cut kept (a window of 100 entries is not bounded in bytes); `docs/server.md` rewritten for
+      the window — `2f40983`.
+- [x] Replace `hasOlder` and the retry loop in `stream()` with `view.before` — `4c695a5`.
+- [x] `bash-timeout`: a test that `afterTool` on an `invalid_arguments` result with no memo says nothing —
+      `692a4e9`.
+- [ ] Optional: show `pi.live.runFailure` in the transcript, so a failed run is not silent. Since 1.5 a
+      run cut off by the restart limit or an interrupted model request ends idle, and
+      `extensions/finished/web.tsx` (~64–99) chimes its success notice on that idle transition; it
+      should read the failure too.
+- [x] Smoke test on 1.5. A fresh database with the owner's logins: a bash tool call streams, commits
+      with its arguments, and the context meter shows the whole context. A copy of the owner's
+      database (779 sessions, 620 MB) with `HOME` pointed at an empty folder: the list loads, the
+      largest sessions open with a `hello` of 49–86 KB (50 entries, `more`), and older pages load back
+      to the first message.
+- [x] Review of phase 4 (`411e023..50ab731`): no blocker. The cache-hit tooltip now says it covers the
+      recent answers. Known limit kept in `docs/server.md`: one watch call appending more than 50
+      entries would leave a gap in the stream; nothing in the app writes that many today.
 
 ## Phase 5: TypeBox to pi-schema (optional)
 

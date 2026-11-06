@@ -1,6 +1,6 @@
 /**
- * The transcript asks the server for its older pages. After a compaction the stream carries only the entries since
- * the newest marker, and when that tail is shorter than the transcript's box there is nothing to scroll: the page
+ * The transcript asks the server for its older pages. The stream carries a window of the newest 50 entries, and
+ * when what it draws of them is shorter than the transcript's box there is nothing to scroll: the page
  * must be asked for without a wheel or a scrollbar, or the start of the conversation is unreachable. Asking from the
  * layout effect means asking on every commit, so a failed answer must not become a burst of them.
  *
@@ -23,12 +23,14 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { createServer as createViteServer } from "vite";
 
 import type { Chromium } from "../extensions/browser/lib/cdp.ts";
-import { hasOlder, historyPage } from "../server/history.ts";
+import { historyPage } from "../server/history.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import { projectEntry } from "../server/projection.ts";
 import { defaultAnswer } from "./fixtures/api-defaults.ts";
 
 const OLDEST = "older question 0";
+/** More than the window's 50 entries hold of the turns before it. */
+const FILLER = 40;
 /** Long enough for Vite to compile the app on the first request, short enough to fail a broken page. */
 const LOAD_MS = 30_000;
 /** The server is asked for the older page as the transcript settles: a second is already generous. */
@@ -145,7 +147,7 @@ async function loadBrowser(): Promise<Browser | undefined> {
 }
 
 /**
- * The app the person uses, served from its sources, over one conversation with a compaction and a short tail, and
+ * The app the person uses, served from its sources, over one conversation whose window leaves the oldest turns out and draws a short tail, and
  * opened in a real browser. Everything it needs, it asks for on its own; `when` looks at what it does.
  */
 async function withApp(
@@ -163,11 +165,13 @@ async function withApp(
         for (let turn = 0; turn < 6; turn += 1) {
             await appendTurn(conversation, `older question ${String(turn)}`);
         }
-        // What a compaction leaves behind: a marker whose head is the start of the view, then one short turn.
-        await conversation.commit(
-            (tx) => tx.appendEntry(conversation.id, { kind: "pi.compaction", head: "self" }),
-            BACKGROUND_CONTEXT,
-        );
+        // Entries the transcript does not draw, enough that the stream's window of the newest 50 leaves the oldest
+        // turns behind, then one short turn.
+        await conversation.commit(async (tx) => {
+            for (let at = 0; at < FILLER; at += 1) {
+                await tx.appendEntry(conversation.id, { kind: "app.filler" });
+            }
+        }, BACKGROUND_CONTEXT);
         await appendTurn(conversation, "newest question");
     });
     const session = Number(seeded.conversation.id);
@@ -225,7 +229,7 @@ async function withApp(
                             id: session,
                             archived: false,
                             name: null,
-                            title: "compacted session",
+                            title: "long session",
                             cwd: seeded.dir,
                             model: "faux/m1",
                             thinkingLevel: "off",
@@ -242,14 +246,12 @@ async function withApp(
 
         if (url.pathname === "/api/events") {
             void (async () => {
-                const view = await seeded.conversation.viewState(BACKGROUND_CONTEXT);
-                const entries = view.value.entries.flatMap((record) => {
+                const watch = await seeded.conversation.watch(BACKGROUND_CONTEXT);
+                const entries = watch.value.entries.flatMap((record) => {
                     const entry = projectEntry(record);
 
                     return entry === undefined ? [] : [entry];
                 });
-                const first = entries[0];
-
                 response.writeHead(200, {
                     "content-type": "text/event-stream",
                     "cache-control": "no-store",
@@ -262,16 +264,10 @@ async function withApp(
                         entries,
                         live: { busy: false, usage: { input: 0, output: 0, cost: 0 } },
                         model: "faux/m1",
-                        more:
-                            first === undefined
-                                ? false
-                                : await hasOlder({
-                                      conversation: seeded.conversation,
-                                      context: BACKGROUND_CONTEXT,
-                                      id: first.id,
-                                  }),
+                        more: watch.value.before !== undefined,
                     })}\n\n`,
                 );
+                await watch.stop();
             })();
 
             return;
@@ -350,7 +346,10 @@ async function withApp(
 
             return await seen(expression);
         };
-        const view = await seeded.conversation.viewState(BACKGROUND_CONTEXT);
+        const watch = await seeded.conversation.watch(BACKGROUND_CONTEXT);
+        const firstInWindow = Number(watch.value.entries[0]?.id);
+
+        await watch.stop();
 
         await connection.send("Page.enable", {}, page);
         await connection.send(
@@ -360,7 +359,7 @@ async function withApp(
         );
 
         await when({
-            marker: Number(view.value.entries[0]?.id),
+            marker: firstInWindow,
             asked,
             release,
             seen,
@@ -415,7 +414,7 @@ void describe("the transcript's older pages", () => {
             assert.equal(
                 await screen.seen(OLDER_SHOWN),
                 false,
-                "the stream the compaction left carries nothing older than its marker",
+                "the stream carries nothing older than its window",
             );
 
             const askedAt = Date.now() + ASKED_MS;

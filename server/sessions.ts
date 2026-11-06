@@ -92,7 +92,8 @@ const SettingsDoc = defineDoc({
 export type Opened = {
     id: ConversationId;
     conversation: Conversation;
-    sent: number[];
+    /** The newest entry id every browser of the session has been sent, 0 before any. */
+    newestSent: number;
     watched: boolean;
 };
 
@@ -310,7 +311,7 @@ export class Sessions {
             return undefined;
         }
 
-        const opened: Opened = { id, conversation, sent: [], watched: false };
+        const opened: Opened = { id, conversation, newestSent: 0, watched: false };
 
         this.#open.set(id, opened);
 

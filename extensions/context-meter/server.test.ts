@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Api, AssistantMessage, Model, StopReason, Tool, Usage } from "@earendil-works/pi-ai";
-import { Type } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type { CommitListener, Host, SessionPrompt } from "../../server/sdk.ts";
@@ -108,24 +107,35 @@ function promptOf(sections: [string, string][], tools: string[]): SessionPrompt 
         tools: tools.map((name): Tool => ({
             name,
             description: `what ${name} does`,
-            parameters: Type.Object({}),
+            parameters: { type: "object", properties: {} },
         })),
     };
 }
 
 /**
- * Runs the action for one session's entries, with the prompt the core would render for it: the same view
- * the server publishes, and what `host.sessionPrompt` answers.
+ * Runs the action for one session's entries, with the prompt the core would render for it: what
+ * `host.sessionPrompt` answers, and the context the core reads for `host.sessionContext`. The view the server
+ * publishes holds only the newest `window` of them, as Pi 1.5's does.
  */
-async function breakdownOf(id: number, entries: readonly EntryRecord[], prompt?: SessionPrompt) {
+async function breakdownOf(
+    id: number,
+    entries: readonly EntryRecord[],
+    prompt?: SessionPrompt,
+    window = entries.length,
+) {
     const listeners: CommitListener[] = [];
 
     contextMeter({
         ...host,
         sessionPrompt: () => Promise.resolve(prompt),
+        sessionContext: () => Promise.resolve(entries),
         onCommit: (listener) => listeners.push(listener),
     });
-    await listeners[0]?.({ session: { id, cwd: "/work" }, entries, busy: false });
+    await listeners[0]?.({
+        session: { id, cwd: "/work" },
+        entries: entries.slice(-window),
+        busy: false,
+    });
 
     const action = actions["breakdown"];
 
@@ -169,6 +179,37 @@ void test("groups the tools one extension installed into one row, where its firs
         rows.reduce((sum, row) => sum + (row.parts?.length ?? 1), 0),
         5,
     );
+});
+
+void test("measures the whole context, not the window of recent entries the view holds", async () => {
+    const context = [
+        prompted(1, ["agent_spawn", "web_search"]),
+        asked(2, "read the whole repository"),
+        answered(3, "claude-opus-4", "stop", {
+            input: 9_000,
+            output: 100,
+            cacheRead: 0,
+            cacheWrite: 0,
+        }),
+        asked(4, "and now summarise it"),
+        answered(5, "claude-opus-4", "stop", {
+            input: 12_000,
+            output: 200,
+            cacheRead: 0,
+            cacheWrite: 0,
+        }),
+    ];
+    const whole = await breakdownOf(8, context);
+    // The view's window starts at the last question: the system entry and the first answer are outside it.
+    const windowed = await breakdownOf(8, context, undefined, 2);
+
+    assert.equal(whole?.calibrated, true, "the first answer calibrates the rows");
+    assert.deepEqual(
+        whole?.tools.map((row) => row.name),
+        ["agent_spawn", "web_search"],
+        "the rows replay the system entries from the start",
+    );
+    assert.deepEqual(windowed, whole, "and the window changes nothing");
 });
 
 void test("reports the last priced answer when a failed request follows it", async () => {
