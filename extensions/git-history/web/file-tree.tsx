@@ -1,16 +1,9 @@
-import { ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
+import { useEffect, useMemo, useRef } from "react";
 
-import { Item } from "@/components/ui/item";
-import { cn } from "@/lib/utils";
+import { treeFiles, type TreeFile } from "./tree.ts";
 
-import { FileMark } from "./icons.tsx";
-import { treeOf, type TreeBranch, type TreeFile } from "./tree.ts";
-
-const toggleFolded = (folded: Record<string, boolean>, path: string): Record<string, boolean> => ({
-    ...folded,
-    [path]: folded[path] !== true,
-});
+import "./file-tree.css";
 
 /** Changed files as their folders and names: clicking one scrolls the diff to it. */
 export function FileTree({
@@ -20,113 +13,56 @@ export function FileTree({
     files: TreeFile[];
     onPick: (file: TreeFile) => void;
 }) {
-    const branches = useMemo(() => treeOf(files), [files]);
-    const [folded, setFolded] = useState<Record<string, boolean>>({});
+    const byPath = useMemo(() => treeFiles(files), [files]);
+    const current = useRef(byPath);
+    const { model } = useFileTree({
+        paths: [...byPath.keys()],
+        initialExpansion: "open",
+        icons: "complete",
+        renderRowDecoration: ({ item }) => {
+            const file = current.current.get(item.path);
+            return file === undefined
+                ? null
+                : {
+                      text: "",
+                      parts: [
+                          {
+                              text: file.added > 0 ? `+${String(file.added)}` : "",
+                              color: "var(--role-ok)",
+                          },
+                          {
+                              text: file.deleted > 0 ? ` −${String(file.deleted)}` : "",
+                              color: "var(--role-danger)",
+                          },
+                      ],
+                  };
+        },
+    });
+    useEffect(() => {
+        current.current = byPath;
+        model.resetPaths([...byPath.keys()]);
+    }, [byPath, model]);
+
     return (
-        <nav aria-label="Changed files" className="text-meta min-h-0 flex-1 overflow-auto py-1">
-            <Rows
-                branches={branches}
-                depth={0}
-                folded={folded}
-                onFold={(path) => {
-                    setFolded((old) => toggleFolded(old, path));
+        <nav aria-label="Changed files" className="min-h-0 flex-1">
+            <PierreFileTree
+                model={model}
+                className="git-history-tree"
+                onClick={(event) => {
+                    const row = event.nativeEvent
+                        .composedPath()
+                        .find(
+                            (node) =>
+                                node instanceof HTMLElement && node.dataset["itemType"] === "file",
+                        );
+                    if (row instanceof HTMLElement) {
+                        const file = byPath.get(row.dataset["itemPath"] ?? "");
+                        if (file !== undefined) {
+                            onPick(file);
+                        }
+                    }
                 }}
-                onPick={onPick}
             />
         </nav>
-    );
-}
-
-function Rows({
-    branches,
-    depth,
-    folded,
-    onFold,
-    onPick,
-}: {
-    branches: TreeBranch[];
-    depth: number;
-    folded: Record<string, boolean>;
-    onFold: (path: string) => void;
-    onPick: (file: TreeFile) => void;
-}) {
-    return (
-        <ul>
-            {branches.map((branch) => {
-                const file = branch.file;
-                const open = folded[branch.path] !== true;
-                return (
-                    <li key={branch.path}>
-                        {/* The row is the indent: `paddingLeft` is the depth, and a tree of 22px rows keeps square corners. */}
-                        {file === undefined ? (
-                            <Item
-                                asChild
-                                size="sm"
-                                className="text-muted hover:bg-raised w-full gap-1 py-0.5 text-left focus-visible:ring-inset"
-                            >
-                                <button
-                                    type="button"
-                                    aria-expanded={open}
-                                    onClick={() => {
-                                        onFold(branch.path);
-                                    }}
-                                    style={{ paddingLeft: `${String(depth * 10 + 6)}px` }}
-                                >
-                                    <ChevronRight
-                                        className={cn(
-                                            "size-3 shrink-0 transition-transform",
-                                            open && "rotate-90",
-                                        )}
-                                    />
-                                    <span className="truncate">{branch.name}</span>
-                                </button>
-                            </Item>
-                        ) : (
-                            <Item
-                                asChild
-                                size="sm"
-                                className="hover:bg-raised w-full gap-1.5 py-0.5 text-left focus-visible:ring-inset"
-                            >
-                                <button
-                                    type="button"
-                                    title={branch.path}
-                                    onClick={() => {
-                                        onPick(file);
-                                    }}
-                                    style={{ paddingLeft: `${String(depth * 10 + 6 + 16)}px` }}
-                                >
-                                    <FileMark name={branch.name} />
-                                    <span className="text-ink min-w-0 flex-1 truncate font-mono">
-                                        {branch.name}
-                                    </span>
-                                    {file.added > 0 ? (
-                                        <span className="text-ok shrink-0 tabular-nums">
-                                            +{file.added}
-                                        </span>
-                                    ) : null}
-                                    {file.deleted > 0 ? (
-                                        <span className="text-danger shrink-0 tabular-nums">
-                                            −{file.deleted}
-                                        </span>
-                                    ) : null}
-                                </button>
-                            </Item>
-                        )}
-                        {/* A path can be both a folder and a file: the file then keeps its children. */}
-                        {open ? (
-                            <div className="animate-drop-in">
-                                <Rows
-                                    branches={branch.folders}
-                                    depth={depth + 1}
-                                    folded={folded}
-                                    onFold={onFold}
-                                    onPick={onPick}
-                                />
-                            </div>
-                        ) : null}
-                    </li>
-                );
-            })}
-        </ul>
     );
 }

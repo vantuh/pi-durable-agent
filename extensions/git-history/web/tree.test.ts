@@ -1,28 +1,38 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { treeOf } from "./tree.ts";
+import { FileTree } from "@pierre/trees";
+
+import { treeFiles } from "./tree.ts";
 
 const file = (path: string) => ({ id: path, path, added: 1, deleted: 0 });
 
-const shape = (branches: { name: string; file?: { id: string } }[]): string[] =>
-    branches.map((branch) => (branch.file === undefined ? `${branch.name}/` : branch.name));
-
-void describe("treeOf", () => {
-    void it("nests paths by folder and puts folders before files, each by name", () => {
-        const tree = treeOf([file("web/src/a.ts"), file("readme.md"), file("web/b.ts")]);
-
-        assert.deepEqual(shape(tree), ["web/", "readme.md"]);
-        assert.deepEqual(shape(tree[0]?.folders ?? []), ["src/", "b.ts"]);
-        assert.equal(tree[0]?.folders[0]?.folders[0]?.file?.id, "web/src/a.ts");
-        assert.equal(tree[0]?.folders[1]?.path, "web/b.ts");
+void describe("changed-file paths", () => {
+    void it("keeps ordinary paths and file metadata unchanged", () => {
+        const files = [file("web/src/a.ts"), file("readme.md"), file("web/b.ts")];
+        const paths = treeFiles(files);
+        assert.deepEqual(
+            [...paths.keys()],
+            files.map((each) => each.path),
+        );
+        assert.equal(paths.get("web/src/a.ts"), files[0]);
     });
 
-    void it("keeps the children of a path that is both a file and a folder", () => {
-        const tree = treeOf([file("a"), file("a/b.ts")]);
-
-        assert.equal(tree.length, 1);
-        assert.equal(tree[0]?.file?.id, "a");
-        assert.deepEqual(shape(tree[0]?.folders ?? []), ["b.ts"]);
+    void it("renders file/directory replacements without losing either diff or colliding with real names", () => {
+        const files = [file("a"), file("a/b.ts"), file("a (file)"), file("a (file) (file)/c.ts")];
+        const paths = treeFiles(files);
+        assert.equal(paths.get("a (file) (file) (file)"), files[0]);
+        assert.equal(paths.get("a/b.ts"), files[1]);
+        assert.equal(paths.size, files.length);
+        const tree = new FileTree({ paths: [...paths.keys()], initialExpansion: "open" });
+        try {
+            const rows = tree.getVisibleRows(0, 20).filter((row) => row.kind === "file");
+            assert.deepEqual(
+                new Set(rows.map((row) => paths.get(row.path)?.id)),
+                new Set(files.map((each) => each.id)),
+            );
+        } finally {
+            tree.cleanUp();
+        }
     });
 });

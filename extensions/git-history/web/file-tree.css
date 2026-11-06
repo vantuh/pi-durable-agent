@@ -1,0 +1,29 @@
+.git-history-tree {
+    --trees-bg-override: var(--role-panel);
+    --trees-bg-muted-override: var(--role-raised);
+    --trees-fg-override: var(--role-ink);
+    --trees-fg-muted-override: var(--role-muted);
+    --trees-accent-override: var(--role-accent);
+    --trees-border-color-override: var(--role-edge-soft);
+    --trees-selected-bg-override: var(--role-raised);
+    --trees-selected-fg-override: var(--role-ink);
+    --trees-selected-focused-border-color-override: var(--role-accent);
+    --trees-focus-ring-color-override: var(--role-accent);
+    --trees-indent-guide-bg-override: var(--role-edge);
+    --trees-scrollbar-thumb-override: var(--role-edge);
+    --trees-font-family-override: var(--font-mono);
+    --trees-font-size-override: var(--text-meta);
+    --trees-icon-gray: var(--role-muted);
+    --trees-icon-red: var(--role-danger);
+    --trees-icon-vermilion: var(--role-ember);
+    --trees-icon-orange: var(--role-ember);
+    --trees-icon-yellow: var(--role-warn);
+    --trees-icon-green: var(--role-ok);
+    --trees-icon-teal: var(--role-agent);
+    --trees-icon-cyan: var(--role-agent);
+    --trees-icon-blue: var(--role-info);
+    --trees-icon-indigo: var(--role-accent);
+    --trees-icon-purple: var(--role-accent);
+    --trees-icon-pink: var(--role-spark);
+    --trees-icon-mauve: var(--role-accent);
+}

@@ -1,8 +1,0 @@
-icons.woff2 is a subset of JetBrains Mono Nerd Font (https://github.com/ryanoasis/nerd-fonts),
-made from JetBrains Mono (https://github.com/JetBrains/JetBrainsMono). The letterforms keep JetBrains
-Mono's SIL Open Font License 1.1; its full text is in web/src/fonts/OFL.txt.
-
-The 27 glyphs come from the icon sets Nerd Fonts patches in — Seti UI, Devicons, Codicons, Material
-Design Icons — whose licences are listed with the Nerd Fonts project.
-
-Generated, not edited by hand; the command is in extensions/git-history/README.md.

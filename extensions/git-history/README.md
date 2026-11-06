@@ -140,22 +140,13 @@ its optional AI/provider actions are separate from merely opening a review.
 - **Layout.** The diff view is the detail page's scroller. It mounts only the files near the viewport,
   and the changed-files column is its sibling. The file header is our own 36 px row, and
   `itemMetrics.diffHeaderHeight` must say the same, or a jump to a file lands a header's height off.
-- **File icons.** The marks beside file names are 27 Nerd Font glyphs (6.6 KB) subsetted from
-  JetBrains Mono Nerd Font into `assets/icons.woff2`, coloured by a theme role per family
-  (`web/icons.tsx`). A kind with no mark falls back to plain lines; a new one goes into
-  `web/icons.tsx` and the subset is rebuilt from the repository root:
-
-    ```bash
-    uvx --with fonttools --with brotli python -c "
-    from fontTools import subset
-    subset.main([
-        '<path-to>/JetBrainsMonoNLNerdFont-Regular.ttf',
-        '--unicodes=e628,e60c,e625,e73e,e64e,eb0f,e615,e8eb,e672,e614,e60e,e691,e706,e60d,e698,e6a0,e606,e724,e68b,e66d,e608,e605,e699,e634,e620,e650,f0fc3',
-        '--output-file=extensions/git-history/assets/icons.woff2',
-        '--flavor=woff2', '--no-hinting', '--desubroutinize', '--layout-features=', '--drop-tables+=DSIG',
-    ])
-    "
-    ```
+- **File tree and icons.** `@pierre/trees` builds and virtualizes the changed-files tree, with
+  its `complete` built-in SVG icon set and keyboard navigation. Click a file, or focus it and press
+  Enter, to unfold and scroll to its diff. Counts are row decorations. `web/file-tree.css` maps
+  the tree's colors and typography to the app's theme. If a diff replaces file `a` with directory
+  `a/`, the old file appears as `a (file)`; its click still opens the original diff. Diff headers
+  reuse the same library's icon resolver and one document-level SVG sprite, in the theme's muted
+  color. No custom icon font, file-type map, rename, drag and drop, or filesystem writes.
 
 - **Embedding and security.** The CLI binds loopback. The iframe loads an opaque, random per-review
   URL under `/api/extensions/git-history/http/<capability>/`. HTML, API, SSE and binary traffic go
@@ -177,9 +168,11 @@ its optional AI/provider actions are separate from merely opening a review.
   does block top-level navigation). Never embed an arbitrary website through this proxy.
 - The adapter is tested against Plannotator 0.28.27, not a stable embedding API. Recheck transports
   and resource URLs after a CLI upgrade.
+- Trees is pinned to `1.0.0-beta.6`. Its theming dependency declares an optional `@pierre/theme`
+  v1 peer while the app has v2, so pnpm reports a peer warning. This integration uses explicit CSS
+  variables, not that dependency's theme-loading helpers.
 - Mobile Chromium viewport testing is not a substitute for a physical iOS/Android keyboard,
   clipboard and file-upload test.
 
 The commit rewrite in `server/git.ts` and the Reword form are ported from pi-pocket's
-`extensions/git-history` (MIT, `LICENSE.pi-pocket`). `assets/icons.woff2` is a subset of JetBrains
-Mono Nerd Font (`LICENSE.icons`).
+`extensions/git-history` (MIT, `LICENSE.pi-pocket`).

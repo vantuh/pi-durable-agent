@@ -7,6 +7,7 @@ import { findChromium, withBrowserApp } from "../../../test/fixtures/browser.ts"
 const ROOTS = `[...document.querySelectorAll("diffs-container")].map((host) => host.shadowRoot).filter(Boolean)`;
 const EDIT = `document.querySelector("#edit diffs-container")?.shadowRoot`;
 const HISTORY = `[...document.querySelectorAll("#history diffs-container")].map((host) => host.shadowRoot).filter(Boolean)`;
+const TREE = `document.querySelector('#history file-tree-container').shadowRoot`;
 
 void it("renders edit cards and a virtualized list with one theme and responsive shared layout", async (t) => {
     const found = await findChromium(t);
@@ -139,9 +140,13 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
                 ),
             );
 
-            await page.read(
-                `document.querySelector('nav[aria-label="Changed files"] button[title="file-29.ts"]').click()`,
-            );
+            await page.read(`(() => {
+                const scroll = ${TREE}.querySelector('[data-file-tree-virtualized-scroll]');
+                scroll.scrollTop = scroll.scrollHeight;
+            })()`);
+            const lastFile = `${TREE}.querySelector('[data-item-path="file-29.ts"]')`;
+            assert.ok(await page.until(`${lastFile} !== null`, 5000));
+            await page.read(`${lastFile}.click()`);
             assert.ok(
                 await page.until(
                     `${HISTORY}.some((root) => root.host.textContent.includes("file-29.ts") && root.querySelector("[data-line]"))`,
@@ -152,6 +157,22 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
                 await page.seen(
                     `${HISTORY}.reduce((sum, root) => sum + root.querySelectorAll("[data-line]").length, 0) < 1000`,
                 ),
+            );
+            const lastHeader = `[...document.querySelectorAll('#history diffs-container button[aria-expanded]')].find((button) => button.textContent.includes('file-29.ts'))`;
+            await page.read(`${lastHeader}.click()`);
+            assert.ok(
+                await page.until(`${lastHeader}.getAttribute('aria-expanded') === 'false'`, 5000),
+            );
+            await page.read(`${lastFile}.click()`);
+            assert.ok(
+                await page.until(`${lastHeader}.getAttribute('aria-expanded') === 'true'`, 5000),
+            );
+            assert.equal(
+                await page.read(`${lastHeader}.querySelector('svg use').getAttribute('href')`),
+                "#file-tree-builtin-typescript",
+            );
+            assert.ok(
+                await page.seen(`${lastHeader}.querySelector('svg:has(use)').getBBox().width > 0`),
             );
         },
     );
