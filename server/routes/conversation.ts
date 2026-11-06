@@ -7,11 +7,19 @@ import { basename, extname } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
+import { type Context, Hono } from "hono";
 
 import { recordOf } from "../../shared/guards.ts";
 import { runCommand } from "../commands.ts";
 import { entryAt, historyPage } from "../history.ts";
-import { answer, readJson, type Route, sessionIdOf, string } from "../http.ts";
+import {
+    answer,
+    type ApiEnv,
+    readJson,
+    RESPONSE_ALREADY_SENT,
+    sessionIdOf,
+    string,
+} from "../http.ts";
 import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
 import type { Opened, Sessions } from "../sessions.ts";
@@ -53,7 +61,7 @@ export function conversationRoutes(deps: {
     harness: Harness;
     /** Starts the event stream of an opened session on this response. */
     stream: (request: IncomingMessage, response: ServerResponse, opened: Opened) => Promise<void>;
-}): Route[] {
+}) {
     const { sessions, attach } = deps;
 
     /** The session a request names, the root one when it names none, `undefined` when the id is not valid. */
@@ -62,349 +70,299 @@ export function conversationRoutes(deps: {
     }
 
     /** The browser asks before it knows its session (`?session=NaN`): an invalid query id means the root one. */
-    function querySession(url: URL): number {
-        return sessionIdOf(Number(url.searchParams.get("session"))) ?? deps.rootId();
+    function querySession(c: Context<ApiEnv>): number {
+        return sessionIdOf(Number(c.req.query("session"))) ?? deps.rootId();
     }
 
-    function badSession(response: ServerResponse): void {
-        answer(response, 400, { error: "session must be a positive integer" });
+    function badSession(c: Context<ApiEnv>) {
+        return c.json({ error: "session must be a positive integer" }, 400);
     }
 
-    return [
-        {
-            method: "GET",
-            path: /^\/api\/events$/,
-            handle: async (request, response, url) => {
-                const id = querySession(url);
+    return new Hono<ApiEnv>()
+        .get("/api/events", async (c) => {
+            const opened = await attach(querySession(c));
 
-                const opened = await attach(id);
+            if (opened === undefined) {
+                return c.json({ error: "no such session" }, 404);
+            }
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "no such session" });
+            await deps.stream(c.env.incoming, c.env.outgoing, opened);
 
-                    return;
-                }
+            return RESPONSE_ALREADY_SENT;
+        })
+        .get("/api/history", async (c) => {
+            const id = querySession(c);
+            const raw = c.req.query("before");
+            const before = raw === undefined ? undefined : sessionIdOf(Number(raw));
 
-                await deps.stream(request, response, opened);
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/history$/,
-            handle: async (request, response, url) => {
-                const id = querySession(url);
-                const raw = url.searchParams.get("before");
-                const before = raw === null ? undefined : sessionIdOf(Number(raw));
+            if (raw !== undefined && before === undefined) {
+                return c.json({ error: "before must be a positive entry id" }, 400);
+            }
 
-                if (raw !== null && before === undefined) {
-                    answer(response, 400, { error: "before must be a positive entry id" });
+            const opened = await attach(id);
 
-                    return;
-                }
+            if (opened === undefined) {
+                return c.json({ error: "no such session" }, 404);
+            }
 
-                const opened = await attach(id);
+            // A page carries whole entries, so it can be big: answered by hand for its gzip.
+            answer(
+                c.env.outgoing,
+                200,
+                await historyPage({
+                    conversation: opened.conversation,
+                    context,
+                    ...(before === undefined ? {} : { before }),
+                }),
+                c.env.incoming,
+            );
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "no such session" });
+            return RESPONSE_ALREADY_SENT;
+        })
+        .get("/api/entry-image", async (c) => {
+            const id = sessionIdOf(Number(c.req.query("session")));
+            const entry = sessionIdOf(Number(c.req.query("entry")));
+            // A missing index means the first picture.
+            const index = Number(c.req.query("index") ?? 0);
 
-                    return;
-                }
+            if (
+                id === undefined ||
+                entry === undefined ||
+                !Number.isSafeInteger(index) ||
+                index < 0
+            ) {
+                return c.json({ error: "session, entry and index are required" }, 400);
+            }
 
-                answer(
-                    response,
-                    200,
-                    await historyPage({
-                        conversation: opened.conversation,
-                        context,
-                        ...(before === undefined ? {} : { before }),
-                    }),
-                    request,
-                );
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/entry-image$/,
-            handle: async (_request, response, url) => {
-                const id = sessionIdOf(Number(url.searchParams.get("session")));
-                const entry = sessionIdOf(Number(url.searchParams.get("entry")));
-                const index = Number(url.searchParams.get("index"));
+            const opened = await attach(id);
+            const stored =
+                opened === undefined
+                    ? undefined
+                    : await entryAt({
+                          conversation: opened.conversation,
+                          context,
+                          id: entry,
+                      });
+            const image = stored === undefined ? undefined : toolImageOf(stored, index);
 
-                if (
-                    id === undefined ||
-                    entry === undefined ||
-                    !Number.isSafeInteger(index) ||
-                    index < 0
-                ) {
-                    answer(response, 400, { error: "session, entry and index are required" });
+            if (image === undefined) {
+                return c.json({ error: "no such image" }, 404);
+            }
 
-                    return;
-                }
+            c.env.outgoing.writeHead(200, {
+                "content-type": image.mimeType,
+                "x-content-type-options": "nosniff",
+                "cache-control": "private, max-age=3600",
+            });
+            c.env.outgoing.end(image.bytes);
 
-                const opened = await attach(id);
-                const stored =
-                    opened === undefined
-                        ? undefined
-                        : await entryAt({
-                              conversation: opened.conversation,
-                              context,
-                              id: entry,
-                          });
-                const image = stored === undefined ? undefined : toolImageOf(stored, index);
+            return RESPONSE_ALREADY_SENT;
+        })
+        .post("/api/messages", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
 
-                if (image === undefined) {
-                    answer(response, 404, { error: "no such image" });
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
 
-                    return;
-                }
+            const text = string(payload?.["text"]) ?? "";
+            const id = sessionFrom(payload?.["session"]);
 
-                response.writeHead(200, {
-                    "content-type": image.mimeType,
-                    "x-content-type-options": "nosniff",
-                    "cache-control": "private, max-age=3600",
-                });
-                response.end(image.bytes);
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/messages$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const text = string(payload?.["text"]) ?? "";
-                const id = sessionFrom(payload?.["session"]);
+            if (id === undefined) {
+                return badSession(c);
+            }
 
-                if (id === undefined) {
-                    badSession(response);
+            const opened = await attach(id);
+            const files = Array.isArray(payload?.["files"])
+                ? payload["files"].filter((file): file is string => typeof file === "string")
+                : [];
 
-                    return;
-                }
+            if (opened === undefined) {
+                return c.json({ error: "no such session" }, 404);
+            }
 
-                const opened = await attach(id);
-                const files = Array.isArray(payload?.["files"])
-                    ? payload["files"].filter((file): file is string => typeof file === "string")
-                    : [];
+            if (text.trim() === "" && files.length === 0) {
+                return c.json({ error: "text is required" }, 400);
+            }
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "no such session" });
+            const mode = string(payload?.["mode"]);
+            // `/skill:name request` carries the skill's instructions; the screen keeps showing what was typed.
+            const cwd = (await opened.conversation.agent(context))?.cwd ?? process.cwd();
+            const expanded = text.startsWith("/skill:")
+                ? expandSkillCommand(text, skillsFor(cwd))
+                : text;
 
-                    return;
-                }
+            if (mode === "interrupt") {
+                await opened.conversation.abort(context);
+            }
 
-                if (text.trim() === "" && files.length === 0) {
-                    answer(response, 400, { error: "text is required" });
-
-                    return;
-                }
-
-                const mode = string(payload?.["mode"]);
-                // `/skill:name request` carries the skill's instructions; the screen keeps showing what was typed.
-                const cwd = (await opened.conversation.agent(context))?.cwd ?? process.cwd();
-                const expanded = text.startsWith("/skill:")
-                    ? expandSkillCommand(text, skillsFor(cwd))
-                    : text;
-
-                if (mode === "interrupt") {
-                    await opened.conversation.abort(context);
-                }
-
-                await opened.conversation.submit(
-                    {
-                        type: "input",
-                        content: await contentOf(files, expanded),
-                        ...(files.length === 0 && expanded === text
-                            ? {}
-                            : {
-                                  entry: {
-                                      kind: "chat.user",
-                                      data: {
-                                          text,
-                                          files: await Promise.all(
-                                              files.map(async (path) => ({
-                                                  path,
-                                                  name: basename(path).replace(/^\d+-/, ""),
-                                                  size: (await stat(path)).size,
-                                                  image:
-                                                      IMAGE_TYPES[extname(path).toLowerCase()] !==
-                                                      undefined,
-                                              })),
-                                          ),
-                                      },
+            await opened.conversation.submit(
+                {
+                    type: "input",
+                    content: await contentOf(files, expanded),
+                    ...(files.length === 0 && expanded === text
+                        ? {}
+                        : {
+                              entry: {
+                                  kind: "chat.user",
+                                  data: {
+                                      text,
+                                      files: await Promise.all(
+                                          files.map(async (path) => ({
+                                              path,
+                                              name: basename(path).replace(/^\d+-/, ""),
+                                              size: (await stat(path)).size,
+                                              image:
+                                                  IMAGE_TYPES[extname(path).toLowerCase()] !==
+                                                  undefined,
+                                          })),
+                                      ),
                                   },
-                              }),
-                        ...(mode === "steer" || mode === "followUp" ? { whenBusy: mode } : {}),
-                    },
-                    context,
+                              },
+                          }),
+                    ...(mode === "steer" || mode === "followUp" ? { whenBusy: mode } : {}),
+                },
+                context,
+            );
+            // A run that starts touches it too, but a steer or a follow-up joins a run already going,
+            // and the person's write is what moves the row.
+            await sessions.touch(opened.id);
+
+            return c.json({ ok: true }, 202);
+        })
+        .post("/api/queued/withdraw", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
+
+            const id = sessionFrom(payload?.["session"]);
+            const item = sessionIdOf(payload?.["id"]);
+
+            if (id === undefined) {
+                return badSession(c);
+            }
+
+            if (item === undefined) {
+                return c.json({ error: "id must be a positive integer" }, 400);
+            }
+
+            const opened = await attach(id);
+
+            if (opened === undefined) {
+                return c.json({ error: "no such session" }, 404);
+            }
+
+            // A submission id is a number at run time; the brand lives only in the type.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value passed a positive-integer check
+            const submission = item as SubmissionId;
+            const result = await deps.harness.abortSubmission(submission, context, opened.id);
+
+            return c.json({ result }, 200);
+        })
+        .post("/api/abort", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
+
+            const id = sessionFrom(payload?.["session"]);
+
+            if (id === undefined) {
+                return badSession(c);
+            }
+
+            const opened = await attach(id);
+
+            if (opened !== undefined) {
+                await opened.conversation.abort(context);
+            }
+
+            return c.json({ ok: true }, 202);
+        })
+        .post("/api/agent", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
+
+            const id = sessionFrom(payload?.["session"]);
+
+            if (id === undefined) {
+                return badSession(c);
+            }
+
+            const opened = await attach(id);
+            const model = recordOf(payload?.["model"]);
+            const provider = string(model?.["provider"]);
+            const modelId = string(model?.["modelId"]);
+            const level = string(payload?.["thinkingLevel"]);
+            const thinkingLevel = MODEL_THINKING_LEVELS.find((known) => known === level);
+
+            if (opened === undefined) {
+                return c.json({ error: "no such session" }, 404);
+            }
+
+            await opened.conversation.configure(
+                {
+                    ...(provider === undefined || modelId === undefined
+                        ? {}
+                        : { model: { provider, modelId } }),
+                    ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
+                },
+                context,
+            );
+
+            return c.json({ ok: true }, 202);
+        })
+        .post("/api/commands", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
+
+            const name = string(payload?.["name"]) ?? "";
+            const args = string(payload?.["args"]) ?? "";
+            const id = sessionFrom(payload?.["session"]);
+
+            if (id === undefined) {
+                return badSession(c);
+            }
+
+            const opened = await attach(id);
+
+            if (opened === undefined) {
+                return c.json({ error: "no such session" }, 404);
+            }
+
+            try {
+                return c.json(
+                    await runCommand(name, {
+                        conversation: opened.conversation,
+                        harness: deps.harness,
+                        context,
+                        args,
+                    }),
+                    200,
                 );
-                // A run that starts touches it too, but a steer or a follow-up joins a run already going,
-                // and the person's write is what moves the row.
-                await sessions.touch(opened.id);
-                answer(response, 202, { ok: true });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/queued\/withdraw$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionFrom(payload?.["session"]);
-                const item = sessionIdOf(payload?.["id"]);
-
-                if (id === undefined) {
-                    badSession(response);
-
-                    return;
-                }
-
-                if (item === undefined) {
-                    answer(response, 400, { error: "id must be a positive integer" });
-
-                    return;
-                }
-
-                const opened = await attach(id);
-
-                if (opened === undefined) {
-                    answer(response, 404, { error: "no such session" });
-
-                    return;
-                }
-
-                // A submission id is a number at run time; the brand lives only in the type.
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the value passed a positive-integer check
-                const submission = item as SubmissionId;
-                const result = await deps.harness.abortSubmission(submission, context, opened.id);
-
-                answer(response, 200, { result });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/abort$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionFrom(payload?.["session"]);
-
-                if (id === undefined) {
-                    badSession(response);
-
-                    return;
-                }
-
-                const opened = await attach(id);
-
-                if (opened !== undefined) {
-                    await opened.conversation.abort(context);
-                }
-
-                answer(response, 202, { ok: true });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/agent$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionFrom(payload?.["session"]);
-
-                if (id === undefined) {
-                    badSession(response);
-
-                    return;
-                }
-
-                const opened = await attach(id);
-                const model = recordOf(payload?.["model"]);
-                const provider = string(model?.["provider"]);
-                const modelId = string(model?.["modelId"]);
-                const level = string(payload?.["thinkingLevel"]);
-                const thinkingLevel = MODEL_THINKING_LEVELS.find((known) => known === level);
-
-                if (opened === undefined) {
-                    answer(response, 404, { error: "no such session" });
-
-                    return;
-                }
-
-                await opened.conversation.configure(
+            } catch (error) {
+                return c.json(
                     {
-                        ...(provider === undefined || modelId === undefined
-                            ? {}
-                            : { model: { provider, modelId } }),
-                        ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
-                    },
-                    context,
-                );
-                answer(response, 202, { ok: true });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/commands$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const name = string(payload?.["name"]) ?? "";
-                const args = string(payload?.["args"]) ?? "";
-                const id = sessionFrom(payload?.["session"]);
-
-                if (id === undefined) {
-                    badSession(response);
-
-                    return;
-                }
-
-                const opened = await attach(id);
-
-                if (opened === undefined) {
-                    answer(response, 404, { error: "no such session" });
-
-                    return;
-                }
-
-                try {
-                    answer(
-                        response,
-                        200,
-                        await runCommand(name, {
-                            conversation: opened.conversation,
-                            harness: deps.harness,
-                            context,
-                            args,
-                        }),
-                    );
-                } catch (error) {
-                    answer(response, 400, {
                         error: error instanceof Error ? error.message : "the command failed",
-                    });
-                }
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/skills$/,
-            handle: async (_request, response, url) => {
-                const id = querySession(url);
+                    },
+                    400,
+                );
+            }
+        })
+        .get("/api/skills", async (c) => {
+            const opened = await attach(querySession(c));
+            const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
 
-                const opened = await attach(id);
-                const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
+            return c.json({
+                skills: skillsFor(cwd).map((skill) => ({
+                    name: skill.name,
+                    description: skill.description,
+                })),
+            });
+        })
+        .get("/api/project-files", async (c) => {
+            const opened = await attach(querySession(c));
+            const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
 
-                answer(response, 200, {
-                    skills: skillsFor(cwd).map((skill) => ({
-                        name: skill.name,
-                        description: skill.description,
-                    })),
-                });
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/project-files$/,
-            handle: async (_request, response, url) => {
-                const opened = await attach(querySession(url));
-                const cwd = (await opened?.conversation.agent(context))?.cwd ?? process.cwd();
-
-                answer(response, 200, { files: await projectFiles(cwd) });
-            },
-        },
-    ];
+            return c.json({ files: await projectFiles(cwd) });
+        });
 }

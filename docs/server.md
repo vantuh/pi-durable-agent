@@ -208,6 +208,23 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
                              400 bad body or ActionError · 404 unknown extension, action or session · 500
 ```
 
+## Routing
+
+`server/main.ts` builds the app: one Hono instance with two middlewares in front of every route — the
+`Host` gate that blocks DNS rebinding, the built shell for a path outside `/api/`
+(`server/static.ts`), the same-origin gate for `/api/`, and the session-list bookkeeping that runs
+after the route. Each `server/routes/<group>.ts` returns a chained sub-app, so a route declares its
+path and method instead of a regular expression in a table.
+
+Validation is still hand-written: a route reads its own body. Because the typed browser client
+(`hc`) comes next, a route answers with `c.json(body, status)` rather than writing JSON by hand.
+Three things do write the response, and return `RESPONSE_ALREADY_SENT` so the adapter leaves it
+alone: the two event streams, a file's bytes (`/api/entry-image`, `/api/uploads`, and the two answers
+gzipped for size, `/api/sessions` and `/api/history`), and an extension's own HTTP, which still hands
+the extension the raw `{ request, response, path }` it always had.
+`@hono/node-server`'s `getRequestListener` plugs the app into the `node:http` server that
+`server/lifecycle.ts` keeps owning (admission before ready, shutdown, one 500 fallback).
+
 A conversation runs its tools where it was created: the folder of its agent document is the
 `cwd` of every tool call, taken at each use, so a session started in a worktree works there and not
 where the server runs. A folder that is gone ends every call with `Working directory does not

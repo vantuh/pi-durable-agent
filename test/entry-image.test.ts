@@ -10,6 +10,7 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { createRegistry, Harness, type EntryDraft } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
+import { getRequestListener } from "@hono/node-server";
 
 import { projectEntry } from "../server/projection.ts";
 import { conversationRoutes } from "../server/routes/conversation.ts";
@@ -52,21 +53,18 @@ void describe("images a tool returned", () => {
             context: BACKGROUND_CONTEXT,
         });
         const open: Opened[] = [];
+        const listener = getRequestListener(
+            conversationRoutes({
+                sessions,
+                attach: (id) => Promise.resolve(open.find((each) => Number(each.id) === id)),
+                rootId: () => 0,
+                harness,
+                stream: () => Promise.resolve(),
+            }).fetch,
+        );
         const server = createServer((request, response) => {
-            const url = new URL(request.url ?? "/", "http://127.0.0.1");
-            const route = routes.find((each) => each.path.test(url.pathname));
-            const match = route?.path.exec(url.pathname);
-
-            assert.ok(route !== undefined && match !== null && match !== undefined);
-            void route.handle(request, response, url, match);
+            void listener(request, response);
         });
-        const routes = conversationRoutes({
-            sessions,
-            attach: (id) => Promise.resolve(open.find((each) => Number(each.id) === id)),
-            rootId: () => 0,
-            harness,
-            stream: () => Promise.resolve(),
-        }).filter((route) => route.path.test("/api/entry-image"));
 
         try {
             const first = await sessions.create(dir);

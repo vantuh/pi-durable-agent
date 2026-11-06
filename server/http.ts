@@ -3,6 +3,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { constants, createGzip, gzipSync, type Gzip } from "node:zlib";
 
+import type { HttpBindings } from "@hono/node-server";
+import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
+
 import { ActionError, ActionNotFound } from "./extensions.ts";
 
 const MAX_BODY = 100_000_000;
@@ -11,17 +14,22 @@ const STALLED_BYTES = 1_000_000;
 /** A body smaller than this gains nothing from a gzip header and a compressor: a 400 stays plain. */
 const ZIP_MIN_BYTES = 1024;
 
-/** One API route: `path` must match the whole pathname; `method` "*" takes every method. */
-export type Route = {
-    method: string;
-    path: RegExp;
-    handle: (
-        request: IncomingMessage,
-        response: ServerResponse,
-        url: URL,
-        match: RegExpExecArray,
-    ) => Promise<void> | void;
+/**
+ * What a route reads from its context: the Node request and response, for a route that writes by hand, and
+ * what the list bookkeeping settles after it.
+ */
+export type ApiEnv = {
+    Bindings: HttpBindings;
+    Variables: {
+        /** The session a request's body named: the list resends that row instead of every row. */
+        changedSession: number | undefined;
+        /** Set by the not-found answer: a request no route took changed nothing. */
+        unmatched: boolean;
+    };
 };
+
+/** A route that wrote the response itself returns this, so the adapter leaves the bytes alone. */
+export { RESPONSE_ALREADY_SENT };
 
 /** A failure that names the status its answer takes; `answerError` answers with it. */
 export class HttpError extends Error {
@@ -58,30 +66,8 @@ export function readBytes(request: IncomingMessage, limit = MAX_BODY): Promise<B
     });
 }
 
-/** A body is read once per request: a route parses its own, and the caller after the route asks again. */
-const bodies = new WeakMap<IncomingMessage, Promise<unknown>>();
-
 /** The parsed body, or `undefined` for an empty one; a body past `limit` bytes is refused unread. */
-export function readJson(request: IncomingMessage, limit = MAX_BODY): Promise<unknown> {
-    const known = bodies.get(request);
-
-    if (known !== undefined) {
-        return known;
-    }
-
-    const body = parseJson(request, limit);
-
-    bodies.set(request, body);
-
-    return body;
-}
-
-/** The body a route already read, or `undefined` while nothing has: this never waits on a body nobody consumed. */
-export function readBody(request: IncomingMessage): Promise<unknown> | undefined {
-    return bodies.get(request);
-}
-
-async function parseJson(request: IncomingMessage, limit: number): Promise<unknown> {
+export async function readJson(request: IncomingMessage, limit = MAX_BODY): Promise<unknown> {
     const text = (await readBytes(request, limit)).toString("utf8");
 
     if (text === "") {

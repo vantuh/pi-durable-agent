@@ -2,9 +2,18 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { Hono } from "hono";
+
 import { recordOf } from "../../shared/guards.ts";
 import type { SessionSummary } from "../../shared/protocol.ts";
-import { answer, readJson, type Route, sessionIdOf, string } from "../http.ts";
+import {
+    answer,
+    type ApiEnv,
+    readJson,
+    RESPONSE_ALREADY_SENT,
+    sessionIdOf,
+    string,
+} from "../http.ts";
 import type { Opened, Sessions } from "../sessions.ts";
 
 export function sessionRoutes(deps: {
@@ -15,130 +24,116 @@ export function sessionRoutes(deps: {
     /** The session rows as the browser reads them: their marks come from extensions. */
     list: () => Promise<SessionSummary[]>;
     watch: (request: IncomingMessage, response: ServerResponse) => Promise<void>;
-}): Route[] {
+}) {
     const { sessions, attach, detach } = deps;
 
-    return [
-        {
-            method: "GET",
-            path: /^\/api\/sessions$/,
-            handle: async (request, response) => {
-                answer(response, 200, { sessions: await deps.list() }, request);
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/sessions\/events$/,
-            handle: async (request, response) => {
-                await deps.watch(request, response);
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/sessions$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const cwd = string(payload?.["cwd"]);
-                const conversation = await sessions.create(cwd ?? process.cwd());
+    return new Hono<ApiEnv>()
+        .get("/api/sessions", async (c) => {
+            // Every row the browser shows, which is big enough to gain from a gzip: answered by hand.
+            answer(c.env.outgoing, 200, { sessions: await deps.list() }, c.env.incoming);
 
-                await attach(Number(conversation.id));
-                answer(response, 201, { session: Number(conversation.id) });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/sessions\/archive$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionIdOf(payload?.["session"]);
-                const archived = payload?.["archived"];
+            return RESPONSE_ALREADY_SENT;
+        })
+        .get("/api/sessions/events", async (c) => {
+            await deps.watch(c.env.incoming, c.env.outgoing);
 
-                if (id === undefined || typeof archived !== "boolean") {
-                    answer(response, 400, { error: "Expected a session id and archived boolean" });
-                    return;
-                }
+            return RESPONSE_ALREADY_SENT;
+        })
+        .post("/api/sessions", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
 
-                const opened = await attach(id);
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "Session not found" });
-                    return;
-                }
+            const cwd = string(payload?.["cwd"]);
+            const conversation = await sessions.create(cwd ?? process.cwd());
 
-                await sessions.setArchived(opened.id, archived);
-                answer(response, 200, { ok: true });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/sessions\/delete$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionIdOf(payload?.["session"]);
+            await attach(Number(conversation.id));
 
-                if (id === undefined) {
-                    answer(response, 400, { error: "Expected a session id" });
-                    return;
-                }
+            return c.json({ session: Number(conversation.id) }, 201);
+        })
+        .post("/api/sessions/archive", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+            const id = sessionIdOf(payload?.["session"]);
 
-                const opened = await attach(id);
+            c.set("changedSession", id);
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "Session not found" });
-                    return;
-                }
+            const archived = payload?.["archived"];
 
-                await sessions.delete(opened.id);
-                detach(opened.id);
-                answer(response, 200, { ok: true });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/sessions\/title$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionIdOf(payload?.["session"]);
-                const title = payload?.["title"];
+            if (id === undefined || typeof archived !== "boolean") {
+                return c.json({ error: "Expected a session id and archived boolean" }, 400);
+            }
 
-                if (id === undefined || typeof title !== "string") {
-                    answer(response, 400, { error: "Expected a session id and a title string" });
-                    return;
-                }
+            const opened = await attach(id);
 
-                const opened = await attach(id);
+            if (opened === undefined) {
+                return c.json({ error: "Session not found" }, 404);
+            }
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "Session not found" });
-                    return;
-                }
+            await sessions.setArchived(opened.id, archived);
 
-                await sessions.setTitle(opened.id, title.trim().slice(0, 80));
-                answer(response, 200, { ok: true });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/sessions\/seen$/,
-            handle: async (request, response) => {
-                const payload = recordOf(await readJson(request));
-                const id = sessionIdOf(payload?.["session"]);
+            return c.json({ ok: true }, 200);
+        })
+        .post("/api/sessions/delete", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+            const id = sessionIdOf(payload?.["session"]);
 
-                if (id === undefined) {
-                    answer(response, 400, { error: "Expected a session id" });
-                    return;
-                }
+            c.set("changedSession", id);
 
-                const opened = await attach(id);
+            if (id === undefined) {
+                return c.json({ error: "Expected a session id" }, 400);
+            }
 
-                if (opened === undefined) {
-                    answer(response, 404, { error: "Session not found" });
-                    return;
-                }
+            const opened = await attach(id);
 
-                await sessions.seen(opened.id);
-                answer(response, 200, { ok: true });
-            },
-        },
-    ];
+            if (opened === undefined) {
+                return c.json({ error: "Session not found" }, 404);
+            }
+
+            await sessions.delete(opened.id);
+            detach(opened.id);
+
+            return c.json({ ok: true }, 200);
+        })
+        .post("/api/sessions/title", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+            const id = sessionIdOf(payload?.["session"]);
+
+            c.set("changedSession", id);
+
+            const title = payload?.["title"];
+
+            if (id === undefined || typeof title !== "string") {
+                return c.json({ error: "Expected a session id and a title string" }, 400);
+            }
+
+            const opened = await attach(id);
+
+            if (opened === undefined) {
+                return c.json({ error: "Session not found" }, 404);
+            }
+
+            await sessions.setTitle(opened.id, title.trim().slice(0, 80));
+
+            return c.json({ ok: true }, 200);
+        })
+        .post("/api/sessions/seen", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
+            const id = sessionIdOf(payload?.["session"]);
+
+            c.set("changedSession", id);
+
+            if (id === undefined) {
+                return c.json({ error: "Expected a session id" }, 400);
+            }
+
+            const opened = await attach(id);
+
+            if (opened === undefined) {
+                return c.json({ error: "Session not found" }, 404);
+            }
+
+            await sessions.seen(opened.id);
+
+            return c.json({ ok: true }, 200);
+        });
 }

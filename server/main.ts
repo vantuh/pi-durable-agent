@@ -20,8 +20,10 @@ import {
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
+import { getRequestListener } from "@hono/node-server";
+import { Hono } from "hono";
 
-import { messageOf, recordOf } from "../shared/guards.ts";
+import { messageOf } from "../shared/guards.ts";
 import type {
     ClientBlock,
     ClientEntry,
@@ -37,7 +39,7 @@ import { commitView } from "./commit-view.ts";
 import { executionEnv } from "./execution-env.ts";
 import { type SessionPrompt, Extensions, type SessionRequest } from "./extensions.ts";
 import { hasOlder } from "./history.ts";
-import { answer, openEventStream, readBody, type Route, sessionIdOf, writeEvent } from "./http.ts";
+import { type ApiEnv, openEventStream, RESPONSE_ALREADY_SENT, writeEvent } from "./http.ts";
 import { type Lifecycle, listen } from "./lifecycle.ts";
 import { blocksSince, listSince } from "./live-delta.ts";
 import { liveWindow } from "./live-window.ts";
@@ -137,7 +139,6 @@ let list: SessionList;
 let harness: Harness;
 let lifecycle: Lifecycle;
 let rootId: number;
-let routes: Route[] = [];
 
 function send(client: Client, event: ServerEvent): void {
     writeEvent(client.response, `data: ${JSON.stringify(event)}\n\n`, client.gzip);
@@ -643,66 +644,129 @@ async function stream(
 }
 
 /**
- * The session a change named, when its body named one: the id a route already read turns one rebuilt row into
- * the whole list. A request with no session — a new session, a restart — leaves the list to be read again.
+ * The only way in: the host gate, the built shell, the same-origin gate, then the routes. Every answer that is
+ * JSON goes back through Hono; a stream, a file's bytes and an extension's own handler write the response and
+ * say so.
  */
-async function changedSession(request: IncomingMessage): Promise<number | undefined> {
-    const body = readBody(request);
+const app = new Hono<ApiEnv>();
 
-    if (body === undefined) {
-        return undefined;
+app.notFound((c) => {
+    // No route took the request, so the session list has nothing to refresh.
+    c.set("unmatched", true);
+
+    return c.json({ error: "not found" }, 404);
+});
+
+app.use("*", async (c, next) => {
+    const { incoming, outgoing } = c.env;
+
+    if (!knownHost(incoming.headers.host)) {
+        return c.json({ error: "unknown host" }, 403);
     }
 
-    try {
-        return sessionIdOf(recordOf(await body)?.["session"]);
-    } catch {
-        // A body that is not JSON was refused by its route, and a list read is never wrong about it.
-        return undefined;
+    if (!c.req.path.startsWith("/api/")) {
+        await serveStatic(DIST, incoming, outgoing);
+
+        return RESPONSE_ALREADY_SENT;
     }
+
+    if (!sameOrigin(incoming.headers)) {
+        return c.json({ error: "cross-origin requests are not allowed" }, 403);
+    }
+
+    // Hono answers HEAD from the GET route; before, only an extension's own HTTP took every method, and the
+    // rest of the API is as unknown to HEAD as it was.
+    if (c.req.method === "HEAD" && !c.req.path.startsWith("/api/extensions/")) {
+        return c.json({ error: "not found" }, 404);
+    }
+
+    c.set("unmatched", false);
+
+    return await next();
+});
+
+app.use("*", async (c, next) => {
+    await next();
+
+    // `onError` answers an exception and resolves `next()`: a route that threw changed nothing the list shows.
+    if (c.get("unmatched") || c.error !== undefined) {
+        return;
+    }
+
+    // An extension changes a row only through the host, which sends the list itself; a panel
+    // that polls an action every second must not resend every row to every device.
+    if (c.req.method !== "GET" && !c.req.path.startsWith("/api/extensions/")) {
+        listChanged(c.get("changedSession"));
+    }
+});
+
+// As the hand-written dispatcher answered a route that threw: a 500 naming the reason.
+app.onError((error, c) => {
+    if (c.env.outgoing.headersSent) {
+        c.env.outgoing.end();
+
+        return RESPONSE_ALREADY_SENT;
+    }
+
+    return c.json({ error: error instanceof Error ? error.message : "the request failed" }, 500);
+});
+
+/**
+ * The whole surface: the gates, then every route. `boot` mounts it once the state the routes read exists, and
+ * the listener serves this same instance, so this return type is the app's type, not a table of regexes.
+ */
+function mountRoutes(deps: {
+    conversation: Parameters<typeof conversationRoutes>[0];
+    sessions: Parameters<typeof sessionRoutes>[0];
+    models: Parameters<typeof modelRoutes>[0];
+    files: Parameters<typeof fileRoutes>[0];
+    extensions: Parameters<typeof extensionRoutes>[0];
+}) {
+    return app
+        .route("/", conversationRoutes(deps.conversation))
+        .route("/", sessionRoutes(deps.sessions))
+        .route("/", modelRoutes(deps.models))
+        .route("/", fileRoutes(deps.files))
+        .route("/", extensionRoutes(deps.extensions))
+        .post(
+            // The app's rebuild button. The files are read from `dist/` per request, so the new
+            // shell is in force without a restart; the answer comes when the build is over.
+            "/api/build",
+            async (c) => c.json(await buildShell()),
+        )
+        .post(
+            // The app's restart button; 409 without the supervisor, which would leave nothing to start it.
+            "/api/restart",
+            (c) => {
+                if (!SUPERVISED) {
+                    return c.json(
+                        {
+                            error: "start it with pnpm serve or pnpm start to restart it from the app",
+                        },
+                        409,
+                    );
+                }
+
+                setTimeout(() => {
+                    stop(RESTART_CODE);
+                }, 100);
+
+                return c.json({ ok: true });
+            },
+        )
+        .get("/api/health", (c) =>
+            c.json({
+                ok: true,
+                model: MODEL,
+                cwd: process.cwd(),
+                home: homedir(),
+                session: rootId,
+            }),
+        );
 }
 
-async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const url = new URL(request.url ?? "/", "http://127.0.0.1");
-
-    if (!knownHost(request.headers.host)) {
-        answer(response, 403, { error: "unknown host" });
-
-        return;
-    }
-
-    if (!url.pathname.startsWith("/api/")) {
-        await serveStatic(DIST, request, response);
-
-        return;
-    }
-
-    if (!sameOrigin(request.headers)) {
-        answer(response, 403, { error: "cross-origin requests are not allowed" });
-
-        return;
-    }
-
-    for (const route of routes) {
-        const match =
-            route.method === "*" || route.method === request.method
-                ? route.path.exec(url.pathname)
-                : null;
-
-        if (match !== null) {
-            await route.handle(request, response, url, match);
-
-            // An extension changes a row only through the host, which sends the list itself; a panel
-            // that polls an action every second must not resend every row to every device.
-            if (request.method !== "GET" && !url.pathname.startsWith("/api/extensions/")) {
-                listChanged(await changedSession(request));
-            }
-
-            return;
-        }
-    }
-
-    answer(response, 404, { error: "not found" });
-}
+/** The mounted app the listener serves; `boot` fills it before anything is admitted. */
+let mounted: ReturnType<typeof mountRoutes> | undefined;
 
 /** Opens everything that touches storage. Runs once the lock and the port are ours. */
 async function boot(): Promise<void> {
@@ -868,64 +932,17 @@ async function boot(): Promise<void> {
         await attach(Number(id));
     }
 
-    routes = [
-        ...conversationRoutes({ sessions, attach, rootId: () => rootId, harness, stream }),
-        ...sessionRoutes({
-            sessions,
-            attach,
-            detach,
-            list: sessionRows,
-            watch: watchList,
-        }),
-        ...modelRoutes({ models, sessions, fallback: { provider, modelId } }),
-        ...fileRoutes({ dataDir: DATA_DIR }),
-        ...extensionRoutes({
+    mounted = mountRoutes({
+        conversation: { sessions, attach, rootId: () => rootId, harness, stream },
+        sessions: { sessions, attach, detach, list: sessionRows, watch: watchList },
+        models: { models, sessions, fallback: { provider, modelId } },
+        files: { dataDir: DATA_DIR },
+        extensions: {
             extensions,
             attach,
             ownerOf: (session) => sessions.owner(idOf(session)),
-        }),
-        {
-            // The app's rebuild button. The files are read from `dist/` per request, so the new
-            // shell is in force without a restart; the answer comes when the build is over.
-            method: "POST",
-            path: /^\/api\/build$/,
-            handle: async (_request, response) => {
-                answer(response, 200, await buildShell());
-            },
         },
-        {
-            // The app's restart button; 409 without the supervisor, which would leave nothing to start it.
-            method: "POST",
-            path: /^\/api\/restart$/,
-            handle: (_request, response) => {
-                if (!SUPERVISED) {
-                    answer(response, 409, {
-                        error: "start it with pnpm serve or pnpm start to restart it from the app",
-                    });
-
-                    return;
-                }
-
-                answer(response, 200, { ok: true });
-                setTimeout(() => {
-                    stop(RESTART_CODE);
-                }, 100);
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/health$/,
-            handle: (_request, response) => {
-                answer(response, 200, {
-                    ok: true,
-                    model: MODEL,
-                    cwd: process.cwd(),
-                    home: homedir(),
-                    session: rootId,
-                });
-            },
-        },
-    ];
+    });
 
     lifecycle.onStop(() => {
         stopObserving();
@@ -964,7 +981,10 @@ async function main(): Promise<void> {
     lifecycle = await listen({
         dataDir: DATA_DIR,
         port: PORT,
-        handle,
+        // Nothing is admitted before `ready()`, and `boot` has mounted every route by then.
+        handle: getRequestListener((request, env) =>
+            mounted === undefined ? app.fetch(request, env) : mounted.fetch(request, env),
+        ),
     });
 
     try {

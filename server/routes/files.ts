@@ -5,9 +5,11 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve, sep } from "node:path";
 
+import { Hono } from "hono";
+
 import { recordOf } from "../../shared/guards.ts";
 import { writeJsonFile } from "../atomic-write.ts";
-import { answer, readBytes, readJson, type Route } from "../http.ts";
+import { type ApiEnv, readBytes, readJson, RESPONSE_ALREADY_SENT, sessionIdOf } from "../http.ts";
 import { readJsonFile } from "../json-file.ts";
 
 export const IMAGE_TYPES: Record<string, string> = {
@@ -18,7 +20,7 @@ export const IMAGE_TYPES: Record<string, string> = {
     ".webp": "image/webp",
 };
 
-export function fileRoutes({ dataDir }: { dataDir: string }): Route[] {
+export function fileRoutes({ dataDir }: { dataDir: string }) {
     const uploadDir = join(dataDir, "uploads");
     const favouritesFile = join(dataDir, "favourites.json");
 
@@ -30,104 +32,91 @@ export function fileRoutes({ dataDir }: { dataDir: string }): Route[] {
             : [];
     }
 
-    return [
-        {
-            method: "GET",
-            path: /^\/api\/favourites$/,
-            handle: async (_request, response) => {
-                answer(response, 200, { folders: await readFavourites() });
-            },
-        },
-        {
-            method: "PUT",
-            path: /^\/api\/favourites$/,
-            handle: async (request, response) => {
-                const raw = recordOf(await readJson(request))?.["folders"];
-                const folders = Array.isArray(raw)
-                    ? raw.filter((entry): entry is string => typeof entry === "string")
-                    : [];
+    return new Hono<ApiEnv>()
+        .get("/api/favourites", async (c) => {
+            return c.json({ folders: await readFavourites() });
+        })
+        .put("/api/favourites", async (c) => {
+            const payload = recordOf(await readJson(c.env.incoming));
 
-                await writeJsonFile(favouritesFile, folders);
-                answer(response, 200, { folders });
-            },
-        },
-        {
-            method: "POST",
-            path: /^\/api\/files$/,
-            handle: async (request, response) => {
-                const raw = request.headers["x-filename"];
-                const name = basename(decodeURIComponent(typeof raw === "string" ? raw : "file"));
-                const saved = join(
-                    uploadDir,
-                    `${String(Date.now())}${String(randomInt(1_000_000))}-${name}`,
-                );
-                const data = await readBytes(request);
+            c.set("changedSession", sessionIdOf(payload?.["session"]));
 
-                // `wx` makes the rare collision an error the composer shows, never a lost upload.
-                await writeFile(saved, data, { flag: "wx" });
-                answer(response, 201, {
+            const raw = payload?.["folders"];
+            const folders = Array.isArray(raw)
+                ? raw.filter((entry): entry is string => typeof entry === "string")
+                : [];
+
+            await writeJsonFile(favouritesFile, folders);
+
+            return c.json({ folders }, 200);
+        })
+        .post("/api/files", async (c) => {
+            const raw = c.req.header("x-filename");
+            const name = basename(decodeURIComponent(raw ?? "file"));
+            const saved = join(
+                uploadDir,
+                `${String(Date.now())}${String(randomInt(1_000_000))}-${name}`,
+            );
+            const data = await readBytes(c.env.incoming);
+
+            // `wx` makes the rare collision an error the composer shows, never a lost upload.
+            await writeFile(saved, data, { flag: "wx" });
+
+            return c.json(
+                {
                     path: saved,
                     name,
                     size: data.length,
                     mime: IMAGE_TYPES[extname(name).toLowerCase()] ?? null,
+                },
+                201,
+            );
+        })
+        .get("/api/fs", async (c) => {
+            const wanted = c.req.query("path") ?? homedir();
+            const path = resolve(
+                wanted.startsWith("~") ? join(homedir(), wanted.slice(1)) : wanted,
+            );
+            const hidden = c.req.query("hidden") === "1";
+
+            try {
+                const entries = await readdir(path, { withFileTypes: true });
+                const dirs = entries
+                    .filter((entry) => entry.isDirectory())
+                    .filter((entry) => hidden || !entry.name.startsWith("."))
+                    .map((entry) => ({ name: entry.name, path: join(path, entry.name) }))
+                    .sort((left, right) => left.name.localeCompare(right.name));
+
+                return c.json({
+                    path,
+                    parent: path === "/" ? null : resolve(path, ".."),
+                    home: homedir(),
+                    dirs,
                 });
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/fs$/,
-            handle: async (_request, response, url) => {
-                const wanted = url.searchParams.get("path") ?? homedir();
-                const path = resolve(
-                    wanted.startsWith("~") ? join(homedir(), wanted.slice(1)) : wanted,
-                );
-                const hidden = url.searchParams.get("hidden") === "1";
+            } catch {
+                return c.json({ error: "cannot read that folder" }, 400);
+            }
+        })
+        .get("/api/uploads", async (c) => {
+            const wanted = resolve(c.req.query("path") ?? "");
 
-                try {
-                    const entries = await readdir(path, { withFileTypes: true });
-                    const dirs = entries
-                        .filter((entry) => entry.isDirectory())
-                        .filter((entry) => hidden || !entry.name.startsWith("."))
-                        .map((entry) => ({ name: entry.name, path: join(path, entry.name) }))
-                        .sort((left, right) => left.name.localeCompare(right.name));
+            if (!wanted.startsWith(uploadDir + sep)) {
+                return c.json({ error: "not an uploaded file" }, 403);
+            }
 
-                    answer(response, 200, {
-                        path,
-                        parent: path === "/" ? null : resolve(path, ".."),
-                        home: homedir(),
-                        dirs,
-                    });
-                } catch {
-                    answer(response, 400, { error: "cannot read that folder" });
-                }
-            },
-        },
-        {
-            method: "GET",
-            path: /^\/api\/uploads$/,
-            handle: async (_request, response, url) => {
-                const wanted = resolve(url.searchParams.get("path") ?? "");
+            try {
+                const data = await readFile(wanted);
 
-                if (!wanted.startsWith(uploadDir + sep)) {
-                    answer(response, 403, { error: "not an uploaded file" });
+                c.env.outgoing.writeHead(200, {
+                    "content-type":
+                        IMAGE_TYPES[extname(wanted).toLowerCase()] ?? "application/octet-stream",
+                    "cache-control": "private, max-age=3600",
+                });
+                c.env.outgoing.end(data);
+            } catch {
+                return c.json({ error: "no such file" }, 404);
+            }
 
-                    return;
-                }
-
-                try {
-                    const data = await readFile(wanted);
-
-                    response.writeHead(200, {
-                        "content-type":
-                            IMAGE_TYPES[extname(wanted).toLowerCase()] ??
-                            "application/octet-stream",
-                        "cache-control": "private, max-age=3600",
-                    });
-                    response.end(data);
-                } catch {
-                    answer(response, 404, { error: "no such file" });
-                }
-            },
-        },
-    ];
+            return RESPONSE_ALREADY_SENT;
+        });
 }

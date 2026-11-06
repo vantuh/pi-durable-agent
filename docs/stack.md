@@ -22,6 +22,7 @@ The first choice, recorded so later decisions can be read against it. Versions a
 | Icons      | `lucide-react`                         | What `shadcn` expects                                                      | One dependency for tree-shaken icons                              |
 | Zoom       | `react-zoom-pan-pinch` 4.2.0           | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
 | Agent      | `@earendil-works/pi-durable` 1.4.0     | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
+| Routing    | Hono 4, `@hono/node-server` 2          | Typed routes and validators now, one typed browser client (`hc`) later     | A framework in the server; the raw paths depend on its adapter    |
 | Lint       | `oxlint`                               | Fast, no plugin zoo                                                        | Rule coverage is smaller than ESLint's                            |
 | Format     | `oxfmt`                                | 4 spaces, 100 columns, sorted imports and Tailwind classes                 | Young tool; formatting may shift between versions                 |
 | Packages   | pnpm 11                                | Matches the other repos                                                    | —                                                                 |
@@ -36,6 +37,8 @@ The first choice, recorded so later decisions can be read against it. Versions a
   store; the sidebar is the only navigation until there are real URLs.
 - **Server tooling**: no bundler, no nodemon. `scripts/serve.ts` starts the server again when the
   app asks (exit code 75), and that one parent is the whole watcher.
+- **Server frameworks beyond the route table**: Hono routes and validates; the socket, the event
+  streams, the static files and the shutdown stay `node:http`, hand-written.
 
 ## Rules the stack imposes
 

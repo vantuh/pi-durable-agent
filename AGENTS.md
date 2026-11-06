@@ -39,7 +39,7 @@ The core stays honest by two rules:
 | -------- | ------------------------------------------------------------------- |
 | Runtime  | Node 26, type stripping: `server/` files run as `.ts`, no build     |
 | Language | TypeScript 7, `strict`, `erasableSyntaxOnly`                        |
-| Server   | Plain `node:http` — no framework                                    |
+| Server   | `node:http` for the socket, Hono 4 for the route table              |
 | Agent    | `@earendil-works/pi-durable` 1.4.0, pinned exactly                  |
 | Browser  | React 19, Vite 8                                                    |
 | Styles   | Tailwind 4 through `@tailwindcss/vite`; Catppuccin as CSS variables |
@@ -107,13 +107,16 @@ extensions/files/
   README.md      usage, configuration, behavior and limits of this extension
   refs.ts        action refs and types shared by `server.ts` and `web.tsx`, safe for the browser
   web.tsx        what it adds to the browser: status-bar items and settings sections
+  details.tsx    what the Extensions dialog shows about it
   api.ts         its typed contract: what other extensions may call, and its tier  (not built yet)
-  components/    UI beyond one component
-  lib/           server helpers the entry points import
+  server/        server-only code server.ts imports; Node allowed
+  web/           browser-only code web.tsx imports: components, use-*.ts hooks
+  assets/        files read by path;  fixtures/  test data
 ```
 
-- **The top level stays small** — under ~8 files, so the entry points are what a reader sees. The
-  full rules: [docs/conventions.md](docs/conventions.md#file-and-folder-structure).
+- **The top level holds only the names above** (plus `package.json` and `LICENSE.*`); everything
+  else goes into `server/` or `web/` by where it runs. The full layout:
+  [docs/refactor-plan.md](docs/refactor-plan.md#the-layout).
 - **One folder, one extension, named after the folder.** The loader replaces by name, so a name
   that drifts installs twice. `coding-tools` is reserved by the core.
 - **Documentation lives with the extension.** Keep feature-specific guides in its `README.md`,

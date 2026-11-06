@@ -17,6 +17,7 @@ The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 | [ui-primitives.md](ui-primitives.md) | Plan: hand-written controls replaced by shadcn primitives. |
 | [helpers.md](helpers.md)             | Plan: one home for each repeated helper function.          |
 | [ui-rework.md](ui-rework.md)         | The flat, square look and the extensions sidebar.          |
+| [refactor-plan.md](refactor-plan.md) | Plan: structure cleanup, Hono, pi 1.5, with progress.      |
 
 Extension-specific guides live in `extensions/<name>/README.md`; the
 [extension guide index](extensions.md#extension-guides) links to them. Shared contracts and

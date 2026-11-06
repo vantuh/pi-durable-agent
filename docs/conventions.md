@@ -127,12 +127,31 @@ the neighbour it disagrees with.
   of `routes/` or `extensions/`. The mistake it prevents: a projection that reaches for the extension
   loader, so neither can be tested without the other.
 
+### Hono routes
+
+- **A route factory has no return type annotation.** `Hono<ApiEnv>` as a return type resets the route
+  schema to blank, and the browser's `hc` client loses every endpoint. Chain the routes and let
+  inference carry them.
+- **Answer with `c.json(body, status)`**, never `c.notFound()` or a hand-written JSON write: only the
+  first gives `hc` a typed status.
+- **A raw write returns `RESPONSE_ALREADY_SENT`**, and nothing else writes after it. Raw writes are
+  for the event streams, byte answers, and extension HTTP; anything else is a Hono answer.
+- **Never build a `Request` from `c.req.raw`.** On Node 26.11 and later `new Request(url, c.req.raw)`
+  throws `ERR_INVALID_THIS` (honojs/node-server#408).
+- **`c.req.path` and `c.req.param()` are decoded.** Where the exact bytes matter (a path handed on to
+  an extension, a strict decode that must reject `%ZZ`), read `new URL(c.req.url).pathname`.
+- **A route that parses a JSON body with a `session` sets `changedSession` right after parsing**, so
+  the list refresh after it stays targeted. The mistake it prevents: a whole-list rebuild for one
+  renamed session.
+
 ### Extensions and tests
 
-- **Extension layout:** entry points `server.ts` and `web.tsx`, plus `refs.ts`, `README.md` and
-  `server.test.ts` as today; UI beyond one component goes in `components/`, server helpers in `lib/`;
-  an extra top-level file is fine while the folder stays under ~8 files. Current extensions do not all
-  follow this yet; the refactor aligns them.
+- **Extension layout:** the top level holds only `package.json`, `README.md`, the entries
+  `server.ts`, `web.tsx` and `details.tsx`, `server.test.ts`, `refs.ts`, and `LICENSE.*`; every other
+  file goes into `server/` (Node allowed), `web/` (browser only), `assets/` or `fixtures/`. The
+  mistake it prevents: thirty files at the top of one folder, and a Node import found by Vite late.
+  The full layout: [refactor-plan.md](refactor-plan.md#the-layout). Current extensions do not all
+  follow it yet; the refactor moves them.
 - **Tests share their setup.** The free `PORT`, the temporary `PI_DURABLE_DATA_DIR` and the test
   server live in `test/fixtures/`, imported rather than copied. The mistake it prevents: sixty copies
   of a start-up that drift into writing the working `data/state.sqlite`.

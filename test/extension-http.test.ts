@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -6,9 +7,12 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { createRegistry } from "@earendil-works/pi-durable";
+import { getRequestListener } from "@hono/node-server";
 
 import { ActionNotFound, Extensions } from "../server/extensions.ts";
+import { extensionRoutes } from "../server/routes/extensions.ts";
 import { sameOrigin } from "../server/same-origin.ts";
+import { recordOf } from "../shared/guards.ts";
 
 void describe("extension HTTP", () => {
     let root: string;
@@ -18,6 +22,53 @@ void describe("extension HTTP", () => {
     const module = (text: string) => `export default host => ({name:host.name});
         export const http = host => ({response,path}) => {response.end(${JSON.stringify(text)} + host.name + path);};`;
     const write = (text: string) => writeFile(join(root, "sample", "server.ts"), text);
+    /** An extension's HTTP handler that answers with the path it was handed, and the body's size and hash. */
+    const echo = `import { createHash } from "node:crypto";
+        export default host => ({name: host.name});
+        export const http = () => ({request, response, path}) => {
+            const chunks = [];
+            request.on("data", (chunk) => chunks.push(chunk));
+            request.on("end", () => {
+                const body = Buffer.concat(chunks);
+                response.writeHead(200, {"content-type": "application/json"});
+                response.end(JSON.stringify({
+                    path,
+                    length: body.length,
+                    sha: createHash("sha256").update(body).digest("hex"),
+                }));
+            });
+        };`;
+    /** The extension routes on a real port: the Hono adapter is part of what is under test. */
+    async function serveRoutes(): Promise<{ base: string; close: () => Promise<void> }> {
+        const listener = getRequestListener(
+            extensionRoutes({
+                extensions,
+                attach: () => Promise.resolve(undefined),
+                ownerOf: () => Promise.resolve(undefined),
+            }).fetch,
+        );
+        const server = createServer((request, response) => {
+            void listener(request, response);
+        });
+
+        await new Promise<void>((done) => {
+            server.listen(0, "127.0.0.1", done);
+        });
+
+        const address = server.address();
+
+        assert.ok(address !== null && typeof address !== "string");
+
+        return {
+            base: `http://127.0.0.1:${String(address.port)}`,
+            close: async () => {
+                server.closeAllConnections();
+                await new Promise<void>((done) => {
+                    server.close(() => done());
+                });
+            },
+        };
+    }
     beforeEach(async () => {
         root = await mkdtemp(join(tmpdir(), "extension-http-"));
         await mkdir(join(root, "sample"));
@@ -79,6 +130,76 @@ void describe("extension HTTP", () => {
         await write("export default () => undefined;");
         await extensions.load();
         assert.equal((await fetch(base)).status, 404);
+    });
+    void it("hands an extension the whole body of a POST, and its path and query", async () => {
+        // The app answers through Hono while the extension reads the raw request: the body must arrive whole.
+        await write(echo);
+        await extensions.load();
+
+        const server = await serveRoutes();
+        const body = Buffer.from("pcm-".repeat(400_000));
+
+        try {
+            const response = await fetch(`${server.base}/api/extensions/sample/http/audio?x=1`, {
+                method: "POST",
+                body,
+            });
+            const answer = recordOf(await response.json());
+
+            assert.equal(response.status, 200);
+            assert.equal(answer?.["path"], "/audio?x=1");
+            assert.equal(answer?.["length"], body.length);
+            assert.equal(answer?.["sha"], createHash("sha256").update(body).digest("hex"));
+        } finally {
+            await server.close();
+        }
+    });
+    void it("hands an extension the path bytes the browser sent, still encoded", async () => {
+        await write(echo);
+        await extensions.load();
+
+        const server = await serveRoutes();
+
+        try {
+            const response = await fetch(
+                `${server.base}/api/extensions/sample/http/a%20b/%E2%82%AC/%61?x=1`,
+            );
+
+            assert.equal(response.status, 200);
+            assert.equal(
+                recordOf(await response.json())?.["path"],
+                "/a%20b/%E2%82%AC/%61?x=1",
+                "the extension decodes its own path: it gets the bytes the browser sent",
+            );
+        } finally {
+            await server.close();
+        }
+    });
+    void it("refuses an escape it cannot decode in an extension's name or action", async () => {
+        await write(echo);
+        await extensions.load();
+
+        const server = await serveRoutes();
+
+        try {
+            const action = await fetch(`${server.base}/api/extensions/sample/actions/bad%ZZ`, {
+                method: "POST",
+                body: "{}",
+            });
+
+            assert.equal(action.status, 400);
+            assert.deepEqual(await action.json(), { error: "URI malformed" });
+
+            const toggle = await fetch(`${server.base}/api/extensions/bad%ZZ`, {
+                method: "PUT",
+                body: JSON.stringify({ enabled: false }),
+            });
+
+            assert.equal(toggle.status, 400);
+            assert.deepEqual(await toggle.json(), { error: "URI malformed" });
+        } finally {
+            await server.close();
+        }
     });
     void it("rejects foreign origins without rejecting an HTTPS reverse proxy", () => {
         assert.equal(
