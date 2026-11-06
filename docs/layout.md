@@ -159,8 +159,9 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.
     - A person's message: a full-width `panel` block with a `stripe` of `accent` down its left edge,
       not a right-aligned bubble. Its recorded time appears at the bottom right as `HH:mm` in the
-      browser's local time zone, beside the content rather than on a separate row, with the full
-      local date and time on hover. Older messages without a recorded time show no clock. What it carries is a chip:
+      browser's local time zone, beside the content rather than on a separate row. The shared shadcn
+      tooltip shows the local date and time as `DD.MM.YYYY, HH:mm:ss` on hover or keyboard focus.
+      Older messages without a recorded time show no clock. What it carries is a chip:
       a 28px picture, a name and a weight, and a click opens the picture in the viewer. Not full width
       in the message: a photo that size pushes the answer it is about off the screen, and the viewer
       is one click away. A tool's pictures under an activity line are chips too.

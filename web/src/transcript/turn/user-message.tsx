@@ -2,6 +2,8 @@ import { File, Lightbulb } from "lucide-react";
 import { memo, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import { splitQuote } from "@/lib/quote.ts";
 import type { Turn } from "@/lib/turns.ts";
 import { Attachments } from "@/ui/attachments.tsx";
@@ -100,13 +102,13 @@ export const UserMessage = memo(function UserMessage({
                 <UserText text={user.text} />
             </div>
             {user.at === undefined ? null : (
-                <time
-                    className="text-meta text-muted shrink-0 tabular-nums"
-                    dateTime={new Date(user.at).toISOString()}
-                    title={new Date(user.at).toLocaleString()}
-                >
-                    {CLOCK.format(user.at)}
-                </time>
+                <Hint label={new Date(user.at).toLocaleString("uk-UA")}>
+                    <Button variant="ghost" size="sm" className="shrink-0 px-0 py-0 tabular-nums">
+                        <time dateTime={new Date(user.at).toISOString()}>
+                            {CLOCK.format(user.at)}
+                        </time>
+                    </Button>
+                </Hint>
             )}
         </div>
     );

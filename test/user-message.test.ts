@@ -5,8 +5,10 @@ import { parseHTML } from "linkedom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { ClientEntry } from "../shared/protocol.ts";
-import { findChromium, withBrowserApp } from "./fixtures/browser.ts";
+import { answer, writeEvent } from "../server/http.ts";
+import type { ClientEntry, ServerEvent } from "../shared/protocol.ts";
+import { defaultAnswer } from "./fixtures/api-defaults.ts";
+import { field, findChromium, withBrowserApp } from "./fixtures/browser.ts";
 import { startVite } from "./fixtures/vite.ts";
 
 async function renderMessage(user: Extract<ClientEntry, { kind: "user" }>): Promise<string> {
@@ -17,7 +19,11 @@ async function renderMessage(user: Extract<ClientEntry, { kind: "user" }>): Prom
     try {
         const { UserMessage } = await vite.ssrLoadModule("/src/transcript/turn/user-message.tsx");
 
-        return renderToStaticMarkup(createElement(UserMessage, { user }));
+        const { TooltipProvider } = await vite.ssrLoadModule("/src/components/ui/tooltip.tsx");
+
+        return renderToStaticMarkup(
+            createElement(TooltipProvider, null, createElement(UserMessage, { user })),
+        );
     } finally {
         await stop();
     }
@@ -41,7 +47,8 @@ void describe("a person's message time", () => {
                 assert.ok(time, html);
                 assert.equal(time.textContent, expected);
                 assert.equal(time.getAttribute("dateTime"), "2026-01-15T14:05:00.000Z");
-                assert.equal(time.getAttribute("title"), new Date(at).toLocaleString());
+                assert.equal(time.getAttribute("title"), null);
+                assert.equal(time.parentElement?.tagName, "BUTTON");
             } finally {
                 if (previous === undefined) {
                     delete process.env["TZ"];
@@ -52,7 +59,7 @@ void describe("a person's message time", () => {
         });
     }
 
-    void it("keeps the clock beside the content without adding a row on desktop or phone", async (t) => {
+    void it("keeps a compact clock with the full local date and time on hover or keyboard focus", async (t) => {
         const found = await findChromium(t);
 
         if (found === undefined) {
@@ -61,19 +68,45 @@ void describe("a person's message time", () => {
 
         const user = { id: 1, kind: "user", text: "hello" } as const;
         const at = Date.parse("2026-01-15T14:05:00.000Z");
-        const short = await renderMessage({ ...user, at });
-        const plain = await renderMessage(user);
-        const long = await renderMessage({ ...user, at, text: "a longer message ".repeat(30) });
-        const html = `<!doctype html><html><head>
-            <link rel="stylesheet" href="/src/styles/styles.css?direct">
-            </head><body><main class="flex flex-col gap-3 p-3">${short}${plain}${long}</main></body></html>`;
+        const hello: ServerEvent = {
+            type: "hello",
+            session: 1,
+            entries: [
+                { ...user, at },
+                { ...user, id: 2, text: "hello without time" },
+                { ...user, id: 3, at, text: "a longer message ".repeat(30) },
+            ],
+            live: { busy: false, usage: { input: 0, output: 0, cost: 0 } },
+            model: "faux/m1",
+            more: false,
+        };
 
         await withBrowserApp(
             found,
-            (_request, response) => {
-                response.writeHead(200, { "content-type": "text/html" }).end(html);
+            (_request, response, url) => {
+                if (url.pathname === "/api/health") {
+                    answer(response, 200, {
+                        cwd: "/tmp",
+                        home: "/tmp",
+                        model: "faux/m1",
+                        session: 1,
+                    });
+                } else if (url.pathname.endsWith("/events")) {
+                    response.writeHead(200, { "content-type": "text/event-stream" });
+                    writeEvent(
+                        response,
+                        `data: ${JSON.stringify(
+                            url.pathname === "/api/events"
+                                ? hello
+                                : { type: "sessions", sessions: [] },
+                        )}\n\n`,
+                    );
+                } else {
+                    answer(response, 200, defaultAnswer(url.pathname));
+                }
             },
             async (page) => {
+                await page.send("Emulation.setTimezoneOverride", { timezoneId: "Europe/Kyiv" });
                 for (const width of [1280, 390]) {
                     await page.send("Emulation.setDeviceMetricsOverride", {
                         width,
@@ -81,20 +114,20 @@ void describe("a person's message time", () => {
                         deviceScaleFactor: 1,
                         mobile: false,
                     });
-                    await page.open("/api/message");
+                    await page.open("/?session=1");
                     assert.equal(
-                        await page.until(
-                            `document.querySelector("main") !== null &&
-                            getComputedStyle(document.querySelector("main")).display === "flex"`,
-                            10_000,
-                        ),
+                        await page.until(`document.querySelectorAll("time").length === 2`, 30_000),
                         true,
                         "the component and its real stylesheet loaded",
                     );
                     await page.read("document.fonts.ready.then(() => true)");
                     assert.equal(
                         await page.seen(`(() => {
-                            const [short, plain, long] = document.querySelector("main").children;
+                            const [shortTime, longTime] = document.querySelectorAll("time");
+                            const short = shortTime.parentElement.parentElement;
+                            const long = longTime.parentElement.parentElement;
+                            const plain = [...document.querySelectorAll("p")]
+                                .find((p) => p.textContent === "hello without time").parentElement.parentElement;
                             const text = short.querySelector("p").getBoundingClientRect();
                             const clock = short.querySelector("time").getBoundingClientRect();
                             const longText = long.querySelector("p").getBoundingClientRect();
@@ -112,6 +145,43 @@ void describe("a person's message time", () => {
                         `the clock adds no row or overflow at ${String(width)}px`,
                     );
                 }
+
+                const tooltipShown = `document.querySelector('[role="tooltip"]')?.textContent ===
+                    "15.01.2026, 16:05:00"`;
+                const position = await page.read(`(() => {
+                    const rect = document.querySelector("time").getBoundingClientRect();
+                    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+                })()`);
+                await page.send("Input.dispatchMouseEvent", {
+                    type: "mouseMoved",
+                    x: field(position, "x"),
+                    y: field(position, "y"),
+                });
+                assert.equal(
+                    await page.until(tooltipShown, 5000),
+                    true,
+                    "hover shows the full local date and time",
+                );
+                await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 100, y: 800 });
+                // Move beyond Radix's pointer grace area after the initial exit point.
+                await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 200, y: 850 });
+                assert.equal(
+                    await page.until(`!(${tooltipShown})`, 5000),
+                    true,
+                    "leaving the clock closes the tooltip before the keyboard check",
+                );
+                await page.send("Input.dispatchKeyEvent", {
+                    type: "keyDown",
+                    key: "Tab",
+                    code: "Tab",
+                    windowsVirtualKeyCode: 9,
+                });
+                await page.read('document.querySelector("time").parentElement.focus()');
+                assert.equal(
+                    await page.until(tooltipShown, 5000),
+                    true,
+                    "keyboard focus shows the full local date and time",
+                );
             },
         );
     });
