@@ -26,8 +26,8 @@ import { Item, ItemTitle } from "@/components/ui/item";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
 import type { FolderSessionMenuItem } from "@/extensions.ts";
-import { segments } from "@/lib/fuzzy.ts";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
+import { MatchText } from "@/ui/match-text.tsx";
 
 import type { SessionSummary } from "../../../../shared/protocol.ts";
 import { SessionMarks, StateMark } from "../session-parts.tsx";
@@ -139,18 +139,10 @@ export const SessionRow = memo(function SessionRow({
                             >
                                 <StateMark session={session} working={working} />
                                 <ItemTitle className={`min-w-0 flex-1 ${FADE}`}>
-                                    {segments(session.title ?? "New session", ranges).map(
-                                        (part, index) => (
-                                            <span
-                                                key={`${String(index)}-${part.text}`}
-                                                className={
-                                                    part.hit ? "bg-warn/30 text-ink" : undefined
-                                                }
-                                            >
-                                                {part.text}
-                                            </span>
-                                        ),
-                                    )}
+                                    <MatchText
+                                        text={session.title ?? "New session"}
+                                        ranges={ranges}
+                                    />
                                 </ItemTitle>
                                 <SessionMarks session={session} />
                                 <span

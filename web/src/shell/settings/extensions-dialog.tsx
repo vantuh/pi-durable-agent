@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, Puzzle } from "lucide-react";
+import { ArrowLeft, ChevronRight, Puzzle, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
@@ -11,13 +11,17 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { Empty } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
 import { refreshExtensions } from "@/extensions.ts";
 import { type ExtensionInfo, listExtensions, setExtensionEnabled } from "@/lib/api.ts";
+import { fuzzyMatch } from "@/lib/fuzzy.ts";
 import { Loading } from "@/ui/loading.tsx";
+import { MatchText } from "@/ui/match-text.tsx";
 
 import { ExtensionDetails, hasExtensionDetails } from "./extension-details.tsx";
 
@@ -41,8 +45,44 @@ export function ExtensionsButton() {
 
 type Failure = { name: string; message: string };
 
+const TITLE_WEIGHT = 100;
+
+/** A row the search kept, with the characters that matched in its title and its description. */
+type Found = {
+    row: ExtensionInfo;
+    score: number;
+    title: [number, number][];
+    description: [number, number][];
+};
+
+/** Title matches count above description ones; an empty query keeps every row in the server's order. */
+function search(rows: ExtensionInfo[], query: string): Found[] {
+    return rows
+        .flatMap((row): Found[] => {
+            const title = fuzzyMatch(row.title, query);
+            const description = row.description === "" ? null : fuzzyMatch(row.description, query);
+
+            if (title === null && description === null) {
+                return [];
+            }
+
+            return [
+                {
+                    row,
+                    score:
+                        (title === null ? 0 : title.score + TITLE_WEIGHT) +
+                        (description?.score ?? 0),
+                    title: title?.ranges ?? [],
+                    description: description?.ranges ?? [],
+                },
+            ];
+        })
+        .toSorted((left, right) => right.score - left.score);
+}
+
 function ExtensionList() {
     const [selected, setSelected] = useState<string | undefined>(undefined);
+    const [query, setQuery] = useState("");
     const [rows, setRows] = useState<ExtensionInfo[] | undefined>(undefined);
     const [loadError, setLoadError] = useState<string | undefined>(undefined);
     const [failure, setFailure] = useState<Failure | undefined>(undefined);
@@ -158,12 +198,30 @@ function ExtensionList() {
         );
     }
 
+    const found = search(rows, query);
+
     return (
         <>
             {header}
+            <div className="relative px-3 py-2">
+                <Search className="text-faint pointer-events-none absolute top-1/2 left-5 size-3.5 -translate-y-1/2" />
+                <Input
+                    type="search"
+                    value={query}
+                    aria-label="Search extensions"
+                    placeholder="Search extensions"
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                    }}
+                    className="border-edge-soft text-ui pr-7 pl-7 [&::-webkit-search-cancel-button]:hidden"
+                />
+            </div>
             <ScrollArea key="list" className="animate-drop-in min-h-0 flex-1">
+                {found.length === 0 ? (
+                    <Empty className="px-3 py-3">No extensions match</Empty>
+                ) : null}
                 <ul className="divide-edge-soft flex flex-col divide-y">
-                    {rows.map((row) => {
+                    {found.map(({ row, title, description }) => {
                         const problem = failure?.name === row.name ? failure.message : row.error;
 
                         return (
@@ -179,12 +237,12 @@ function ExtensionList() {
                                                 className="text-ink justify-start px-0 py-0 text-left after:absolute after:inset-0"
                                                 onClick={() => setSelected(row.name)}
                                             >
-                                                {row.title}
+                                                <MatchText text={row.title} ranges={title} />
                                                 <ChevronRight className="size-3 shrink-0" />
                                             </Button>
                                         ) : (
                                             <span className="text-interface text-ink">
-                                                {row.title}
+                                                <MatchText text={row.title} ranges={title} />
                                             </span>
                                         )}
                                         {row.description === "" ? null : (
@@ -192,7 +250,10 @@ function ExtensionList() {
                                                 id={`${row.name}-description`}
                                                 className="text-meta text-muted"
                                             >
-                                                {row.description}
+                                                <MatchText
+                                                    text={row.description}
+                                                    ranges={description}
+                                                />
                                             </span>
                                         )}
                                         {problem === undefined ? null : (
