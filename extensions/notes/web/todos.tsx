@@ -20,6 +20,7 @@ import { Alert } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast.ts";
 import { Toolbar } from "@/ui/pane.tsx";
 
@@ -126,44 +127,46 @@ export function Todos({ id, tabs }: { id: number; tabs: ReactNode }) {
 
             {error === null ? null : <Alert className="text-interface px-3 py-1">{error}</Alert>}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
-                {items?.length === 0 ? (
-                    <Empty className="text-interface px-2 py-2">Nothing to do.</Empty>
-                ) : null}
+            <ScrollArea type="always" className="min-h-0 flex-1">
+                <div className="px-1 pb-2">
+                    {items?.length === 0 ? (
+                        <Empty className="text-interface px-2 py-2">Nothing to do.</Empty>
+                    ) : null}
 
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={onDragEnd}
-                >
-                    <SortableContext
-                        items={open.map((todo) => todo.id)}
-                        strategy={verticalListSortingStrategy}
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={onDragEnd}
                     >
-                        <ul>
-                            {open.map((todo) => (
-                                <SortableRow key={todo.id} {...row(todo)} />
-                            ))}
-                        </ul>
-                    </SortableContext>
-                </DndContext>
-
-                {done.length === 0 ? null : (
-                    <Collapsible className="mt-2">
-                        <CollapsibleTrigger className="group text-meta text-faint hover:text-muted flex items-center gap-1 px-2 py-1">
-                            <ChevronRight className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
-                            Done ({done.length})
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
+                        <SortableContext
+                            items={open.map((todo) => todo.id)}
+                            strategy={verticalListSortingStrategy}
+                        >
                             <ul>
-                                {done.map((todo) => (
-                                    <Row key={todo.id} {...row(todo)} />
+                                {open.map((todo) => (
+                                    <SortableRow key={todo.id} {...row(todo)} />
                                 ))}
                             </ul>
-                        </CollapsibleContent>
-                    </Collapsible>
-                )}
-            </div>
+                        </SortableContext>
+                    </DndContext>
+
+                    {done.length === 0 ? null : (
+                        <Collapsible className="mt-2">
+                            <CollapsibleTrigger className="group text-meta text-faint hover:text-muted flex items-center gap-1 px-2 py-1">
+                                <ChevronRight className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
+                                Done ({done.length})
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <ul>
+                                    {done.map((todo) => (
+                                        <Row key={todo.id} {...row(todo)} />
+                                    ))}
+                                </ul>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    )}
+                </div>
+            </ScrollArea>
         </div>
     );
 }

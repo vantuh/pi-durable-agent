@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Hint } from "@/components/ui/tooltip";
@@ -92,85 +93,90 @@ function Panel({
             side="top"
             aria-label="Keep warm"
             size="panel"
-            className="text-meta max-h-[70vh] overflow-y-auto font-mono"
+            className="text-meta p-0 font-mono"
         >
-            <div className="flex items-center justify-between gap-3">
-                <span className="text-ink">Keep this context warm</span>
-                <Switch
-                    checked={warm.on}
-                    onCheckedChange={onToggle}
-                    aria-label="Keep this context warm"
-                />
-            </div>
-            <Separator className="mt-2" />
-            <div className="text-faint space-y-1 pt-2">
-                <div className="text-muted">{cacheLine(warm, now)}</div>
-                <div>{nextLine(warm, now)}</div>
-                {warm.last === undefined ? null : (
-                    <div className={failed ? "text-danger" : undefined}>
-                        Last ping {ago(warm.last.at, now)}
-                        {failed
-                            ? `: ${warm.last.error ?? ""}`
-                            : ` · read ${tokens(warm.last.read ?? 0)}, wrote ${tokens(warm.last.write ?? 0)}`}
+            {/* The cap sits on the viewport: a popover capped by max-height gives the area no height to fill. */}
+            <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>
+                <div className="p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-ink">Keep this context warm</span>
+                        <Switch
+                            checked={warm.on}
+                            onCheckedChange={onToggle}
+                            aria-label="Keep this context warm"
+                        />
                     </div>
-                )}
-                <div className="pt-1">
-                    One small request 55 min after the last, until you have been away 8 h.
-                </div>
-            </div>
-            {rows.length === 0 ? null : (
-                <>
                     <Separator className="mt-2" />
-                    <div className="pt-2">
-                        <div className="text-faint mb-1">Warming</div>
-                        {rows.map((row) => (
-                            <div key={row.id} className="flex items-center gap-2">
-                                {row.id === current ? (
-                                    <span
-                                        aria-current="true"
-                                        className="text-ink min-w-0 flex-1 truncate"
-                                    >
-                                        {row.label}
-                                    </span>
-                                ) : (
-                                    <a
-                                        href={sessionHref(row.id)}
-                                        onClick={(event) => {
-                                            // A modified click is the browser's: a new tab, and the popover stays.
-                                            if (isPlainClick(event)) {
-                                                event.preventDefault();
-                                                onOpen(row.id);
-                                                onClose();
-                                            }
-                                        }}
-                                        className="text-muted hover:text-ink focus-visible:ring-accent min-w-0 flex-1 truncate outline-none hover:underline focus-visible:ring-2"
-                                    >
-                                        {row.label}
-                                    </a>
-                                )}
-                                <span className="text-faint shrink-0 text-right tabular-nums">
-                                    {clock(row.nextAt)}
-                                </span>
-                                <Hint
-                                    label={`Stop warming ${row.label} until you write in it again`}
-                                >
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label={`Stop warming ${row.label}`}
-                                        onClick={() => {
-                                            onStop(row.id, row.label);
-                                        }}
-                                        className="text-faint shrink-0"
-                                    >
-                                        <X className="size-3" />
-                                    </Button>
-                                </Hint>
+                    <div className="text-faint space-y-1 pt-2">
+                        <div className="text-muted">{cacheLine(warm, now)}</div>
+                        <div>{nextLine(warm, now)}</div>
+                        {warm.last === undefined ? null : (
+                            <div className={failed ? "text-danger" : undefined}>
+                                Last ping {ago(warm.last.at, now)}
+                                {failed
+                                    ? `: ${warm.last.error ?? ""}`
+                                    : ` · read ${tokens(warm.last.read ?? 0)}, wrote ${tokens(warm.last.write ?? 0)}`}
                             </div>
-                        ))}
+                        )}
+                        <div className="pt-1">
+                            One small request 55 min after the last, until you have been away 8 h.
+                        </div>
                     </div>
-                </>
-            )}
+                    {rows.length === 0 ? null : (
+                        <>
+                            <Separator className="mt-2" />
+                            <div className="pt-2">
+                                <div className="text-faint mb-1">Warming</div>
+                                {rows.map((row) => (
+                                    <div key={row.id} className="flex items-center gap-2">
+                                        {row.id === current ? (
+                                            <span
+                                                aria-current="true"
+                                                className="text-ink min-w-0 flex-1 truncate"
+                                            >
+                                                {row.label}
+                                            </span>
+                                        ) : (
+                                            <a
+                                                href={sessionHref(row.id)}
+                                                onClick={(event) => {
+                                                    // A modified click is the browser's: a new tab, and the popover stays.
+                                                    if (isPlainClick(event)) {
+                                                        event.preventDefault();
+                                                        onOpen(row.id);
+                                                        onClose();
+                                                    }
+                                                }}
+                                                className="text-muted hover:text-ink focus-visible:ring-accent min-w-0 flex-1 truncate outline-none hover:underline focus-visible:ring-2"
+                                            >
+                                                {row.label}
+                                            </a>
+                                        )}
+                                        <span className="text-faint shrink-0 text-right tabular-nums">
+                                            {clock(row.nextAt)}
+                                        </span>
+                                        <Hint
+                                            label={`Stop warming ${row.label} until you write in it again`}
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                aria-label={`Stop warming ${row.label}`}
+                                                onClick={() => {
+                                                    onStop(row.id, row.label);
+                                                }}
+                                                className="text-faint shrink-0"
+                                            >
+                                                <X className="size-3" />
+                                            </Button>
+                                        </Hint>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </ScrollArea>
         </PopoverContent>
     );
 }

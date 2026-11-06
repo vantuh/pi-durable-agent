@@ -1,4 +1,5 @@
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import type { Candidate } from "./candidate.ts";
 
@@ -22,33 +23,35 @@ export function CompletionList({
             onMouseDown={(event) => {
                 event.preventDefault();
             }}
-            className="border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border"
+            className="border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 overflow-hidden border"
         >
-            <CommandList label="Completions" className="min-h-0 overflow-y-auto p-1">
-                {matches.map((candidate, index) => (
-                    <CommandItem
-                        key={candidate.insert}
-                        value={candidate.insert}
-                        // Arrow keys move the mark past the visible part of the list: follow it.
-                        ref={
-                            index === marked
-                                ? (element) => {
-                                      element?.scrollIntoView({ block: "nearest" });
-                                  }
-                                : undefined
-                        }
-                        onSelect={() => {
-                            onPick(candidate);
-                        }}
-                        className="text-meta hover:bg-raised items-baseline px-3 py-2"
-                    >
-                        <span className="text-ink shrink-0 font-mono">{candidate.label}</span>
-                        <span className="text-faint text-meta min-w-0 truncate">
-                            {candidate.description}
-                        </span>
-                    </CommandItem>
-                ))}
-            </CommandList>
+            <ScrollArea viewportProps={{ className: "max-h-64" }}>
+                <CommandList label="Completions" className="p-1">
+                    {matches.map((candidate, index) => (
+                        <CommandItem
+                            key={candidate.insert}
+                            value={candidate.insert}
+                            // Arrow keys move the mark past the visible part of the list: follow it.
+                            ref={
+                                index === marked
+                                    ? (element) => {
+                                          element?.scrollIntoView({ block: "nearest" });
+                                      }
+                                    : undefined
+                            }
+                            onSelect={() => {
+                                onPick(candidate);
+                            }}
+                            className="text-meta hover:bg-raised items-baseline px-3 py-2"
+                        >
+                            <span className="text-ink shrink-0 font-mono">{candidate.label}</span>
+                            <span className="text-faint text-meta min-w-0 truncate">
+                                {candidate.description}
+                            </span>
+                        </CommandItem>
+                    ))}
+                </CommandList>
+            </ScrollArea>
         </Command>
     );
 }

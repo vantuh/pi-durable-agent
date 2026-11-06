@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Toolbar } from "@/ui/pane.tsx";
 
 import type { ReviewState } from "../refs.ts";
@@ -77,36 +78,38 @@ export function ReviewView({
             ) : state?.state === "running" && state.url !== undefined ? (
                 <ReviewFrame key={state.id} url={state.url} />
             ) : state?.state === "done" ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4">
-                    <h3 className="text-ink font-medium">
-                        {state.decision === "dismissed"
-                            ? "Review closed"
-                            : state.decision === "approved"
-                              ? "Approved"
-                              : "Feedback received"}
-                    </h3>
-                    <p className="text-muted text-interface">
-                        {state.decision === "dismissed"
-                            ? "No feedback was sent."
-                            : state.message?.trim()
-                              ? "Feedback has been added to this session’s composer. Check it before sending it to the agent."
-                              : "Review completed without comments."}
-                    </p>
-                    {state.message ? (
-                        <pre className="text-meta text-muted bg-panel overflow-auto p-3 whitespace-pre-wrap">
-                            {state.message}
-                        </pre>
-                    ) : null}
-                    <Button
-                        variant="ghost"
-                        className={`${pageButton} self-start`}
-                        onClick={() => {
-                            onClose();
-                        }}
-                    >
-                        Return to conversation
-                    </Button>
-                </div>
+                <ScrollArea type="always" className="min-h-0 flex-1">
+                    <div className="flex flex-col gap-3 p-4">
+                        <h3 className="text-ink font-medium">
+                            {state.decision === "dismissed"
+                                ? "Review closed"
+                                : state.decision === "approved"
+                                  ? "Approved"
+                                  : "Feedback received"}
+                        </h3>
+                        <p className="text-muted text-interface">
+                            {state.decision === "dismissed"
+                                ? "No feedback was sent."
+                                : state.message?.trim()
+                                  ? "Feedback has been added to this session’s composer. Check it before sending it to the agent."
+                                  : "Review completed without comments."}
+                        </p>
+                        {state.message ? (
+                            <pre className="text-meta text-muted bg-panel overflow-auto p-3 whitespace-pre-wrap">
+                                {state.message}
+                            </pre>
+                        ) : null}
+                        <Button
+                            variant="ghost"
+                            className={`${pageButton} self-start`}
+                            onClick={() => {
+                                onClose();
+                            }}
+                        >
+                            Return to conversation
+                        </Button>
+                    </div>
+                </ScrollArea>
             ) : state?.state === "failed" ? (
                 <Alert className="text-interface p-4">{state.error ?? "Review failed."}</Alert>
             ) : state?.state === "cancelled" ? (

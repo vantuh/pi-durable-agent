@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Empty } from "@/components/ui/empty.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
@@ -149,37 +150,53 @@ function Panel({
             side="top"
             aria-label="Provider usage"
             size="panel"
-            className="text-meta max-h-[70vh] w-72 overflow-y-auto"
+            className="text-meta w-72 p-0"
         >
-            <div className="mb-2 flex items-center justify-between">
-                <span className="text-ink font-medium">Provider usage</span>
-                <Hint label="Refresh">
-                    <Button variant="ghost" size="icon-sm" aria-label="Refresh" onClick={onRefresh}>
-                        {result.loading ? (
-                            <LoaderCircle className="size-3.5 animate-spin" />
-                        ) : (
-                            <RefreshCw className="size-3.5" />
-                        )}
-                    </Button>
-                </Hint>
-            </div>
-            {result.failure === null ? null : <Alert className="mb-2">{result.failure}</Alert>}
-            {result.data?.providers.length === 0 ? (
-                <Empty>No signed-in provider reports limits.</Empty>
-            ) : null}
-            {result.data?.providers.map((provider) => (
-                <section
-                    key={provider.id}
-                    className={`${PANE} mb-3 p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
-                >
-                    <h4 className="text-ink mb-1.5 font-medium">{provider.name}</h4>
-                    {provider.error === undefined ? null : <Alert>{provider.error}</Alert>}
-                    {provider.buckets.map((bucket) => (
-                        <Row key={bucket.label} bucket={bucket} now={result.data?.at ?? 0} />
+            {/* The cap sits on the viewport: a popover capped by max-height gives the area no height to fill. */}
+            <ScrollArea viewportProps={{ className: "max-h-[70vh]" }}>
+                <div className="p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                        <span className="text-ink font-medium">Provider usage</span>
+                        <Hint label="Refresh">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Refresh"
+                                onClick={onRefresh}
+                            >
+                                {result.loading ? (
+                                    <LoaderCircle className="size-3.5 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="size-3.5" />
+                                )}
+                            </Button>
+                        </Hint>
+                    </div>
+                    {result.failure === null ? null : (
+                        <Alert className="mb-2">{result.failure}</Alert>
+                    )}
+                    {result.data?.providers.length === 0 ? (
+                        <Empty>No signed-in provider reports limits.</Empty>
+                    ) : null}
+                    {result.data?.providers.map((provider) => (
+                        <section
+                            key={provider.id}
+                            className={`${PANE} mb-3 p-2 last:mb-0 ${provider.id === reader ? "bg-raised" : ""}`}
+                        >
+                            <h4 className="text-ink mb-1.5 font-medium">{provider.name}</h4>
+                            {provider.error === undefined ? null : <Alert>{provider.error}</Alert>}
+                            {provider.buckets.map((bucket) => (
+                                <Row
+                                    key={bucket.label}
+                                    bucket={bucket}
+                                    now={result.data?.at ?? 0}
+                                />
+                            ))}
+                        </section>
                     ))}
-                </section>
-            ))}
-            {result.data === null && result.failure === null ? <Loading /> : null}
+                    {result.data === null && result.failure === null ? <Loading /> : null}
+                </div>
+            </ScrollArea>
         </PopoverContent>
     );
 }
