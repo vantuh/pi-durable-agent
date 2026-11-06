@@ -1,7 +1,8 @@
 # Layout
 
 Flush panels, one 1px rule between them, and one flat status bar underneath. Brutalist on purpose:
-no gaps, no rounded corners, no shadows on the shell.
+no gaps, no rounded corners (there is no `--radius-*` name), no shadows on the shell. A shadow belongs
+to what floats over it: menus, popovers, tooltips, toasts, dialogs (`shadow-float`).
 
 ```text
 ┌────────────────┬───────────────────────────────────────┬────────────┐
@@ -34,13 +35,14 @@ animation stay with the caller. The transcript's header and a page's are the oth
 that is not archived, under `Working`, `Not viewed`, and `Recent` (the newest 20). A row shows its
 mark, title, folder and time. `?session=N` is a session; moving between them adds a history step,
 so Back returns home. There is no router: two places do not need one, and these are the links
-pushes already send. See [sessions-live.md](sessions-live.md).
+pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
 
 ## Sidebar
 
-- **Top**: the app icon at the left edge, which goes home, `Sessions`, the collapse button at the
-  right edge, and a pill with the folder the conversation
-  works in; on the home page, the folder of the last session opened. The pill opens a list of the folders
+- **Top**, two rows. Row 1: the app icon at the left edge, which goes home, `Sessions`, new session,
+  search and the collapse button. Row 2: a pill with the folder the conversation
+  works in (on the home page, the folder of the last session opened), the extensions' list filters
+  (`sessionFilter`), and the archive switch. The pill opens a list of the folders
   that sessions use, with the session count of each; choosing one opens its latest session. A folder
   that is a git worktree is listed under the folder it belongs to, and choosing that folder shows
   its worktrees' sessions too. The
@@ -97,14 +99,16 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   `localStorage` (`sidebarWidth`); a double click on the edge puts it back to 264px.
 - **Under the list**: extensions may add an area with its own height (`sidebarBottom`, see
   [extensions.md](extensions.md#under-the-session-list)), with a drag handle between it and the list.
-- The search field is not drawn yet.
+- **Search** (the magnifier in row 1, or `session.search`) is a fuzzy search over the titles of the
+  selected folder's sessions; Escape closes it and gives the focus back where it was.
 - Hidden below `lg`, where the conversation takes the screen. There, the panel icon in the
   conversation header opens the list as a full-screen sheet; choosing a session closes it.
 
 ## Conversation
 
 - **Header**: the session title, the `title` slot in a small line under it (the branch badge of
-  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`). The folder is the sidebar's. One "Extensions" button
+  `extensions/git-branch`, from `sm`, and the worktree badge of `extensions/git-worktree`), the
+  extensions' `header` items. The folder is the sidebar's. One "Extensions" button
   at the right of this row toggles the right sidebar: its top row is a tab strip, one tab per extension
   panel and then one per page. A panel tab shows the panel there; a page tab opens the page in place
   of the conversation, under the same strip, and the sidebar closes.
@@ -124,7 +128,9 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   its active tab on arrival, the page's own layer takes focus when it shows a detail, and closing
   returns focus to the composer. The page's body
   does not scroll by itself: the page owns its one scroll.
-- **Transcript**: the one scroll container, centred at `max-w-[46rem]`.
+- **Transcript**: the one scroll container, centred at `--chat-width`: the Width setting in the
+  Appearance dialog, `comfortable` (46rem, the default), `wide` (72rem) or `full` (`web/src/lib/width.ts`).
+  The composer follows the same width, so their edges line up.
     - **What is loaded**: the event stream carries a window of the newest 50 to 100 entries; the
       entries before it are asked for as the reader scrolls up. Within 240px of the
       top, `web/src/lib/conversation.ts` calls `/api/history?before=<oldest id>`
@@ -151,7 +157,8 @@ pushes already send. See [sessions-live.md](sessions-live.md).
       read as "live" or "broken", and a compaction is neither. The messages above it stay on screen:
       they are the conversation, they are just no longer what the model is sent. The mark is
       `pi.compaction`'s entry, projected as `kind: "compaction"` and placed by `turnsOf`.
-    - A person's message: a `raised` card on the right, at most 80% wide. What it carries is a chip:
+    - A person's message: a full-width `panel` block with a `stripe` of `accent` down its left edge,
+      not a right-aligned bubble. What it carries is a chip:
       a 28px picture, a name and a weight, and a click opens the picture in the viewer. Not full width
       in the message: a photo that size pushes the answer it is about off the screen, and the viewer
       is one click away. A tool's pictures under an activity line are chips too.
@@ -161,7 +168,7 @@ pushes already send. See [sessions-live.md](sessions-live.md).
       the picture does not fill is a button that closes the viewer — on a phone that is most of the
       screen. Arrows and `ArrowLeft`/`ArrowRight` step between the pictures of one message without
       wrapping, and a new picture starts whole. The zoom is `react-zoom-pan-pinch`;
-      `web/src/ui/attachments.tsx` owns the viewer.
+      `web/src/ui/lightbox.tsx` is the viewer, opened from `web/src/ui/attachments.tsx`.
     - **Quoting an answer**: words selected inside an answer bring a `Quote` button past their
       right corner, off the end of the line; a tap takes them to the composer, where they wait as a
       `panel` card with a quote mark in its corner, above what is being written. A quote is the
@@ -210,10 +217,12 @@ and a click on the scrim, `Esc` or the close button closes it, and focus returns
 stays raised while the sheet is open. The sheet is 360px wide from `sm` up, over the status bar too;
 below `sm` it fills the screen. It is a `Sheet`
 (`components/ui/sheet.tsx`, over the dialog primitive) that is unmounted when closed, so its sections
-read afresh at each open. Under its sections is a footer row with two icon
-buttons: a puzzle ("Extensions") that opens a modal to turn extensions on and off
-([extensions.md](extensions.md)), and a palette ("Appearance: theme") that opens a modal with one
-card per flavour ([theme.md](theme.md)). Both modals are full screen below `sm` and a centred card
+read afresh at each open. The first section shows the session's model and folder; the extensions' settings
+sections follow. Under them is a footer row of icon buttons: a puzzle ("Extensions") that opens a modal to
+turn extensions on and off ([extensions.md](extensions.md)); a palette ("Appearance: theme") that opens a
+modal with one card per flavour ([theme.md](theme.md)), the transcript width, and the diff layout;
+Restart, which asks `POST /api/restart`; and Rebuild, which asks `POST /api/build`
+([running.md](running.md)). Both modals are full screen below `sm` and a centred card
 from `sm` up; their content scrolls.
 
 ## Status bar
@@ -229,11 +238,13 @@ under the composer, and its branch beside its title.
 | extension fields | `status` export of a folder  | only with that extension on |
 
 The state is a button: after it, how many other sessions work (`· 2 working`) and finished unseen
-(`· 1 new`), counted from the session list stream. A click opens a menu above it: the open session
+(`· 1 new`), counted from the session list stream ([sessions.md](sessions.md)). A click opens a menu above it: the open session
 first, on `raised`, then the working and the unseen ones (`sunken` under the pointer), each a link
 that opens it, then `All sessions` for the home page.
 
-The bar has three slots (`start`, `center`, `end`) that extensions fill.
+The bar has three slots (`start`, `center`, `end`) that extensions fill. Below `sm` the `end` items are
+hidden. On a coarse pointer (a finger) the bar is taller and a bar control gains reach around its square
+(`REACH` in `components/ui/button.tsx`), except a row's own menu button, which sits inside a link.
 
 ## Under the composer
 
@@ -242,6 +253,26 @@ context meter (`extensions/context-meter`), then the fields (`cache` from `exten
 `tok/s` from `extensions/tokens-per-second`), then `↑in ↓out · $cost` from the `pi.usage` document.
 It never grows a second line: what does not fit wraps out of sight whole, so on a phone the last ones
 go first.
+
+## Notifications
+
+The app root mounts one `Toaster` (`web/src/components/ui/sonner.tsx`, over Sonner); any file imports `toast`
+from `web/src/lib/toast.ts`. It is core UI, not an extension: a notice must survive closing a sidebar or
+changing session. Sonner owns animation, stacking, announcements, timeout pausing and reduced motion; its
+own skin is off, and the wrapper uses only theme roles, light flavours included.
+
+- **Bottom centre**, above the mobile safe area: plain notices, closed after three seconds or by hand. Undo on
+  an archive lasts four. Failed writes never show success.
+- **Top right**, below the panel headers, six seconds: a session's own notice, with its title and a line
+  about it. A click anywhere on it opens that session. These arise when another session's run ends
+  (`extensions/finished`) or when an extension has something to say about a session (`host.notify` with
+  `session`, such as a bash command killed by its timeout). The session on screen gets none: its transcript
+  already says what happened.
+- Session notices ride the session list stream, which every tab holds whether or not it shows a session, so
+  a tab on the home page hears about a session it is not looking at ([sessions.md](sessions.md#live-state)).
+  A notice about the app itself, such as an extension that reloaded, keeps to the conversation streams and
+  the bottom centre. `web/src/lib/notice.ts` decides which, `web/src/shell/session-alert.tsx` draws; each
+  toast has an id, so dismissing one never dismisses the ones beside it.
 
 ## Stacking
 

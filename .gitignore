@@ -6,3 +6,6 @@ dist/
 .env.*
 data/
 .certs/
+
+# Plans are local working notes, never committed.
+plans/

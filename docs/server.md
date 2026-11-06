@@ -26,6 +26,8 @@ POST /api/build         { ok, log } rebuilds `dist/` with the checkout's Vite; n
   `event-stream.ts` (a frame written to many responses, the heartbeat).
 - `server/extension-sessions.ts` — what an extension may ask of one session: its next request, its context, its
   first prompt.
+- `server/sessions.ts` and `server/session-list.ts` — a session's documents and rows, and the diff the list
+  stream sends ([sessions.md](sessions.md)).
 - `server/conversation-id.ts` — `idOf`, the one place a plain session number becomes a `ConversationId`.
 - `server/history.ts` — the older transcript, paged back from the entry log.
 - `server/extensions/` — the extension loader ([extensions.md](extensions.md)): `extensions.ts` owns what is
@@ -163,7 +165,8 @@ server runs under `scripts/serve.ts`, so the Restart button in Settings starts i
 
 For production, run `pnpm start`: build the web into `dist/`, then run the server on
 `127.0.0.1:8788`. One process serves both the web and API. Stop it with Ctrl+C.
-The command does not configure Tailscale or install an auto-start service.
+The command does not configure Tailscale or install an auto-start service. Reaching it from a phone
+is in [running.md](running.md#on-the-phone).
 
 ### Restarting the server from the app
 
@@ -184,16 +187,7 @@ its first 4000 characters, which on a failure is the error and its file:line.
 No restart follows: `server/static.ts` reads `dist/` per request, so a reload loads the new shell.
 One build runs at a time — a second click waits for the build already writing `dist/`.
 
-To expose it privately through Tailscale Serve, configure a free HTTPS port once:
-
-```bash
-tailscale serve --bg --https=8443 http://127.0.0.1:8788
-```
-
-Check `tailscale serve status` first: do not replace another app's proxy. Serve stays configured
-between app restarts; `pnpm start` starts only the app. Use Serve, not public Funnel. Anyone allowed
-to reach this endpoint through Tailscale can control the agent; restrict access with Tailscale rules.
-The proxy must preserve the public `Host` for extension origin checks.
+The tailnet proxy and its `Host` requirement are in [running.md](running.md#on-the-phone).
 
 - `MODEL` — `provider/modelId`, default `openai/gpt-6.1-sol`. Signs in through `~/.pi/agent`
   (`ModelRuntime.create()`), the same logins the `pi` command uses.
@@ -213,7 +207,7 @@ permanent and not part of the schema; never delete it while a server runs. If st
 session, the server logs `pi-durable-agent: storage session failed` and the original error to stderr,
 and nothing else.
 
-## Beyond the first conversation
+## The API
 
 ```text
 GET  /api/sessions           the list: name (null while the first question names it), title (what the row shows),
@@ -223,8 +217,9 @@ GET  /api/sessions/events    SSE: { type: "sessions", sessions } at once, then a
                              when an extension has something to say about a session
 POST /api/sessions           { cwd } → a new conversation with the default model
 POST /api/sessions/archive   { session, archived }  sidebar visibility only
-POST /api/sessions/delete    { session }  gone from every list; see [session-delete.md](session-delete.md)
-POST /api/sessions/seen      { session }  its latest run is seen; see [sessions-live.md](sessions-live.md)
+POST /api/sessions/title     { session, title }  a name by hand; "" goes back to the first question
+POST /api/sessions/delete    { session }  gone from every list; see [sessions.md](sessions.md#delete)
+POST /api/sessions/seen      { session }  its latest run is seen; see [sessions.md](sessions.md#seen)
 POST /api/messages           { session, text, files, mode? }  mode: steer | followUp | interrupt
 POST /api/queued/withdraw    { session, id } → { result }  result: aborted | already_placed | settled | not_found
                              deletes the `pi.inbox` item; 400 bad id (an unknown session is a 500, as everywhere)
@@ -237,7 +232,7 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
 
 ## Routing
 
-`server/app.ts` builds the app: one Hono instance with two middlewares in front of every route — the
+`server/app.ts` builds the app: one Hono instance with middleware in front of every route — the
 `Host` gate that blocks DNS rebinding, the built shell for a path outside `/api/`
 (`server/static.ts`), the same-origin gate for `/api/`, and the session-list bookkeeping that runs
 after the route. Each `server/routes/<group>.ts` returns a chained sub-app, so a route declares its
@@ -278,7 +273,6 @@ origin as the API. `GET` and `HEAD` only (others get 405); `/` is `index.html`.
 - A path that leaves `dist/` or has bad escapes is refused (404, 400).
 - No fallback to `index.html`: the app routes by query string, so a missing file is a 404.
 - Without a build, every such path is a 404; the API is not affected.
-
-## Not here yet
-
-Auth.
+- A tab left open across a restart keeps its old JavaScript and talks to the new server over the same
+  `EventSource`; nothing reloads it except the Rebuild button's Reload. The typed client trusts the answer's
+  shape, so a route whose shape changed under an open tab shows as a missing field there.

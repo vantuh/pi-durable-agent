@@ -304,6 +304,9 @@ position and a running answer survive the visit.
 - **`tab: false`** leaves the page out of the right sidebar's tabs and out of the Extensions button's
   fallback (and the button does not exist for an extension set whose only pages are tabless). The page
   still routes and renders as any other, reached by its address or by a [header item](#header-items)'s `openPage`.
+- **No URL space of its own.** A page is a slot in the shell: its `sub` is a location inside that page, and
+  the extension decides what it means. An extension that needs its own HTTP endpoints uses the raw HTTP seam
+  ([Raw HTTP and composer drafts](#raw-http-and-composer-drafts)).
 - `extensions/git-history` is the example: the history list and a commit's detail are two
   sub-locations of one page, and it is `tab: false`, entered from its header badge.
 
@@ -373,7 +376,7 @@ session starts in, and a throw keeps the picker open. Either answer reaches the 
 which the option says next to its own field: no caption is drawn for it. A failure is said, not
 held, so a refusal worth another try can be retried; changing the option's values clears it.
 `extensions/git-worktree` makes the worktree there, so the session starts in it without the core
-knowing what a worktree is (see [Git worktrees](../extensions/git-worktree/README.md)).
+knowing what a worktree is (see [Git worktree](../extensions/git-worktree/README.md)).
 
 `omit(folders)` answers which of those folders the picker leaves out of its lists — favourites,
 recents and the folder being browsed alike — so an option can keep a folder it already offers from
@@ -413,8 +416,8 @@ setCommandKeys("session.new", null); // the command shows no key again
   `commandKeys(command)` for the value alone, or `subscribeCommandKeys(listener)` for a store of your
   own. The core's own renderer is `CommandKeys` in `web/src/ui/command-keys.tsx`: one `Kbd` per key
   in a `KbdGroup`, and nothing at all while no extension states any, for
-  [Tooltip](ui-primitives.md#12-tooltip)'s `keys` slot.
-- `extensions/hotkeys` is the one extension that states keys today: the first binding of each
+  `Hint`'s `keys` slot (`web/src/components/ui/tooltip.tsx`).
+- `extensions/hotkeys` is the one extension that states keys: the first binding of each
   command, its prefix's own keys first, so the sidebar's search hint reads `meta` `a` `f` under
   `data/hotkeys.json`'s prefix.
 
@@ -530,7 +533,7 @@ to the watcher. What happens in `pnpm dev`:
 
 ## What an extension may not do
 
-- Import another extension's files. Later this goes through `api.ts` and `host.need` / `host.want`.
+- Import another extension's files. The declared route, `api.ts` with `host.need` / `host.want`, is not built yet.
 - Read or write the core's SQLite directly.
 - Add a name to `RESERVED`.
 
@@ -542,34 +545,34 @@ This document holds the shared contract; feature guides link here instead of rep
 - [Anthropic subscription](../extensions/anthropic-subscription/README.md)
 - [Session names](../extensions/auto-session-name/README.md)
 - [Bash timeout](../extensions/bash-timeout/README.md)
+- [Browser](../extensions/browser/README.md)
+- [Cache hit](../extensions/cache-hit/README.md)
 - [Caveman](../extensions/caveman/README.md)
 - [Code mode](../extensions/codemode/README.md)
+- [Context meter](../extensions/context-meter/README.md)
 - [Dictation](../extensions/dictation/README.md)
-- [Git history and embedded review](../extensions/git-history/README.md)
-- [Git worktrees](../extensions/git-worktree/README.md)
+- [Files](../extensions/files/README.md)
+- [Finished runs](../extensions/finished/README.md)
+- [Git branch](../extensions/git-branch/README.md)
+- [Git history & review](../extensions/git-history/README.md)
+- [Git worktree](../extensions/git-worktree/README.md)
 - [Hotkeys](../extensions/hotkeys/README.md)
 - [Image limit](../extensions/image-limit/README.md)
 - [Keep warm](../extensions/keep-warm/README.md)
-- [Kiro ACP models](../extensions/kiro-acp/README.md)
+- [Kiro ACP](../extensions/kiro-acp/README.md)
 - [MCP servers](../extensions/mcp/README.md)
 - [Notes](../extensions/notes/README.md)
 - [Pause](../extensions/pause/README.md)
 - [Ponytail](../extensions/ponytail/README.md)
+- [Rules prompt](../extensions/prompt/README.md)
 - [Push notifications](../extensions/push/README.md)
 - [Subagents](../extensions/subagents/README.md)
+- [Tags](../extensions/tags/README.md)
 - [Terminal](../extensions/terminal/README.md)
+- [Tokens per second](../extensions/tokens-per-second/README.md)
 - [Usage limits](../extensions/usage-limits/README.md)
-- [Fetching a page](../extensions/web-fetch/README.md)
+- [Web fetch](../extensions/web-fetch/README.md)
 - [Web search](../extensions/web-search/README.md)
-
-## Planned, with where each comes from
-
-| Folder  | What it is                                                | Source                              |
-| ------- | --------------------------------------------------------- | ----------------------------------- |
-| `files` | File browser in the drawer                                | Pi Pocket's file browser, rewritten |
-| `web`   | The page the agent is working on, beside the conversation | Pi Pocket core, adapted             |
-
-None of these exist yet. A folder is added when its feature is built, never as a placeholder.
 
 ## Adding one
 
@@ -582,12 +585,6 @@ None of these exist yet. A folder is added when its feature is built, never as a
    under [Extension guides](#extension-guides). Keep shared API documentation in this file.
 
 Deleting the folder is the whole removal, tests included.
-
-## Not built
-
-The browser has no extension-owned routes or URL space of its own. A page is a slot in the shell:
-its `sub` is a location inside that page, and the extension decides what it means. Anything that
-needs its own HTTP endpoints uses the raw HTTP seam ([Raw HTTP and composer drafts](#raw-http-and-composer-drafts)).
 
 ## Header items
 
@@ -635,8 +632,7 @@ session) and `openSession(id)`, the app's own navigation. On a phone it also clo
 | Handle height        | 10        | 16         |
 | Area cap, no saved h | 224       | 296        |
 
-The values come from the approved agents-area mockup (`docs/mockups/`); the arithmetic is
-`web/src/lib/sidebar-bottom.ts`. `extensions/subagents` uses this slot for the agents of the open
+The arithmetic is `web/src/lib/sidebar-bottom.ts`. `extensions/subagents` uses this slot for the agents of the open
 session.
 
 ## Markers in the status popover
@@ -721,7 +717,7 @@ not installed; the component must respect both props and show an honest offline 
 Polling and subscriptions must stop on collapse, disable or unmount. Tailwind scans
 extension folders too, so their details components can use theme utilities.
 
-[Anthropic subscription](../extensions/anthropic-subscription/README.md#extension-details) uses this
+[Anthropic subscription](../extensions/anthropic-subscription/README.md) uses this
 facet for request diagnostics and account lookup.
 
 ## Resolved model transport
@@ -753,4 +749,4 @@ Browser extensions may call `appendComposerDraft(sessionId, text, optionalUnique
 `@/sdk/composer.ts`. It appends without replacing existing input, updates a mounted composer, and
 keeps inactive-session drafts separate. An optional ID deduplicates repeated delivery during the
 page lifetime. It never submits a message. `extensions/git-history` uses both seams;
-see [Git history and embedded review](../extensions/git-history/README.md).
+see [Git history & review](../extensions/git-history/README.md).

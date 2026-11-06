@@ -21,6 +21,9 @@ the other.
 Through Tailscale: `tailscale serve --bg 8443 http://127.0.0.1:8788` puts the server's own
 production build on `https://<machine>.<tailnet>.ts.net:8443/`, tailnet only. That address is HTTPS,
 so the service worker registers and the offline shell works; nothing listens on the local network.
+Check `tailscale serve status` first, so another app's proxy is not replaced. Use Serve, not public
+Funnel: anyone allowed to reach the endpoint through Tailscale can control the agent, so restrict access
+with Tailscale rules. The proxy must preserve the public `Host` for the extensions' origin checks.
 The shell it serves is `dist/`, so run `pnpm start` (or `pnpm build`) after a change, or press the
 hammer in Settings, which rebuilds from the app through `POST /api/build` and needs no restart. A
 new build reaches a phone that already has the worker only after the app is closed and opened again.

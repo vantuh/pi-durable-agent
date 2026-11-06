@@ -112,12 +112,64 @@ contract is the event stream and `shared/`.
   an `unknown` body, so the call parses it as before (`sessionsOf`, `parseHistory`).
 - **`hc` does not encode a path parameter**: pass `encodeURIComponent(name)`. A raw body goes in
   `init: { body }` of the call's second argument, with its headers in `headers`.
+- **A stream is `EventSource` on a path from `$path()`** (`sessionsStreamPath`,
+  `conversationStreamPath`), not `$url()`, which returns an absolute `URL`.
+
+## UI primitives
+
+A control is a primitive from `web/src/components/ui/` (shadcn, rewritten to the theme), so the keyboard,
+focus and screen-reader behaviour comes with it.
+
+- **Ported, not pasted.** Colours are `--role-*` utilities (`bg-raised`, `text-muted`), never shadcn's
+  defaults (`bg-primary`, `text-muted-foreground`). Radix is the single `radix-ui` package. Variants are a
+  plain object (`VARIANTS` in `button.tsx`), not `class-variance-authority`.
+- **A raw `<button>`, hand-styled input, native checkbox or `<hr>` is the mistake**: each one restates its own
+  size, hover, focus ring and disabled state. Use `Button`, `Input`, `Checkbox`, `Separator`.
+- **An icon button is `Button size="icon"` in a `Hint`**, a themed tooltip that shows on keyboard focus too;
+  its `keys` slot shows the shortcut that runs the action. `title=` stays only for a readout, such as text
+  the layout cuts off (a path, a commit subject) or a detail a row has no room for, never for an action.
+- **Under a `Hint`, a trigger's `data-state` belongs to the tooltip.** Style or read a menu, dialog or
+  collapsible's open state through `aria-expanded`.
+- **One primitive per job.** `Popover` for an anchored popup (it flips at the screen edge, closes on Escape
+  and outside click, returns focus); `AlertDialog` for a destructive question, with the safe answer first
+  in the focus order; `Sheet` for an edge panel; `ToggleGroup` for a segmented choice; `Badge` for a pill;
+  `Alert` (`role="alert"`) for an inline error; `Empty` for "nothing here"; `Item` for a list row;
+  `Progress` for a meter; `Field` and `Label` for a form field; `Kbd` for a key.
+- **A migration keeps the behaviour the old markup had**: `aria-label`, `aria-pressed`, `aria-expanded`,
+  `aria-busy`, key handlers, focus rules. Where a primitive cannot hold one, the site stays custom.
+- **Kept custom**, because replacing it costs more than it saves: the resize handles (`ResizeHandle` in
+  `web/src/ui/` and the focusable separator of the sidebar's lower area, whose pointer capture, key steps,
+  double-click reset and stored size are the whole of them); the drop overlay
+  (`composer/attachments/drop-overlay.tsx`, a cue and not a control); the composer's `textarea` (the card is
+  its frame and focus indicator, and its height is `field-sizing: content`); the viewer's close target
+  (`ui/lightbox.tsx`, the whole viewport, which a `Button`'s hover would turn into an action); the timeline
+  marks of the activity line; `attachment.tsx` and `collapsible.tsx`; the status popover's two-tap submenu
+  on a phone; the tag colour dots (a colour picker, not a text button); the theme preview bars.
+
+## Shared helpers
+
+A function that appears in a second place has one home, by where it runs. A helper goes to the core only if
+it is about no one extension, since extensions never import each other.
+
+- **Code both sides run** (`refs.ts`, the server, the browser) is in `shared/`: `isRecord`, `recordOf` and
+  `messageOf` (an error as text) in `shared/guards.ts`.
+- **Server-only code** is in `server/`, and reaches extensions through `server/sdk.ts`: `writeJsonFile` and
+  `writeFileAtomic` (`atomic-write.ts`: a temporary file, a rename, a queue per path, the parent folder made),
+  `readJsonFile` (`json-file.ts`: the value, `undefined` for a missing file or non-JSON, a throw for anything
+  else, so a broken store never reads as an empty one), `serialize(key, work)` (`keyed-queue.ts`: one piece
+  of work per key at a time, shared across reloads through `globalThis`, for a store whose change is a read
+  followed by a write), and `readJson`, `answer`, `answerError` and `HttpError` (`http.ts`).
+- **Browser-only code** is in `web/src/lib/`: `tokens` and `cost` in `format.ts` (`5k`, `1M`, `$0`, `$0.135`,
+  `$19.84`; one decimal of k under ten thousand), `ago` in `time.ts`, `newestFirst` in `session-order.ts`.
+- **Same behaviour, or a name that says what differs.** A copy whose edge cases differ (null, arrays, a
+  missing file) keeps its own name with the reason: `git-history`'s runners (their own timeouts and exit
+  codes), a store that must tell a missing file from a broken one (`dictation`, `push`, `mcp`, `notes`), a
+  rate formatted on the server (`tokens-per-second`).
 
 ## File and folder structure
 
 Where a file goes is decided by these rules, not by taste, so an agent adding a feature never has to
-invent a place for it. The code is still being moved to match them; until then, the rule wins over
-the neighbour it disagrees with.
+invent a place for it. Where a neighbour disagrees, the rule wins.
 
 ### Components
 
@@ -242,10 +294,9 @@ the neighbour it disagrees with.
   only with `HOME` pointed at an empty folder, so a resumed run finds no login and stops before a
   tool call. The mistake it prevents: a smoke test that re-ran the very conversation that started it.
 - **A fake server in a browser test answers the real shape of every route the shell reads**, through
-  `defaultAnswer()` in `test/fixtures/api-defaults.ts`. The
-  typed client no longer falls back for a missing field (`/api/extensions` answering `{}` once gave an
-  empty list, and now leaves the shell waiting). `test/api-client.test.ts` runs the client against the
-  real server; it is where a route's wire format is pinned.
+  `defaultAnswer()` in `test/fixtures/api-defaults.ts`. The typed client does not fall back for a missing
+  field: a fake answering `/api/extensions` with `{}` leaves the shell waiting. `test/api-client.test.ts`
+  runs the client against the real server; it is where a route's wire format is pinned.
 - **A test that opens the app starts it through `test/fixtures/`.** `startVite()` (`vite.ts`) is the
   app's sources with `hmr: false` and `ws: false`, in a cache of its own; `findChromium(t)` and
   `withBrowserApp(found, api, run)` (`browser.ts`) add the fake server, the Chromium and their teardown, and

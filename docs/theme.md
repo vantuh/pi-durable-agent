@@ -18,12 +18,12 @@ throwaway page, a debug border, or a hover state.
 | `--color-*` | `styles.css`, `@theme inline` | Tailwind utilities (`bg-canvas`) built on the roles   |
 
 A role maps to a palette entry once, so `bg-canvas` and `var(--role-canvas)` are always the same
-colour. That was the point of the middle layer: a component says `text-muted`, not
-`text-subtext1`, and re-mapping the look is a one-line change in `styles.css`.
+colour. A component says `text-muted`, not `text-subtext1`, and re-mapping the look is a one-line
+change in `styles.css`.
 
 **Tailwind's own palette is deleted** (`--color-*: initial`). `bg-neutral-900` is not a class that
-exists in this project, so there is nothing to drift towards. A test of the deletion is that the
-build output contains no `neutral`.
+exists in this project, so there is nothing to drift towards, and the build output contains no
+`neutral`.
 
 ## The roles
 
@@ -47,7 +47,8 @@ build output contains no `neutral`.
 The `tag-*` roles (`red`, `peach`, `yellow`, `green`, `teal`, `blue`, `mauve`, `pink`) carry no
 meaning of their own: an extension that lets a person colour something asks which hue and stores
 that name. `extensions/tags` is the one that does, and writes the classes out in full so Tailwind
-still finds them in the source.
+still finds them in the source. A tag is its hue as text, with no wash under the name: a row of
+filled chips would shout over the title beside it.
 
 `shadow` is the one role no Catppuccin name answers. A shadow is dark on Latte's light `base` and
 darker still on Mocha's, so one palette entry cannot be right for both, and Tailwind's own shadow is
@@ -75,8 +76,8 @@ Latte and Frappé, which is unreadable at 12–13px; `text`, `subtext1`, and `su
 
 **The selectors are `html[data-flavour="…"]`, not `[data-flavour="…"]`.** A bare attribute selector
 and `:root` have the same specificity, so with a bare selector the winner is decided by rule order
-in the built file — which Tailwind reorders. This was found by setting `data-flavour="latte"` and
-watching Mocha's colours stay. The `html` prefix settles it by specificity, not by order.
+in the built file, which Tailwind reorders (`data-flavour="latte"` left Mocha's colours in place). The
+`html` prefix settles it by specificity, not by order.
 
 **Previews.** An element with `data-preview="<flavour>"` gets that flavour's `--ctp-*` (the same
 blocks in `catppuccin.css`) and its own `--role-*` (the `:root` block in `styles.css`, which lists
@@ -113,16 +114,16 @@ In `styles.css`, next to the roles, so no component invents its own:
 - `--text-heading` and `--text-subheading` carry a `--text-*-line-height` (1.75rem, 1.5rem): both
   replaced one of Tailwind's own steps, which brought a line box with it, and the line box stays as
   it was. Every other name here sets a size only and inherits the line height of its line;
-- `--font-sans` and `--font-mono` (`font-sans`, `font-mono`). The body and interface use 15px
-  system sans; code, diffs, paths and numeric metadata use JetBrains Mono. Metadata stays at 12px.
+- `--font-sans` and `--font-mono` (`font-sans`, `font-mono`). The body and the whole interface use 15px
+  system sans; code, diffs, paths, model ids and numeric metadata use JetBrains Mono. Metadata stays at
+  12px. Mono chrome reads wide and heavy in Cyrillic, so the chrome stays sans.
 - JetBrains Mono's variable upright and italic fonts are bundled in `web/src/fonts/` with their
   SIL Open Font License, sourced from Pi Pocket's `web/fonts/`. Vite fingerprints the assets;
   no external font service is needed.
 
 ## Check
 
-The palette page that produced the screenshots for this file was temporary and is gone. To check a
-theme change, render the swatches again or look at the shell: every surface in it uses a role, so a
+To check a theme change, render the swatches or look at the shell: every surface in it uses a role, so a
 wrong mapping is visible at once. `pnpm build` must stay free of `neutral`, `gray`, `zinc`, and
 `slate`.
 
