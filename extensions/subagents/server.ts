@@ -28,7 +28,7 @@ import {
     type ToolExecutionApi,
     wrapSection,
 } from "@earendil-works/pi-durable";
-import { Type } from "typebox";
+import { obj, opt, str } from "@earendil-works/pi-schema";
 
 import {
     ActionError,
@@ -589,27 +589,22 @@ export default function subagents(host: Host) {
         name: "agent_spawn",
         description:
             "Start a new agent from an existing Markdown profile in ~/.pi/agent/agents (or the project's .pi/agents) on a self-contained task. Model and thinking come only from the profile; overrides are forbidden. An invalid or unavailable model/thinking returns an error without starting an agent. Its tools run in `cwd` when given. Its result arrives as a message.",
-        parameters: Type.Object(
-            {
-                agent: Type.String({
-                    description: "Profile name, from the Agents section of the prompt.",
+        parameters: obj({
+            agent: str({ description: "Profile name, from the Agents section of the prompt." }),
+            task: str({ description: "Self-contained task for the new agent." }),
+            name: opt(
+                str({
+                    description:
+                        "Name to address it by later; defaults to the title-cased profile name.",
                 }),
-                task: Type.String({ description: "Self-contained task for the new agent." }),
-                name: Type.Optional(
-                    Type.String({
-                        description:
-                            "Name to address it by later; defaults to the title-cased profile name.",
-                    }),
-                ),
-                cwd: Type.Optional(
-                    Type.String({
-                        description:
-                            "Absolute folder the new agent's tools work in, e.g. a git worktree path; omit to inherit this conversation's folder.",
-                    }),
-                ),
-            },
-            { additionalProperties: false },
-        ),
+            ),
+            cwd: opt(
+                str({
+                    description:
+                        "Absolute folder the new agent's tools work in, e.g. a git worktree path; omit to inherit this conversation's folder.",
+                }),
+            ),
+        }),
         replay: "safe",
         execute: async (args, api, context) => {
             const task = args.task.trim();
@@ -724,10 +719,13 @@ export default function subagents(host: Host) {
         name: "agent_send",
         description:
             "Send a message to an agent this conversation started, by name: it steers a working agent at its next step, or gives an idle one a new task that keeps its earlier context. Answers a question the agent ended with.",
-        parameters: Type.Object({
-            name: Type.String({ description: "Exact name of the agent." }),
-            message: Type.String({ description: "What to send." }),
-        }),
+        parameters: obj(
+            {
+                name: str({ description: "Exact name of the agent." }),
+                message: str({ description: "What to send." }),
+            },
+            { open: true },
+        ),
         replay: "safe",
         execute: async (args, api, context) => {
             const name = args.name.trim();
@@ -777,7 +775,7 @@ export default function subagents(host: Host) {
         name: "agent_stop",
         description:
             "Stop the current run of an agent this conversation started. The agent keeps its context; continue it later with agent_send.",
-        parameters: Type.Object({ name: Type.String({ description: "Exact name of the agent." }) }),
+        parameters: obj({ name: str({ description: "Exact name of the agent." }) }, { open: true }),
         replay: "safe",
         execute: async (args, api, context) => {
             const name = args.name.trim();
@@ -812,11 +810,12 @@ export default function subagents(host: Host) {
         name: "agent_status",
         description:
             "Check one agent by name (working or idle, and a preview of its latest text), or list the agents this conversation started. Read-only.",
-        parameters: Type.Object({
-            name: Type.Optional(
-                Type.String({ description: "Exact name of one agent; omit to list them all." }),
-            ),
-        }),
+        parameters: obj(
+            {
+                name: opt(str({ description: "Exact name of one agent; omit to list them all." })),
+            },
+            { open: true },
+        ),
         replay: "safe",
         execute: async (args, api, context) => {
             const agents =

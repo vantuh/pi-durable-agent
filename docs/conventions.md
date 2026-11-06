@@ -201,6 +201,12 @@ the neighbour it disagrees with.
   mistake it prevents: thirty files at the top of one folder, and a Node import found by Vite late.
   The full layout: [refactor-plan.md](refactor-plan.md#the-layout). Current extensions do not all
   follow it yet; the refactor moves them.
+- **A tool describes its parameters with `@earendil-works/pi-schema`** (`obj`, `str`, `int`, `opt`, ...),
+  declared in the `dependencies` of the extension that imports it, never with TypeBox and never as a
+  peer (a peer must also be in the root manifest). `obj` is closed by default and `Type.Object` was open:
+  a schema that accepted extra keys before is `obj(..., { open: true })`, and a closed one stays
+  closed on purpose. An extension that builds a tool schema pins the schema it installs in its
+  `server.test.ts` (not the provider payload: pi-ai converts that per provider). The mistake it prevents: a rewrite that starts refusing the keys a model adds.
 - **Tests share their setup.** The free `PORT`, the temporary `PI_DURABLE_DATA_DIR` and the test
   server live in `test/fixtures/`, imported rather than copied. The mistake it prevents: sixty copies
   of a start-up that drift into writing the working `data/state.sqlite`.

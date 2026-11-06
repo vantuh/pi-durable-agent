@@ -5,7 +5,7 @@
  */
 
 import { defineExtension, defineTool, type ToolExecutionResult } from "@earendil-works/pi-durable";
-import { Type } from "typebox";
+import { arr, obj, opt, str } from "@earendil-works/pi-schema";
 
 import type { Host, ResolveModelAuth } from "../../server/sdk.ts";
 import { searchAnthropic } from "./anthropic.ts";
@@ -93,28 +93,31 @@ export default function webSearch(host: Host) {
         name: "web_search",
         description:
             "Search the web and get back a synthesized answer with numbered source links, not raw result pages. Use it for current facts, versions, news and documentation. Give query or queries. Several queries cover several angles in one search. Give urls to have specific pages read as well.",
-        parameters: Type.Object({
-            query: Type.Optional(
-                Type.String({
-                    minLength: 1,
-                    description: "What to find out, as a question or a topic.",
-                }),
-            ),
-            queries: Type.Optional(
-                Type.Array(Type.String({ minLength: 1 }), {
-                    minItems: 1,
-                    maxItems: MAX_QUERIES,
-                    description:
-                        "Several angles to ask at once, when one question would cover only part of what is needed. Searched as one prompt, not as separate searches.",
-                }),
-            ),
-            urls: Type.Optional(
-                Type.Array(Type.String(), {
-                    maxItems: 20,
-                    description: "Extra http(s) pages to read alongside the search.",
-                }),
-            ),
-        }),
+        parameters: obj(
+            {
+                query: opt(
+                    str({
+                        minLength: 1,
+                        description: "What to find out, as a question or a topic.",
+                    }),
+                ),
+                queries: opt(
+                    arr(str({ minLength: 1 }), {
+                        minItems: 1,
+                        maxItems: MAX_QUERIES,
+                        description:
+                            "Several angles to ask at once, when one question would cover only part of what is needed. Searched as one prompt, not as separate searches.",
+                    }),
+                ),
+                urls: opt(
+                    arr(str(), {
+                        maxItems: 20,
+                        description: "Extra http(s) pages to read alongside the search.",
+                    }),
+                ),
+            },
+            { open: true },
+        ),
         execute: (args, _api, context) =>
             searchAnswer(
                 host.resolveModelAuth,

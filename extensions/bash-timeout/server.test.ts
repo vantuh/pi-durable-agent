@@ -37,7 +37,7 @@ import {
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
-import { Type } from "typebox";
+import { obj, str } from "@earendil-works/pi-schema";
 
 import type { Action, Host } from "../../server/sdk.ts";
 import { ActionError } from "../../server/sdk.ts";
@@ -445,7 +445,7 @@ void describe("bash timeout", () => {
 const NestedBash = defineTool({
     name: "nested-bash",
     description: "Runs a bash command as a nested call and reports what that call was told.",
-    parameters: Type.Object({ command: Type.String() }),
+    parameters: obj({ command: str() }, { open: true }),
     async execute(args, api, context) {
         const nested = await api.executeTool("bash", { command: args.command }, context);
 

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import type { Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
+import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
 import type { Saved } from "./lib/page.ts";
 import { normalizeUrl } from "./lib/urls.ts";
 import { viewportFrom } from "./lib/viewport.ts";
@@ -129,5 +130,172 @@ void describe("browser saved pages", () => {
 
         assert.match(log.join("\n"), /the open pages were not saved/);
         await stop();
+    });
+});
+
+void describe("browser tool parameters", () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "browser-schema-"));
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    void it("hand the model this schema", async () => {
+        const { host, stop } = hostOf(dir);
+
+        try {
+            assert.deepEqual(schemasSent(createBrowser(host)), {
+                browser: {
+                    type: "object",
+                    required: ["action"],
+                    properties: {
+                        action: {
+                            anyOf: [
+                                {
+                                    const: "navigate",
+                                },
+                                {
+                                    const: "snapshot",
+                                },
+                                {
+                                    const: "screenshot",
+                                },
+                                {
+                                    const: "click",
+                                },
+                                {
+                                    const: "type",
+                                },
+                                {
+                                    const: "press",
+                                },
+                                {
+                                    const: "select",
+                                },
+                                {
+                                    const: "hover",
+                                },
+                                {
+                                    const: "scroll",
+                                },
+                                {
+                                    const: "wait",
+                                },
+                                {
+                                    const: "evaluate",
+                                },
+                                {
+                                    const: "console",
+                                },
+                                {
+                                    const: "back",
+                                },
+                                {
+                                    const: "forward",
+                                },
+                                {
+                                    const: "reload",
+                                },
+                                {
+                                    const: "viewport",
+                                },
+                            ],
+                            description:
+                                "navigate (url), snapshot, screenshot, click/hover (ref, selector, label, or x and y), type (text into ref/selector/label, or the focused element), press (key), select (value in a select element), scroll (to ref/selector/label, or by dy), wait (text, selector, or timeoutMs), evaluate (script), console, back, forward, reload, viewport.",
+                        },
+                        url: {
+                            type: "string",
+                            description:
+                                "navigate: an http(s) URL, host:port such as localhost:5173, or a path to an HTML file on this machine.",
+                        },
+                        ref: {
+                            type: "string",
+                            description: "An element ref from the last snapshot, such as e12.",
+                        },
+                        selector: {
+                            type: "string",
+                            description:
+                                "Instead of ref: a CSS selector. wait: wait until it is visible.",
+                        },
+                        label: {
+                            type: "string",
+                            description:
+                                "Instead of ref: the element's visible text or label, such as a button's text.",
+                        },
+                        x: {
+                            type: "number",
+                            description:
+                                "click, hover: a point in CSS pixels of the viewport, as seen in a screenshot (one shown smaller says how to scale its points).",
+                        },
+                        y: {
+                            type: "number",
+                        },
+                        text: {
+                            type: "string",
+                            description:
+                                "type: the text to type (empty clears the field). wait: text to wait for.",
+                        },
+                        submit: {
+                            type: "boolean",
+                            description: "type: press Enter afterwards.",
+                        },
+                        append: {
+                            type: "boolean",
+                            description:
+                                "type: add to what the field holds instead of replacing it.",
+                        },
+                        key: {
+                            type: "string",
+                            description:
+                                "press: a key or combination, such as Enter, Escape, Tab, ArrowDown, Control+A.",
+                        },
+                        value: {
+                            type: "string",
+                            description: "select: the option's value or text.",
+                        },
+                        dy: {
+                            type: "number",
+                            description:
+                                "scroll: pixels down (negative: up). Default: most of a screen down.",
+                        },
+                        script: {
+                            type: "string",
+                            description:
+                                "evaluate: JavaScript run in the page: an expression or statements (top-level await works), or a body that ends with return. Its value comes back as JSON.",
+                        },
+                        viewport: {
+                            type: "string",
+                            description:
+                                "viewport: mobile (390×844), tablet (820×1180), desktop (1280×800), or WIDTHxHEIGHT.",
+                        },
+                        fullPage: {
+                            type: "boolean",
+                            description:
+                                "screenshot: the whole page, not only what fits the viewport.",
+                        },
+                        timeoutMs: {
+                            type: "number",
+                            description:
+                                "navigate, wait: how long to wait in milliseconds (default 30000 for navigate, 10000 for wait).",
+                        },
+                        snapshot: {
+                            type: "boolean",
+                            description:
+                                "After an action that changes the page: also return its snapshot.",
+                        },
+                        clear: {
+                            type: "boolean",
+                            description: "console: clear the lines after reading them.",
+                        },
+                    },
+                },
+            });
+        } finally {
+            await stop();
+        }
     });
 });

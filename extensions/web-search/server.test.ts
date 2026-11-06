@@ -9,11 +9,13 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
 
 import type { ResolveModelAuth } from "../../server/sdk.ts";
+import { testHost } from "../../test/fixtures/host.ts";
+import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
 import { billingBlock, readMessages, searchAnthropic } from "./anthropic.ts";
 import { type Provider, formatAnswer, runChain } from "./chain.ts";
 import { readResponses, searchChatgpt } from "./chatgpt.ts";
 import { MAX_OUTPUT, readKiro, searchKiro } from "./kiro.ts";
-import { searchAnswer } from "./server.ts";
+import webSearch, { searchAnswer } from "./server.ts";
 import type { Found } from "./wire.ts";
 
 const ask = { queries: ["latest Node.js LTS"], urls: [] };
@@ -745,5 +747,36 @@ void describe("web-search answer text", () => {
                 "Searched with chatgpt (gpt-6-luna)",
             ].join("\n\n"),
         );
+    });
+});
+
+void describe("web_search parameters", () => {
+    void it("hand the model this schema", () => {
+        assert.deepEqual(schemasSent(webSearch(testHost())), {
+            web_search: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        minLength: 1,
+                        description: "What to find out, as a question or a topic.",
+                    },
+                    queries: {
+                        type: "array",
+                        items: { type: "string", minLength: 1 },
+                        minItems: 1,
+                        maxItems: 5,
+                        description:
+                            "Several angles to ask at once, when one question would cover only part of what is needed. Searched as one prompt, not as separate searches.",
+                    },
+                    urls: {
+                        type: "array",
+                        items: { type: "string" },
+                        maxItems: 20,
+                        description: "Extra http(s) pages to read alongside the search.",
+                    },
+                },
+            },
+        });
     });
 });

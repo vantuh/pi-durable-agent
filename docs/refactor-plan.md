@@ -161,7 +161,7 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Li
       their tools for real ([pi-1.5-migration.md](pi-1.5-migration.md), step 1).
 - [x] Bump `pi-durable`, `pi-ai`, `pi-coding-agent`, `chord`, and the two that ride with them, `pi-codemode` and
       `pi-mcp`, to 1.5.0 together, pinned exactly: `7201235`, with the next three bullets.
-- [x] Keep `typebox` as a direct dependency where extensions import it; fix the `Type` import from
+- [x] Keep `typebox` as a direct dependency where extensions import it (replaced in Phase 5); fix the `Type` import from
       `pi-ai` in two files, `extensions/context-meter/server.test.ts:5` (also `:111`) and
       `test/session-prompt.test.ts:12` (also `:71`, `:77`), with plain JSON Schema objects
       (`{ type: "object", properties: {} }`): no new dependency.
@@ -196,9 +196,22 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Li
 
 ## Phase 5: TypeBox to pi-schema (optional)
 
-Details: [pi-schema-migration.md](pi-schema-migration.md) (being written). One extension per step,
-smallest first; the last step removes `typebox`. The gain is one dependency fewer and alignment with
-upstream, nothing functional.
+Details: [pi-schema-migration.md](pi-schema-migration.md). One extension per step, smallest first; the
+last step removes `typebox`. The gain is one dependency fewer and alignment with upstream, nothing
+functional. Each switch is preceded by a test that pins the schema the tool installs (pi-ai still converts it per
+provider). Review of `56126f4..17e581b`: no blocker. Live check on a fresh database, every request
+carrying all tools with the two changed schemas: openai `gpt-6.1-sol` (and an `mcp` call with `{}`
+through the new validation), anthropic `claude-haiku-5-5`, opencode-go `deepseek-v4.1-flash` and
+kiro-acp `claude-haiku-4.5` all answered. `local` and `simplex` were not tried.
+
+- [x] Test-only schemas (`bash-timeout`; the other two test files already had none).
+- [x] `web-fetch`
+- [x] `mcp` (`Record` became `map`: the JSON changed, the accepted arguments did not)
+- [x] `web-search`
+- [x] `subagents`
+- [x] `browser` (a Union of Literals became `union` of `lit`: the JSON changed, the accepted actions did not)
+- [x] Remove `typebox` from every `package.json` and the lockfile: it left with each extension. The
+      lockfile keeps one `typebox@1.3.27`, owned by `@earendil-works/pi-coding-agent`.
 
 ## Phase 6: split the server
 

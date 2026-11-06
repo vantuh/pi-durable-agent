@@ -1,7 +1,23 @@
 # TypeBox to pi-schema
 
 Phase 5 of [refactor-plan.md](refactor-plan.md): replace `typebox` with `@earendil-works/pi-schema` in
-the tool definitions. Optional. Nothing here is done yet.
+the tool definitions. Optional. **Done**: no file of ours imports `typebox`, and no `package.json`
+declares it. Two tools' JSON changed (`mcp` and `browser`; see the mapping); the rest is identical,
+pinned by a schema test in each extension's `server.test.ts`.
+
+## Status
+
+- [x] 1. Test-only schemas: only `extensions/bash-timeout/server.test.ts` still used TypeBox.
+      `test/session-prompt.test.ts` and `extensions/context-meter/server.test.ts` already write plain
+      JSON or no schema at all (Phase 4 did them).
+- [x] 2. `web-fetch`
+- [x] 3. `mcp`
+- [x] 4. `web-search`
+- [x] 5. `subagents`
+- [x] 6. `browser`
+- [x] 7. Remove `typebox`: the declarations left with their extensions, one commit each, so this
+      step only confirmed it. `pnpm why typebox` lists it once, under `@earendil-works/pi-coding-agent`
+      1.5.0 (which `ModelRuntime` needs) and nothing of ours.
 
 Claims carry a tag. **[V]** verified against a named source: the pi-schema README or CHANGELOG from the
 1.5.0 checkout, the pi-durable 1.5.0 changelog, our code, or the output of a command run here.
@@ -149,13 +165,15 @@ under several entries [V]. Which of those are pi packages that still depend on i
 ### Mapping
 
 The TypeBox column is the output of `JSON.stringify` on `typebox` 1.3.27, run here [V]. The pi-schema
-column is what the README states [V]; no pi-schema code was run, so equality is not yet shown.
+column was first what the README states; the migration then ran it, and the schema tests in the six
+extensions are the check [V]. `obj` writes `required` after `properties` and `additionalProperties`
+last, so key order differs from TypeBox; the tests compare parsed values, which ignores it.
 
 | TypeBox (used)                                        | pi-schema 1.5.0                               | JSON the model receives                                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Type.Object({...})`                                  | `obj({...}, { open: true })`                  | TypeBox is open: `{"type":"object","required":[...],"properties":{...}}`, no `additionalProperties` [V]. Plain `obj({...})` adds `additionalProperties: false` [V: README].           |
 | `Type.Object({...}, { additionalProperties: false })` | `obj({...})`                                  | Same keyword [I].                                                                                                                                                                     |
-| `Type.Object({})`                                     | `obj({}, { open: true })`                     | TypeBox: `{"type":"object","properties":{}}`, no `required` [V]. pi-schema [U].                                                                                                       |
+| `Type.Object({})`                                     | `obj({}, { open: true })`                     | TypeBox: `{"type":"object","properties":{}}`, no `required` [V]. pi-schema: the same [V: run]. Unused in our tools.                                                                   |
 | `Type.String({...})`                                  | `str({...})`                                  | `{"type":"string",...}` [V both].                                                                                                                                                     |
 | `Type.Number`, `Type.Integer`                         | `num`, `int`                                  | `minimum` passes through [V: README option list].                                                                                                                                     |
 | `Type.Boolean()`                                      | `bool()`                                      | `{"type":"boolean"}` [V: README].                                                                                                                                                     |
@@ -165,17 +183,22 @@ column is what the README states [V]; no pi-schema code was run, so equality is 
 | `Type.Record(Type.String(), x, {...})`                | `map(x, {...})`                               | **Differs.** TypeBox: `{"type":"object","patternProperties":{"^.*$":{}}}` [V]. `map`: `{"type":"object","additionalProperties":x}` [V: README]. Same meaning [I], different JSON.     |
 | `Type.Union(names.map(Type.Literal))`                 | `oneOf(ACTIONS)` or `union(ACTIONS.map(lit))` | **Differs.** TypeBox: `{"anyOf":[{"type":"string","const":"a"},...]}` [V]. `union(...lit)`: `anyOf` of `{"const":"a"}`, no `type` [V: README]. `oneOf`: `{"enum":[...]}` [V: README]. |
 
-Three differences decide whether "the schema is unchanged" can hold:
+Three differences decided whether "the schema is unchanged" can hold:
 
-1. **Openness.** Fixed with `{ open: true }`. What that emits is [U] until compiled.
+1. **Openness.** Fixed with `{ open: true }`, which emits no `additionalProperties` at all, like
+   `Type.Object` [V: run]. Plain `obj({...})` emits `additionalProperties: false`.
 2. **`Record` to `map`.** Not fixable with the 1.5.0 builders. `unsafe<T>()` could wrap the raw schema,
    but it is Unreleased.
 3. **`Literal`/`Union` to `lit`/`oneOf`.** Not fixable with the builders: `lit` drops the
    `type` keyword. Whether any provider needs `type` next to `const` is [U]. `oneOf` (`enum`) is the
    more widely supported form [I].
 
-Decide before the `mcp` step: either accept (2) and (3) as documented differences in the schema test,
-or leave `mcp` and `browser` on TypeBox until `unsafe` ships. Both are valid.
+Decided: accept (2) and (3) as documented differences in the schema test, written in the same commit as
+the switch. For (3) the builder closest to the old JSON is `union(ACTIONS.map((action) => lit(action)))`:
+it keeps the `anyOf` and drops only each branch's `type: "string"`. `oneOf` would have turned the whole
+thing into an `enum`. Neither writes `type`. pi-ai's Gemini conversion rewrites `const` as a one-value
+`enum` [V: `pi-ai/dist/api/google-shared.js`], so the missing `type` is not known to break a provider;
+no provider was called [U].
 
 ### Before and after
 
@@ -202,30 +225,39 @@ test below checks it.
 
 ## Part 2: Migration plan
 
-**Prerequisite:** the pi 1.5 upgrade (Phase 4) is done. pi-durable 1.5.0 pins pi-schema 1.5.0 [U: from
-the brief, not read in a `package.json`]. Add `@earendil-works/pi-schema` as a direct dependency,
-pinned exactly (`1.5.0`, no caret). Put it in the root `package.json` next to the other
-`@earendil-works/*` entries, and as a `peerDependencies` entry in each extension that imports it, the
-way the extensions declare `pi-durable` and `chord` [I: follows the existing pattern]. Reason for the
-commit message: the code imports it directly, so it must not rely on a transitive copy.
+**Prerequisite:** the pi 1.5 upgrade (Phase 4) is done. pi-durable 1.5.0 pins pi-schema 1.5.0 [V: its
+`package.json`]. Add `@earendil-works/pi-schema` as a direct dependency,
+pinned exactly (`1.5.0`, no caret), in the `dependencies` of each extension that imports it (the
+`devDependencies` for a test-only import), where `typebox` was. **Not** a `peerDependencies` entry: the
+host-peer test in `test/dependencies.test.ts` requires every peer to be declared by the root
+`package.json` too, and the root imports no schema builder [V: read from the test]. The root declares it
+only if root code or a root test imports it. `pnpm` links the one `pi-schema@1.5.0` that pi-durable
+uses, so the schemas an extension builds and the validator that checks them share a copy. Reason for the
+commit message: tools describe their parameters with the builder pi-durable 1.5 validates with, and it
+replaces TypeBox.
 
 One extension per step, smallest first, one commit each.
 
 **The schema test, written first in every step that changes a model-visible tool.** Before editing the
 extension, add a test that compares what the extension installs with the current TypeBox output,
-written out as a literal:
+written out as a literal. It pins the installed schema, not the provider payload: pi-ai converts the
+schema per provider (Anthropic's non-strict path rebuilds the root and drops its
+`additionalProperties`, Gemini turns `const` into a one-value `enum`, strict sampling closes every
+object). Provider acceptance of the two changed schemas was checked live instead (see the plan, phase 5):
 
 ```ts
-const installed = extension(host).tools[0].parameters; // the default export returns defineExtension({ tools })
-assert.deepStrictEqual(JSON.parse(JSON.stringify(installed)), EXPECTED);
+assert.deepEqual(schemasSent(webFetch(testHost())), EXPECTED); // keyed by tool name
 ```
 
 `EXPECTED` is the JSON printed from the TypeBox schema before the switch. `JSON.parse(JSON.stringify())`
 strips TypeBox's symbol keys. `deepStrictEqual` ignores object key order, so no key sorting is needed;
 it does compare arrays such as `required` and `anyOf` in order [I]. The test passes on TypeBox, then
 the code switches to pi-schema, then it must pass again. If it cannot, the edit to `EXPECTED` in the
-commit is the explicit list of model-visible differences. The host argument is a stub: `web-fetch`
-reads only `host.name` (`server.ts:60`) [V]; the other extensions need checking [U].
+commit is the explicit list of model-visible differences. The host argument is `testHost()` from `test/fixtures/host.ts`, and `schemasSent` from
+`test/fixtures/tool-schemas.ts` does the `JSON.parse(JSON.stringify())` and keys the result by tool name.
+Two factories do real work and the test must contain it: `mcp` starts the servers in Pi's `mcp.json`, so
+its test points `PI_CODING_AGENT_DIR` and `dataDir` at an empty temporary folder and runs the disposers;
+`browser` takes its `dataDir` from a temporary folder and stops through `hostOf`.
 
 Every step ends with the extension's `server.test.ts`, `pnpm check`, `pnpm test`, and removing
 `typebox` from that extension's `package.json` (then `pnpm install` to update the lockfile).
@@ -249,7 +281,7 @@ Every step ends with the extension's `server.test.ts`, `pnpm check`, `pnpm test`
    `additionalProperties: false` today: use `obj({...})` with no `open`. The other three are open:
    `{ open: true }`. Check: schema test for all four; `agent`, `task` required, `name`, `cwd` optional.
 6. **`browser`.** Files: `server.ts`, `package.json`. Largest: 18 optional properties. `action` becomes
-   `oneOf(ACTIONS)` or `union(ACTIONS.map(lit))` (difference 3). Check: schema test with that
+   `union(ACTIONS.map((action) => lit(action)))` (difference 3). Check: schema test with that
    difference documented; `const action: ToolAction = args.action` (`server.ts:48` defines
    `ToolAction`) must still compile [I], so run `pnpm check` before anything else.
 7. **Remove `typebox`.** Files: every `package.json` that still lists it, `pnpm-lock.yaml`. Check:
@@ -274,12 +306,9 @@ change and a separate decision.
 
 ## Not verified
 
-- What `obj(..., { open: true })` and `obj({})` emit, and whether the builders give key-for-key the
-  same JSON as TypeBox. The schema test settles it.
 - The upstream commits `fab2c53` and `6536f80`, the 7.9 MB figure, and "MCP tools use the same
   validator".
 - The error-text change, `Type.Void`, `Format.Set` and `Refine` under 1.5. They are not in the
   pi-durable changelog; the pi-ai or pi-coding-agent changelogs were not read.
-- That pi-durable 1.5.0 pins `pi-schema` 1.5.0, and that `Type` leaves `pi-ai` in 1.5.
-- Whether anything besides our six packages keeps `typebox` in the lockfile after the migration.
-- That `ACTIONS.map(lit)` infers the same union type under pi-schema's `Static`.
+- That a model provider accepts `anyOf` of bare `const`s (`browser`'s `action`) and
+  `additionalProperties: {}` (`mcp`'s `arguments`). No provider was called; the tests pin the JSON only.

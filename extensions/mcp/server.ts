@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import { toLlmContent } from "@earendil-works/pi-mcp";
-import { Type } from "typebox";
+import { map, obj, opt, str, unknown } from "@earendil-works/pi-schema";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { messageOf } from "../../shared/guards.ts";
@@ -82,15 +82,18 @@ export default function createMcp(host: Host) {
         name: "mcp",
         description:
             "Use the connected MCP servers. No arguments: list the servers and their tools. With server: show its tools, with descriptions and input schemas. With server and tool: call it.",
-        parameters: Type.Object({
-            server: Type.Optional(Type.String({ description: "A server name from the list." })),
-            tool: Type.Optional(Type.String({ description: "A tool name of that server." })),
-            arguments: Type.Optional(
-                Type.Record(Type.String(), Type.Unknown(), {
-                    description: "The tool's arguments, as its input schema asks.",
-                }),
-            ),
-        }),
+        parameters: obj(
+            {
+                server: opt(str({ description: "A server name from the list." })),
+                tool: opt(str({ description: "A tool name of that server." })),
+                arguments: opt(
+                    map(unknown(), {
+                        description: "The tool's arguments, as its input schema asks.",
+                    }),
+                ),
+            },
+            { open: true },
+        ),
         execute: async (args, _api, context) => {
             const text = (line: string, isError = false) => ({
                 output: [{ type: "text" as const, text: line }],

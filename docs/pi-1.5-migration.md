@@ -174,8 +174,8 @@ TypeBox schemas are JSON Schema, so they still validate. Six extensions import T
 declare it themselves, pinned at `1.3.27`: `bash-timeout` (a dev dependency, used by its test),
 `browser`, `mcp`, `subagents`, `web-fetch` and `web-search` (V: each `package.json`). Nothing else
 provides it once pi-ai and pi-durable stop depending on it, so these declarations stay until the move.
-The move to pi-schema builders (`obj`, `str`, `num`) is a separate, optional phase:
-[pi-schema-migration.md](pi-schema-migration.md).
+The move to pi-schema builders (`obj`, `str`, `num`) was a separate, optional phase, now done:
+[pi-schema-migration.md](pi-schema-migration.md). No extension declares `typebox` any more.
 
 ## Part 2: Migration plan
 

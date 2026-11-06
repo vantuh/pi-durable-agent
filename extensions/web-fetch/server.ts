@@ -7,7 +7,7 @@
  */
 
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
-import { Type } from "typebox";
+import { int, obj, opt, str } from "@earendil-works/pi-schema";
 
 import type { Host } from "../../server/sdk.ts";
 import { OUTPUT_LIMITS, fetchPage, format } from "./page.ts";
@@ -28,19 +28,19 @@ export default function webFetch(host: Host) {
         description:
             "Fetch one public page and return its main content as Markdown. A long page is cut short: call again with offset to read the rest. For current facts, use web_search first.",
         outputLimits: OUTPUT_LIMITS,
-        parameters: Type.Object({
-            url: Type.String({
-                minLength: 1,
-                description: "The http(s) page to read.",
-            }),
-            offset: Type.Optional(
-                Type.Integer({
-                    minimum: 0,
-                    description:
-                        "Character offset into the Markdown, to continue a page that was truncated.",
-                }),
-            ),
-        }),
+        parameters: obj(
+            {
+                url: str({ minLength: 1, description: "The http(s) page to read." }),
+                offset: opt(
+                    int({
+                        minimum: 0,
+                        description:
+                            "Character offset into the Markdown, to continue a page that was truncated.",
+                    }),
+                ),
+            },
+            { open: true },
+        ),
         execute: async (args, _api, context) => {
             if (!/^https?:\/\//i.test(args.url) || !URL.canParse(args.url)) {
                 return reply(`url must be an http(s) link: ${args.url.slice(0, 100)}`, true);

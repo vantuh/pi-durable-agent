@@ -31,6 +31,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 
 import { ActionError, type CommitListener, type Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
+import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
 import {
     agents as agentsRef,
     profiles as profilesRef,
@@ -1419,6 +1420,59 @@ void describe("subagents", () => {
 
             assert.deepEqual(await strip(parent.id), { parent: null, agents: [] });
             assert.deepEqual(await strip(null), { parent: null, agents: [] });
+        });
+    });
+});
+
+void describe("agent tool parameters", () => {
+    void it("hand the model these schemas: agent_spawn closed, the others open", () => {
+        assert.deepEqual(schemasSent(subagents(testHost({ name: "subagents" }))), {
+            agent_spawn: {
+                type: "object",
+                required: ["agent", "task"],
+                properties: {
+                    agent: {
+                        type: "string",
+                        description: "Profile name, from the Agents section of the prompt.",
+                    },
+                    task: { type: "string", description: "Self-contained task for the new agent." },
+                    name: {
+                        type: "string",
+                        description:
+                            "Name to address it by later; defaults to the title-cased profile name.",
+                    },
+                    cwd: {
+                        type: "string",
+                        description:
+                            "Absolute folder the new agent's tools work in, e.g. a git worktree path; omit to inherit this conversation's folder.",
+                    },
+                },
+                additionalProperties: false,
+            },
+            agent_send: {
+                type: "object",
+                required: ["name", "message"],
+                properties: {
+                    name: { type: "string", description: "Exact name of the agent." },
+                    message: { type: "string", description: "What to send." },
+                },
+            },
+            agent_stop: {
+                type: "object",
+                required: ["name"],
+                properties: {
+                    name: { type: "string", description: "Exact name of the agent." },
+                },
+            },
+            agent_status: {
+                type: "object",
+                properties: {
+                    name: {
+                        type: "string",
+                        description: "Exact name of one agent; omit to list them all.",
+                    },
+                },
+            },
         });
     });
 });

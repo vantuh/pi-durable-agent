@@ -4,7 +4,10 @@ import { describe, it } from "node:test";
 
 import { boundOutput } from "@earendil-works/chord/output";
 
+import { testHost } from "../../test/fixtures/host.ts";
+import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
 import { MAX_CHARS, fetchPage, format, type Page } from "./page.ts";
+import webFetch from "./server.ts";
 
 type Route = (response: ServerResponse) => void;
 
@@ -521,5 +524,25 @@ void describe("web-fetch limits", () => {
             clearTimeout(aborted);
             await site.close();
         }
+    });
+});
+
+void describe("fetch_content parameters", () => {
+    void it("hand the model this schema", () => {
+        assert.deepEqual(schemasSent(webFetch(testHost())), {
+            fetch_content: {
+                type: "object",
+                required: ["url"],
+                properties: {
+                    url: { type: "string", minLength: 1, description: "The http(s) page to read." },
+                    offset: {
+                        type: "integer",
+                        minimum: 0,
+                        description:
+                            "Character offset into the Markdown, to continue a page that was truncated.",
+                    },
+                },
+            },
+        });
     });
 });

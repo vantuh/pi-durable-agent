@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
+import { testHost } from "../../test/fixtures/host.ts";
+import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
 import { Connections } from "./connections.ts";
+import createMcp from "./server.ts";
 
 // A real MCP server over stdio, one tool: echo.
 const SERVER = `
@@ -195,5 +198,52 @@ void describe("mcp connections", () => {
         assert.match(shown, /headers\.Authorization/);
         assert.match(shown, /exit code 3/);
         assert.doesNotMatch(shown, /secret/);
+    });
+});
+
+void describe("mcp parameters", () => {
+    void it("hand the model this schema", async () => {
+        // The factory reads Pi's mcp.json and starts its servers: point it at an empty folder.
+        const dir = await mkdtemp(join(tmpdir(), "mcp-schema-"));
+        const previous = process.env["PI_CODING_AGENT_DIR"];
+        const disposers: (() => unknown)[] = [];
+
+        process.env["PI_CODING_AGENT_DIR"] = dir;
+
+        try {
+            const extension = createMcp(
+                testHost({
+                    dataDir: dir,
+                    onDispose: (dispose) => {
+                        disposers.push(dispose);
+                    },
+                }),
+            );
+
+            assert.deepEqual(schemasSent(extension), {
+                mcp: {
+                    type: "object",
+                    properties: {
+                        server: { type: "string", description: "A server name from the list." },
+                        tool: { type: "string", description: "A tool name of that server." },
+                        arguments: {
+                            type: "object",
+                            additionalProperties: {},
+                            description: "The tool's arguments, as its input schema asks.",
+                        },
+                    },
+                },
+            });
+
+            await Promise.all(disposers.map((dispose) => dispose()));
+        } finally {
+            if (previous === undefined) {
+                delete process.env["PI_CODING_AGENT_DIR"];
+            } else {
+                process.env["PI_CODING_AGENT_DIR"] = previous;
+            }
+
+            await rm(dir, { recursive: true, force: true });
+        }
     });
 });
