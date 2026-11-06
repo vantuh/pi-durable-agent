@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import { applyDiffLayout } from "@/lib/diff-layout.ts";
 import { DiffCard } from "@/ui/diff/diff-card.tsx";
+import { CodeBlock } from "@/ui/markdown/code-block.tsx";
 
 import { HistoryList } from "../history-list.tsx";
 import { PatchPreview } from "../preview.tsx";
@@ -73,6 +74,14 @@ function DiffPage() {
             </section>
             <section id="broken">
                 <DiffCard diff={"-1 old\nunknown output"} path="broken.ts" />
+            </section>
+            <section id="wide">
+                <TooltipProvider>
+                    <CodeBlock
+                        code={`const long = "${"x".repeat(400)}";\nconst short = 1;`}
+                        lang="ts"
+                    />
+                </TooltipProvider>
             </section>
             <section id="cut">
                 <DiffCard diff={"-1 old\n+1 new\n … 19 more lines"} path="cut.ts" />

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo } from "react";
 
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { editPatch } from "@/lib/diff.ts";
 
 import { ItemBoundary } from "../item-boundary.tsx";
@@ -15,7 +16,9 @@ const DiffView = lazy(() => import("./diff-view.tsx"));
 export function DiffCard({ diff, path }: { diff: string; path?: string }) {
     const adapted = useMemo(() => editPatch(diff), [diff]);
     const fallback = (
-        <pre className="text-meta text-muted overflow-x-auto px-3 py-2 font-mono">{diff}</pre>
+        <ScrollArea orientation="horizontal">
+            <pre className="text-meta text-muted w-max min-w-full px-3 py-2 font-mono">{diff}</pre>
+        </ScrollArea>
     );
 
     return (

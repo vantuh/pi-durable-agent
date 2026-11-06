@@ -213,6 +213,29 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
             );
 
             // ScrollArea draws its bar over CodeView's own scroller: no native bar, and the thumb follows scrollTop.
+            // A wide code block scrolls sideways in the themed area; its bar sits under the last line.
+            const wideBar = `document.querySelector("#wide [data-orientation=horizontal]")`;
+            const wideScroller = `document.querySelector("#wide [data-radix-scroll-area-viewport]")`;
+            assert.equal(
+                await page.read(
+                    `${wideScroller}.scrollWidth > ${wideScroller}.clientWidth && ${wideScroller}.offsetHeight === ${wideScroller}.clientHeight`,
+                ),
+                true,
+            );
+            await page.read(`document.querySelector("#wide").scrollIntoView({ block: "center" })`);
+            const wideBox = `document.querySelector("#wide").getBoundingClientRect()`;
+            await page.send("Input.dispatchMouseEvent", {
+                type: "mouseMoved",
+                x: Number(await page.read(`${wideBox}.left + 60`)),
+                y: Number(await page.read(`${wideBox}.top + 60`)),
+            });
+            assert.ok(await page.until(`${wideBar} !== null`, 5000));
+            assert.equal(
+                await page.read(
+                    `${wideBar}.getBoundingClientRect().top >= document.querySelector("#wide pre").getBoundingClientRect().bottom - 8`,
+                ),
+                true,
+            );
             // The commit list scrolls in the same themed area: bar present with no hover, no native one.
             const listBar = `document.querySelector("#list [data-orientation=vertical]")`;
             const listScroller = `${listBar}.parentElement.querySelector("[style*='overflow']")`;
