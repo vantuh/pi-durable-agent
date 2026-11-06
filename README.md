@@ -86,6 +86,7 @@ Each has a `README.md` in its folder.
 **Running conversations**
 
 - [`bash-timeout`](extensions/bash-timeout/README.md): idle and total timers on every `bash` call.
+- [`bash-view`](extensions/bash-view/README.md): a `bash` call's command laid out one statement and chain part per line.
 - [`pause`](extensions/pause/README.md): hold a run at its next step instead of stopping it.
 - [`finished`](extensions/finished/README.md): tells you in the browser that a run has ended.
 - [`push`](extensions/push/README.md): Web Push when Pi finishes an answer.

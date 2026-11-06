@@ -545,6 +545,7 @@ This document holds the shared contract; feature guides link here instead of rep
 - [Anthropic subscription](../extensions/anthropic-subscription/README.md)
 - [Session names](../extensions/auto-session-name/README.md)
 - [Bash timeout](../extensions/bash-timeout/README.md)
+- [Bash view](../extensions/bash-view/README.md)
 - [Browser](../extensions/browser/README.md)
 - [Cache hit](../extensions/cache-hit/README.md)
 - [Caveman](../extensions/caveman/README.md)

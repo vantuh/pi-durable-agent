@@ -43,12 +43,17 @@ exists in this project, so there is nothing to drift towards, and the build outp
 | `on-accent`                 | `crust`                       | Text on an accent fill                          |
 | `ok` `warn` `danger` `info` | `green` `yellow` `red` `blue` | State marks, counts, tool status                |
 | `tag-*`                     | eight hues, see below         | A tag's own colour, the one its owner picked    |
+| `command-*`                 | seven hues, see below         | The kind of program a bash command runs         |
 
 The `tag-*` roles (`red`, `peach`, `yellow`, `green`, `teal`, `blue`, `mauve`, `pink`) carry no
 meaning of their own: an extension that lets a person colour something asks which hue and stores
 that name. `extensions/tags` is the one that does, and writes the classes out in full so Tailwind
 still finds them in the source. A tag is its hue as text, with no wash under the name: a row of
 filled chips would shout over the title beside it.
+
+The `command-*` roles colour the icon of a command in `extensions/bash-view`'s panels, by the kind
+of program it runs: `git` peach, `package` yellow, `run` green, `files` blue, `read` teal, `search`
+mauve, `network` sky. A deleting command (`rm`) wears `danger`; any other stays `faint`.
 
 `shadow` is the one role no Catppuccin name answers. A shadow is dark on Latte's light `base` and
 darker still on Mocha's, so one palette entry cannot be right for both, and Tailwind's own shadow is

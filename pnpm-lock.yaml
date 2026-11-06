@@ -155,6 +155,21 @@ importers:
         specifier: 1.5.0
         version: 1.5.0
 
+  extensions/bash-view:
+    dependencies:
+      '@earendil-works/pi-durable':
+        specifier: 1.5.0
+        version: 1.5.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(undici@8.12.3)(zod@4.6.7)
+      lucide-react:
+        specifier: ^1.61.0
+        version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      unbash:
+        specifier: 6.0.3
+        version: 6.0.3
+
   extensions/browser:
     dependencies:
       '@earendil-works/chord':
@@ -3700,6 +3715,10 @@ packages:
   uhyphen@0.2.0:
     resolution: {integrity: sha512-qz3o9CHXmJJPGBdqzab7qAYuW8kQGKNEuoHFYrBwV6hWIMcpAmxDLXojcHfFr9US1Pe6zUswEIJIbLI610fuqA==}
 
+  unbash@6.0.3:
+    resolution: {integrity: sha512-hRzSpMeM8uYMQkrnIVaVy3f44oLlokglVeEyP5hIQj88z60bKPO9VVbEpGfxChGBh9lBkzuWKOTOzPdfD6KNEA==}
+    engines: {node: '>=14'}
+
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
@@ -7162,6 +7181,8 @@ snapshots:
       '@typescript/typescript-win32-x64': 7.0.2
 
   uhyphen@0.2.0: {}
+
+  unbash@6.0.3: {}
 
   undici-types@8.9.0: {}
 

@@ -69,6 +69,14 @@
     --role-think-high: var(--ctp-mauve);
     --role-think-xhigh: var(--ctp-pink);
     --role-think-max: var(--ctp-flamingo);
+    /* The kind of program a bash command runs, on its icon in the bash-view panels. */
+    --role-command-git: var(--ctp-peach);
+    --role-command-package: var(--ctp-yellow);
+    --role-command-run: var(--ctp-green);
+    --role-command-files: var(--ctp-blue);
+    --role-command-read: var(--ctp-teal);
+    --role-command-search: var(--ctp-mauve);
+    --role-command-network: var(--ctp-sky);
 
     /* Code, as Catppuccin's own syntax style colours it. */
     --role-code-keyword: var(--ctp-mauve);
@@ -118,6 +126,13 @@
     --color-think-high: var(--role-think-high);
     --color-think-xhigh: var(--role-think-xhigh);
     --color-think-max: var(--role-think-max);
+    --color-command-git: var(--role-command-git);
+    --color-command-package: var(--role-command-package);
+    --color-command-run: var(--role-command-run);
+    --color-command-files: var(--role-command-files);
+    --color-command-read: var(--role-command-read);
+    --color-command-search: var(--role-command-search);
+    --color-command-network: var(--role-command-network);
     --color-code-keyword: var(--role-code-keyword);
     --color-code-string: var(--role-code-string);
     --color-code-comment: var(--role-code-comment);
