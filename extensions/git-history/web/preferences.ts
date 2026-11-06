@@ -7,24 +7,36 @@ if (typeof window !== "undefined" && localStorage.getItem(DIFF_LAYOUT_KEY) === n
         applyDiffLayout(previous);
     }
 }
-const TREE = "git-history:changed-files";
 const VIEWED = "git-history:viewed";
 const SEEN = "git-history:seen";
 /** The commits a folder remembers as opened: enough for the 200 the list can load, plus a branch's worth. */
 const SEEN_CAPPED = 500;
 
-/** The changed-files column starts shown; a person who hid it keeps it hidden. */
-export function changedFilesShown(): boolean {
-    return localStorage.getItem(TREE) !== "hidden";
+const TREE_WIDTH = "git-history:tree-width";
+export const USUAL_TREE_WIDTH = 240;
+const MIN_TREE_WIDTH = 160;
+const MAX_TREE_WIDTH = 464;
+
+/** Capped at 40% of the screen as the sidebar is, so the diff keeps room; the column cannot be hidden. */
+export function clampTreeWidth(wanted: number): number {
+    const max = Math.min(MAX_TREE_WIDTH, Math.max(USUAL_TREE_WIDTH, innerWidth * 0.4));
+
+    return Math.round(Math.min(max, Math.max(MIN_TREE_WIDTH, wanted)));
 }
 
-export function setChangedFilesShown(shown: boolean): void {
-    localStorage.setItem(TREE, shown ? "shown" : "hidden");
-    window.dispatchEvent(new Event(TREE));
+export function savedTreeWidth(): number {
+    const width = Number(localStorage.getItem(TREE_WIDTH));
+
+    return clampTreeWidth(width > 0 ? width : USUAL_TREE_WIDTH);
 }
 
-export function subscribeChangedFiles(listener: () => void): () => void {
-    return subscribe(TREE, listener);
+/** `null` forgets the saved width. */
+export function saveTreeWidth(width: number | null): void {
+    if (width === null) {
+        localStorage.removeItem(TREE_WIDTH);
+    } else {
+        localStorage.setItem(TREE_WIDTH, String(width));
+    }
 }
 
 /**
@@ -84,13 +96,4 @@ export function unmarkSeen(
     localStorage.setItem(`${SEEN}:${repo}`, JSON.stringify(next));
 
     return new Set(next);
-}
-
-function subscribe(key: string, listener: () => void): () => void {
-    window.addEventListener(key, listener);
-    window.addEventListener("storage", listener);
-    return () => {
-        window.removeEventListener(key, listener);
-        window.removeEventListener("storage", listener);
-    };
 }

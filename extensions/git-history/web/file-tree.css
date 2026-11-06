@@ -1,4 +1,5 @@
-.git-history-tree {
+.git-history-tree,
+.git-history-file-icon {
     --trees-bg-override: var(--role-panel);
     --trees-bg-muted-override: var(--role-raised);
     --trees-fg-override: var(--role-ink);
@@ -11,6 +12,7 @@
     --trees-focus-ring-color-override: var(--role-accent);
     --trees-indent-guide-bg-override: var(--role-edge);
     --trees-scrollbar-thumb-override: var(--role-edge);
+    --trees-border-radius-override: 0px;
     --trees-font-family-override: var(--font-mono);
     --trees-font-size-override: var(--text-meta);
     --trees-icon-gray: var(--role-muted);
@@ -26,4 +28,82 @@
     --trees-icon-purple: var(--role-accent);
     --trees-icon-pink: var(--role-spark);
     --trees-icon-mauve: var(--role-accent);
+}
+
+/* Diff headers sit outside the tree's shadow root, so they take its icon colors from here: the same token to color
+   pairing as the library's own sheet, over the roles set above. */
+.git-history-file-icon {
+    color: var(--trees-icon-gray);
+}
+.git-history-file-icon[data-icon-token="astro"],
+.git-history-file-icon[data-icon-token="database"],
+.git-history-file-icon[data-icon-token="vite"] {
+    color: var(--trees-icon-purple);
+}
+.git-history-file-icon[data-icon-token="babel"],
+.git-history-file-icon[data-icon-token="browserslist"],
+.git-history-file-icon[data-icon-token="javascript"] {
+    color: var(--trees-icon-yellow);
+}
+.git-history-file-icon[data-icon-token="bash"],
+.git-history-file-icon[data-icon-token="markdown"],
+.git-history-file-icon[data-icon-token="svgo"],
+.git-history-file-icon[data-icon-token="vue"] {
+    color: var(--trees-icon-green);
+}
+.git-history-file-icon[data-icon-token="biome"],
+.git-history-file-icon[data-icon-token="c"],
+.git-history-file-icon[data-icon-token="cpp"],
+.git-history-file-icon[data-icon-token="docker"],
+.git-history-file-icon[data-icon-token="python"],
+.git-history-file-icon[data-icon-token="typescript"],
+.git-history-file-icon[data-icon-token="vscode"],
+.git-history-file-icon[data-icon-token="webpack"] {
+    color: var(--trees-icon-blue);
+}
+.git-history-file-icon[data-icon-token="bootstrap"],
+.git-history-file-icon[data-icon-token="css"],
+.git-history-file-icon[data-icon-token="eslint"],
+.git-history-file-icon[data-icon-token="terraform"],
+.git-history-file-icon[data-icon-token="wasm"] {
+    color: var(--trees-icon-indigo);
+}
+.git-history-file-icon[data-icon-token="bun"] {
+    color: var(--trees-icon-mauve);
+}
+.git-history-file-icon[data-icon-token="claude"],
+.git-history-file-icon[data-icon-token="html"],
+.git-history-file-icon[data-icon-token="json"],
+.git-history-file-icon[data-icon-token="rust"],
+.git-history-file-icon[data-icon-token="svg"],
+.git-history-file-icon[data-icon-token="swift"],
+.git-history-file-icon[data-icon-token="zig"],
+.git-history-file-icon[data-icon-token="zip"] {
+    color: var(--trees-icon-orange);
+}
+.git-history-file-icon[data-icon-token="git"] {
+    color: var(--trees-icon-vermilion);
+}
+.git-history-file-icon[data-icon-token="go"],
+.git-history-file-icon[data-icon-token="oxc"],
+.git-history-file-icon[data-icon-token="react"],
+.git-history-file-icon[data-icon-token="tailwind"] {
+    color: var(--trees-icon-cyan);
+}
+.git-history-file-icon[data-icon-token="graphql"],
+.git-history-file-icon[data-icon-token="image"],
+.git-history-file-icon[data-icon-token="sass"] {
+    color: var(--trees-icon-pink);
+}
+.git-history-file-icon[data-icon-token="mcp"],
+.git-history-file-icon[data-icon-token="prettier"],
+.git-history-file-icon[data-icon-token="table"] {
+    color: var(--trees-icon-teal);
+}
+.git-history-file-icon[data-icon-token="npm"],
+.git-history-file-icon[data-icon-token="postcss"],
+.git-history-file-icon[data-icon-token="ruby"],
+.git-history-file-icon[data-icon-token="svelte"],
+.git-history-file-icon[data-icon-token="yml"] {
+    color: var(--trees-icon-red);
 }

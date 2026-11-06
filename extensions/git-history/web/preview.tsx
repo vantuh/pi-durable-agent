@@ -1,6 +1,6 @@
 import type { CodeViewItem, FileDiffMetadata } from "@pierre/diffs";
 import type { CodeViewDiffItem, CodeViewHandle } from "@pierre/diffs/react";
-import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import {
     type ReactNode,
     type RefObject,
@@ -9,23 +9,22 @@ import {
     useMemo,
     useRef,
     useState,
-    useSyncExternalStore,
 } from "react";
 import { flushSync } from "react-dom";
 
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button";
 import { Item, ItemContent } from "@/components/ui/item";
-import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DiffList } from "@/ui/diff/diff-list.tsx";
 import { parsePatch, prepareDiffs } from "@/ui/diff/pierre.ts";
+import { ResizeHandle } from "@/ui/resize-handle.tsx";
 
 import type { ChangedFile, Changes } from "../refs.ts";
 import { FileTree } from "./file-tree.tsx";
 import { FileMark } from "./icons.tsx";
 import { PendingPane } from "./pending-pane.tsx";
-import { changedFilesShown, setChangedFilesShown, subscribeChangedFiles } from "./preferences.ts";
+import { clampTreeWidth, saveTreeWidth, savedTreeWidth, USUAL_TREE_WIDTH } from "./preferences.ts";
 import type { TreeFile } from "./tree.ts";
 
 const options = {
@@ -210,7 +209,7 @@ export function PatchPreview({
     header: ReactNode;
     viewRef: RefObject<CodeViewHandle<undefined, undefined> | null>;
 }) {
-    const treeShown = useSyncExternalStore(subscribeChangedFiles, changedFilesShown);
+    const [treeWidth, setTreeWidth] = useState(savedTreeWidth);
     const [parsed, setParsed] = useState<{
         files: FileDiffMetadata[];
         error: string | null;
@@ -399,32 +398,27 @@ export function PatchPreview({
             {/* The tree is for a pointer and a wide screen; a phone reads the diff alone. */}
             {items.length < 2 ? null : (
                 <div
-                    className={cn(
-                        "border-edge-soft hidden shrink-0 flex-col border-r md:flex",
-                        treeShown ? "w-60" : "w-9",
-                    )}
+                    className="border-edge-soft relative hidden min-h-0 shrink-0 flex-col border-r md:flex"
+                    style={{ width: treeWidth }}
                 >
-                    {/* Its own button, so a hidden tree keeps the way back on screen. */}
-                    <div className={cn("flex shrink-0 p-1", treeShown && "justify-end")}>
-                        <Hint label={treeShown ? "Hide files" : "Show files"}>
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={treeShown ? "Hide files" : "Show files"}
-                                aria-expanded={treeShown}
-                                onClick={() => {
-                                    setChangedFilesShown(!treeShown);
-                                }}
-                            >
-                                {treeShown ? (
-                                    <PanelLeftClose className="size-4" />
-                                ) : (
-                                    <PanelLeftOpen className="size-4" />
-                                )}
-                            </Button>
-                        </Hint>
-                    </div>
-                    {treeShown ? <FileTree files={files} onPick={pick} /> : null}
+                    <FileTree files={files} onPick={pick} />
+                    <ResizeHandle
+                        edge="right"
+                        label="Resize file tree"
+                        onResize={(wanted, save) => {
+                            const width = clampTreeWidth(wanted);
+                            setTreeWidth(width);
+                            if (save) {
+                                saveTreeWidth(width);
+                            }
+                            return width;
+                        }}
+                        base={(box) => box.getBoundingClientRect().width}
+                        onReset={() => {
+                            saveTreeWidth(null);
+                            setTreeWidth(clampTreeWidth(USUAL_TREE_WIDTH));
+                        }}
+                    />
                 </div>
             )}
             <DiffList

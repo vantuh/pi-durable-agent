@@ -73,6 +73,11 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
                 ),
             );
 
+            assert.ok(
+                await page.seen(
+                    `document.querySelector('#history button[aria-label="Resize file tree"]').getClientRects().length === 0`,
+                ),
+            );
             await page.send("Emulation.setDeviceMetricsOverride", {
                 width: 1200,
                 height: 1000,
@@ -124,6 +129,31 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
         })()`),
             );
 
+            const resizeTree = `document.querySelector('#history button[aria-label="Resize file tree"]')`;
+            const treeBox = `document.querySelector('#history file-tree-container').closest('nav').parentElement`;
+            assert.ok(await page.until(`${resizeTree} !== null`, 5000));
+            assert.ok(
+                await page.seen(
+                    `${TREE}.querySelector('[data-item-path]') !== null && ${treeBox}.getBoundingClientRect().width === 240`,
+                ),
+            );
+            await page.read(`${resizeTree}.focus()`);
+            for (const type of ["keyDown", "keyUp"]) {
+                await page.send("Input.dispatchKeyEvent", {
+                    type,
+                    key: "ArrowRight",
+                    code: "ArrowRight",
+                    windowsVirtualKeyCode: 39,
+                });
+            }
+            assert.ok(await page.until(`${treeBox}.getBoundingClientRect().width === 256`, 5000));
+            assert.equal(await page.read(`localStorage.getItem('git-history:tree-width')`), "256");
+            await page.read(
+                `${resizeTree}.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }))`,
+            );
+            assert.ok(await page.until(`${treeBox}.getBoundingClientRect().width === 240`, 5000));
+            assert.equal(await page.read(`localStorage.getItem('git-history:tree-width')`), null);
+
             const firstHeader = `document.querySelector("#history diffs-container button[aria-expanded]")`;
             await page.read(`${firstHeader}.click()`);
             assert.ok(
@@ -173,6 +203,13 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
             );
             assert.ok(
                 await page.seen(`${lastHeader}.querySelector('svg:has(use)').getBBox().width > 0`),
+            );
+            assert.ok(
+                await page.seen(`(() => {
+                const header = getComputedStyle(${lastHeader}.querySelector('svg:has(use)')).color;
+                const tree = getComputedStyle(${TREE}.querySelector('[data-icon-token="typescript"]')).color;
+                return header === tree && header !== getComputedStyle(${lastHeader}).color;
+            })()`),
             );
         },
     );

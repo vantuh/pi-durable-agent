@@ -44,7 +44,7 @@ export function FileTree({
     }, [byPath, model]);
 
     return (
-        <nav aria-label="Changed files" className="min-h-0 flex-1">
+        <nav aria-label="Changed files" className="bg-panel min-h-0 flex-1 pt-1">
             <PierreFileTree
                 model={model}
                 className="git-history-tree"

@@ -26,8 +26,9 @@ and the diffs.
   file has a sticky header with its line counts; clicking it folds the file (200 ms; a reduced-motion
   setting folds at once). Files start expanded.
 - On a wide screen a changed-files column sits beside the diff with folders and per-file counts.
-  Clicking a file unfolds it and scrolls to it. A button hides the column to a narrow rail; the choice
-  is saved in this browser. A phone, or a change of one file, shows the diff alone.
+  Clicking a file unfolds it and scrolls to it. Drag the column's right edge (or press the arrow keys on
+  it; double-click resets) to resize it between 160 px and the sidebar's maximum; it cannot be hidden. The
+  width is saved in this browser. A phone, or a change of one file, shows the diff alone.
 - Untracked non-ignored files are included. Binary files are listed without a text diff.
 - **Settings → Appearance → Diffs** chooses **Unified** (default) or **Side by side** for both history
   previews and edit output. Narrow viewers use Unified regardless of the saved choice. The setting is
@@ -145,8 +146,8 @@ its optional AI/provider actions are separate from merely opening a review.
   Enter, to unfold and scroll to its diff. Counts are row decorations. `web/file-tree.css` maps
   the tree's colors and typography to the app's theme. If a diff replaces file `a` with directory
   `a/`, the old file appears as `a (file)`; its click still opens the original diff. Diff headers
-  reuse the same library's icon resolver and one document-level SVG sprite, in the theme's muted
-  color. No custom icon font, file-type map, rename, drag and drop, or filesystem writes.
+  reuse the same library's icon resolver and one document-level SVG sprite, colored by the tree's own
+  icon-token pairing (`web/file-tree.css`). No custom icon font, file-type map, rename, drag and drop, or filesystem writes.
 
 - **Embedding and security.** The CLI binds loopback. The iframe loads an opaque, random per-review
   URL under `/api/extensions/git-history/http/<capability>/`. HTML, API, SSE and binary traffic go
