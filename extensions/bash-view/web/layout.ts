@@ -118,9 +118,26 @@ function heredocEnd(node: SyntaxNode): number {
     return end;
 }
 
+function hasLayoutBreak(source: string, node: SyntaxNode): boolean {
+    let at = node.pos;
+    let found = false;
+    const visit = (child: SyntaxNode): void => {
+        if (child.type === "Word") {
+            found ||= source.slice(at, child.pos).includes("\n");
+            at = child.end;
+        } else {
+            forEachChild(child, visit);
+        }
+    };
+
+    visit(node);
+
+    return found || source.slice(at, node.end).includes("\n");
+}
+
 /**
  * The command as rows: one statement each, and every long `&&`, `||` and `|` chain one part each. A statement already
- * written over several lines is one `code` row. Undefined for a command that does not parse.
+ * written over several lines outside its arguments is one `code` row. Undefined for a command that does not parse.
  */
 export function split(command: string): Part[] | undefined {
     const script = parse(command);
@@ -154,7 +171,9 @@ export function split(command: string): Part[] | undefined {
         const text = command.slice(statement.pos, end);
 
         parts.push(
-            ...(text.includes("\n") ? [{ kind: "code", text } as const] : unfold(statement, 0)),
+            ...(end > statement.end || hasLayoutBreak(command, statement)
+                ? [{ kind: "code", text } as const]
+                : unfold(statement, 0)),
         );
         at = end;
     }

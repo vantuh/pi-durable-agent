@@ -42,6 +42,7 @@ void it("highlights interpreter code inside one frame and copies the complete sh
     const body = "const n = 1;\n\nconsole.log(n);";
     const header = "node --input-type=module <<'JS'";
     const heredoc = `${header}\n${body}\nJS`;
+    const commit = 'git commit --amend -m "feat: test" -m "first line\nsecond line"';
     const commands = [
         {
             source: `sed -n '1,5p' file; cat types.d.ts; ${heredoc}`,
@@ -64,6 +65,15 @@ void it("highlights interpreter code inside one frame and copies the complete sh
             code: "import os\n\nprint(os.getcwd())",
             marked: ["import os", "", "print(os.getcwd())"],
         },
+        {
+            source: `git add README.md && ${commit} && git status --short`,
+            formatted: `git add README.md &&\n  ${commit} &&\n  git status --short`,
+            keyword: "git",
+            tokenClass: "text-code-function",
+            code: "first line\nsecond line",
+            marked: [],
+            rows: ["git add README.md", commit, "git status --short"],
+        },
     ];
 
     try {
@@ -82,9 +92,11 @@ void it("highlights interpreter code inside one frame and copies the complete sh
                 });
 
                 const highlighted = () =>
-                    [...container.querySelectorAll(".text-code-keyword")].some(
-                        (token) => token.textContent === command.keyword,
-                    );
+                    [
+                        ...container.querySelectorAll(
+                            `.${command.tokenClass ?? "text-code-keyword"}`,
+                        ),
+                    ].some((token) => token.textContent === command.keyword);
                 const deadline = Date.now() + 5000;
 
                 while (!highlighted() && Date.now() < deadline) {
@@ -129,6 +141,18 @@ void it("highlights interpreter code inside one frame and copies the complete sh
                         0,
                         "no nested code-block headers or copy buttons",
                     );
+
+                    if (command.rows !== undefined) {
+                        const rows = [...container.querySelectorAll("code.text-code")];
+
+                        assert.deepEqual(
+                            rows.map((row) => row.textContent),
+                            command.rows,
+                        );
+                        assert.ok(
+                            rows.every((row) => row.classList.contains("whitespace-pre-wrap")),
+                        );
+                    }
                 }
             }
         }

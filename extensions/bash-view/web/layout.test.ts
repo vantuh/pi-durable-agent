@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 
-import { layout } from "./layout.ts";
+import { layout, split } from "./layout.ts";
 
 void describe("layout", () => {
     void it("puts each statement on its own line and each && part under the first", () => {
@@ -18,6 +18,55 @@ void describe("layout", () => {
                 'exit "$result"',
             ].join("\n"),
         );
+    });
+
+    void it("splits a git chain without changing a multiline commit message", () => {
+        const commands = [
+            "git add extensions/bash-view/README.md web/src/ui/markdown/code-block.tsx",
+            "git diff --cached --check",
+            'git commit --amend -m "feat(bash-view): highlight embedded Python and JS" -m "Expose frameless code text in the shared\nrenderer so extensions reuse streaming and copy behavior without\nadding their own code-block frames."',
+            "git status --short",
+            "git log -1 --format='%h %s'",
+        ];
+        const source = commands.join(" && ");
+
+        assert.equal(
+            layout(source),
+            commands
+                .map(
+                    (command, index) =>
+                        `${index === 0 ? "" : "  "}${command}${index < commands.length - 1 ? " &&" : ""}`,
+                )
+                .join("\n"),
+        );
+        assert.deepEqual(
+            split(source)
+                ?.filter((part) => part.kind === "command")
+                .map((part) => source.slice(part.pos, part.end)),
+            commands,
+            "Panels get one command row per git call, with the commit message intact",
+        );
+    });
+
+    void it("preserves multiline argument values when a chain is laid out", () => {
+        const source =
+            "printf '%s\\n' 'first line\n  second line' && printf '%s\\n' 'after the quoted argument'";
+        const formatted = layout(source);
+        const originalRun = spawnSync("bash", ["-c", source], { encoding: "utf8" });
+        const formattedRun = spawnSync("bash", ["-c", formatted], { encoding: "utf8" });
+
+        assert.notEqual(formatted, source);
+        assert.equal(originalRun.status, 0, originalRun.stderr);
+        assert.equal(formattedRun.status, 0, formattedRun.stderr);
+        assert.equal(originalRun.stdout, "first line\n  second line\nafter the quoted argument\n");
+        assert.equal(formattedRun.stdout, originalRun.stdout);
+    });
+
+    void it("keeps physical line breaks and comments between commands", () => {
+        const source =
+            "printf before &&\n# keep this comment\nprintf '%s\\n' 'first line\nsecond line'";
+
+        assert.equal(layout(source), source);
     });
 
     void it("indents a long pipeline inside a chain one level deeper, and leaves a short one whole", () => {

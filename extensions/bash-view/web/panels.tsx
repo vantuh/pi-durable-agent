@@ -143,7 +143,7 @@ export function Panels({ source, parts }: { source: string; parts: readonly Part
                                 className={cn("mt-0.5 size-3.5 shrink-0", look.tone)}
                             />
                             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                                <code className="text-code text-ink font-mono break-all">
+                                <code className="text-code text-ink font-mono break-all whitespace-pre-wrap">
                                     <CommandCode
                                         command={bare(source, part.pos, part.end, part.command)}
                                     />

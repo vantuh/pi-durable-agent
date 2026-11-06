@@ -74,8 +74,9 @@ flag-only options `-u`, `-B`, `-I`, `-S`, `-E`, `-s`, `-O` and `-OO`; Node accep
 - A command that does not parse (also one still streaming in) shows as written, in every view.
 - Heredoc headers and bodies stay together, including any other statements on the same header line.
   Commands before and after that block still format normally. Here-strings do not block formatting.
-- A statement already written over several lines, and an `if`, loop, subshell or `{ }` group, stays
-  as written. Panels highlight these rows too.
+- Physical line breaks between commands, and an `if`, loop, subshell or `{ }` group, stay as written.
+  Newlines inside arguments, such as a multiline `git commit -m` message, do not block splitting the
+  surrounding chain. The argument's text and whitespace stay intact, including in Panels.
 - A short pipeline stays one row, with the first command's icon and its redirects left in the text.
 - A wrapper's options are recognised only by their look (`-u`, `3`, `X=1`): `sudo -u root rm` takes
   `root` as the program.
