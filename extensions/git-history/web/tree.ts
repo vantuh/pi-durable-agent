@@ -22,3 +22,26 @@ export function treeFiles(files: TreeFile[]): Map<string, TreeFile> {
         }),
     );
 }
+
+/** The order the file tree shows: folders before files, dot names first, then names without case. */
+export function treeOrder(left: string, right: string): number {
+    const a = left.split("/");
+    const b = right.split("/");
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        const [x = "", y = ""] = [a[i], b[i]];
+        const xDir = i < a.length - 1;
+        const yDir = i < b.length - 1;
+        if (xDir !== yDir) {
+            return xDir ? -1 : 1;
+        }
+        const xDot = x.startsWith(".");
+        if (xDot !== y.startsWith(".")) {
+            return xDot ? -1 : 1;
+        }
+        const order = x.toLowerCase().localeCompare(y.toLowerCase());
+        if (order !== 0) {
+            return order;
+        }
+    }
+    return a.length - b.length;
+}

@@ -25,7 +25,7 @@ import { FileTree } from "./file-tree.tsx";
 import { FileMark } from "./icons.tsx";
 import { PendingPane } from "./pending-pane.tsx";
 import { clampTreeWidth, saveTreeWidth, savedTreeWidth, USUAL_TREE_WIDTH } from "./preferences.ts";
-import type { TreeFile } from "./tree.ts";
+import { treeOrder, type TreeFile } from "./tree.ts";
 
 const options = {
     stickyHeaders: true,
@@ -56,7 +56,8 @@ export function warmPreview(patch: string): Promise<FileDiffMetadata[]> {
     }
     const entry: { files?: FileDiffMetadata[]; started: Promise<FileDiffMetadata[]> } = {
         started: (async () => {
-            const files = parsePatch(patch);
+            // The diff follows the tree's order, not git's plain path order.
+            const files = parsePatch(patch).sort((a, b) => treeOrder(a.name, b.name));
             await prepareDiffs(files);
             return files;
         })(),

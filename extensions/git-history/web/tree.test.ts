@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { FileTree } from "@pierre/trees";
 
-import { treeFiles } from "./tree.ts";
+import { treeFiles, treeOrder } from "./tree.ts";
 
 const file = (path: string) => ({ id: path, path, added: 1, deleted: 0 });
 
@@ -31,6 +31,32 @@ void describe("changed-file paths", () => {
                 new Set(rows.map((row) => paths.get(row.path)?.id)),
                 new Set(files.map((each) => each.id)),
             );
+        } finally {
+            tree.cleanUp();
+        }
+    });
+});
+
+void describe("diff order", () => {
+    void it("matches the rows the file tree shows", () => {
+        const paths = [
+            "README.md",
+            "web/b.ts",
+            "web/a/z.ts",
+            "web/.hidden/x.ts",
+            "web/A.ts",
+            ".github/ci.yml",
+            "extensions/git/web/x.ts",
+            "extensions/git-history/web/y.ts",
+            "extensions/git.ts",
+        ];
+        const tree = new FileTree({ paths: [...paths].reverse(), initialExpansion: "open" });
+        try {
+            const shown = tree
+                .getVisibleRows(0, 50)
+                .filter((row) => row.kind === "file")
+                .map((row) => row.path);
+            assert.deepEqual([...paths].sort(treeOrder), shown);
         } finally {
             tree.cleanUp();
         }
