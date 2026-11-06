@@ -15,7 +15,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { createServer as createViteServer } from "vite";
 
-import type { Chromium } from "../extensions/browser/lib/cdp.ts";
+import type { Chromium } from "../extensions/browser/server/cdp.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import type { ClientEntry, ServerEvent, SessionsEvent } from "../shared/protocol.ts";
 import { defaultAnswer } from "./fixtures/api-defaults.ts";
@@ -115,8 +115,8 @@ type Browser = {
 async function loadBrowser(): Promise<Browser | undefined> {
     try {
         const [cdp, discovery] = await Promise.all([
-            import("../extensions/browser/lib/cdp.ts"),
-            import("../extensions/browser/lib/discovery.ts"),
+            import("../extensions/browser/server/cdp.ts"),
+            import("../extensions/browser/server/discovery.ts"),
         ]);
 
         return {

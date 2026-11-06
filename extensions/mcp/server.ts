@@ -15,7 +15,7 @@ import { map, obj, opt, str, unknown } from "@earendil-works/pi-schema";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { messageOf } from "../../shared/guards.ts";
-import { Connections } from "./connections.ts";
+import { Connections } from "./server/connections.ts";
 
 export const meta = {
     title: "MCP servers",

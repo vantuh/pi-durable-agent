@@ -16,9 +16,9 @@ import { Hint } from "@/components/ui/tooltip.tsx";
 import { toast } from "@/lib/toast.ts";
 import type { SessionFilterProps, SessionItemProps, WebExtension } from "@/sdk/types.ts";
 
-import { toggleTag, useTags } from "./client.ts";
 import { tagsOf } from "./refs.ts";
-import { TAG_DOT, TAG_TONE } from "./tones.ts";
+import { toggleTag, useTags } from "./web/client.ts";
+import { TAG_DOT, TAG_TONE } from "./web/tones.ts";
 
 /** How many names a row shows before it counts the rest: a row also has a title and a time to hold. */
 const SHOWN = 1;

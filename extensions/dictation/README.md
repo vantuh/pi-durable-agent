@@ -25,11 +25,11 @@ context; pressing it shows an error instead of recording. Microphone access need
 - The audio arrives in numbered parts of 300 000 bytes, joined back in number order and refused
   past 32 MiB; unfinished uploads older than ten minutes are discarded when another part arrives,
   and anything under 0.35 s is a tap rather than a word.
-- A short rising tone marks the start of a recording and a falling one its end (`beep.ts`, Web
+- A short rising tone marks the start of a recording and a falling one its end (`web/beep.ts`, Web
   Audio; no files). The tone follows listening, not the text: transcription finishes later and says
   nothing.
 - It never sends. Tap the mic again to stop, and the words go into the box at the caret, with a
-  space only where words would touch and a capital on a sentence's first word (`insert.ts`, no
+  space only where words would touch and a capital on a sentence's first word (`web/insert.ts`, no
   React; its tests are plain strings). Unmounting the mic, including leaving the app or turning the
   extension off, drops a recording in flight. Switching sessions while the mic stays mounted sends
   the finished text to the current composer, not necessarily the session where recording began.

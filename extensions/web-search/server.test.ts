@@ -11,12 +11,12 @@ import type { ToolExecutionResult } from "@earendil-works/pi-durable";
 import type { ResolveModelAuth } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
-import { billingBlock, readMessages, searchAnthropic } from "./anthropic.ts";
-import { type Provider, formatAnswer, runChain } from "./chain.ts";
-import { readResponses, searchChatgpt } from "./chatgpt.ts";
-import { MAX_OUTPUT, readKiro, searchKiro } from "./kiro.ts";
 import webSearch, { searchAnswer } from "./server.ts";
-import type { Found } from "./wire.ts";
+import { billingBlock, readMessages, searchAnthropic } from "./server/anthropic.ts";
+import { type Provider, formatAnswer, runChain } from "./server/chain.ts";
+import { readResponses, searchChatgpt } from "./server/chatgpt.ts";
+import { MAX_OUTPUT, readKiro, searchKiro } from "./server/kiro.ts";
+import type { Found } from "./server/wire.ts";
 
 const ask = { queries: ["latest Node.js LTS"], urls: [] };
 const fixture = (name: string) =>

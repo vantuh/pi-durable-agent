@@ -2,7 +2,7 @@ import { Files } from "lucide-react";
 
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { FilesPanel } from "./panel.tsx";
+import { FilesPanel } from "./web/panel.tsx";
 
 export default {
     panels: [

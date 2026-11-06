@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import vm from "node:vm";
 
@@ -319,16 +319,17 @@ void describe("pwa build helpers", () => {
 void describe("worker facets", () => {
     const root = mkdtempSync(join(tmpdir(), "pwa-facets-"));
     const put = (folder: string, file: string, text: string): void => {
-        mkdirSync(join(root, folder), { recursive: true });
+        mkdirSync(dirname(join(root, folder, file)), { recursive: true });
         writeFileSync(join(root, folder, file), text);
     };
 
-    void it("reads sw.js of normal folders in order and skips . and _ folders", () => {
-        put("b", "sw.js", "const x = 2;");
-        put("a", "sw.js", "const x = 1;");
-        put("_c", "sw.js", "skip");
-        put(".d", "sw.js", "skip");
+    void it("reads assets/sw.js of normal folders in order and skips . and _ folders", () => {
+        put("b", "assets/sw.js", "const x = 2;");
+        put("a", "assets/sw.js", "const x = 1;");
+        put("_c", "assets/sw.js", "skip");
+        put(".d", "assets/sw.js", "skip");
         put("e", "server.ts", "no worker");
+        put("f", "sw.js", "not in assets");
 
         assert.deepEqual(workerFacets(root), ["const x = 1;", "const x = 2;"]);
     });

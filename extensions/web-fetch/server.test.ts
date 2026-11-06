@@ -6,8 +6,8 @@ import { boundOutput } from "@earendil-works/chord/output";
 
 import { testHost } from "../../test/fixtures/host.ts";
 import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
-import { MAX_CHARS, fetchPage, format, type Page } from "./page.ts";
 import webFetch from "./server.ts";
+import { MAX_CHARS, fetchPage, format, type Page } from "./server/page.ts";
 
 type Route = (response: ServerResponse) => void;
 

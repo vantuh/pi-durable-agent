@@ -327,8 +327,8 @@ One file per step, largest mixing first:
     - [x] `ui/diff.tsx` (336 lines). Now `ui/diff/`: `diff-card.tsx`, `counts.tsx`, `line.tsx`, `split-body.tsx` (with
           its private column), `use-tokens.ts`, `use-room.ts` and `tones.ts`.
     - [x] `ui/markdown.tsx` (270 lines). Now `ui/markdown/code-block.tsx` and `ui/markdown/components.tsx`;
-          `ui/markdown.tsx` keeps `Markdown` and re-exports `CodeBlock`, because two extensions import it from
-          there. Phase 8 points them at `ui/markdown/code-block.tsx` and drops the re-export.
+          `ui/markdown.tsx` keeps `Markdown`. It re-exported `CodeBlock` for two extensions until phase 8
+          pointed them at `ui/markdown/code-block.tsx` and dropped the re-export.
 - [x] `lib/turns.ts` (705 lines): split, because three jobs shared one header. `turns.ts` keeps the
       types and the grouping (`turnsOf`, 282 lines); `step-summary.ts` says what a call was about and what
       it came to (`argOf`, `outcomeOf`, `summarize`, `imagesOf`); `turn-equality.ts` holds the `same*`
@@ -344,65 +344,70 @@ Today each one grew its own shape: `browser/lib/`, `web-search/fixtures/`, `deta
 
 ### The layout
 
-```text
-extensions/<name>/
-  package.json     name `@pi-durable-agent/<name>` and the extension's own dependencies
-  README.md        usage, configuration, behaviour and limits; every extension has one
-  server.ts        entry, found by the server loader by name
-  server.test.ts   tests of what server.ts installs
-  web.tsx          entry, found by the browser glob by name
-  details.tsx      entry, found by the Extensions dialog glob by name
-  refs.ts          the contract between the halves: action refs, shared types, parsers;
-                   browser-safe, no Node imports
-  server/          server-only code server.ts imports; Node APIs allowed; tests beside the file
-  web/             browser-only code web.tsx and details.tsx import: one exported component per
-                   file, hooks in use-*.ts, browser helpers; tests beside the file
-  assets/          fonts, icons, scripts and other files read by path
-  fixtures/        test data
-  LICENSE.*        notices for copied code, kept beside the code they cover
-```
-
-Rules:
-
-- **The top level holds only the names above.** Every other file goes into `server/` or `web/`. The
-  three entries are found by name, so they cannot move; everything else can, and putting it in a
-  folder named after its runtime keeps it there.
-- **The folder says where the code runs.** `server/` may import Node; `web/` is bundled by Vite and
-  must not; `refs.ts` is imported by both. A Node import reaching the browser bundle is the mistake
-  this prevents, and it is the one Vite reports late.
-- **Entries only wire.** `server.ts` builds the tools, prompt sections, hooks and actions from
-  `server/`; `web.tsx` and `details.tsx` register components from `web/`. Logic lives in the folders.
-- **Optional parts stay absent.** A server-only extension has no `web.tsx` and no `web/`; an empty
-  folder is never created.
-- **Shared code is `refs.ts`.** If it outgrows ~300 lines it becomes a `shared/` folder, imported by
-  both halves; not before.
+The layout and its rules are written in [extensions.md](extensions.md#the-layout); this plan only
+lists the steps that move the extensions to it.
 
 ### Steps
 
-- [ ] Core: check that the loader reinstalls an extension when a file in `server/` changes, and does
-      not reinstall it for a change in `web/`, `assets/` or `fixtures/` (today it only skips
-      `web.tsx` and test files). Fix the watcher filter if not, with a test.
-- [ ] Core: check that the module resolve hook versions helper imports in subfolders, so a reload
-      picks up an edited `server/*.ts`.
-- [ ] Write the layout into `docs/extensions.md`; `AGENTS.md` and `docs/conventions.md` point to it.
-- [ ] Move one extension per commit, smallest first, with `git mv` so history follows. A move commit
+- [x] Core: the loader reinstalls an extension when a file in `server/` changes. It also reinstalled
+      for a `.ts` file in `web/`, `assets/` or `fixtures/` (it skipped only `web.tsx`, test files and
+      names with a dot); `server/extensions/watcher.ts` now ignores those three subfolders. Test:
+      `test/extensions.test.ts`, "reloads for a change in server/, and not for web/, assets/ or fixtures/". `7bf9451`
+- [x] Core: the module resolve hook versions helper imports in subfolders: it matches any file under the
+      same extension folder, so an edited `server/*.ts` is picked up on reload (the same test, and
+      "a reload runs a changed helper, also in a subfolder"). `7bf9451`
+- [x] Write the layout into `docs/extensions.md`; `AGENTS.md` and `docs/conventions.md` point to it. `ed94d73`
+- [x] Move one extension per commit, smallest first, with `git mv` so history follows. A move commit
       only moves files and fixes imports; splitting a large file is its own commit after it.
       Order: `prompt`, `cache-hit`, `tokens-per-second`, `kiro-acp`, `image-limit`,
       `codemode`, `web-fetch`, `finished`, `pause`, `caveman`, `ponytail`, `hotkeys`,
       `context-meter`, `git-branch`, `bash-timeout`, `auto-session-name`, `files`, `terminal`,
-      `notes`, `mcp`, `tags`, `usage-limits`, `keep-warm`, `git-worktree`, `web-search`,
+      `notes`, `tags`, `usage-limits`, `keep-warm`, `git-worktree`, `web-search`,
       `dictation`, `push`, `anthropic-subscription`, `browser`, `subagents`, `git-history`.
-- [ ] Add a `README.md` where it is missing: `cache-hit`, `finished`, `prompt`, `tags`,
+      Moved: `web-fetch`, `finished`, `pause`, `ponytail`, `hotkeys`, `auto-session-name`, `files`, `terminal`, `notes`, `tags`, `mcp`, `usage-limits`, `keep-warm`, `git-worktree`, `web-search`, `dictation`, `push`, `anthropic-subscription`, `browser`, `subagents`, `git-history`
+      Already in the layout, no commit: `prompt`, `cache-hit`, `tokens-per-second`, `kiro-acp`, `image-limit`,
+      `codemode`, `caveman`, `context-meter`, `git-branch`, `bash-timeout`. `hotkeys`, `keep-warm` and
+      `anthropic-subscription` also folded their shared file (`lib.ts`, `due.ts`, `account-refs.ts`) into `refs.ts`.
+      `push/sw.js` moved to `assets/`; `pwa.ts` now reads it there. Commits `be1b6ea` (web-fetch) to `84fbf01`
+      (git-history), one per extension, with the folds as their own commits.
+- [x] Add a `README.md` where it is missing: `cache-hit`, `finished`, `prompt`, `tags`,
       `tokens-per-second`.
-- [ ] Decide on `subagents/HANDOFF.md`: fold into its `README.md` or delete.
-- [ ] Split the large files inside the new folders:
-    - [ ] `git-history/web.tsx` (1423 lines, 8 components) into `web/`.
-    - [ ] `browser/lib/page.ts` (1333 lines).
-    - [ ] `subagents/server.ts` (925 lines): tasks, profiles, tools, prompt into `server/`.
-    - [ ] `git-worktree/web.tsx`, `browser/panel.tsx`, `terminal/panel.tsx`, `notes/todos.tsx`,
-          `subagents/web.tsx`.
-- [ ] A check that fails when a top-level file outside the layout appears (a test over
-      `extensions/*`), so the shape does not drift back.
+      `files` and `browser` had none either and got one too. `b1b752e`
+- [x] `subagents/HANDOFF.md` deleted. Its two open items (bound long reports, stop agents when a
+      parent is deleted) and the isolated-UI recipe are in the README's "Open work" and "Verification"
+      sections; the commit list, the live-database evidence and the finished items were stale. `eaac230`
+- [x] Split the large files inside the new folders:
+    - [x] `git-history/web.tsx` (1429 lines, 8 components). Now 20 lines of wiring and, in `web/`: components
+          `git-history-page.tsx` (236), `commit-detail.tsx` (215), `review-view.tsx`, `changes-view.tsx`,
+          `history-list.tsx`, `history-toolbar.tsx`, `history-row.tsx`, `reword-form.tsx`; hooks `use-history.ts`
+          (the list, the lookup of a commit the list stops short of, the idle prefetch), `use-review.ts` (the
+          Plannotator poll, cancel on leaving, feedback to the composer), `use-page-keys.ts`; plain modules
+          `place.ts`, `shown.ts`, `patch-cache.ts`, `prefetch.ts`, `page-button.ts`, `exact-time.ts`,
+          `review-running.ts`. The two identical refresh handlers became `reload` in `use-history.ts`. `cfaa06f`
+    - [x] `browser/server/page.ts` (1333 lines). Now 850. The seams that own their state or touch no state of the
+          page moved out: `page-log.ts` (`PageLog`: console lines, sequence, error count), `screencast.ts`
+          (`Screencast`: frames and the watchers that keep it running), `load-tracker.ts` (`LoadTracker`: loading,
+          the load marks and `settle`), and the stateless `page-input.ts` (panel events to DevTools input),
+          `page-capture.ts` (screenshots), `page-evaluate.ts` (running a script), with `send.ts` and `wait.ts`
+          as leaves. `BrowserPage` keeps the event switch, popups, navigation and the element actions: they write
+          a dozen of its fields (`#url`, `#title`, `#frameId`, `#crashed`, the timers), so cutting them would
+          pass those fields around instead of separating anything. Checked with a real Chrome: a scripted run of
+          every public method gave the same transcript before and after. `4bbdcf3`
+    - [x] `subagents/server.ts` (925 lines). Now 59 (meta, the commit listener, `defineExtension`) and in
+          `server/`: `tools.ts` (329), `tasks.ts` (171), `actions.ts` (120), `prompt.ts` (88), `child-agent.ts`,
+          `strip.ts`, `docs.ts`, `answer.ts`. `profiles.ts` and `profile-model.ts` were already there. `b7b4f91`
+    - [x] `git-worktree/web.tsx` (624 lines). Now 38 lines of wiring and, in `web/`: `mark.tsx` (264, the session
+          title's worktree menu), `worktree.tsx` (the new-session choice), `remove-worktree-dialog.tsx`,
+          `session-mark.tsx`, hooks `use-worktree.ts` and `use-worktree-choices.ts`, and `collected.ts` (the
+          new-session answers). `a1d64ba`
+    - [x] `browser/web/panel.tsx` (525 lines). Now `panel.tsx` (164) and, beside it, `stage.tsx`, `console.tsx`, `icon-button.tsx` and the hooks `use-page-state.ts`, `use-frame.ts`, `use-input.ts`. `530c427`
+    - [x] `terminal/web/panel.tsx` (586 lines). Now `panel.tsx` (27, the empty state and the restart counter) and `shell.tsx` (450), with `terminal-theme.ts`, `control-byte.ts` (the Ctrl+C rules, pure) and `stop-dialog.tsx` cut out of it. `shell.tsx` stays over 300 lines on purpose: the xterm effect, the stop/restart state machine and the toolbar share `live`, `pending`, `terminal`, `over` and `problem`, so a hook for the effect would take seven arguments and give nothing back but those. `5a86098`
+    - [x] `notes/web/todos.tsx` (460 lines). Now `todos.tsx` (169) and, beside it, `row.tsx`, `sortable-row.tsx`, `todo-details.tsx`, the hook `use-todo-list.ts` and the `Patch` type in `todo-patch.ts`. `f4491ac`
+    - [x] `subagents/web.tsx` (453 lines). Now 25 lines of wiring and, in `web/`: `chip.tsx`, `agents.tsx` (the strip), `agent-row.tsx`, `agents-area.tsx`, `agents-working.tsx`, `agents-marker.tsx`, `agents-submenu.tsx`, `models-section.tsx`, the hooks `use-strip.ts`, `use-names.ts`, `use-minute.ts`, and `strip-row.ts` (the row height both views share). `65f2cb5`
+- [x] A check that fails when a top-level file outside the layout appears (a test over
+      `extensions/*`), so the shape does not drift back: `test/extension-layout.test.ts`. It also fails on a
+      Node import in the code the browser loads. `f5ea2d2`, tightened in the review fix below.
+- Review of phase 8: no blocker, no behavioural regression; one P2 fixed test-first, the browser-code check now reads every import form and rejects bare Node builtins and runtime imports of `server/`.
 
 ## Phase 9: tests and scripts
 

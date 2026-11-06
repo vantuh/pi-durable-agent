@@ -22,7 +22,7 @@ import {
     tagsFile,
     toggleTag,
     writeTags,
-} from "./store.ts";
+} from "./server/store.ts";
 
 export const meta = {
     title: "Tags",

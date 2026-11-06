@@ -7,10 +7,10 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import type { Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
-import type { Saved } from "./lib/page.ts";
-import { normalizeUrl } from "./lib/urls.ts";
-import { viewportFrom } from "./lib/viewport.ts";
 import createBrowser from "./server.ts";
+import type { Saved } from "./server/page.ts";
+import { normalizeUrl } from "./server/urls.ts";
+import { viewportFrom } from "./server/viewport.ts";
 
 void describe("browser addresses", () => {
     void it("opens local servers over http and other hosts over https", () => {

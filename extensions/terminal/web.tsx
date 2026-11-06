@@ -2,7 +2,7 @@ import { SquareTerminal } from "lucide-react";
 
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { TerminalPanel } from "./panel.tsx";
+import { TerminalPanel } from "./web/panel.tsx";
 
 export default {
     panels: [

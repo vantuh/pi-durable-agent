@@ -219,8 +219,9 @@ the neighbour it disagrees with.
   `server.ts`, `web.tsx` and `details.tsx`, `server.test.ts`, `refs.ts`, and `LICENSE.*`; every other
   file goes into `server/` (Node allowed), `web/` (browser only), `assets/` or `fixtures/`. The
   mistake it prevents: thirty files at the top of one folder, and a Node import found by Vite late.
-  The full layout: [refactor-plan.md](refactor-plan.md#the-layout). Current extensions do not all
-  follow it yet; the refactor moves them.
+  The full layout: [extensions.md](extensions.md#the-layout). `test/extension-layout.test.ts` fails on
+  a stray file at the top level, and on a `node:` import in the code the browser loads (`web.tsx`,
+  `details.tsx`, `refs.ts`, and `web/` but its tests).
 - **A tool describes its parameters with `@earendil-works/pi-schema`** (`obj`, `str`, `int`, `opt`, ...),
   declared in the `dependencies` of the extension that imports it, never with TypeBox and never as a
   peer (a peer must also be in the root manifest). `obj` is closed by default and `Type.Object` was open:

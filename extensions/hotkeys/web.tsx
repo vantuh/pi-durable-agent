@@ -12,11 +12,11 @@ import {
     DEFAULT_KEYMAP,
     fieldKeeps,
     inDialog,
+    keymap,
     presses,
     step,
     type Keymap,
-} from "./lib.ts";
-import { keymap } from "./refs.ts";
+} from "./refs.ts";
 
 const ARMED_MS = 1500;
 

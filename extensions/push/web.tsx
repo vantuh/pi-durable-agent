@@ -9,8 +9,8 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { callAction } from "@/sdk/actions.ts";
 import type { SettingsProps, WebExtension } from "@/sdk/types.ts";
 
-import { enable, OLD_WORKER, readyWorker, workerProblem } from "./device.ts";
 import { normalizeContact, prepare, state, subscribe, unsubscribe } from "./refs.ts";
+import { enable, OLD_WORKER, readyWorker, workerProblem } from "./web/device.ts";
 
 type Phase =
     | { kind: "checking" }

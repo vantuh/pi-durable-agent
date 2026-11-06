@@ -1,7 +1,7 @@
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
-import { ProfileModels } from "./profile-models.tsx";
+import { ProfileModels } from "./web/profile-models.tsx";
 
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     if (!enabled || !installed) {

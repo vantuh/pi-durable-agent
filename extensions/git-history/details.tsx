@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
 import { DetailsColumn } from "@/ui/details.tsx";
 
-import { diffStyle, setDiffStyle, subscribeDiffStyle } from "./preferences.ts";
+import { diffStyle, setDiffStyle, subscribeDiffStyle } from "./web/preferences.ts";
 
 export default function Details() {
     const style = useSyncExternalStore(subscribeDiffStyle, diffStyle);

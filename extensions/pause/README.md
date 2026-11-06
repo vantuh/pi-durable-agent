@@ -50,7 +50,7 @@ Neither conflicts with a pause: the run is what stops, not the inbox.
 
 ## How it works
 
-- `gate.ts` — one `Gate` per conversation. `hold(context)` resolves at once while the gate is open
+- `server/gate.ts` — one `Gate` per conversation. `hold(context)` resolves at once while the gate is open
   and parks otherwise; `resume()` opens the gate and lets every parked call through; a parked call
   also resolves on its abort signal.
 - `server.ts` — `ToolTask.beforeTool` holds the next call before it runs, `GenerationTask.beforeRequest`

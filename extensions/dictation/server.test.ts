@@ -11,9 +11,9 @@ import { promisify } from "node:util";
 import type { Host } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { MAX_BYTES, Parts, toSamples } from "./parts.ts";
 import dictation, { actions, candidates, Dictation, http, models } from "./server.ts";
-import { DictationStore } from "./store.ts";
+import { MAX_BYTES, Parts, toSamples } from "./server/parts.ts";
+import { DictationStore } from "./server/store.ts";
 
 const run = promisify(execFile);
 

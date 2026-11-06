@@ -1,0 +1,592 @@
+/** Local Git reads, and the one write of giving a local commit a new message. No fetch, checkout or push. */
+import { execFile } from "node:child_process";
+import type { Stats } from "node:fs";
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
+import { promisify } from "node:util";
+
+import { ActionError } from "../../../server/sdk.ts";
+import { messageOf } from "../../../shared/guards.ts";
+import {
+    UNTRACKED_FILE_CAP,
+    type ChangedFile,
+    type Changes,
+    type Commit,
+    type History,
+} from "../refs.ts";
+
+const run = promisify(execFile);
+export const PATCH_CAP = 400 * 1024;
+const PARALLEL_GIT = 8;
+// A folder stays in the repository it was opened in: the root is read once per process.
+const roots = new Map<string, string>();
+const FLAGS = [
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--src-prefix=a/",
+    "--dst-prefix=b/",
+];
+
+export async function git(
+    cwd: string,
+    args: string[],
+    maxBuffer = 8 * 1024 * 1024,
+): Promise<string> {
+    try {
+        return (
+            await run("git", ["--no-pager", ...args], {
+                cwd,
+                timeout: 15000,
+                maxBuffer,
+                env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
+            })
+        ).stdout;
+    } catch (error) {
+        if (
+            args.includes("--no-index") &&
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === 1 &&
+            "stdout" in error &&
+            typeof error.stdout === "string"
+        ) {
+            return error.stdout;
+        }
+        throw error;
+    }
+}
+function gitMessage(error: unknown): string {
+    if (typeof error === "object" && error !== null && "stderr" in error) {
+        const stderr: unknown = error.stderr;
+        if (typeof stderr === "string" && stderr.trim() !== "") {
+            return stderr.trim();
+        }
+    }
+    return messageOf(error);
+}
+
+/** A Git command whose failure is the person's answer, with Git's own words. */
+async function must(cwd: string, args: string[]): Promise<string> {
+    try {
+        return await git(cwd, args);
+    } catch (error) {
+        throw new ActionError(gitMessage(error));
+    }
+}
+
+/** `git commit-tree` with the message on its stdin: it prints the new commit's id. */
+function commitTree(
+    cwd: string,
+    args: string[],
+    message: string,
+    env: NodeJS.ProcessEnv,
+): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const child = execFile(
+            "git",
+            ["commit-tree", ...args, "-F", "-"],
+            {
+                cwd,
+                timeout: 15000,
+                env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...env },
+            },
+            (failure, stdout, stderr) => {
+                if (failure === null) {
+                    resolve(stdout.trim());
+                } else {
+                    reject(new ActionError(stderr.trim() || failure.message));
+                }
+            },
+        );
+        child.stdin?.end(message);
+    });
+}
+
+export async function rootOf(cwd: string): Promise<string> {
+    const known = roots.get(cwd);
+    if (known !== undefined) {
+        return known;
+    }
+    let root: string;
+    try {
+        root = (await git(cwd, ["rev-parse", "--show-toplevel"])).trimEnd();
+    } catch {
+        throw new ActionError("This session's folder is not a Git working tree.");
+    }
+    roots.set(cwd, root);
+    return root;
+}
+
+export async function resolveCommit(cwd: string, target: string): Promise<string> {
+    if (!/^[0-9a-f]{4,64}$/i.test(target)) {
+        throw new ActionError("Choose a commit from the history.");
+    }
+    return (
+        await git(cwd, ["rev-parse", "--verify", "--end-of-options", `${target}^{commit}`])
+    ).trim();
+}
+
+const LOG = "%H%x00%h%x00%an%x00%at%x00%s%x00%b";
+function commitsOf(output: string, local: Set<string>, remote: boolean): Commit[] {
+    const fields = output.split("\0");
+    const commits: Commit[] = [];
+    for (let index = 0; index + 5 < fields.length; index += 6) {
+        const hash = fields[index] ?? "";
+        commits.push({
+            hash,
+            short: fields[index + 1] ?? "",
+            author: fields[index + 2] ?? "",
+            at: Number(fields[index + 3]) * 1000,
+            subject: fields[index + 4] ?? "",
+            body: (fields[index + 5] ?? "").trim(),
+            unpushed: local.has(hash),
+            remote,
+        });
+    }
+    return commits;
+}
+export async function readHistory(cwd: string, limit: number): Promise<History> {
+    const root = await rootOf(cwd);
+    const state = await git(root, [
+        "status",
+        "--porcelain=v2",
+        "--branch",
+        "--untracked-files=all",
+    ]);
+    const upstream = /^# branch\.upstream (.+)$/m.exec(state)?.[1] ?? null;
+    const counts = /^# branch\.ab \+(\d+) -(\d+)$/m.exec(state);
+    const branch = /^# branch\.head (.+)$/m.exec(state)?.[1] ?? "HEAD";
+    const changed = state.split("\n").filter((line) => line !== "" && !line.startsWith("#")).length;
+    if (state.includes("# branch.oid (initial)")) {
+        return {
+            branch,
+            upstream,
+            ahead: 0,
+            behind: 0,
+            changes: changed,
+            commits: [],
+            more: false,
+        };
+    }
+    // A pruned upstream keeps its name in the status but loses branch.ab, and @{upstream} then
+    // cannot be resolved.
+    const local =
+        upstream === null || counts === null
+            ? new Set<string>()
+            : new Set(
+                  (await git(root, ["rev-list", "HEAD", "--not", "@{upstream}"]))
+                      .trim()
+                      .split("\n"),
+              );
+    const own = commitsOf(
+        await git(root, ["log", "-z", `-n${limit + 1}`, `--format=${LOG}`, "HEAD", "--"]),
+        local,
+        false,
+    );
+    const incoming =
+        upstream === null || Number(counts?.[2] ?? 0) === 0
+            ? []
+            : commitsOf(
+                  await git(root, [
+                      "log",
+                      "-z",
+                      `-n${limit}`,
+                      `--format=${LOG}`,
+                      "@{upstream}",
+                      "--not",
+                      "HEAD",
+                      "--",
+                  ]),
+                  new Set(),
+                  true,
+              );
+    return {
+        branch,
+        upstream,
+        ahead: Number(counts?.[1] ?? 0),
+        behind: Number(counts?.[2] ?? 0),
+        changes: changed,
+        commits: [...incoming, ...own.slice(0, limit)],
+        more: own.length > limit,
+    };
+}
+
+/** Git's "no" for a yes/no question is exit 1; any other failure is not an answer. */
+function exitedOne(error: unknown): boolean {
+    return typeof error === "object" && error !== null && "code" in error && error.code === 1;
+}
+
+/** Whether `ancestor` is reachable from `ref`. A Git that failed throws instead of answering no. */
+async function reaches(root: string, ancestor: string, ref: string): Promise<boolean> {
+    try {
+        await git(root, ["merge-base", "--is-ancestor", ancestor, ref]);
+        return true;
+    } catch (error) {
+        if (exitedOne(error)) {
+            return false;
+        }
+        throw new ActionError(gitMessage(error));
+    }
+}
+
+/**
+ * The full id of a commit, or null when this history has no such commit. Under `--quiet` Git answers a
+ * revision it cannot resolve with exit 1 and no words; anything else — a Git that died, a folder that
+ * stopped being a repository — is a failed read, and its own message travels up rather than "absent".
+ */
+async function commitId(root: string, target: string): Promise<string | null> {
+    try {
+        const found = (
+            await git(root, [
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                "--end-of-options",
+                `${target}^{commit}`,
+            ])
+        ).trim();
+
+        return found === "" ? null : found;
+    } catch (error) {
+        if (exitedOne(error)) {
+            return null;
+        }
+        throw new ActionError(gitMessage(error));
+    }
+}
+
+/**
+ * One commit's message, read on its own: the page's list is only as long as it was asked to be, and a
+ * link may name a commit beyond it, or abbreviate the sha. The flags are the list's, computed for one.
+ * A sha this history does not have is no answer at all, which the page tells apart from a failed read.
+ */
+export async function readCommit(cwd: string, target: string): Promise<Commit | null> {
+    if (!/^[0-9a-f]{4,64}$/i.test(target)) {
+        throw new ActionError("Choose a commit from the history.");
+    }
+    const root = await rootOf(cwd);
+    const hash = await commitId(root, target);
+
+    if (hash === null) {
+        return null;
+    }
+    const [found] = commitsOf(
+        await git(root, ["log", "-z", "-n1", `--format=${LOG}`, hash, "--"]),
+        new Set<string>(),
+        false,
+    );
+    if (found === undefined) {
+        throw new ActionError("Git could not read that commit.");
+    }
+    const upstream = await commitId(root, "@{upstream}");
+    const own = await reaches(root, hash, "HEAD");
+    const pushed = upstream !== null && (await reaches(root, hash, upstream));
+
+    // The list's rule as well: with no upstream, nothing is known to be waiting to go out.
+    return {
+        ...found,
+        unpushed: upstream !== null && own && !pushed,
+        remote: upstream !== null && !own && pushed,
+    };
+}
+
+export function filesOf(output: string): ChangedFile[] {
+    const fields = output.split("\0");
+    const files: ChangedFile[] = [];
+    for (let index = 0; index < fields.length; index += 1) {
+        const row = fields[index] ?? "";
+        const match = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(row);
+        if (match === null) {
+            continue;
+        }
+        let path = match[3] ?? "";
+        if (path === "") {
+            path = fields[index + 2] ?? "";
+            index += 2;
+        }
+        files.push({
+            path,
+            added: match[1] === "-" ? 0 : Number(match[1]),
+            deleted: match[2] === "-" ? 0 : Number(match[2]),
+            binary: match[1] === "-",
+        });
+    }
+    return files;
+}
+
+/** Runs every item, keeping the order, with at most `limit` of them in flight at once. */
+async function eachLimited<T, R>(
+    items: T[],
+    limit: number,
+    work: (item: T) => Promise<R>,
+): Promise<R[]> {
+    const results: R[] = [];
+    let next = 0;
+    await Promise.all(
+        Array.from({ length: Math.min(limit, items.length) }, async () => {
+            for (;;) {
+                const index = next;
+                next += 1;
+                const item = items[index];
+                if (item === undefined) {
+                    return;
+                }
+                results[index] = await work(item);
+            }
+        }),
+    );
+    return results;
+}
+
+/** The longest run of whole files that fits: only a file header starts a line, never a content line. */
+function patchWithin(patch: string, cap: number): string {
+    let kept = "";
+    for (const part of patch.split(/\n(?=diff --git )/)) {
+        const next = kept === "" ? part : `${kept}\n${part}`;
+        if (Buffer.byteLength(next) > cap) {
+            break;
+        }
+        kept = next;
+    }
+    return kept;
+}
+
+/**
+ * Preview is bounded; review patches are never silently truncated. `stat` is injected so a test can
+ * hold the listing and the reading apart, as a file vanishing between them does in real life.
+ */
+export async function readChanges(
+    cwd: string,
+    target: string,
+    cap = PATCH_CAP,
+    stat: (path: string) => Promise<Stats> = lstat,
+): Promise<Changes> {
+    const root = await rootOf(cwd);
+    const work = target === "worktree";
+    let range: string[];
+    if (work) {
+        const head = await git(root, ["rev-parse", "--verify", "HEAD"]).then(
+            (s) => s.trim(),
+            () => undefined,
+        );
+        range = [head ?? (await git(root, ["hash-object", "-t", "tree", "/dev/null"])).trim()];
+    } else {
+        if (!/^[0-9a-f]{4,64}$/i.test(target)) {
+            throw new ActionError("Choose a commit from the history.");
+        }
+        // One process answers with the commit and its first parent, as a root commit has none.
+        const [full = "", parent] = (
+            await must(root, [
+                "rev-list",
+                "--parents",
+                "-n1",
+                "--end-of-options",
+                `${target}^{commit}`,
+            ])
+        )
+            .trim()
+            .split(" ");
+        range = [
+            parent ?? (await git(root, ["hash-object", "-t", "tree", "/dev/null"])).trim(),
+            full,
+        ];
+    }
+    const args = ["diff", ...FLAGS, "-M"];
+    const files = filesOf(await git(root, [...args, "--numstat", "-z", ...range, "--"]));
+    let truncated = false;
+    // Git cannot hand back part of an oversized diff, it fails the whole run, so the preview reads more
+    // than it shows and cuts at a file boundary: a big commit keeps its first files instead of none.
+    const whole = await git(root, [...args, ...range, "--"]).catch((error: unknown) => {
+        if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+        ) {
+            truncated = true;
+            return "";
+        }
+        throw error;
+    });
+    let patch = whole;
+    if (Buffer.byteLength(whole) > cap) {
+        patch = patchWithin(whole, cap);
+        truncated = true;
+    }
+    if (work) {
+        const untracked = (await git(root, ["ls-files", "--others", "--exclude-standard", "-z"]))
+            .split("\0")
+            .filter(Boolean);
+        if (untracked.length > UNTRACKED_FILE_CAP) {
+            truncated = true;
+        }
+        const extra = ["diff", "--no-index", ...FLAGS];
+        // A new file costs two Git processes of its own, so a folder of them is read a few at a time
+        // instead of one after another.
+        const listed = await eachLimited(
+            untracked.slice(0, UNTRACKED_FILE_CAP),
+            PARALLEL_GIT,
+            async (path) => {
+                const info = await stat(join(root, path)).catch((error: unknown) => {
+                    // Something removed a file Git had listed, before it was read: it is not there.
+                    if (
+                        typeof error === "object" &&
+                        error !== null &&
+                        "code" in error &&
+                        error.code === "ENOENT"
+                    ) {
+                        return null;
+                    }
+                    throw error;
+                });
+                if (info === null || info.isDirectory()) {
+                    return null;
+                }
+                // --no-index may follow symlinks; never read their external targets.
+                if (info.isSymbolicLink()) {
+                    return {
+                        counted: [{ path, added: 1, deleted: 0, binary: false }],
+                        diff: null,
+                    };
+                }
+                const counted = filesOf(
+                    await git(root, [...extra, "--numstat", "-z", "--", "/dev/null", path]),
+                );
+                if (info.size > cap) {
+                    return { counted, diff: null };
+                }
+                const diff = await git(root, [...extra, "--", "/dev/null", path], cap).catch(
+                    (error: unknown) => {
+                        if (
+                            typeof error === "object" &&
+                            error !== null &&
+                            "code" in error &&
+                            error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+                        ) {
+                            return null;
+                        }
+                        throw error;
+                    },
+                );
+                return { counted, diff };
+            },
+        );
+        for (const entry of listed) {
+            if (entry === null) {
+                continue;
+            }
+            files.push(...entry.counted);
+            if (entry.diff === null) {
+                truncated = true;
+            } else if (Buffer.byteLength(patch + entry.diff) <= cap) {
+                patch += entry.diff;
+            } else {
+                truncated = true;
+            }
+        }
+    }
+    return { files, patch, truncated };
+}
+
+/**
+ * Gives a commit a new message, and writes again every commit after it on the checked-out branch
+ * with the same trees, authors and messages. Neither the index nor the working files are touched:
+ * no tree changes, so the files stay exactly as they are. A commit the upstream can reach is
+ * refused, since a plain push could not send the new history.
+ */
+export async function reword(
+    cwd: string,
+    hash: string,
+    subject: string,
+    body: string,
+): Promise<{ hash: string }> {
+    const root = await rootOf(cwd);
+    const target = (
+        await must(root, ["rev-parse", "--verify", "--end-of-options", `${hash}^{commit}`])
+    ).trim();
+    const head = (await must(root, ["rev-parse", "--verify", "HEAD"])).trim();
+    if (!(await reaches(root, target, "HEAD"))) {
+        throw new ActionError("Only a commit of the checked-out branch can be edited.");
+    }
+    const upstream = await commitId(root, "@{upstream}");
+    if (upstream !== null && (await reaches(root, target, upstream))) {
+        throw new ActionError("This commit is pushed already: its message cannot change here.");
+    }
+    const sign = await git(root, ["config", "--bool", "commit.gpgsign"]).then(
+        (value) => value.trim() === "true",
+        () => false,
+    );
+    const later = (
+        await must(root, [
+            "rev-list",
+            "--reverse",
+            "--topo-order",
+            "--ancestry-path",
+            "--parents",
+            `${target}..${head}`,
+        ])
+    )
+        .split("\n")
+        .filter((line) => line !== "");
+    const parentsOf = async (commit: string) =>
+        (await must(root, ["show", "-s", "--format=%P", commit]))
+            .trim()
+            .split(" ")
+            .filter((parent) => parent !== "");
+    const renamed = new Map<string, string>();
+    const rewritten = (commit: string) => {
+        const found = renamed.get(commit);
+        if (found === undefined) {
+            throw new ActionError("The branch moved while the message was being rewritten.");
+        }
+        return found;
+    };
+    const steps: { commit: string; parents: string[]; message: string | null }[] = [
+        {
+            commit: target,
+            parents: await parentsOf(target),
+            message: `${subject}\n${body === "" ? "" : `\n${body}\n`}`,
+        },
+        ...later.map((line) => {
+            const [commit = "", ...parents] = line.split(" ");
+            return { commit, parents, message: null };
+        }),
+    ];
+    for (const step of steps) {
+        const [tree = "", name = "", email = "", date = "", message = ""] = (
+            await must(root, [
+                "show",
+                "-s",
+                "--date=raw",
+                "--format=%T%x00%an%x00%ae%x00%ad%x00%B",
+                step.commit,
+            ])
+        ).split("\0");
+        renamed.set(
+            step.commit,
+            await commitTree(
+                root,
+                [
+                    tree,
+                    ...step.parents.flatMap((parent) => ["-p", renamed.get(parent) ?? parent]),
+                    ...(sign ? ["-S"] : []),
+                ],
+                step.message ?? `${message.trimEnd()}\n`,
+                { GIT_AUTHOR_NAME: name, GIT_AUTHOR_EMAIL: email, GIT_AUTHOR_DATE: date },
+            ),
+        );
+    }
+    // The old id travels with the move: it fails if the branch moved meanwhile. The reflog keeps the
+    // old history, so nothing is lost.
+    await must(root, [
+        "update-ref",
+        "-m",
+        `git-history: reword ${target.slice(0, 7)}`,
+        "HEAD",
+        rewritten(head),
+        head,
+    ]);
+    return { hash: rewritten(target) };
+}

@@ -2,11 +2,11 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host, type HttpHandler } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
-import { readChanges, readCommit, readHistory, reword as rewordCommit } from "./git.ts";
-import { reviewProxy } from "./proxy.ts";
 import type { Changes } from "./refs.ts";
-import { Reviews } from "./reviews.ts";
-import { watchStats, type StatsWatch } from "./stats.ts";
+import { readChanges, readCommit, readHistory, reword as rewordCommit } from "./server/git.ts";
+import { reviewProxy } from "./server/proxy.ts";
+import { Reviews } from "./server/reviews.ts";
+import { watchStats, type StatsWatch } from "./server/stats.ts";
 
 export const meta = {
     title: "Git history & review",

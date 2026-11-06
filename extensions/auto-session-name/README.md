@@ -5,7 +5,7 @@ extension of the same name, which carries Pi Web's "generate name" policy: the w
 under a character budget, the session's model, strict title parsing, and no fallback — a failed run
 leaves the name alone instead of naming the session after a fragment of the user's own message.
 
-- **The transcript.** `lib.ts` keeps the policy verbatim: 800 characters of each user turn, 300 of
+- **The transcript.** `server/lib.ts` keeps the policy verbatim: 800 characters of each user turn, 300 of
   an intermediate reply and 600 of the newest, 6000 across the session with 40% reserved for the
   opening turns (a session states its goal early and then drifts into chores), tool calls and their
   results dropped, both ends kept and the middle elided. It reads the conversation's model context

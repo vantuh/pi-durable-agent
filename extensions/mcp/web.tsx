@@ -12,8 +12,8 @@ import { Switch } from "@/components/ui/switch.tsx";
 import { Hint } from "@/components/ui/tooltip.tsx";
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { useMcp } from "./client.ts";
 import type { ServerInfo } from "./refs.ts";
+import { useMcp } from "./web/client.ts";
 
 const REFRESH_MS = 5000;
 

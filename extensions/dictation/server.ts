@@ -24,7 +24,6 @@ import {
     readJson,
 } from "../../server/sdk.ts";
 import { messageOf, recordOf } from "../../shared/guards.ts";
-import { Parts, toSamples } from "./parts.ts";
 import {
     checkIdleMinutes,
     checkLanguage,
@@ -34,7 +33,8 @@ import {
     type Settings,
     type SettingsFields,
 } from "./refs.ts";
-import { DictationStore } from "./store.ts";
+import { Parts, toSamples } from "./server/parts.ts";
+import { DictationStore } from "./server/store.ts";
 
 export const meta = {
     title: "Dictation",

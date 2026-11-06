@@ -5,9 +5,9 @@ agent has its own durable conversation, works with a named profile, and sends it
 the conversation that started it. You can steer it, stop its current run, or continue it later
 without losing its context.
 
-This is the guide to the **current implementation**, not a list of promised features. For remaining
-work and historical verification notes, see [HANDOFF.md](HANDOFF.md). The extension contract and
-reload rules are in [docs/extensions.md](../../docs/extensions.md).
+This is the guide to the **current implementation**, not a list of promised features. Work that is
+not done is under [Open work](#open-work). The extension contract and reload rules are in
+[docs/extensions.md](../../docs/extensions.md).
 
 ## Start here
 
@@ -204,7 +204,7 @@ without a model cannot spawn, so the dialog only changes a model, never removes 
 - The Extensions dialog has no conversation, so the action resolves profiles from `host.cwd` (the
   directory the app was started in), not from a session's folder. A profile that exists only under
   another folder's `.pi/agents/` is not listed there.
-- `profile-model.ts` rewrites one line per key and no other byte: it resolves a symlink and edits
+- `server/profile-model.ts` rewrites one line per key and no other byte: it resolves a symlink and edits
   the file it points at, keeps the line endings and the file mode, quotes the value as JSON and
   replaces the file atomically (temp file + rename). It refuses a file with no complete frontmatter
   block, a repeated `model:`/`thinking:` line, a value written on several lines, or an edit that
@@ -399,19 +399,26 @@ child process is created here.
 
 ### File map
 
-| File                 | Responsibility                                                                                                                    |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `profiles.ts`        | Profile discovery, frontmatter parsing, and precedence.                                                                           |
-| `server.ts`          | Four tools, `agents` prompt section, durable agent document, anchor and reporter tasks.                                           |
-| `refs.ts`            | The `strip`, `agents`, `profiles` and `setModel` action refs and their types, shared by `server.ts`, `web.tsx` and `details.tsx`. |
-| `profile-model.ts`   | Writes `model:` and `thinking:` into a profile's frontmatter, and nothing else. Tested in `profile-model.test.ts`.                |
-| `details.tsx`        | Mounts the profile editor in the Extensions dialog.                                                                               |
-| `profile-models.tsx` | Shared profile editor used by the Extensions dialog and the Subagent models settings section.                                     |
-| `area.ts`            | Pure helpers for the area: parent, order, "ago", counts. Tested in `area.test.ts`.                                                |
-| `web.tsx`            | Bot icons, the strip, the agents area, the status count and the popover marker.                                                   |
-| `server.test.ts`     | Real-Harness integration tests with a faux model and disposable SQLite storage.                                                   |
-| `README.md`          | Current usage, behavior, constraints, and maintenance guide.                                                                      |
-| `HANDOFF.md`         | Remaining proposals and historical implementation/verification context.                                                           |
+| File                      | Responsibility                                                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `server/profiles.ts`      | Profile discovery, frontmatter parsing, and precedence.                                                                           |
+| `server.ts`               | Entry: installs the tools, tasks and prompt parts from `server/`, keeps the strip's record of working agents, exports `actions`.  |
+| `server/tools.ts`         | The four tools: `agent_spawn`, `agent_send`, `agent_stop`, `agent_status`.                                                        |
+| `server/tasks.ts`         | The anchor task and the reporter task (`deliver`, then `report`).                                                                 |
+| `server/docs.ts`          | The `subagents.agents` document and the `subagents.child` document (how a child's prompt differs).                                |
+| `server/child-agent.ts`   | Turns a profile into the child's model, thinking, tools and instructions, or an error.                                            |
+| `server/prompt.ts`        | The `agents` section, the child's protocol text, and the wraps for `system-prompt: replace` and `skills`.                         |
+| `server/answer.ts`        | Reads the text and the answering model out of an assistant entry.                                                                 |
+| `server/strip.ts`         | What the strip knows of a working child, and how a row is built.                                                                  |
+| `server/actions.ts`       | The `agents`, `profiles`, `setModel` and `strip` actions.                                                                         |
+| `refs.ts`                 | The `strip`, `agents`, `profiles` and `setModel` action refs and their types, shared by `server.ts`, `web.tsx` and `details.tsx`. |
+| `server/profile-model.ts` | Writes `model:` and `thinking:` into a profile's frontmatter, and nothing else. Tested in `server/profile-model.test.ts`.         |
+| `details.tsx`             | Mounts the profile editor in the Extensions dialog.                                                                               |
+| `web/profile-models.tsx`  | Shared profile editor used by the Extensions dialog and the Subagent models settings section.                                     |
+| `web/area.ts`             | Pure helpers for the area: parent, order, "ago", counts. Tested in `web/area.test.ts`.                                            |
+| `web.tsx`                 | Bot icons, the strip, the agents area, the status count and the popover marker.                                                   |
+| `server.test.ts`          | Real-Harness integration tests with a faux model and disposable SQLite storage.                                                   |
+| `README.md`               | Current usage, behavior, constraints, and maintenance guide.                                                                      |
 
 ### Parent document
 
@@ -517,8 +524,18 @@ For manual testing, use a disposable `PI_DURABLE_DATA_DIR` and a free `PORT`, ne
 app's `data/state.sqlite` or its port. Disable unrelated extensions in that temporary data folder
 before startup; a new data directory otherwise enables them by default and they may make network
 requests. A Vite instance must proxy `/api` to that test server, not the owner's server.
-[HANDOFF.md](HANDOFF.md#seeing-the-ui-without-touching-the-owners-app) records the isolated UI
-setup. A successful test run is not evidence that the owner's production bundle has been rebuilt.
+A successful test run is not evidence that the owner's production bundle has been rebuilt.
+
+An isolated instance for looking at the UI, as it was done before:
+
+1. `D=$(mktemp -d /tmp/subagents-ui-XXXX)`, and write `$D/extensions.json` as
+   `{ "disabled": [every folder except subagents] }`, so the rest stays off.
+2. Seed `$D/state.sqlite` with a script that opens a `Harness` on it and appends the conversations
+   and entries to show. Run it from the project root so imports resolve to its `node_modules`.
+3. `PI_DURABLE_DATA_DIR=$D PORT=8799 node server/main.ts`.
+4. Run Vite on another port with a config under `node_modules/.cache/<name>/` (ignored by git; a
+   config outside the project cannot resolve `vite`) that merges the base config with
+   `root: "<abs>/web"` and a `/api` proxy to `http://127.0.0.1:8799`.
 
 ## Troubleshooting and known limits
 
@@ -538,5 +555,24 @@ setup. A successful test run is not evidence that the owner's production bundle 
 
 Deliberately absent: recursive agents, an `ask_question` tool, a full-result status option, model
 mapping, and automatic worktree creation. An existing worktree can be selected through `cwd`.
-Questions travel as ordinary final answers; the parent answers with `agent_send`. The remaining
-proposals are in [HANDOFF.md](HANDOFF.md#open-items-in-recommended-order).
+Questions travel as ordinary final answers; the parent answers with `agent_send`.
+
+## Open work
+
+Two items are not done. Neither is started in the code.
+
+- **Bound long reports.** The whole answer goes into the parent's context, so a 20 000-character
+  review costs that much on every later request until compaction. The full answer is already stored
+  as an entry in the child's conversation, so a bound needs no file: put an excerpt (for example the
+  first 4 000 and the last 2 000 characters, cut at line boundaries and never inside a fenced code
+  block) in the report's model content, keep `data.text`, which the screen shows, whole, and let
+  `agent_status({ name })` return the full latest answer on request. The excerpt function is the
+  part to unit-test.
+- **Deleting a parent stops its agents.** Deleting a parent aborts only its foreground run; the
+  agents keep working unseen, now hidden from the list as well (see
+  [Stop, direct messages, archive, and delete](#stop-direct-messages-archive-and-delete)). The core
+  already calls a listener registered with `host.onSessionGone` when a session is deleted, so the
+  extension can run the `agent_stop` logic on each child of the deleted parent from there; this
+  extension does not register one yet. Archiving does not stop anything and has no hook; decide
+  separately whether it should. A real-Harness test: a parent with a working agent is deleted, and
+  the child's run ends; stopping the parent alone leaves the child running.

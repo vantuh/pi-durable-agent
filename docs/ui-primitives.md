@@ -121,7 +121,7 @@ Core:
 
 Extensions:
 
-- [x] `extensions/browser/panel.tsx` — toolbar (`376–383`, `419–493`, `517–520`). `IconButton` keeps its
+- [x] `extensions/browser/web/panel.tsx` — toolbar (`376–383`, `419–493`, `517–520`). `IconButton` keeps its
       `disabled:opacity-40` and `disabled:hover:bg-transparent`; a disabled hint waits for the
       button to work again, since its title only named the action. The address field stays for
       [Input](#21-input-installed-bypassed) and the error count for [Progress](#26-progress-new);
@@ -132,11 +132,11 @@ Extensions:
 - [x] `extensions/dictation/web.tsx` — controls (`198–212`). Each state names its own hover: ghost's
       `hover:text-ink` would repaint the red recording state and the yellow wait. The pointer-down
       guard that keeps focus in the textarea stays on the button.
-- [x] `extensions/files/panel.tsx` — reload, back (`153–161`, `203–207`). The row itself (`106–115`)
+- [x] `extensions/files/web/panel.tsx` — reload, back (`153–161`, `203–207`). The row itself (`106–115`)
       waits for [Item](#39-item-new): it is one button that the whole row is, indented by padding.
-- [x] `extensions/git-history/file-tree.tsx` — rows (`60–84`). They stay raw: the row is the
+- [x] `extensions/git-history/web/file-tree.tsx` — rows (`60–84`). They stay raw: the row is the
       indent, and [Item](#39-item-new) owns the family.
-- [x] `extensions/git-history/preview.tsx` — actions (`194–200`). The header keeps `h-9`, `bg-panel`,
+- [x] `extensions/git-history/web/preview.tsx` — actions (`194–200`). The header keeps `h-9`, `bg-panel`,
       its top border, and its square corners: it is measured as 36px by the diff view.
       Its `WithoutDiff` rows stay for [Item](#39-item-new).
 - [x] `extensions/git-history/web.tsx` — `196–201`, `435–450`, `629–650`, `735–740`, `784–790`,
@@ -153,7 +153,7 @@ Extensions:
 - [x] `extensions/mcp/web.tsx` — `212–222`. The count keeps `text-muted`: under ghost it would inherit the
       trigger's ink on hover and brighten beside a label that was already ink. The `<dialog>`
       popup stays for [Popover](#31-popover-new).
-- [x] `extensions/notes/todos.tsx` — `319–327`, `367–391`. The title keeps `px-0 py-0`, `justify-start`,
+- [x] `extensions/notes/web/todos.tsx` — `319–327`, `367–391`. The title keeps `px-0 py-0`, `justify-start`,
       `text-interface`, and `font-normal`: ghost would centre it and pad the row. The grip and the
       delete are 24px targets, and both gain ghost's raised hover; their `mt` offsets went, because
       the offsets that centred a 16px icon only push a 24px box off its line. The drag attributes and
@@ -184,7 +184,7 @@ Extensions:
       box with the hover fill off, so nothing paints outside the 16px pill; its action title is a
       `Hint` now. The dialog's `Remove worktree` is `variant="danger"` instead of a hand-painted one,
       and the flow itself waited for [AlertDialog](#34-alertdialog-new).
-- [x] `extensions/anthropic-subscription/account-details.tsx` — submit (`49–61`). The button is ghost
+- [x] `extensions/anthropic-subscription/web/account-details.tsx` — submit (`49–61`). The button is ghost
       inside its own border, with `text-ink` and `font-normal` so it reads as the outline action it
       was; it is a `type="button"` that reads and does not submit, and the field beside it stays for
       [Input](#21-input-installed-bypassed).
@@ -228,7 +228,7 @@ What the review of the migration found and fixed.
 - [x] `web/src/shell/folder-picker.tsx` — the favourite star (`389`) is ghost in its own 16px box,
       with the hint the `title` gave. Rows and crumbs stay for [Item](#39-item-new) and
       [Breadcrumb](#312-breadcrumb-new).
-- [x] `extensions/git-history/badge.tsx` — the push panel's close (`145`) is a `Button` in its 16px box.
+- [x] `extensions/git-history/web/badge.tsx` — the push panel's close (`145`) is a `Button` in its 16px box.
       The trigger and the confirm stay for [Popover](#31-popover-new) and
       [AlertDialog](#34-alertdialog-new).
 - [x] `web/src/components/ui/dialog.tsx` and `web/src/shell/settings.tsx` — the dialog and the sheet
@@ -252,10 +252,10 @@ field in the app.
       The accent focus is Input's ring now, not a border colour: one focus treatment for one field.
 - [x] `extensions/git-worktree/web.tsx` — `232–240` (`Input` already imported). The name field was
       `Input` before this step, so only the checkbox beside it is left, for [Checkbox](#23-checkbox-new).
-- [x] `extensions/notes/todos.tsx` — raw inputs (`Input` already imported). Both fields, the add
+- [x] `extensions/notes/web/todos.tsx` — raw inputs (`Input` already imported). Both fields, the add
       form and an item's title, were `Input` before this step; the checkbox and the textarea beside
       them stay for [Checkbox](#23-checkbox-new) and [Textarea](#22-textarea-new).
-- [x] `extensions/browser/panel.tsx` — address field (`455–469`). It stays monospace and borderless:
+- [x] `extensions/browser/web/panel.tsx` — address field (`455–469`). It stays monospace and borderless:
       `border-transparent`, so a background with no frame is still the look, and `px-2.5` keeps the
       text off the edge. Its `title` is the page's size and name, a readout, so it stays a `title`.
 - [x] `extensions/push/web.tsx` — `147–161`. The field's classes were `Input`'s own, so only the
@@ -269,7 +269,7 @@ field in the app.
       triggers, which are `DropdownMenuTrigger`s and not fields; the idle field takes `htmlFor`/`id`
       like the one above, and stands one step shorter than the picker over it until that trigger is
       a field too.
-- [x] `extensions/anthropic-subscription/account-details.tsx` — `60–71`. Nothing to migrate: the
+- [x] `extensions/anthropic-subscription/web/account-details.tsx` — `60–71`. Nothing to migrate: the
       control at that line is the "Include email and organization" checkbox, which is
       [Checkbox](#23-checkbox-new)'s; the section has no text field.
 - [x] `extensions/git-history/web.tsx` — commit form (`166–190`). The title is `Input` and takes
@@ -284,12 +284,12 @@ field in the app.
 - [x] `web/src/composer/composer.tsx:571` — keep auto-size, keyboard handling, scroll area. It stays
       hand-written: the card around it is the frame, so `Textarea` would arrive as a reset list and
       give back only classes the field already has. The reason is under [Kept custom](#kept-custom).
-- [x] `extensions/notes/panel.tsx:268`. The editor fills the panel, so it takes the frame off
+- [x] `extensions/notes/web/panel.tsx:268`. The editor fills the panel, so it takes the frame off
       (`border-transparent bg-transparent`) and keeps its own `px-3 py-2`, `min-h-0 flex-1`, and
       `resize-none`, as the browser's address field does. It drops the ring too
       (`focus-visible:ring-0`): the panel clips it to a line at the top and bottom, and the caret
       already shows the focus.
-- [x] `extensions/notes/todos.tsx:447`. The description keeps `rows={4}` and `resize-y`, the one
+- [x] `extensions/notes/web/todos.tsx:447`. The description keeps `rows={4}` and `resize-y`, the one
       class it had over `Input`'s own; its height, padding, and colours are what they were.
 - [x] `extensions/git-history/web.tsx:180` — commit message. The description takes `htmlFor`/`id`
       like the title, and drops the `fieldClass` that was left for it: `Input`'s padding step is the
@@ -303,11 +303,11 @@ field in the app.
       forwards the label's click to the button, so clicking the text keeps toggling. The radius is
       `rounded-control` like every other control: at 16px it reads rounder than the browser's own box.
 - [x] `web/src/shell/folder-picker.tsx:324` — "Show hidden". The dialog's own state, never saved.
-- [x] `extensions/notes/todos.tsx:359` — keep completion and drag. The box keeps `mt-0.75` and shows
+- [x] `extensions/notes/web/todos.tsx:359` — keep completion and drag. The box keeps `mt-0.75` and shows
       its `aria-label` instead of a label; the drag attributes stay on the grip beside it.
 - [x] `extensions/git-worktree/web.tsx:233`. The tick still puts the caret in the name field beside it, and
       the label's own look waits for [Field](#311-field-and-label-new).
-- [x] `extensions/anthropic-subscription/account-details.tsx:62`. The `disabled` while a check runs is the
+- [x] `extensions/anthropic-subscription/web/account-details.tsx:62`. The `disabled` while a check runs is the
       primitive's 50%, as on `Input`; the label's own look waits for
       [Field](#311-field-and-label-new).
 
@@ -342,18 +342,18 @@ border.
 - [x] `web/src/ui/diff.tsx:177` — split-view divider. Stays: it is the right column's own left edge,
       the two columns are `flex-1` siblings that scroll inside their own boxes, and a line between them
       would be a third element with the geometry of neither.
-- [x] `extensions/files/panel.tsx` — `151`, `202`. Stay: the bottom edge of each view's toolbar — the
+- [x] `extensions/files/web/panel.tsx` — `151`, `202`. Stay: the bottom edge of each view's toolbar — the
       tree's label row and the viewer's back row.
 - [x] `extensions/git-history/web.tsx` — `732–750`, `1057`. Stay: the bottom edge of the review header
       and of the toolbar, and the issue banner's own bottom edge.
-- [x] `extensions/git-history/preview.tsx` — `227–231`. Stays: each row's own top edge, and the row
+- [x] `extensions/git-history/web/preview.tsx` — `227–231`. Stays: each row's own top edge, and the row
       family is [Item](#39-item-new)'s.
 - [x] `extensions/keep-warm/web.tsx` — `158–175`. Both rules of the popup are `Separator`s carrying the
       `mt-2` the border had, and the blocks under them keep their `pt-2`.
-- [x] `extensions/notes/panel.tsx` — `239–254`. Stay: the bottom edge of the tabs header, and of the
+- [x] `extensions/notes/web/panel.tsx` — `239–254`. Stay: the bottom edge of the tabs header, and of the
       conflict banner under it.
-- [x] `extensions/notes/todos.tsx` — `215`. Stays: the tabs header's bottom edge.
-- [x] `extensions/git-history/badge.tsx` — `99–101`. Stays: a divider inside the pill, as tall as the text
+- [x] `extensions/notes/web/todos.tsx` — `215`. Stays: the tabs header's bottom edge.
+- [x] `extensions/git-history/web/badge.tsx` — `99–101`. Stays: a divider inside the pill, as tall as the text
       beside it (measured 18px in the pill's 28), which a stretched separator would run taller;
       [Badge](#25-badge-installed-reduced-to-one-look) takes the pill whole.
 
@@ -393,7 +393,7 @@ border.
       drop: `BADGE` holds only geometry (`hidden` until `sm`, `h-4`, `max-w-full min-w-0 shrink`,
       `px-1.5`, a 10px icon) and never named a colour, so the default `muted` tone is already what the
       pill wears. It keeps its `title`.
-- [x] `extensions/git-history/badge.tsx:89–101`. The pill is the badge whole: 28px tall, `px-2`, `gap-2`,
+- [x] `extensions/git-history/web/badge.tsx:89–101`. The pill is the badge whole: 28px tall, `px-2`, `gap-2`,
       mono 12px, the muted tone's `border-edge` and `text-muted`, and `bg-panel` passed through, so
       nothing moved. Two things are passed through as well: `[&>svg]:size-3.5` keeps the compare
       icon at its 14px (the badge's own is 12, and the two arrows inside the divider are not direct
@@ -462,7 +462,7 @@ One meter, value plus tone (`warn`, `danger`), `role="progressbar"` and `aria-va
       popover could not be opened without the usage refresh that calls the provider, so its row was
       checked by its classes and by `tailwind-merge` dropping the base `h-1` for `h-1.5`, not on
       screen.
-- [x] `extensions/browser/panel.tsx:328–330`. Nothing to migrate: the panel holds no fill meter,
+- [x] `extensions/browser/web/panel.tsx:328–330`. Nothing to migrate: the panel holds no fill meter,
       and the line the audit named is the console's box. Its loading state is the toolbar's Stop in
       place of Reload and the words "Starting the browser…": an indeterminate state with no bar,
       which `Progress` at `value={null}` would draw as an empty track, a look the panel never had.
@@ -500,7 +500,7 @@ Collision-aware placement, outside-click and Escape, focus return.
       `onOpenChange` instead of a click handler that read the old state. Gone: the portal, the
       placement math, the two listeners, `POPOVER_WIDTH`, the `rounded-xl` and the `max-w` fallback.
       The `border-edge` it carried went too: one popover wears `edge-soft` like the menu family.
-- [x] `extensions/git-history/badge.tsx:113–160` — `role="dialog"` panel. Its Push trigger is a
+- [x] `extensions/git-history/web/badge.tsx:113–160` — `role="dialog"` panel. Its Push trigger is a
       `Button` with a `Hint` that also says why it is disabled: `aria-disabled` instead of
       `disabled`, so the button stays focusable and the hint can show, and `onOpenChange` keeps the
       guard the `disabled` attribute used to be. The confirm is a primary `Button`. Focus lands on
@@ -715,7 +715,7 @@ square corners (`rounded-none`) and the caller's own padding, so no edge a borde
       radius is the only change. It gains the `role="alert"` it never had — a provider failure the person
       is waiting on is announced when it lands. The title inherits the tone's red and the detail keeps its
       faint mono.
-- [x] `extensions/anthropic-subscription/account-details.tsx:79–88` — the check's failure and the
+- [x] `extensions/anthropic-subscription/web/account-details.tsx:79–88` — the check's failure and the
       account state it can return. The failure keeps `role="alert"`: the person pressed the button
       and it did not work. The `unavailable` result is `role="status"`: the click worked, and what
       it found is a provider's state rather than an error of the screen, so it need not interrupt.
@@ -726,13 +726,13 @@ square corners (`rounded-none`) and the caller's own padding, so no edge a borde
       read when looked at, and interrupting a sentence already being read for it would not help.
 - [x] `extensions/auto-session-name/details.tsx:59–63` — the switch's failure, `role="alert"`: the
       person flipped it, the save did not happen, and the switch already moved back.
-- [x] `extensions/subagents/profile-models.tsx:77–81` — a profile's failure, `role="alert"`: a save,
+- [x] `extensions/subagents/web/profile-models.tsx:77–81` — a profile's failure, `role="alert"`: a save,
       a removal or a model list the person asked for came back empty.
 - [x] `extensions/tags/details.tsx:109–113` — a tag's failure, `role="alert"`: adding, renaming,
       recolouring or removing one is the person's own click.
 - [x] `extensions/usage-limits/details.tsx:61–65` — a provider's switch failing, `role="alert"`: one
       click, one save, and the switch went back.
-- [x] `extensions/git-history/badge.tsx:165–176` — the push panel's error state, left inside the popover
+- [x] `extensions/git-history/web/badge.tsx:165–176` — the push panel's error state, left inside the popover
       by [Popover](#31-popover-new). It is `role="alert"` (the default): the person pressed Push and
       it failed, which is the most urgent thing a 256px panel can say. The prompt it swaps with keeps
       its own `<p>`, since it is a question and not a notice. The error is 12px now where the popover's
@@ -764,7 +764,7 @@ square corners (`rounded-none`) and the caller's own padding, so no edge a borde
       are a pane's whole body, so they keep the pane's edges and padding — `rounded-none` with `p-3` and
       `p-4` — and their 15px text: measured in a full-width column, 1207×46.5 and 1207×54.5 before and
       after, unmoved, with only the wash added.
-- [x] `extensions/git-history/web.tsx:743–748`, `1121–1126`, `extensions/git-history/preview.tsx:428–430`
+- [x] `extensions/git-history/web.tsx:743–748`, `1121–1126`, `extensions/git-history/web/preview.tsx:428–430`
       — the two issue banners and the diff preview's parse failure, all `role="alert"`. The banners are
       full-bleed strips that rule off a toolbar, so they keep square corners (`rounded-none`), their own
       `px-3 py-2`, their 15px text and their `border-b` edge: measured in the same column, 1207×39.5 with
@@ -813,7 +813,7 @@ line that is a row's detail or a status line that only turns red may stay text w
       the other is the number the person typed coming back unchanged. The first replaces the panel's
       whole body; the second sits under the field, where the primitive's own padding and radius are the
       block that was red text.
-- [x] `extensions/browser/panel.tsx:510–512` — the strip under the browser's toolbar, `role="alert"`:
+- [x] `extensions/browser/web/panel.tsx:510–512` — the strip under the browser's toolbar, `role="alert"`:
       its `error` is an operation the person started that failed, and `page.problem` arrives with it. It is
       a full-bleed strip between the toolbar's `border-b` and the stage, so it keeps square corners
       (`rounded-none`) and its own `px-3 py-1.5`: measured 1248×30 with `6px 12px` of padding before and
@@ -831,13 +831,13 @@ cut short by a `head` — found these too.
       name, `role="alert"`: the person asked for a worktree and the session was not made. It keeps the
       id the name field points at in `aria-describedby`, which reads a `div` the same, and takes the
       primitive whole — it is a line under the field, 18px of red text becoming a 34px block.
-- [x] `extensions/notes/todos.tsx:247` — a to-do item's failure, between the add form and the list,
+- [x] `extensions/notes/web/todos.tsx:247` — a to-do item's failure, between the add form and the list,
       `role="alert"`: adding, ticking or removing one is the person's own click. It is a full-bleed strip
       of the panel, so it keeps square corners and its `px-3 py-1`, and its 15px text.
-- [x] `extensions/notes/panel.tsx:267` — a note's failure, under its tabs, `role="alert"`: the note's
+- [x] `extensions/notes/web/panel.tsx:267` — a note's failure, under its tabs, `role="alert"`: the note's
       read or write did not answer. It is a full-bleed strip of the panel with the primitive's own
       `px-3 py-2`, so only the corners change, to square, and the 15px text stays.
-- [x] `extensions/files/panel.tsx:172`, `228` — the tree's read failure, and the viewer's, both
+- [x] `extensions/files/web/panel.tsx:172`, `228` — the tree's read failure, and the viewer's, both
       `role="alert"`: a read the person asked for by opening the panel or a file. The tree's is a
       full-bleed strip under its header, so it keeps square corners and its `p-3`; the viewer's sits
       inside the scrolled `p-3` with its own line, so it takes the primitive whole.
@@ -857,9 +857,9 @@ cut short by a `head` — found these too.
       no live role for the same reason — nothing failed.
 
 The rest of what a tone colours is a mark, not a block: a diff's `−` count (`web/src/ui/diff.tsx:276`,
-`extensions/git-history/preview.tsx:238`, `extensions/git-history/web.tsx:368`,
-`extensions/git-history/badge.tsx:120`), git-history badge's ahead/behind pair (`:123`), the browser's error count in
-its toolbar (`extensions/browser/panel.tsx:507`), a status bar field's label
+`extensions/git-history/web/preview.tsx:238`, `extensions/git-history/web.tsx:368`,
+`extensions/git-history/web/badge.tsx:120`), git-history badge's ahead/behind pair (`:123`), the browser's error count in
+its toolbar (`extensions/browser/web/panel.tsx:507`), a status bar field's label
 (`web/src/shell/status-bar.tsx:62`), and a server row's own detail line
 (`extensions/mcp/details.tsx:88`). Each is one value inside a row or a readout that a frame would pull
 out of its line, so all of them stay text.
@@ -915,24 +915,24 @@ each was measured as the old `<p>` and the new `Empty` side by side in a throwaw
       session's tag submenu, so not a menu item and not clickable: the two-tap touch activation is the
       submenu's, and the sentence stays inert inside it. Unmoved: 12px faint, `px-2 py-1.5`, measured
       223.8×30 at 1280 and 150.2×48 at 390.
-- [x] `extensions/notes/todos.tsx:250–254` — `Nothing to do.`, the to-dos panel's list body at 15px,
+- [x] `extensions/notes/web/todos.tsx:250–254` — `Nothing to do.`, the to-dos panel's list body at 15px,
       which it states as `text-interface`. The done section below renders nothing when it is empty, so
       there is nothing else to place. Unmoved: `px-2 py-2`, 15px on a 22.5px line, measured 113.63×38.5.
-- [x] `extensions/notes/panel.tsx:217` — `This session has no folder.`, the notes panel's whole body.
+- [x] `extensions/notes/web/panel.tsx:217` — `This session has no folder.`, the notes panel's whole body.
       Unmoved: 15px faint, `p-3`, measured 205.06×46.5 at 1280 and 161×69 at 390.
 - [x] `extensions/usage-limits/web.tsx:162–164` — `No signed-in provider reports limits.`, the popover's
       body when the answer holds no provider. The `Loading…` under it stays a paragraph. Unmoved: 12px
       faint in the popover's `text-meta`, no padding, measured 204.13×18.
-- [x] `extensions/subagents/profile-models.tsx:81–87` — `No profiles yet: add a Markdown file …`, the
+- [x] `extensions/subagents/web/profile-models.tsx:81–87` — `No profiles yet: add a Markdown file …`, the
       settings section's body inside its own `text-meta` column, so 12px and no padding. Unmoved: two
       lines at 1280 and six at 390 in the throwaway page's columns, 595.2×36 and 150.19×108 either way.
-- [x] `extensions/browser/panel.tsx:405`, `:518–530` — `Open a session to use the browser.` and the
+- [x] `extensions/browser/web/panel.tsx:405`, `:518–530` — `Open a session to use the browser.` and the
       centred `Nothing is open.` over its `Open the browser` button. The second is the only empty state
       with an action beside it: `Empty` is its column (`flex flex-1 flex-col items-center justify-center
       gap-2 p-4 text-center`), the sentence is still the `<p>` it was, and the button is the caller's. Its
       `Starting the browser…` shares the box, since the same pane has nothing in it either way. Unmoved:
       the first 263.5×46.5 at 1280 and 125×91.5 at 390, the column 178.39×93 and 135.8×138.
-- [x] `extensions/files/panel.tsx:267` — `Open a session to browse its files.`, the panel's whole body.
+- [x] `extensions/files/web/panel.tsx:267` — `Open a session to browse its files.`, the panel's whole body.
       Unmoved: 15px faint, `p-3`, measured 256.7×46.5 at 1280 and 161×69 at 390.
 - [x] `extensions/git-history/web.tsx:681–686`, `:1183–1187` — `Nothing in this folder's history has that
       id. Open the history to pick a commit.` and `No commits or uncommitted changes yet.` The second was
@@ -947,14 +947,14 @@ What the sweep left as text, and why:
       `extensions/tags/details.tsx:90`, `extensions/usage-limits/details.tsx:58`,
       `extensions/auto-session-name/details.tsx:57`. **Stay text**: they are a switch's state, not an
       empty list, and they read the same where the details column would be.
-- [x] `extensions/browser/panel.tsx:409–414` — `No Chromium-based browser was found on this machine.`,
+- [x] `extensions/browser/web/panel.tsx:409–414` — `No Chromium-based browser was found on this machine.`,
       **stays text**: it says the pane cannot work here and what to install, a prerequisite rather than a
       region with nothing in it.
 - [x] `extensions/git-history/web.tsx:794–797` — `Review was cancelled.` and `Review is not running.`,
       **stay text**: a process's state in the column where `Reading Git history…` also stands.
 - [x] `extensions/git-history/web.tsx:378` — `No changes.`, **stays text** for the reason
       [Alert](#37-alert-new) gives it: a readout beside the diff's counts.
-- [x] `extensions/browser/panel.tsx:337` — `The console is empty.`, **stays text**: one line inside the
+- [x] `extensions/browser/web/panel.tsx:337` — `The console is empty.`, **stays text**: one line inside the
       console's own mono log box, whose parent sets the family, the size and the `p-2`.
 - [x] `extensions/keep-warm/web.tsx:48` — `No request on the cache yet`, **stays text**: the popover's
       third readout line, as [Alert](#37-alert-new) ruled for the ping beside it.
@@ -962,20 +962,20 @@ What the sweep left as text, and why:
       its row, not a region.
 - [x] `extensions/anthropic-subscription/details.tsx:90–94` — `No requests yet`, **stays text**: a `<dd>`
       in the key/value readout, beside `Not attempted` and the rest of the field's values.
-- [x] `extensions/anthropic-subscription/account-details.tsx:81` — `No Anthropic OAuth authorization
+- [x] `extensions/anthropic-subscription/web/account-details.tsx:81` — `No Anthropic OAuth authorization
       configured.`, **stays text**: the answer the Check subscription button returns, the same slot as the
       `unavailable` Alert under it.
 - [x] `web/src/composer/model-menu-dialog.tsx:169` — `No model matches.`, **stays a `CommandEmpty`**: the
       element is cmdk's and its look is `ui/command.tsx`'s, which already writes `text-faint text-meta`;
       an `Empty` inside it would nest two of the same thing, and one that is already the primitive's own
       defaults.
-- [x] `extensions/git-history/badge.tsx:74` — `No upstream configured.`, **stays text**: it is a clause in a
+- [x] `extensions/git-history/web/badge.tsx:74` — `No upstream configured.`, **stays text**: it is a clause in a
       tooltip's description string, not a block.
 - [x] Five regions show nothing at all rather than a sentence: the composer's queue
       (`web/src/composer/queued.tsx:51`), the composer's attachments (`web/src/ui/attachments.tsx:171`),
       the subagents strip (`extensions/subagents/web.tsx:180`), the keep-warm rows
       (`extensions/keep-warm/web.tsx:134`) and the git-history preview's empty diff
-      (`extensions/git-history/preview.tsx:444`). Nothing to place.
+      (`extensions/git-history/web/preview.tsx:444`). Nothing to place.
 
 ### 3.9 Item (new)
 
@@ -1016,7 +1016,7 @@ One row: media, title, description, actions. Links stay links through `asChild`.
       directory 540×34.5, a sidebar folder 161×34.5, in the same places. The row's own focus ring can
       never show, since the `div` is not focusable and its two buttons are, so the label button carries
       the theme's ring where it had the browser's outline; the star, a `Button`, already had it.
-- [x] File tree rows: `extensions/git-history/file-tree.tsx:60–101`. The row is the indent
+- [x] File tree rows: `extensions/git-history/web/file-tree.tsx:60–101`. The row is the indent
       (`paddingLeft` from the depth), and the folder row's name is not `flex-1`. Both rows are
       `Item asChild` at `sm`, keeping their `py-0.5`, their 4px and 6px gaps and their square
       corners: the primitive's `px-2` is the 8px the rows already had on the right, and the depth
@@ -1049,7 +1049,7 @@ One row: media, title, description, actions. Links stay links through `asChild`.
 Extension rows: five rows, each keeping its family's fill, height and padding, and taking the
 primitive's base and parts.
 
-- [x] File tree: `extensions/files/panel.tsx:104–115`. `Item asChild` at `sm` over its `<button>`:
+- [x] File tree: `extensions/files/web/panel.tsx:104–115`. `Item asChild` at `sm` over its `<button>`:
       573×30.5, `8px` of padding on the left as on the right, 4px of vertical padding, a 6px gap and
       the 6px radius, all unmoved, and 364×30.5 at 390. The depth is still the inline `paddingLeft`
       (8px at the root, 20px one level in), and the browser's outline is the theme's ring, drawn
@@ -1061,7 +1061,7 @@ primitive's base and parts.
       inside a height `h-9` already fixes; the agent row 250×32 (`max-lg:h-11`), an 8px inset, a 6px
       gap, the same `raised` fill on the open one and the same working and idle colours, now on
       `ItemTitle`. At 390 they are 362×40 (`max-[760px]:h-10`) and 360×44.
-- [x] Model cards: `extensions/subagents/profile-models.tsx:96–101`. **The card stays a card**: a
+- [x] Model cards: `extensions/subagents/web/profile-models.tsx:96–101`. **The card stays a card**: a
       334×54 frame at `rounded-card`, `4px 8px` of padding, and a column of a title row and a mono
       model line. Its title row takes the parts — `ItemContent`, `ItemTitle` at `text-interface` and
       `ItemActions` — and keeps its own `justify-between gap-2`, and the `items-start` it takes when
@@ -1075,7 +1075,7 @@ primitive's base and parts.
       15px text. The content stays three spans, because a button element takes phrasing content
       only: the call [Separator](#24-separator-new) made for the timeline rule, and those spans
       already say the parts' classes.
-- [x] Files without a diff: `extensions/git-history/preview.tsx:222–231`. `Item asChild` over its
+- [x] Files without a diff: `extensions/git-history/web/preview.tsx:222–231`. `Item asChild` over its
       `<li>`, square because the row is the rule between two files — a 6px radius would curve the
       top border — with the path as `ItemContent` and the two trailing readouts left bare, since
       they are readouts and not controls. The row is inert, so the primitive's ring never shows. No
@@ -1110,7 +1110,7 @@ or a drag handle keeps its own box.
 - [x] Provider cards: `extensions/usage-limits/web.tsx:166–180`. **Stays custom.** It is a card, not
       a row: 247×128 and 247×208, a 1px frame at an 8px radius with 8px of padding, a heading and
       one meter per limit inside it. Nothing in it is a title with actions at its end.
-- [x] To-dos: `extensions/notes/todos.tsx:357–395`. **Stays custom.** The row is 558×32 at `4px 8px`
+- [x] To-dos: `extensions/notes/web/todos.tsx:357–395`. **Stays custom.** The row is 558×32 at `4px 8px`
       with `items-start`, holding a 24px grip, a 16px checkbox, the title's own button and a 24px
       bin. `Item`'s `py-2` would make it 40, its centred row would drop the grip and the checkbox
       beside a title that wraps onto two lines — at 390 such a title is 45px tall in a 53px row,
@@ -1153,7 +1153,7 @@ Nothing rendered a keycap before this.
       holds `setCommandKeys(command, presses | null)` beside `useShellCommand`, where a press is the
       keys of one keystroke as they are drawn (`[["meta","a"],["f"]]` is meta+a, then f), and
       `useCommandKeys(command)` reads it through `useSyncExternalStore`. The extension states the
-      caps and the core never parses a binding: `extensions/hotkeys/lib.ts:148–161` turns `prefix+f`
+      caps and the core never parses a binding: `caps` in `extensions/hotkeys/refs.ts` turns `prefix+f`
       into the prefix's own keys and the key it arms, so `data/hotkeys.json`'s `meta+a` reads
       `meta` `a` `f`. The core's renderer is `web/src/ui/command-keys.tsx`, one `Kbd` per key in a
       `KbdGroup`, drawn for [Tooltip](#12-tooltip)'s `keys` slot and nothing at all while no
@@ -1208,7 +1208,7 @@ Explicit labels instead of placeholders, `aria-invalid` and error text tied to t
       text 4px higher: the old `block` label inherited the body's 22.5px line and only its `span` was
       `text-meta`, so `Label` now gives it the 18px line every other form label has, and the two
       controls sit 0.5 and 1px higher. The label-to-control gap is the theme's 4px on both fields.
-- [x] `extensions/notes/panel.tsx:275` — `aria-label="Notes"` on the editor, which fills the panel and
+- [x] `extensions/notes/web/panel.tsx:275` — `aria-label="Notes"` on the editor, which fills the panel and
       has no visible label; unmoved at 581×649.5 at 1280 and 372×733.5 at 390.
 
 The three labels that were `text-faint` — bash-timeout's, dictation's and push's — are `text-muted`
@@ -1319,7 +1319,7 @@ surfaces over `bg-sunken` (`ui/markdown.tsx:90`, `ui/diff.tsx:299`), each with a
 header — a language and Copy, a path and its counts — which this step keeps as they are. Two frames
 with no fill at all: the tool fold (`transcript/activity.tsx:392`, 38px closed, the fill left to its
 rows) and the subagent profile card
-(`extensions/subagents/profile-models.tsx:95`: name and actions, then the description, `px-2.5 py-2`).
+(`extensions/subagents/web/profile-models.tsx:95`: name and actions, then the description, `px-2.5 py-2`).
 And four with a different border or fill: the queued message (`composer/queued.tsx:71`, `edge` over
 `raised`), the composer (`composer/composer.tsx:507`, `edge` over `sunken`, `p-2`, and
 `focus-within:border-accent`), the flavour card (`shell/appearance-dialog.tsx:89`, `edge-soft` over
@@ -1422,7 +1422,7 @@ finding is fixed in this phase, not just listed.
           own outline, the flavour cards an `outline-ink` 2px away, the sidebar's resize separator an
           outline, and the subagents chip only a border colour: all four draw the theme's ring now,
           and two more gaps the grep found were fixed with them — a `TabsTrigger` drew no focus at
-          all, and `CommandInput` had a border and nothing else. `extensions/notes/panel.tsx` still
+          all, and `CommandInput` had a border and nothing else. `extensions/notes/web/panel.tsx` still
           drops the ring on purpose (3.11). Five more gaps turned up in the review of this phase,
           each an `outline-none` with nothing in its place: the browser panel's stage — the
           `div tabIndex={0} role="textbox"` that forwards keys to the remote page — takes the ring
@@ -1517,7 +1517,7 @@ finding is fixed in this phase, not just listed.
           same: the empty state's box 581×648 at (690, 103) and its line 111.9×22.5 at (924.5, 396.5); a
           throwaway page mounted `Loading` in its four call shapes and measured 15px in
           `rgb(166, 173, 200)` with `text-interface` and with nothing, 12px with `text-meta` and 12px of
-          padding, so `cn` keeps both a size and the colour. `extensions/notes/panel.tsx`'s `Loading…`
+          padding, so `cn` keeps both a size and the colour. `extensions/notes/web/panel.tsx`'s `Loading…`
           stays a string: it is a saved/unsaved readout's state name, not a line standing in for
           content. A seventh copy turned up in the review of this phase:
           `shell/extension-details.tsx`'s `Suspense` fallback spelled the line out as a
@@ -1530,7 +1530,7 @@ finding is fixed in this phase, not just listed.
       `transcript/transcript.tsx:558`, `shell/status-bar.tsx:58`), three boxes over `bg-panel`
       (`transcript/transcript.tsx:333`, `transcript/agent-message.tsx:27`, `ui/quote.tsx:19`), two
       code surfaces over `bg-sunken` (`ui/markdown.tsx:90`, `ui/diff.tsx:299`) — and two frames with no
-      fill (`transcript/activity.tsx:392`, `extensions/subagents/profile-models.tsx:95`). Settled in
+      fill (`transcript/activity.tsx:392`, `extensions/subagents/web/profile-models.tsx:95`). Settled in
       `web/src/ui/pane.tsx`: **`PANE`** is the frame — `rounded-card border-edge-soft border` and no
       fill, because the fill is the box's own job — and **`PaneHeader`** is the row, `flex items-center
       justify-between border-b px-3 py-2.5` in a `<header>`. Both are a class rather than a `Pane`
@@ -1607,8 +1607,8 @@ finding is fixed in this phase, not just listed.
       and nothing else about it changed. One copy stays in the core's own
       `web/src/shell/sessions.tsx` — the rename form's `w-64 p-2`, the panel's width at a tighter 8px
       inset — because an inset no size names belongs to the step that owns that popover.
-- [x] Panel toolbars: the `border-b` toolbar row in `files/panel.tsx`, `browser/panel.tsx`,
-      `notes/panel.tsx`, `git-history/web.tsx` (two) — one toolbar in `web/src/ui/` if the shapes
+- [x] Panel toolbars: the `border-b` toolbar row in `files/web/panel.tsx`, `browser/web/panel.tsx`,
+      `notes/web/panel.tsx`, `git-history/web.tsx` (two) — one toolbar in `web/src/ui/` if the shapes
       agree. Done: `Toolbar` sits next to `PaneHeader` in `web/src/ui/pane.tsx`, and all six rows take
       it: `flex items-center gap-2 border-b px-3 py-1.5` in `edge-soft`, which is the row plus the
       rule, with the 12px inset and the 8px gap the notes tabs, the files tree and both git-history
@@ -1622,7 +1622,7 @@ finding is fixed in this phase, not just listed.
       inset and an 8px gap; the browser's `690,54,581,49` at an 8px padding and a 4px gap; the history
       list's `281,54,401,37` at `6px 12px` and an 8px gap. The files panel's two rows and the review
       panel's one were read from their class strings: `files` is off on this machine, and a review is
-      not running. A seventh row turned up in the review of this phase: `notes/todos.tsx`'s to-do tabs
+      not running. A seventh row turned up in the review of this phase: `notes/web/todos.tsx`'s to-do tabs
       had copied the base and the text size whole, and says `<Toolbar className="text-meta">` now. Its
       31px of content is unmoved, at the notes row's own `690,54,581,47.5` at 1280×800, with the same
       `6px 12px` inset, 8px gap, 12px text and 1px `rgb(49, 50, 68)` rule as the class string it
@@ -1793,17 +1793,17 @@ layout truncates or a detail the row has no room for. None of them is worth a ta
 ones that belong to a later primitive go with it.
 
 - Shown because the text is cut off, no owner: a file name or path
-  (`web/src/ui/attachments.tsx:85`, `:126`, `extensions/git-history/file-tree.tsx:80`), a folder
+  (`web/src/ui/attachments.tsx:85`, `:126`, `extensions/git-history/web/file-tree.tsx:80`), a folder
   path (`web/src/shell/sessions.tsx:691`, `:711`, `:748`, `web/src/shell/home.tsx:40`), a commit
   subject (`extensions/git-history/web.tsx:1172`), a tag name and the tags it hides
-  (`extensions/tags/web.tsx:31`, `:40`), a file size (`extensions/files/panel.tsx:233`).
+  (`extensions/tags/web.tsx:31`, `:40`), a file size (`extensions/files/web/panel.tsx:233`).
 - A detail a row shows on hover, no owner: the exact commit time
-  (`extensions/git-history/web.tsx:469`, `:609`), a note's error (`extensions/notes/panel.tsx:242`),
+  (`extensions/git-history/web.tsx:469`, `:609`), a note's error (`extensions/notes/web/panel.tsx:242`),
   a tag's session count (`extensions/tags/details.tsx:225`), the page behind the browser's address
-  (`extensions/browser/panel.tsx:459`).
+  (`extensions/browser/web/panel.tsx:459`).
 - A pill or a chip that [Badge](#25-badge-installed-reduced-to-one-look) rewrites:
   `extensions/git-branch/web.tsx:56`, `extensions/git-worktree/web.tsx:95`, `:107`,
-  `extensions/git-history/badge.tsx:93`, `extensions/git-history/web.tsx:1063`, `:1073`, `:1151`,
+  `extensions/git-history/web/badge.tsx:93`, `extensions/git-history/web.tsx:1063`, `:1073`, `:1151`,
   `extensions/tags/details.tsx:39`, and the agent chip at `extensions/subagents/web.tsx:104`, which
   [Item](#39-item-new) takes with its row (`:276`).
 - The three resize handles' `title="Drag to resize, double-click to reset"`, which explains the

@@ -5,10 +5,10 @@
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host } from "../../server/sdk.ts";
-import { createKeeper } from "./keeper.ts";
-import { collect } from "./readers.ts";
 import { PROVIDERS, type UsageResult } from "./refs.ts";
-import { readSettings, writeSettings } from "./settings.ts";
+import { createKeeper } from "./server/keeper.ts";
+import { collect } from "./server/readers.ts";
+import { readSettings, writeSettings } from "./server/settings.ts";
 
 /** Slightly under the browser's five-minute timer, so each tick reads again. */
 const CACHE_MS = 4 * 60_000;

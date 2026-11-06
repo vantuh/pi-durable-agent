@@ -13,11 +13,11 @@ import { toast } from "@/lib/toast.ts";
 import { callAction } from "@/sdk/actions.ts";
 import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
 
-import { TTL } from "./due.ts";
 import {
     set as setAction,
     state as stateAction,
     stop as stopAction,
+    TTL,
     type WarmSession,
     type WarmState,
 } from "./refs.ts";

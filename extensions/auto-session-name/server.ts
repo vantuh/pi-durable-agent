@@ -12,8 +12,8 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host } from "../../server/sdk.ts";
 import { messageOf } from "../../shared/guards.ts";
-import { buildTitleTranscript, parseGeneratedSessionTitle } from "./lib.ts";
-import { readAuto, writeAuto } from "./store.ts";
+import { buildTitleTranscript, parseGeneratedSessionTitle } from "./server/lib.ts";
+import { readAuto, writeAuto } from "./server/store.ts";
 
 export const meta = {
     title: "Session names",

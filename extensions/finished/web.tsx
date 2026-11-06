@@ -5,7 +5,7 @@ import { showSessionAlert } from "@/shell/session-alert.tsx";
 import { folderName } from "@/shell/session-parts.tsx";
 
 import type { SessionSummary } from "../../shared/protocol.ts";
-import { finishedBetween, working } from "./finished.ts";
+import { finishedBetween, working } from "./web/finished.ts";
 
 let audio: AudioContext | undefined;
 

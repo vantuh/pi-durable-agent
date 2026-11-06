@@ -43,6 +43,6 @@ cached. Tests: `test/pwa.test.ts` runs the real `web/sw.js` against a fake Cache
 
 ## Push
 
-The worker also carries the `sw.js` of each extension folder; today that is `extensions/push/sw.js`,
+The worker also carries the `assets/sw.js` of each extension folder; today that is `extensions/push/assets/sw.js`,
 which shows push notifications and opens the conversation on a click
 ([Push notifications](../extensions/push/README.md)). The core worker has no push code.

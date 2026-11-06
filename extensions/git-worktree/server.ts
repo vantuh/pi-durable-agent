@@ -15,7 +15,7 @@ import {
     worktreeOf,
     worktreesAmong,
     worktreesOf,
-} from "./worktree.ts";
+} from "./server/worktree.ts";
 
 /** What the main checkout is called wherever a worktree of the session's repository is offered. */
 const MAIN = "Main checkout";

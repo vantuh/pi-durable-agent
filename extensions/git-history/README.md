@@ -147,12 +147,12 @@ Each `stats` call leases its session for three minutes; the browser's once-a-min
 A commit cannot change, so three layers answer for it and only the working tree is read again on
 every look:
 
-| Layer                    | Kept                                                         | Where         |
-| ------------------------ | ------------------------------------------------------------ | ------------- |
-| prefetch                 | the newest three commits, on idle; any row on hover or focus | `web.tsx`     |
-| patch                    | 20 commits per browser tab                                   | `web.tsx`     |
-| parsed diff and grammars | 10 patches per browser tab                                   | `preview.tsx` |
-| patch                    | 20 commits per server process                                | `server.ts`   |
+| Layer                    | Kept                                                         | Where             |
+| ------------------------ | ------------------------------------------------------------ | ----------------- |
+| prefetch                 | the newest three commits, on idle; any row on hover or focus | `web.tsx`         |
+| patch                    | 20 commits per browser tab                                   | `web.tsx`         |
+| parsed diff and grammars | 10 patches per browser tab                                   | `web/preview.tsx` |
+| patch                    | 20 commits per server process                                | `server.ts`       |
 
 A click on a prefetched commit is the mount of the diff view and nothing else. Reading one commit
 costs three Git processes: the repository root is remembered per process, the commit and its first
@@ -173,7 +173,7 @@ without an icon package. The colour is a theme role picked by family: `text-info
 `text-agent` for components, `text-warn` for JavaScript and JSON, `text-accent` for styles and
 media, `text-ok` for shells, `text-spark` for config and data, `text-ember` for markup, SQL and
 Rust. A kind of file that has no mark yet falls back to plain lines; a new one goes into
-`icons.tsx` and the subset is rebuilt. Run from the repository root:
+`web/icons.tsx` and the subset is rebuilt. Run from the repository root:
 
 ```bash
 uvx --with fonttools --with brotli python -c "
@@ -181,7 +181,7 @@ from fontTools import subset
 subset.main([
     '/Users/vantuh/Library/Fonts/JetBrainsMonoNLNerdFont-Regular.ttf',
     '--unicodes=e628,e60c,e625,e73e,e64e,eb0f,e615,e8eb,e672,e614,e60e,e691,e706,e60d,e698,e6a0,e606,e724,e68b,e66d,e608,e605,e699,e634,e620,e650,f0fc3',
-    '--output-file=extensions/git-history/icons.woff2',
+    '--output-file=extensions/git-history/assets/icons.woff2',
     '--flavor=woff2', '--no-hinting', '--desubroutinize', '--layout-features=', '--drop-tables+=DSIG',
 ])
 "

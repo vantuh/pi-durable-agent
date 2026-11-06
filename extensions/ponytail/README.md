@@ -15,7 +15,7 @@ is no `/ponytail` command here.
 - **The switch** is a unicorn chip in the status bar's `end` slot, like keep-warm's, lit in
   `text-ok` when on and faded to `text-faint/60` when off. The popover holds one `Switch` and one
   line saying what the voice changes: every conversation, subagents included.
-- **The unicorn** is `ponytail/icon.tsx`, built with lucide's `createLucideIcon` so it carries the
+- **The unicorn** is `ponytail/web/icon.tsx`, built with lucide's `createLucideIcon` so it carries the
   same grid, stroke and props as every other chip. Lucide has no horse: the body is Tabler Icons'
   `horse` (MIT, Copyright (c) 2020-2026 Paweł Kuna, kept in the file), the horn and its notch are
   drawn here, and the result was checked at the chip's 14 px.

@@ -3,8 +3,8 @@ import { useEffect } from "react";
 
 import type { StatusProps, WebExtension } from "@/sdk/types.ts";
 
-import { NotesPanel } from "./panel.tsx";
-import { refreshTodos, useCount } from "./store.ts";
+import { NotesPanel } from "./web/panel.tsx";
+import { refreshTodos, useCount } from "./web/store.ts";
 
 /** Open to-dos of the session's repository, read at mount and on window focus; the panel sets it on each change. */
 function OpenTodos({ session }: StatusProps) {

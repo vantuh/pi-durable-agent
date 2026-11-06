@@ -8,10 +8,10 @@ import { defineExtension, defineTool, type ToolExecutionResult } from "@earendil
 import { arr, obj, opt, str } from "@earendil-works/pi-schema";
 
 import type { Host, ResolveModelAuth } from "../../server/sdk.ts";
-import { searchAnthropic } from "./anthropic.ts";
-import { buildPrompt, formatAnswer, runChain, type Provider } from "./chain.ts";
-import { searchChatgpt } from "./chatgpt.ts";
-import { searchKiro } from "./kiro.ts";
+import { searchAnthropic } from "./server/anthropic.ts";
+import { buildPrompt, formatAnswer, runChain, type Provider } from "./server/chain.ts";
+import { searchChatgpt } from "./server/chatgpt.ts";
+import { searchKiro } from "./server/kiro.ts";
 
 export const meta = {
     title: "Web search",

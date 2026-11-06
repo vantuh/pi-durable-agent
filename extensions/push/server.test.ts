@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { ActionError, type CommitListener, type CommitView, type Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { normalizeContact, type DeviceSubscription } from "./refs.ts";
-import { finishedPayload, notifyAll, type Transport } from "./send.ts";
 import { listen, pushActions } from "./server.ts";
-import { type PushFile, PushStore, withSeen } from "./store.ts";
+import { finishedPayload, notifyAll, type Transport } from "./server/send.ts";
+import { type PushFile, PushStore, withSeen } from "./server/store.ts";
 
 function device(host = "fcm.googleapis.com", id = "a"): DeviceSubscription {
     return {

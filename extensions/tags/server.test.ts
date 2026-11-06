@@ -11,7 +11,7 @@ import type { Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { FALLBACK_COLOR, MAX_NAME, state as stateRef, type TagsState } from "./refs.ts";
 import { tagActions } from "./server.ts";
-import { readTags } from "./store.ts";
+import { readTags } from "./server/store.ts";
 
 function hostOf(dataDir: string): Host {
     return testHost({

@@ -1,6 +1,6 @@
 /**
  * Browser: a real Chromium on this machine. Pi drives it with the `browser` tool; the person
- * watches and uses the same page in the Browser panel. Ported from Pi Pocket (see lib/NOTICE.md).
+ * watches and uses the same page in the Browser panel. Ported from Pi Pocket (see server/NOTICE.md).
  *
  * A call is not replayed after a restart (clicking twice is not harmless), and the page itself
  * does not survive one: its address comes back when it opens again, not what was typed on it.
@@ -15,11 +15,11 @@ import { bool, lit, num, obj, opt, str, union } from "@earendil-works/pi-schema"
 
 import { ActionError, type Action, type Host, writeJsonFile } from "../../server/sdk.ts";
 import { messageOf, recordOf } from "../../shared/guards.ts";
-import { Browsers } from "./lib/browsers.ts";
-import { BrowserError } from "./lib/cdp.ts";
-import type { BrowserPage, LogEntry, Saved, Target } from "./lib/page.ts";
-import { displayUrl, normalizeUrl } from "./lib/urls.ts";
-import { presetOf, viewportFrom } from "./lib/viewport.ts";
+import { Browsers } from "./server/browsers.ts";
+import { BrowserError } from "./server/cdp.ts";
+import type { BrowserPage, LogEntry, Saved, Target } from "./server/page.ts";
+import { displayUrl, normalizeUrl } from "./server/urls.ts";
+import { presetOf, viewportFrom } from "./server/viewport.ts";
 
 export const meta = {
     title: "Browser",

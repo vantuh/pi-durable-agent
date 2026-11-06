@@ -1,5 +1,5 @@
 import type { WebExtension } from "@/sdk/types.ts";
-import { CodeBlock } from "@/ui/markdown.tsx";
+import { CodeBlock } from "@/ui/markdown/code-block.tsx";
 
 export default {
     toolViews: [

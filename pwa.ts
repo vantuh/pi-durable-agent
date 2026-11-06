@@ -102,7 +102,7 @@ export function renderWorker(
 }
 
 /**
- * The text of every `<dir>/<folder>/sw.js`, in folder order. Folders that start with `.` or `_` are
+ * The text of every `<dir>/<folder>/assets/sw.js`, in folder order. Folders that start with `.` or `_` are
  * skipped, as the loader skips them. A facet is plain JS without imports.
  */
 export function workerFacets(dir: string): string[] {
@@ -116,7 +116,7 @@ export function workerFacets(dir: string): string[] {
         }
 
         try {
-            facets.push(readFileSync(join(dir, entry.name, "sw.js"), "utf8"));
+            facets.push(readFileSync(join(dir, entry.name, "assets", "sw.js"), "utf8"));
         } catch (error) {
             if (error instanceof Error && Reflect.get(error, "code") === "ENOENT") {
                 continue;

@@ -9,9 +9,16 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host, type SessionRequest } from "../../server/sdk.ts";
 import { messageOf } from "../../shared/guards.ts";
-import { due, IDLE_STOP, LEAD, PROVIDER } from "./due.ts";
-import { type Ping, type WarmSession, type WarmState } from "./refs.ts";
-import { readStore, writeStore } from "./store.ts";
+import {
+    due,
+    IDLE_STOP,
+    LEAD,
+    PROVIDER,
+    type Ping,
+    type WarmSession,
+    type WarmState,
+} from "./refs.ts";
+import { readStore, writeStore } from "./server/store.ts";
 import {
     activityOf,
     nextOf,
@@ -21,7 +28,7 @@ import {
     warming,
     type Seen,
     type Stored,
-} from "./warm.ts";
+} from "./server/warm.ts";
 
 export const meta = {
     title: "Keep warm",

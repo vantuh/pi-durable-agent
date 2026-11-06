@@ -5,19 +5,9 @@ extension by name; the loader only knows folders.
 
 ## The contract
 
-```text
-extensions/git-branch/
-  server.ts       default export (host) => Extension | undefined; may export `status` and `actions`
-  server.test.ts  its tests, run by `pnpm test`; never loaded
-  package.json    private workspace package: own dependencies and shared host peers
-  README.md       usage, configuration, behavior and limits of this extension
-  refs.ts         action refs and types shared with `web.tsx`
-  web.tsx         status items and settings sections (the browser loads it)
-  sw.js           optional: plain script the build appends to the production service worker
-```
-
 Only `server.ts` is required for the server, and only `web.tsx` for the browser. `api.ts` (typed
-dependencies between extensions) does not exist yet.
+dependencies between extensions) does not exist yet. The files an extension may have, and where they
+go, are in [The layout](#the-layout) below.
 
 ```ts
 import { defineExtension } from "@earendil-works/pi-durable";
@@ -44,6 +34,51 @@ Rules the loader enforces, and why:
 | A folder without `server.ts` is skipped    | The server installs nothing for it, and `GET /api/extensions` does not list it. The browser still loads its `web.tsx` |
 | Names starting with `_` or `.` are skipped | A place to park a folder under construction                                                                           |
 | A failed folder keeps its last version     | A typo must not take a working feature away                                                                           |
+
+## The layout
+
+Every extension has the same shape, so a reader knows where a file is before opening the folder.
+
+```text
+extensions/<name>/
+  package.json     name `@pi-durable-agent/<name>` and the extension's own dependencies
+  README.md        usage, configuration, behaviour and limits; every extension has one
+  server.ts        entry, found by the server loader by name
+  server.test.ts   tests of what server.ts installs
+  web.tsx          entry, found by the browser glob by name
+  details.tsx      entry, found by the Extensions dialog glob by name
+  refs.ts          the contract between the halves: action refs, shared types, parsers;
+                   browser-safe, no Node imports
+  server/          server-only code server.ts imports; Node APIs allowed; tests beside the file
+  web/             browser-only code web.tsx and details.tsx import: one exported component per
+                   file, hooks in use-*.ts, browser helpers; tests beside the file
+  assets/          fonts, icons, scripts and other files read by path (`sw.js` is one)
+  fixtures/        test data
+  LICENSE.*        notices for copied code, kept beside the code they cover
+```
+
+Rules:
+
+- **The top level holds only the names above.** Every other file goes into `server/` or `web/`. The
+  three entries are found by name, so they cannot move; everything else can, and putting it in a
+  folder named after its runtime keeps it there. `test/extension-layout.test.ts` fails when a file
+  outside the list appears.
+- **The folder says where the code runs.** `server/` may import Node; `web/` is bundled by Vite and
+  must not; `refs.ts` is imported by both. A Node import reaching the browser bundle is the mistake
+  this prevents, and it is the one Vite reports late.
+- **Entries only wire.** `server.ts` builds the tools, prompt sections, hooks and actions from
+  `server/`; `web.tsx` and `details.tsx` register components from `web/`. Logic lives in the folders.
+- **Optional parts stay absent.** A server-only extension has no `web.tsx` and no `web/`; an empty
+  folder is never created.
+- **Shared code is `refs.ts`.** If it outgrows ~300 lines it becomes a `shared/` folder, imported by
+  both halves; not before.
+- **Reload follows the folder.** A change in `server.ts`, `refs.ts` or under `server/` reinstalls the
+  extension. A change under `web/`, `assets/` or `fixtures/`, in `web.tsx`, `details.tsx`, a test or a
+  Markdown file does not. Helper imports inside the folder carry the entry's version, so the
+  reinstalled extension runs the edited `server/*.ts`.
+- **The core's server code comes from `sdk.ts` only.** An entry imports `../../server/sdk.ts`; a file in
+  the extension's own `server/` imports `../../../server/sdk.ts`. Its own `server/` folder is imported as
+  `./server/` or `../server/` (oxlint tells the two apart).
 
 ## Package dependencies
 
@@ -217,7 +252,7 @@ export default { status: [{ id: "cwd", slot: "start", component: Item }] } satis
 
 ### The service worker facet
 
-A folder may hold `sw.js`: a plain script with no imports. The build appends it, wrapped in an
+A folder may hold `assets/sw.js`: a plain script with no imports. The build appends it, wrapped in an
 IIFE, to the production worker, so a feature can handle `push` or `notificationclick` without a
 change to `web/sw.js`. It does not run in `pnpm dev` (no worker is registered there), and it is
 never turned off with the folder's switch: the worker is built from the files present. Check any

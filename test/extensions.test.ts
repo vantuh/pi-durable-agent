@@ -355,6 +355,42 @@ void describe("Extensions disposers", () => {
         assert.deepEqual(calls(), ["v1", "v2"]);
     });
 
+    void it("reloads for a change in server/, and not for web/, assets/ or fixtures/", async () => {
+        const helper = (tag: string): string => `export const value = "${tag}";`;
+
+        await write(
+            "alpha",
+            `import { value } from "./server/helper.ts";\nexport default function (host) {\n    globalThis.${CALLS}.push(value);\n    return { name: host.name };\n}\n`,
+        );
+        await mkdir(join(dir, "alpha", "server"));
+        await mkdir(join(dir, "alpha", "web"));
+        await mkdir(join(dir, "alpha", "assets"));
+        await mkdir(join(dir, "alpha", "fixtures"));
+        await writeFile(join(dir, "alpha", "server", "helper.ts"), helper("h1"));
+        await extensions.load();
+        // macOS FSEvents can still deliver the writes above to a watcher started right after them.
+        await setTimeout(500);
+        extensions.watch();
+
+        await writeFile(join(dir, "alpha", "web", "use-thing.ts"), "export {};\n");
+        await mkdir(join(dir, "alpha", "web", "nested"));
+        await writeFile(join(dir, "alpha", "web", "nested", "item.ts"), "export {};\n");
+        await writeFile(join(dir, "alpha", "assets", "script.ts"), "export {};\n");
+        await writeFile(join(dir, "alpha", "fixtures", "data.ts"), "export {};\n");
+        await setTimeout(600);
+        assert.deepEqual(notices, []);
+        assert.deepEqual(calls(), ["h1"]);
+
+        assert.deepEqual(
+            await noticeFor(
+                () => writeFile(join(dir, "alpha", "server", "helper.ts"), helper("h2")),
+                1,
+            ),
+            { level: "success", message: "Extension “alpha” reloaded" },
+        );
+        assert.deepEqual(calls(), ["h1", "h2"]);
+    });
+
     void it("reloads once for one save however often watch() was called", async () => {
         await write("alpha", source({ tags: ["v1"] }));
         await extensions.load();

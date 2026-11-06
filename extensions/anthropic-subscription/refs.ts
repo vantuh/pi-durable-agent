@@ -1,4 +1,5 @@
 import { actionRef } from "../../shared/extension-api.ts";
+import { isRecord } from "../../shared/guards.ts";
 
 export const DEFAULT_VERSION = "2.1.280";
 /** The system block this extension adds; what marks a request as already shaped. */
@@ -122,6 +123,70 @@ export const diagnostics = actionRef<undefined, Diagnostics>(
             lastRetry,
             versionError,
             last: { outcome: checked, provider, at },
+        };
+    },
+);
+
+export type AccountProfile = {
+    organizationType: string | null;
+    subscriptionStatus: string | null;
+    rateLimitTier: string | null;
+    seatTier: string | null;
+    extraUsageEnabled: boolean | null;
+    email: string | null;
+    organizationName: string | null;
+};
+export type AccountResult =
+    | { kind: "not-oauth" }
+    | { kind: "unavailable"; reason: string }
+    | { kind: "profile"; checkedAt: number; profile: AccountProfile };
+
+function nullableText(value: unknown): string | null {
+    if (value === null || typeof value === "string") {
+        return value;
+    }
+    throw new Error("Invalid profile field");
+}
+
+export const account = actionRef<{ includeIdentity: boolean }, AccountResult>(
+    "anthropic-subscription",
+    "account",
+    (value) => {
+        if (!isRecord(value)) {
+            throw new Error("Invalid account result");
+        }
+        if (value["kind"] === "not-oauth") {
+            return { kind: "not-oauth" };
+        }
+        if (value["kind"] === "unavailable" && typeof value["reason"] === "string") {
+            return { kind: "unavailable", reason: value["reason"] };
+        }
+        const profile = value["profile"];
+        const checkedAt = value["checkedAt"];
+        if (
+            value["kind"] !== "profile" ||
+            !isRecord(profile) ||
+            typeof checkedAt !== "number" ||
+            !Number.isFinite(checkedAt)
+        ) {
+            throw new Error("Invalid account profile");
+        }
+        const extraUsageEnabled = profile["extraUsageEnabled"];
+        if (extraUsageEnabled !== null && typeof extraUsageEnabled !== "boolean") {
+            throw new Error("Invalid extra usage status");
+        }
+        return {
+            kind: "profile",
+            checkedAt,
+            profile: {
+                organizationType: nullableText(profile["organizationType"]),
+                subscriptionStatus: nullableText(profile["subscriptionStatus"]),
+                rateLimitTier: nullableText(profile["rateLimitTier"]),
+                seatTier: nullableText(profile["seatTier"]),
+                extraUsageEnabled,
+                email: nullableText(profile["email"]),
+                organizationName: nullableText(profile["organizationName"]),
+            },
         };
     },
 );

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { defineExtension } from "@earendil-works/pi-durable";
 
 import { type Action, type Host, readJsonFile } from "../../server/sdk.ts";
-import { mergeKeymap, type Keymap } from "./lib.ts";
+import { mergeKeymap, type Keymap } from "./refs.ts";
 
 export const meta = {
     title: "Hotkeys",

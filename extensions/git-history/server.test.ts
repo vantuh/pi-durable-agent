@@ -8,8 +8,8 @@ import { promisify } from "node:util";
 
 import type { Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { readCommit } from "./git.ts";
 import { actions } from "./server.ts";
+import { readCommit } from "./server/git.ts";
 
 const run = promisify(execFile);
 

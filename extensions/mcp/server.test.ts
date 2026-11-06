@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { testHost } from "../../test/fixtures/host.ts";
 import { schemasSent } from "../../test/fixtures/tool-schemas.ts";
-import { Connections } from "./connections.ts";
 import createMcp from "./server.ts";
+import { Connections } from "./server/connections.ts";
 
 // A real MCP server over stdio, one tool: echo.
 const SERVER = `

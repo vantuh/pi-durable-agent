@@ -117,7 +117,7 @@ extensions/files/
 
 - **The top level holds only the names above** (plus `package.json` and `LICENSE.*`); everything
   else goes into `server/` or `web/` by where it runs. The full layout:
-  [docs/refactor-plan.md](docs/refactor-plan.md#the-layout).
+  [docs/extensions.md](docs/extensions.md#the-layout).
 - **One folder, one extension, named after the folder.** The loader replaces by name, so a name
   that drifts installs twice. `coding-tools` is reserved by the core.
 - **Documentation lives with the extension.** Keep feature-specific guides in its `README.md`,

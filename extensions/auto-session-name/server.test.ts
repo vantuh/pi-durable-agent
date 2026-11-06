@@ -17,9 +17,9 @@ import type {
 
 import type { CommitListener, Host, SessionSendOptions } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { buildTitleTranscript, parseGeneratedSessionTitle } from "./lib.ts";
 import autoSessionName, { actions } from "./server.ts";
-import { writeAuto } from "./store.ts";
+import { buildTitleTranscript, parseGeneratedSessionTitle } from "./server/lib.ts";
+import { writeAuto } from "./server/store.ts";
 
 void test("cleans the model's answer into a title", () => {
     const cases: ReadonlyArray<readonly [string, string]> = [

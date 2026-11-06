@@ -10,9 +10,9 @@ import type { EntryRecord } from "@earendil-works/pi-durable";
 
 import type { CommitListener, CommitView, Host } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { due, IDLE_STOP, LEAD, TTL } from "./due.ts";
+import { due, IDLE_STOP, LEAD, TTL } from "./refs.ts";
 import keepWarm, { actions } from "./server.ts";
-import { readStore, writeStore } from "./store.ts";
+import { readStore, writeStore } from "./server/store.ts";
 import {
     activityOf,
     cached,
@@ -23,7 +23,7 @@ import {
     stopped,
     warming,
     type Seen,
-} from "./warm.ts";
+} from "./server/warm.ts";
 
 const now = Date.parse("2026-10-24T12:00:00Z");
 const minutes = (count: number) => count * 60_000;

@@ -10,9 +10,9 @@ import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 import { Loading } from "@/ui/loading.tsx";
 
-import { createTag, load, recolorTag, removeTag, renameTag, useTags } from "./client.ts";
 import { MAX_NAME, TAG_COLORS, type TagColor, type TagsState } from "./refs.ts";
-import { TAG_DOT } from "./tones.ts";
+import { createTag, load, recolorTag, removeTag, renameTag, useTags } from "./web/client.ts";
+import { TAG_DOT } from "./web/tones.ts";
 
 function sessionsWith(state: TagsState, tag: string): number {
     return Object.values(state.sessions).filter((held) => held.includes(tag)).length;

@@ -6,11 +6,11 @@ import { test } from "node:test";
 
 import type { Action, Host, ResolveModelAuth } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { createKeeper } from "./keeper.ts";
-import { collect, readCodex, readKiro, toMs, type Fetch } from "./readers.ts";
 import { providers as providersRef, readerFor, type ProviderUsage } from "./refs.ts";
 import { actions } from "./server.ts";
-import { readSettings } from "./settings.ts";
+import { createKeeper } from "./server/keeper.ts";
+import { collect, readCodex, readKiro, toMs, type Fetch } from "./server/readers.ts";
+import { readSettings } from "./server/settings.ts";
 
 const signal = new AbortController().signal;
 

@@ -18,7 +18,7 @@ import {
     presses,
     step,
     type KeyEvent,
-} from "./lib.ts";
+} from "./refs.ts";
 import { readKeymap } from "./server.ts";
 
 function key(code: string, modifiers: Partial<KeyEvent> = {}): KeyEvent {

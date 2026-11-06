@@ -7,9 +7,6 @@ import { cn } from "@/lib/utils";
 
 import { COMPONENTS } from "./markdown/components.tsx";
 
-// The path extensions import it by, until phase 8 points them at ui/markdown/code-block.tsx.
-export { CodeBlock } from "./markdown/code-block.tsx";
-
 const Blocks = memo(function Blocks({ text }: { text: string }): ReactNode {
     return (
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>

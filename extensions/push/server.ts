@@ -7,11 +7,11 @@ import { defineExtension } from "@earendil-works/pi-durable";
 import webpush from "web-push";
 
 import { ActionError, type Action, type CommitView, type Host } from "../../server/sdk.ts";
-import { Completions } from "./completion.ts";
 import { normalizeContact } from "./refs.ts";
-import { finishedPayload, notifyAll, sendWithWebPush, type Transport } from "./send.ts";
-import { PushStore, withoutEndpoints, withSeen, withSubscription } from "./store.ts";
-import { validateEndpoint, validateSubscription } from "./subscription.ts";
+import { Completions } from "./server/completion.ts";
+import { finishedPayload, notifyAll, sendWithWebPush, type Transport } from "./server/send.ts";
+import { PushStore, withoutEndpoints, withSeen, withSubscription } from "./server/store.ts";
+import { validateEndpoint, validateSubscription } from "./server/subscription.ts";
 
 export const meta = {
     title: "Push notifications",

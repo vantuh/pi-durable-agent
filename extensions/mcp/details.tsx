@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch.tsx";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 import { DetailsColumn, DetailsNote } from "@/ui/details.tsx";
 
-import { useMcp } from "./client.ts";
+import { useMcp } from "./web/client.ts";
 
 /** The servers from mcp.json, each with a switch. */
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {

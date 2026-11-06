@@ -22,7 +22,7 @@ import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { createServer as createViteServer } from "vite";
 
-import type { Chromium } from "../extensions/browser/lib/cdp.ts";
+import type { Chromium } from "../extensions/browser/server/cdp.ts";
 import { historyPage } from "../server/history.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import { projectEntry } from "../server/projection.ts";
@@ -128,8 +128,8 @@ type Browser = {
 async function loadBrowser(): Promise<Browser | undefined> {
     try {
         const [cdp, discovery] = await Promise.all([
-            import("../extensions/browser/lib/cdp.ts"),
-            import("../extensions/browser/lib/discovery.ts"),
+            import("../extensions/browser/server/cdp.ts"),
+            import("../extensions/browser/server/discovery.ts"),
         ]);
 
         return {

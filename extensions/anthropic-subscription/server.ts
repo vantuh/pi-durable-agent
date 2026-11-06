@@ -4,9 +4,9 @@ import { defineExtension } from "@earendil-works/pi-durable";
 
 import { ActionError, type Action, type Host } from "../../server/sdk.ts";
 import { isRecord } from "../../shared/guards.ts";
-import { lookupAccount } from "./account.ts";
 import { DEFAULT_VERSION, type Diagnostics, MARKER } from "./refs.ts";
-import { oauthTransport } from "./transport.ts";
+import { lookupAccount } from "./server/account.ts";
+import { oauthTransport } from "./server/transport.ts";
 
 const states = new WeakMap<Host, Diagnostics>();
 

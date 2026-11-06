@@ -2,7 +2,7 @@ import { Globe } from "lucide-react";
 
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { BrowserPanel } from "./panel.tsx";
+import { BrowserPanel } from "./web/panel.tsx";
 
 export default {
     panels: [

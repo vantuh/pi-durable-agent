@@ -10,8 +10,8 @@
 import { defineExtension, GenerationTask, hook, ToolTask } from "@earendil-works/pi-durable";
 
 import { type Action, ActionError, type Host } from "../../server/sdk.ts";
-import { Gate } from "./gate.ts";
 import { MARK, type PauseState } from "./refs.ts";
+import { Gate } from "./server/gate.ts";
 
 export const meta = {
     title: "Pause",

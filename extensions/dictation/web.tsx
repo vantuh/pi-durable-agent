@@ -7,15 +7,15 @@ import { toast } from "@/lib/toast.ts";
 import type { ComposerProps, WebExtension } from "@/sdk/types.ts";
 
 import { messageOf } from "../../shared/guards.ts";
-import { beep } from "./beep.ts";
-import { insert } from "./insert.ts";
+import { beep } from "./web/beep.ts";
+import { insert } from "./web/insert.ts";
 import {
     microphone,
     recorderType,
     supportsRecording,
     transcribeRecording,
     warm,
-} from "./record.ts";
+} from "./web/record.ts";
 
 /** A warm-up that answers sooner than this found the model already loaded: saying so would only flicker. */
 const LOADING_SHOWN_AFTER_MS = 300;

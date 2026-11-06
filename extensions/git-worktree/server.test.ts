@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 
 import { testHost } from "../../test/fixtures/host.ts";
 import { actions } from "./server.ts";
-import { makeWorktree } from "./worktree.ts";
+import { makeWorktree } from "./server/worktree.ts";
 
 const run = promisify(execFile);
 

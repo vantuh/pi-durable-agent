@@ -5,8 +5,8 @@ import { callAction } from "@/sdk/actions.ts";
 import type { ExtensionDetailsProps } from "@/sdk/types.ts";
 import { DetailsColumn } from "@/ui/details.tsx";
 
-import { AccountDetails } from "./account-details.tsx";
 import { DEFAULT_VERSION, type Diagnostics, diagnostics, outcomes } from "./refs.ts";
+import { AccountDetails } from "./web/account-details.tsx";
 
 export default function Details({ enabled, installed }: ExtensionDetailsProps) {
     const active = enabled && installed;

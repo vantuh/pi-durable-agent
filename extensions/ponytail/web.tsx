@@ -6,8 +6,8 @@ import { Hint } from "@/components/ui/tooltip";
 import { useBooleanAction } from "@/sdk/boolean-action.ts";
 import type { StatusItemProps, WebExtension } from "@/sdk/types.ts";
 
-import { Unicorn } from "./icon.tsx";
 import { set as setAction, state as stateAction } from "./refs.ts";
+import { Unicorn } from "./web/icon.tsx";
 
 function Ponytail({ session }: StatusItemProps) {
     const { mode, read, toggle } = useBooleanAction(session?.id ?? null, stateAction, setAction);

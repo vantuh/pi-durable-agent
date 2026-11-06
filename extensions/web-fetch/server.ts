@@ -10,7 +10,7 @@ import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import { int, obj, opt, str } from "@earendil-works/pi-schema";
 
 import type { Host } from "../../server/sdk.ts";
-import { OUTPUT_LIMITS, fetchPage, format } from "./page.ts";
+import { OUTPUT_LIMITS, fetchPage, format } from "./server/page.ts";
 
 export const meta = {
     title: "Web fetch",
