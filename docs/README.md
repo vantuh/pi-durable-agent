@@ -3,21 +3,23 @@
 Decisions written down before code, so that code can be read against them.
 The rules an agent works under are in [../AGENTS.md](../AGENTS.md).
 
-| Document                             | Holds                                                      |
-| ------------------------------------ | ---------------------------------------------------------- |
-| [stack.md](stack.md)                 | What we build with, why, what it costs, what stays open.   |
-| [layout.md](layout.md)               | The shell: sidebar, conversation, right drawer.            |
-| [server.md](server.md)               | The HTTP and SSE API, and how a conversation runs.         |
-| [extensions.md](extensions.md)       | The extension folder: contract, actions, web, live reload. |
-| [sessions-live.md](sessions-live.md) | Every session's state, live, the same on every device.     |
-| [theme.md](theme.md)                 | The Catppuccin theme and its roles.                        |
-| [running.md](running.md)             | Running it, and the production build on a phone.           |
-| [pwa.md](pwa.md)                     | Manifest, icons, and the offline shell worker.             |
-| [conventions.md](conventions.md)     | Every rule, and the mistake it prevents.                   |
-| [ui-primitives.md](ui-primitives.md) | Plan: hand-written controls replaced by shadcn primitives. |
-| [helpers.md](helpers.md)             | Plan: one home for each repeated helper function.          |
-| [ui-rework.md](ui-rework.md)         | The flat, square look and the extensions sidebar.          |
-| [refactor-plan.md](refactor-plan.md) | Plan: structure cleanup, Hono, pi 1.5, with progress.      |
+| Document                                         | Holds                                                      |
+| ------------------------------------------------ | ---------------------------------------------------------- |
+| [stack.md](stack.md)                             | What we build with, why, what it costs, what stays open.   |
+| [layout.md](layout.md)                           | The shell: sidebar, conversation, right drawer.            |
+| [server.md](server.md)                           | The HTTP and SSE API, and how a conversation runs.         |
+| [extensions.md](extensions.md)                   | The extension folder: contract, actions, web, live reload. |
+| [sessions-live.md](sessions-live.md)             | Every session's state, live, the same on every device.     |
+| [theme.md](theme.md)                             | The Catppuccin theme and its roles.                        |
+| [running.md](running.md)                         | Running it, and the production build on a phone.           |
+| [pwa.md](pwa.md)                                 | Manifest, icons, and the offline shell worker.             |
+| [conventions.md](conventions.md)                 | Every rule, and the mistake it prevents.                   |
+| [ui-primitives.md](ui-primitives.md)             | Plan: hand-written controls replaced by shadcn primitives. |
+| [helpers.md](helpers.md)                         | Plan: one home for each repeated helper function.          |
+| [ui-rework.md](ui-rework.md)                     | The flat, square look and the extensions sidebar.          |
+| [refactor-plan.md](refactor-plan.md)             | Plan: structure cleanup, Hono, pi 1.5, with progress.      |
+| [pi-1.5-migration.md](pi-1.5-migration.md)       | Plan: upgrading the pi packages from 1.4.0 to 1.5.0.       |
+| [pi-schema-migration.md](pi-schema-migration.md) | Plan: tool schemas from TypeBox to pi-schema.              |
 
 Extension-specific guides live in `extensions/<name>/README.md`; the
 [extension guide index](extensions.md#extension-guides) links to them. Shared contracts and
