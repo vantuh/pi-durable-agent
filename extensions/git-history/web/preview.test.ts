@@ -211,6 +211,33 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
                 return header === tree && header !== getComputedStyle(${lastHeader}).color;
             })()`),
             );
+
+            // ScrollArea draws its bar over CodeView's own scroller: no native bar, and the thumb follows scrollTop.
+            // The commit list scrolls in the same themed area: bar present with no hover, no native one.
+            const listBar = `document.querySelector("#list [data-orientation=vertical]")`;
+            const listScroller = `${listBar}.parentElement.querySelector("[style*='overflow']")`;
+            assert.ok(await page.until(`${listBar} !== null`, 5000));
+            assert.equal(
+                await page.read(
+                    `${listScroller}.scrollHeight > ${listScroller}.clientHeight && ${listScroller}.offsetWidth === ${listScroller}.clientWidth`,
+                ),
+                true,
+            );
+            // Over the file tree, away from the diff: the bar stays where it is.
+            await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 100, y: 500 });
+            await new Promise((done) => setTimeout(done, 1000));
+            const bar = `document.querySelector("#history [data-orientation=vertical]")`;
+            assert.ok(await page.until(`${bar} !== null`, 5000));
+            const scroller = `${bar}.parentElement.querySelector(".leading-diff")`;
+            const thumbTop = `new DOMMatrix(getComputedStyle(${bar}.firstElementChild).transform).m42`;
+            assert.equal(
+                await page.read(`${scroller}.offsetWidth === ${scroller}.clientWidth`),
+                true,
+            );
+            const before = Number(await page.read(thumbTop));
+            assert.ok(before > 0);
+            await page.read(`${scroller}.scrollTop = 1e9`);
+            assert.ok(await page.until(`${thumbTop} > ${String(before)}`, 5000));
         },
     );
 });

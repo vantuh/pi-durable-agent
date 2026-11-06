@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import { applyDiffLayout } from "@/lib/diff-layout.ts";
 import { DiffCard } from "@/ui/diff/diff-card.tsx";
 
+import { HistoryList } from "../history-list.tsx";
 import { PatchPreview } from "../preview.tsx";
 
 import "@/styles/styles.css";
@@ -37,6 +38,26 @@ const data = {
     truncated: false,
 };
 
+const history = {
+    branch: "main",
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    changes: 0,
+    more: false,
+    commits: Array.from({ length: 60 }, (_, index) => ({
+        hash: `${String(index).padStart(2, "0")}abcdef`,
+        short: `${String(index).padStart(2, "0")}abc`,
+        subject: `Commit number ${String(index)}`,
+        body: "",
+        author: "Someone",
+        at: 1_700_000_000_000,
+        unpushed: false,
+        remote: false,
+    })),
+};
+const rows = { current: new Map<string, HTMLButtonElement>() };
+
 function DiffPage() {
     const view = useRef<CodeViewHandle<undefined, undefined>>(null);
     Object.assign(window, {
@@ -55,6 +76,26 @@ function DiffPage() {
             </section>
             <section id="cut">
                 <DiffCard diff={"-1 old\n+1 new\n … 19 more lines"} path="cut.ts" />
+            </section>
+            <section
+                id="list"
+                className="flex shrink-0"
+                style={{ height: "calc(var(--spacing) * 64)" }}
+            >
+                <HistoryList
+                    id={1}
+                    data={history}
+                    issue={null}
+                    loading={false}
+                    limit={50}
+                    now={1_700_000_000_000}
+                    viewed={null}
+                    seen={new Set()}
+                    rows={rows}
+                    onUnread={() => undefined}
+                    onOpen={() => undefined}
+                    onMore={() => undefined}
+                />
             </section>
             <section
                 id="history"

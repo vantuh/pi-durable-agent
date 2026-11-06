@@ -2,7 +2,9 @@ import type { CodeViewItem, FileDiffMetadata } from "@pierre/diffs";
 import type { CodeViewDiffItem, CodeViewHandle } from "@pierre/diffs/react";
 import { ChevronRight } from "lucide-react";
 import {
+    type CSSProperties,
     type ReactNode,
+    type Ref,
     type RefObject,
     useCallback,
     useEffect,
@@ -15,6 +17,7 @@ import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button";
 import { Item, ItemContent } from "@/components/ui/item";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { cn } from "@/lib/utils";
 import { DiffList } from "@/ui/diff/diff-list.tsx";
 import { parsePatch, prepareDiffs } from "@/ui/diff/pierre.ts";
@@ -178,6 +181,44 @@ function FileHeader({
 }
 
 /** Files the patch does not carry: binary, or cut off by the preview's size limit. */
+/**
+ * The scroller is CodeView's own box, so it mounts only the files and lines near the viewport;
+ * ScrollArea hands this its viewport props and draws the bar over it.
+ */
+function DiffViewport({
+    ref,
+    className,
+    style,
+    handle,
+    items,
+    fileHeader,
+    header,
+    footer,
+}: {
+    ref?: Ref<HTMLDivElement> | undefined;
+    className?: string | undefined;
+    style?: CSSProperties | undefined;
+    handle: RefObject<CodeViewHandle<undefined, undefined> | null>;
+    items: CodeViewDiffItem[];
+    fileHeader: (item: CodeViewItem<undefined>) => ReactNode;
+    header: ReactNode;
+    footer: ReactNode;
+}) {
+    return (
+        <DiffList
+            ref={handle}
+            containerRef={ref ?? null}
+            items={items}
+            options={options}
+            renderCustomHeader={fileHeader}
+            renderCodeViewHeader={() => header}
+            renderCodeViewFooter={() => footer}
+            style={style ?? {}}
+            className={cn("block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}
+        />
+    );
+}
+
 function WithoutDiff({ files }: { files: ChangedFile[] }) {
     return (
         <ul>
@@ -422,20 +463,19 @@ export function PatchPreview({
                     />
                 </div>
             )}
-            <DiffList
-                ref={viewRef}
-                items={items}
-                options={options}
-                renderCustomHeader={fileHeader}
-                renderCodeViewHeader={() => pageHeader}
-                renderCodeViewFooter={() =>
-                    outside.length === 0 ? null : <WithoutDiff files={outside} />
-                }
-                // The diff is the page's one scroll, so CodeView measures this box as its viewport
-                // and mounts only the files and lines near it. Without a bounded height it renders
-                // them all; the tree is a column beside it, not another scroller around it.
-                className="block min-h-0 min-w-0 flex-1 overflow-y-auto"
-            />
+            <ScrollArea
+                type="always"
+                className="min-h-0 min-w-0 flex-1"
+                viewportProps={{ asChild: true, disableImplicitContentElement: true }}
+            >
+                <DiffViewport
+                    handle={viewRef}
+                    items={items}
+                    fileHeader={fileHeader}
+                    header={pageHeader}
+                    footer={outside.length === 0 ? null : <WithoutDiff files={outside} />}
+                />
+            </ScrollArea>
         </div>
     );
 }

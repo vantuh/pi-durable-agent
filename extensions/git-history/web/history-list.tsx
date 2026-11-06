@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { Alert } from "@/components/ui/alert.tsx";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { ago } from "@/lib/time.ts";
 
 import { WORKING, type History } from "../refs.ts";
@@ -49,7 +50,7 @@ export function HistoryList({
     };
 
     return (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <ScrollArea type="always" className="min-h-0 flex-1">
             {issue !== null ? (
                 <Alert className="text-interface border-edge-soft border-b">{issue}</Alert>
             ) : null}
@@ -118,6 +119,6 @@ export function HistoryList({
                     ) : null}
                 </>
             ) : null}
-        </div>
+        </ScrollArea>
     );
 }
