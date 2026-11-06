@@ -157,9 +157,9 @@ second mechanism.
 4. ~~**The shell, transcript and composer.**~~ **Done**: three flush panels, a status bar,
    the stream rendered, `Enter` sends, Stop aborts ([docs/layout.md](docs/layout.md)).
 5. ~~**Tool calls** folded into one line per group, with the answer statistics.~~ **Done**:
-   `web/src/lib/turns.ts` groups, `web/src/transcript/activity.tsx` folds. Answers render as Markdown (`web/src/ui/markdown.tsx`).
+   `web/src/lib/turns.ts` groups, `web/src/transcript/activity/activity-group.tsx` folds. Answers render as Markdown (`web/src/ui/markdown.tsx`).
 6. ~~**Sessions**: more than one conversation, titles and times stored, a real list, a folder
-   picker.~~ **Done**: `web/src/shell/sessions.tsx`, `web/src/shell/folder-picker.tsx`,
+   picker.~~ **Done**: `web/src/shell/sessions/sessions.tsx`, `web/src/shell/folder-picker/folder-picker.tsx`,
    `GET`/`POST /api/sessions` ([docs/server.md](docs/server.md)).
 7. **Features**, each a new `extensions/<name>/` folder; the planned ones and their sources are in
    [docs/extensions.md](docs/extensions.md).

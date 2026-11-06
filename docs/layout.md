@@ -66,7 +66,7 @@ pushes already send. See [sessions-live.md](sessions-live.md).
   came from, and only a folder that row is not in the list leaves it on the first one. An empty
   folder focuses the pane itself.
   Enter, and the Open button alike, start a session in the highlighted row, or in the folder on
-  screen when no row is highlighted (`web/src/shell/folder-picker-keys.ts`). `Ctrl+A` then `C` opens
+  screen when no row is highlighted (`web/src/shell/folder-picker/folder-picker-keys.ts`). `Ctrl+A` then `C` opens
   this picker (`session.new.pick`); each extension's option in the footer is asked about that same
   folder.
 - **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and how long ago

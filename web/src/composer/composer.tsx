@@ -1,45 +1,21 @@
-import { ArrowUp, ChevronDown, Paperclip, Sparkles, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import {
     memo,
     type ReactNode,
     useCallback,
     useEffect,
-    useMemo,
     useRef,
     useState,
     useSyncExternalStore,
 } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Command, CommandItem, CommandList } from "@/components/ui/command";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Kbd } from "@/components/ui/kbd";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Hint } from "@/components/ui/tooltip";
-
-import type { ClientAttachment, ClientQueued, SendMode } from "../../../shared/protocol.ts";
+import { runCommand } from "@/lib/api.ts";
+import { withQuotes } from "@/lib/quote.ts";
+import { toast } from "@/lib/toast.ts";
 import {
-    listProjectFiles,
-    listSkills,
-    runCommand,
-    type SkillInfo,
-    uploadFile,
-    uploadUrl,
-    withdrawQueued,
-} from "../lib/api.ts";
-import { fuzzyScore } from "../lib/fuzzy.ts";
-import { randomId } from "../lib/id.ts";
-import { splitQuote, withQuotes } from "../lib/quote.ts";
-import { thinkingText } from "../lib/thinking.ts";
-import { toast } from "../lib/toast.ts";
-import {
-    addComposerQuote,
     clearComposerQuotes,
     composerDraft,
     composerQuotes,
@@ -48,107 +24,26 @@ import {
     subscribeComposerDraft,
     subscribeComposerFocus,
     subscribeComposerQuotes,
-} from "../sdk/composer.ts";
-import type { StatusProps } from "../sdk/types.ts";
-import { Attachments, type Pending } from "../ui/attachments.tsx";
-import { QuoteCard } from "../ui/quote.tsx";
-import { DropOverlay, useDropBatch, useWindowDrop } from "./drop-overlay.tsx";
-import { composerFiles, setComposerFiles } from "./files.ts";
+} from "@/sdk/composer.ts";
+import type { StatusProps } from "@/sdk/types.ts";
+import { Attachments } from "@/ui/attachments.tsx";
+import { QuoteCard } from "@/ui/quote.tsx";
+
+import type { ClientQueued, SendMode } from "../../../shared/protocol.ts";
+import { AttachButton } from "./attachments/attach-button.tsx";
+import { DropOverlay } from "./attachments/drop-overlay.tsx";
+import { forget } from "./attachments/pending.ts";
+import { useAttachments } from "./attachments/use-attachments.ts";
+import { CompletionList } from "./completion/completion-list.tsx";
+import { useCompletion } from "./completion/use-completion.ts";
+import { remember } from "./history/history-store.ts";
+import { useHistory } from "./history/use-history.ts";
 import { ComposerItems } from "./items.tsx";
+import { editQueued, takeQueued } from "./queued-actions.ts";
 import { Queued } from "./queued.tsx";
-
-const MODES: { mode: SendMode; label: string; hint: string }[] = [
-    { mode: "steer", label: "Steer", hint: "read after the current step" },
-    { mode: "followUp", label: "Queue", hint: "read when this run ends" },
-    { mode: "interrupt", label: "Interrupt", hint: "stop the run now, then send" },
-];
-
-const HISTORY_KEY = "composer-history";
-const HISTORY_MAX = 100;
-
-/** What the composer runs itself instead of saying something; the same names `submit` matches on. */
-const COMMANDS: { name: string; description: string; takesArgs: boolean }[] = [
-    { name: "new", description: "Open a new session in this folder", takesArgs: false },
-    { name: "model", description: "Choose the model for this session", takesArgs: false },
-    { name: "compact", description: "Summarize the earlier messages", takesArgs: true },
-];
-
-/** `replace` is the part of the text the pick takes the place of; without it the pick is the whole text. */
-type Candidate = {
-    label: string;
-    description: string;
-    insert: string;
-    replace?: [number, number];
-    /** A command with no arguments: picking it runs it, there is nothing left to type. */
-    instant?: "new" | "model";
-};
-
-const FILE_MATCHES = 30;
-
-/**
- * Commands and skills whose name matches what follows `/`, the closest first: a letter anywhere in a name finds it,
- * and typing one more letter only takes matches away.
- */
-function slashCandidates(typed: string, skills: readonly SkillInfo[]): Candidate[] {
-    const named: (Candidate & { name: string })[] = [
-        ...COMMANDS.map((command) => ({
-            name: command.name,
-            label: `/${command.name}`,
-            description: command.description,
-            insert: `/${command.name}${command.takesArgs ? " " : ""}`,
-            ...(command.name === "new" || command.name === "model"
-                ? { instant: command.name }
-                : {}),
-        })),
-        ...skills.map((skill) => ({
-            name: skill.name,
-            label: `/skill:${skill.name}`,
-            description: skill.description,
-            insert: `/skill:${skill.name} `,
-        })),
-    ];
-
-    return named
-        .flatMap((candidate) => {
-            const score = fuzzyScore(candidate.name, typed);
-
-            return score === null ? [] : [{ candidate, score }];
-        })
-        .toSorted((left, right) => right.score - left.score)
-        .map((each) => each.candidate);
-}
-
-// Sent messages are remembered per session, so an empty chat never recalls another chat's text.
-function loadHistory(sessionId: string): string[] {
-    try {
-        const parsed: unknown = JSON.parse(
-            localStorage.getItem(`${HISTORY_KEY}:${sessionId}`) ?? "[]",
-        );
-
-        return Array.isArray(parsed)
-            ? parsed.filter((item): item is string => typeof item === "string")
-            : [];
-    } catch {
-        return [];
-    }
-}
-
-function remember(sessionId: string, text: string): void {
-    const past = loadHistory(sessionId);
-
-    if (past.at(-1) === text) {
-        return;
-    }
-
-    try {
-        localStorage.setItem(
-            `${HISTORY_KEY}:${sessionId}`,
-            JSON.stringify([...past, text].slice(-HISTORY_MAX)),
-        );
-    } catch {
-        // History is a convenience; storage may be full or blocked.
-    }
-}
+import { ModelChip } from "./toolbar/model-chip.tsx";
+import { SendButton } from "./toolbar/send-button.tsx";
+import { MODES } from "./toolbar/send-modes.ts";
 
 type Props = {
     sessionId: string;
@@ -167,27 +62,6 @@ type Props = {
     onNewSession: () => void;
 };
 
-function forget(gone: Pending[]): void {
-    for (const file of gone) {
-        if (file.preview !== undefined) {
-            URL.revokeObjectURL(file.preview);
-        }
-    }
-}
-
-/** A file that waits in the queue, back as a composer attachment: the bytes are still under its path. */
-function pendingOf(file: ClientAttachment): Pending {
-    return {
-        key: randomId(),
-        name: file.name,
-        size: file.size,
-        image: file.image,
-        state: "done",
-        path: file.path,
-        ...(file.image ? { preview: uploadUrl(file.path) } : {}),
-    };
-}
-
 export const Composer = memo(function Composer({
     sessionId,
     session,
@@ -203,18 +77,10 @@ export const Composer = memo(function Composer({
     onNewSession,
 }: Props) {
     const text = useSyncExternalStore(subscribeComposerDraft, () => composerDraft(sessionId));
-    const [files, setLocalFiles] = useState<Pending[]>(() => composerFiles(sessionId));
     const quotes = useSyncExternalStore(subscribeComposerQuotes, () => composerQuotes(sessionId));
-    // Written through the store too, so an upload that ends after the session was left still lands.
-    const setFiles = (update: (current: Pending[]) => Pending[]): void => {
-        const next = update(composerFiles(sessionId));
-        setComposerFiles(sessionId, next);
-        setLocalFiles(next);
-    };
-    // Position in history while browsing with the arrows (null: not browsing) and the draft to come back to.
-    const browse = useRef<{ at: number; draft: string } | null>(null);
+    const { files, setFiles, addFiles, uploading, batch, dragging } = useAttachments(sessionId);
+    const history = useHistory(sessionId);
     const [mode, setMode] = useState<SendMode>("steer");
-    const picker = useRef<HTMLInputElement>(null);
     const field = useRef<HTMLTextAreaElement>(null);
     // App keys the composer by session, so this runs on every session switch.
     useEffect(() => {
@@ -237,95 +103,14 @@ export const Composer = memo(function Composer({
             sentListeners.current.delete(listener);
         };
     }, []);
-    const [skills, setSkills] = useState<SkillInfo[]>([]);
-    const [projectFiles, setProjectFiles] = useState<string[]>([]);
-    const [caret, setCaret] = useState(0);
-    const [marked, setMarked] = useState(0);
-    // The list closes on Escape and opens again when the text changes.
-    const [dismissed, setDismissed] = useState<string | null>(null);
-
-    useEffect(() => {
-        void listSkills(Number(sessionId)).then(setSkills);
-        void listProjectFiles(Number(sessionId)).then(setProjectFiles);
-    }, [sessionId]);
-
-    // "/" or "/ne" (no space yet) asks for a command or a skill, the closest name first. A picked command is
-    // inserted without a trailing space, so the pick closes the list itself.
-    const typed = /^\/(?:skill:)?([\w-]*)$/.exec(text)?.[1]?.toLowerCase();
-    // "@" at the start of a word, wherever the caret is in the text, asks for a file of the folder.
-    const mention = typed === undefined ? /(^|\s)@([^\s@]*)$/.exec(text.slice(0, caret)) : null;
-    const mentioned = mention?.[2];
-    const fileMatches = useMemo((): string[] => {
-        if (mentioned === undefined) {
-            return [];
-        }
-
-        const usable = projectFiles.filter((path) => !/\s/.test(path));
-
-        if (mentioned === "") {
-            return usable
-                .toSorted((left, right) => left.length - right.length)
-                .slice(0, FILE_MATCHES);
-        }
-
-        return usable
-            .flatMap((path) => {
-                const score = fuzzyScore(path, mentioned);
-
-                return score === null ? [] : [{ path, score }];
-            })
-            .toSorted(
-                (left, right) => right.score - left.score || left.path.length - right.path.length,
-            )
-            .slice(0, FILE_MATCHES)
-            .map((each) => each.path);
-    }, [projectFiles, mentioned]);
-    const mentionAt = caret - (mentioned?.length ?? 0) - 1;
-    const fileCandidates: Candidate[] =
-        mentioned === undefined || dismissed === text
-            ? []
-            : fileMatches.map((path): Candidate => {
-                  const slash = path.lastIndexOf("/");
-
-                  return {
-                      label: path.slice(slash + 1),
-                      description: slash < 0 ? "" : path.slice(0, slash),
-                      insert: `@${path} `,
-                      replace: [mentionAt, caret],
-                  };
-              });
-    const matches: Candidate[] =
-        typed === undefined || dismissed === text ? fileCandidates : slashCandidates(typed, skills);
-    const pick = (candidate: Candidate): void => {
-        if (candidate.replace !== undefined) {
-            const [from, to] = candidate.replace;
-            const next = text.slice(0, from) + candidate.insert + text.slice(to);
-            const end = from + candidate.insert.length;
-
-            setComposerDraft(sessionId, next);
-            setCaret(end);
-            requestAnimationFrame(() => {
-                field.current?.setSelectionRange(end, end);
-            });
-
-            return;
-        }
-
-        if (candidate.instant !== undefined && files.length === 0 && quotes.length === 0) {
-            setComposerDraft(sessionId, "");
-
-            if (candidate.instant === "new") {
-                onNewSession();
-            } else {
-                onToggleMenu();
-            }
-
-            return;
-        }
-
-        setComposerDraft(sessionId, candidate.insert);
-        setDismissed(candidate.insert);
-    };
+    const { matches, marked, setMarked, setCaret, pick, handleKey } = useCompletion({
+        sessionId,
+        text,
+        field,
+        instantOk: files.length === 0 && quotes.length === 0,
+        onNewSession,
+        onToggleMenu,
+    });
 
     // An Interrupt is for the run it was chosen in; the next run starts on Steer again.
     if (!busy && mode === "interrupt") {
@@ -333,97 +118,7 @@ export const Composer = memo(function Composer({
     }
 
     const how = MODES.find((option) => option.mode === mode);
-    const uploading = files.some((file) => file.state === "uploading");
-    const [batch, setBatch] = useDropBatch(files);
     const empty = text.trim() === "" && files.length === 0 && quotes.length === 0;
-
-    // Each file shows at once as uploading and settles on its own: done with a path, or failed.
-    const addFiles = (chosen: File[]): string[] => {
-        const fresh = chosen.map((file): [File, Pending] => {
-            const image = /^image\/(png|jpe?g|gif|webp)$/.test(file.type);
-
-            return [
-                file,
-                {
-                    key: randomId(),
-                    name: file.name,
-                    size: file.size,
-                    image,
-                    state: "uploading",
-                    ...(image ? { preview: URL.createObjectURL(file) } : {}),
-                },
-            ];
-        });
-
-        setFiles((current) => [...current, ...fresh.map(([, pending]) => pending)]);
-
-        for (const [file, pending] of fresh) {
-            void (async () => {
-                const saved = await uploadFile(file);
-
-                setFiles((current) =>
-                    current.map((each) =>
-                        each.key === pending.key
-                            ? saved === undefined
-                                ? { ...each, state: "error" }
-                                : { ...each, state: "done", path: saved.path, size: saved.size }
-                            : each,
-                    ),
-                );
-            })();
-        }
-
-        return fresh.map(([, pending]) => pending.key);
-    };
-
-    const dragging = useWindowDrop((dropped) => {
-        setBatch(addFiles(dropped));
-    });
-
-    // ✕ takes it out of `pi.inbox`; the agent never reads it. Answers whether it really went.
-    const take = async (item: ClientQueued): Promise<boolean> => {
-        const result = await withdrawQueued(Number(sessionId), item.id);
-
-        if (result === "aborted") {
-            return true;
-        }
-
-        toast.error(
-            result === undefined
-                ? "Could not take that message back"
-                : "The agent is already reading that message",
-        );
-
-        return false;
-    };
-
-    // ✎ takes it out of the queue and puts it back in the composer, with its mode and files, to be changed
-    // and sent again. A draft already there stays, and the message goes below it as one more paragraph.
-    const edit = async (item: ClientQueued): Promise<void> => {
-        if (!(await take(item))) {
-            return;
-        }
-
-        const draft = composerDraft(sessionId).trim();
-        // A quote comes back as a quote, not as the `>` lines it was sent as.
-        const written = splitQuote(item.text);
-
-        for (const quote of written?.quotes ?? []) {
-            addComposerQuote(sessionId, quote);
-        }
-
-        const rest = written?.rest ?? item.text;
-        const next = draft === "" ? rest : `${draft}\n\n${rest}`;
-
-        if (draft !== "") {
-            toast.info("Added below what you were writing");
-        }
-
-        setComposerDraft(sessionId, next);
-        setMode(item.mode);
-        setFiles((current) => [...current, ...(item.files ?? []).map(pendingOf)]);
-        field.current?.focus();
-    };
 
     const submit = (): void => {
         const written = text.trim();
@@ -452,7 +147,7 @@ export const Composer = memo(function Composer({
         if (name === "new" && args === "" && paths.length === 0) {
             setComposerDraft(sessionId, "");
             clearComposerQuotes(sessionId);
-            browse.current = null;
+            history.reset();
             onNewSession();
 
             return;
@@ -461,7 +156,7 @@ export const Composer = memo(function Composer({
         if (name === "model" && args === "" && paths.length === 0) {
             setComposerDraft(sessionId, "");
             clearComposerQuotes(sessionId);
-            browse.current = null;
+            history.reset();
             onToggleMenu();
 
             return;
@@ -470,7 +165,7 @@ export const Composer = memo(function Composer({
         if (name === "compact" && paths.length === 0) {
             setComposerDraft(sessionId, "");
             clearComposerQuotes(sessionId);
-            browse.current = null;
+            history.reset();
             void (async () => {
                 try {
                     const result = await runCommand(Number(sessionId), "compact", args);
@@ -492,7 +187,7 @@ export const Composer = memo(function Composer({
         remember(sessionId, body);
         setComposerDraft(sessionId, "");
         clearComposerQuotes(sessionId);
-        browse.current = null;
+        history.reset();
         setFiles(() => []);
         setMode((current) => (current === "interrupt" ? "steer" : current));
 
@@ -517,10 +212,16 @@ export const Composer = memo(function Composer({
             <Queued
                 items={queued}
                 onWithdraw={(item) => {
-                    void take(item);
+                    void takeQueued(sessionId, item);
                 }}
                 onEdit={(item) => {
-                    void edit(item);
+                    void editQueued(sessionId, item, {
+                        setMode,
+                        setFiles,
+                        focus: () => {
+                            field.current?.focus();
+                        },
+                    });
                 }}
             />
 
@@ -538,46 +239,7 @@ export const Composer = memo(function Composer({
                 }}
             >
                 {matches.length === 0 ? null : (
-                    <Command
-                        label="Completions"
-                        shouldFilter={false}
-                        // A hover paints a row and nothing else: the mark moves on an arrow key or a click.
-                        disablePointerSelection
-                        value={matches[Math.min(marked, matches.length - 1)]?.insert ?? ""}
-                        // Keep focus in the textarea, the popup's own box included.
-                        onMouseDown={(event) => {
-                            event.preventDefault();
-                        }}
-                        className="border-edge bg-panel shadow-float absolute right-0 bottom-full left-0 mb-1.5 max-h-64 overflow-hidden border"
-                    >
-                        <CommandList label="Completions" className="min-h-0 overflow-y-auto p-1">
-                            {matches.map((candidate, index) => (
-                                <CommandItem
-                                    key={candidate.insert}
-                                    value={candidate.insert}
-                                    // Arrow keys move the mark past the visible part of the list: follow it.
-                                    ref={
-                                        index === marked
-                                            ? (element) => {
-                                                  element?.scrollIntoView({ block: "nearest" });
-                                              }
-                                            : undefined
-                                    }
-                                    onSelect={() => {
-                                        pick(candidate);
-                                    }}
-                                    className="text-meta hover:bg-raised items-baseline px-3 py-2"
-                                >
-                                    <span className="text-ink shrink-0 font-mono">
-                                        {candidate.label}
-                                    </span>
-                                    <span className="text-faint text-meta min-w-0 truncate">
-                                        {candidate.description}
-                                    </span>
-                                </CommandItem>
-                            ))}
-                        </CommandList>
-                    </Command>
+                    <CompletionList matches={matches} marked={marked} onPick={pick} />
                 )}
 
                 <Attachments
@@ -623,98 +285,18 @@ export const Composer = memo(function Composer({
                             setMarked(0);
                             setCaret(event.target.selectionStart);
 
-                            browse.current = null;
+                            history.reset();
                             setComposerDraft(sessionId, value);
                         }}
                         onSelect={(event) => {
                             setCaret(event.currentTarget.selectionStart);
                         }}
                         onKeyDown={(event) => {
-                            const chosen = matches[Math.min(marked, matches.length - 1)];
-
-                            if (chosen !== undefined && !event.nativeEvent.isComposing) {
-                                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                                    event.preventDefault();
-                                    setMarked(
-                                        (marked +
-                                            (event.key === "ArrowDown" ? 1 : -1) +
-                                            matches.length) %
-                                            matches.length,
-                                    );
-
-                                    return;
-                                }
-
-                                if (
-                                    event.key === "Tab" ||
-                                    (event.key === "Enter" && !event.shiftKey)
-                                ) {
-                                    event.preventDefault();
-                                    pick(chosen);
-
-                                    return;
-                                }
-
-                                if (event.key === "Escape") {
-                                    setDismissed(text);
-
-                                    return;
-                                }
+                            if (handleKey(event)) {
+                                return;
                             }
 
-                            const up = event.key === "ArrowUp";
-                            const down = event.key === "ArrowDown";
-
-                            if (
-                                (up || down) &&
-                                !event.shiftKey &&
-                                !event.altKey &&
-                                !event.ctrlKey &&
-                                !event.metaKey &&
-                                !event.nativeEvent.isComposing
-                            ) {
-                                const box = event.currentTarget;
-                                const { selectionStart, selectionEnd, value } = box;
-                                const collapsed = selectionStart === selectionEnd;
-                                // Only leave the text when the caret is on its first (up) or last (down) line.
-                                const edge = up
-                                    ? !value.slice(0, selectionStart).includes("\n")
-                                    : !value.slice(selectionEnd).includes("\n");
-
-                                if (collapsed && edge) {
-                                    const past = loadHistory(sessionId);
-                                    const state = browse.current;
-                                    let next: string | undefined;
-
-                                    if (up && past.length > 0) {
-                                        const at = state === null ? past.length - 1 : state.at - 1;
-
-                                        if (at >= 0) {
-                                            browse.current = { at, draft: state?.draft ?? value };
-                                            next = past[at];
-                                        }
-                                    } else if (down && state !== null) {
-                                        if (state.at + 1 < past.length) {
-                                            browse.current = { ...state, at: state.at + 1 };
-                                            next = past[state.at + 1];
-                                        } else {
-                                            browse.current = null;
-                                            next = state.draft;
-                                        }
-                                    }
-
-                                    if (next !== undefined) {
-                                        event.preventDefault();
-                                        setComposerDraft(sessionId, next);
-                                        // Put the caret at the end once React has applied the text.
-                                        requestAnimationFrame(() => {
-                                            box.setSelectionRange(next.length, next.length);
-                                        });
-                                    } else if (up || state !== null) {
-                                        event.preventDefault();
-                                    }
-                                }
-                            }
+                            history.handleKey(event);
 
                             if (
                                 event.key === "Enter" &&
@@ -729,56 +311,21 @@ export const Composer = memo(function Composer({
                 </ScrollArea>
 
                 <div className="mt-1.5 flex items-center gap-1.5">
-                    <Hint label="Attach a file">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Attach a file"
-                            onClick={() => {
-                                picker.current?.click();
-                            }}
-                        >
-                            <Paperclip className="size-4" />
-                        </Button>
-                    </Hint>
+                    <AttachButton onFiles={addFiles} />
 
-                    <input
-                        ref={picker}
-                        type="file"
-                        multiple
-                        hidden
-                        onChange={(event) => {
-                            const chosen = [...(event.target.files ?? [])];
-
-                            event.target.value = "";
-
-                            if (chosen.length === 0) {
-                                return;
-                            }
-
-                            addFiles(chosen);
-                        }}
+                    <ModelChip
+                        model={model}
+                        level={level}
+                        menuOpen={menuOpen}
+                        onToggleMenu={onToggleMenu}
                     />
-
-                    <Button
-                        variant="ghost"
-                        onClick={onToggleMenu}
-                        className={`min-w-0 px-2 py-1 ${menuOpen ? "bg-raised text-ink" : ""}`}
-                    >
-                        <Sparkles className="text-accent size-3.5" />
-                        <span className="max-w-48 min-w-0 truncate font-mono">{model}</span>
-                        {level === null ? null : (
-                            <span className={`shrink-0 ${thinkingText(level)}`}>{level}</span>
-                        )}
-                        <ChevronDown className="size-3.5 shrink-0" />
-                    </Button>
 
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
                         <ComposerItems
                             session={session}
                             field={field}
                             setText={(value) => {
-                                browse.current = null;
+                                history.reset();
                                 setComposerDraft(sessionId, value);
                             }}
                             onSent={onSent}
@@ -796,84 +343,15 @@ export const Composer = memo(function Composer({
                                 </Button>
                             </Hint>
                         ) : null}
-                        <div className="flex items-center">
-                            <Hint
-                                label={busy ? (how?.label ?? "Send") : "Send"}
-                                keys={<Kbd>Enter</Kbd>}
-                            >
-                                <Button
-                                    size={busy ? "default" : "icon"}
-                                    aria-label={busy ? (how?.label ?? "Send") : "Send"}
-                                    onClick={submit}
-                                    // Keep focus in the textarea so the phone keyboard stays put and the tap is not lost.
-                                    onMouseDown={(event) => {
-                                        event.preventDefault();
-                                    }}
-                                    className={`relative gap-1 before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 ${
-                                        busy ? "h-7 w-auto pr-1.5 pl-2" : ""
-                                    }`}
-                                    disabled={empty || uploading}
-                                >
-                                    <ArrowUp className="size-4" />
-                                    {busy ? <span>{how?.label}</span> : null}
-                                </Button>
-                            </Hint>
-                            {busy ? (
-                                <DropdownMenu>
-                                    <Hint label="How to send">
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                size="icon"
-                                                aria-label="How to send"
-                                                className="border-on-accent/30 w-6 border-l"
-                                            >
-                                                <ChevronDown className="size-3.5" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                    </Hint>
-                                    <DropdownMenuContent
-                                        side="top"
-                                        align="end"
-                                        sideOffset={6}
-                                        className="w-64"
-                                        // The mode belongs to the message being typed: the caret goes back where it was.
-                                        onCloseAutoFocus={(event) => {
-                                            event.preventDefault();
-                                            field.current?.focus({ preventScroll: true });
-                                        }}
-                                    >
-                                        <DropdownMenuRadioGroup
-                                            value={mode}
-                                            onValueChange={(value) => {
-                                                const chosen = MODES.find(
-                                                    (option) => option.mode === value,
-                                                );
-
-                                                if (chosen !== undefined) {
-                                                    setMode(chosen.mode);
-                                                }
-                                            }}
-                                        >
-                                            {MODES.map((option) => (
-                                                <DropdownMenuRadioItem
-                                                    key={option.mode}
-                                                    value={option.mode}
-                                                >
-                                                    <span className="flex flex-col">
-                                                        <span className="text-interface text-ink">
-                                                            {option.label}
-                                                        </span>
-                                                        <span className="text-meta text-faint">
-                                                            {option.hint}
-                                                        </span>
-                                                    </span>
-                                                </DropdownMenuRadioItem>
-                                            ))}
-                                        </DropdownMenuRadioGroup>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            ) : null}
-                        </div>
+                        <SendButton
+                            busy={busy}
+                            how={how}
+                            mode={mode}
+                            disabled={empty || uploading}
+                            field={field}
+                            onModeChange={setMode}
+                            onSend={submit}
+                        />
                     </div>
                 </div>
             </div>

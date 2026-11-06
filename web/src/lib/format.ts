@@ -43,3 +43,19 @@ export function shortModel(model: string): string {
 function trim(value: number): string {
     return value.toFixed(1).replace(/\.0$/, "");
 }
+
+export function formatDuration(ms: number): string {
+    const seconds = Math.max(0, Math.round(ms / 1000));
+
+    if (seconds < 60) {
+        return `${String(seconds)}s`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+
+    if (minutes < 60) {
+        return `${String(minutes)}m ${String(seconds % 60)}s`;
+    }
+
+    return `${String(Math.floor(minutes / 60))}h ${String(minutes % 60)}m`;
+}

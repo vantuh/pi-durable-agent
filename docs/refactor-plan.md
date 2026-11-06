@@ -288,15 +288,53 @@ kiro-acp `claude-haiku-4.5` all answered. `local` and `simplex` were not tried.
 
 One file per step, largest mixing first:
 
-- [ ] `transcript/transcript.tsx` (15 components): user message, answer header and notices,
-      compaction marks, turn view, the scrolling list.
-- [ ] `transcript/activity.tsx` (9 components).
-- [ ] `shell/sessions.tsx` (1366 lines): row, rename form, filter state, resize and gestures.
-- [ ] `composer/composer.tsx` (881 lines): completion, drag and drop, the send toolbar.
-- [ ] `App.tsx` (693 lines): navigation and panel coordination into hooks.
-- [ ] `shell/folder-picker.tsx`, `shell/sessions-status.tsx`, `shell/appearance-dialog.tsx`,
-      `ui/diff.tsx`, `ui/markdown.tsx`.
-- [ ] `lib/turns.ts` (705 lines): only if a split reads better; it is pure logic.
+- [x] `transcript/transcript.tsx` (15 components): user message, answer header and notices,
+      compaction marks, turn view, the scrolling list. Now `transcript.tsx` (the frame), its scroll
+      logic in `use-transcript-scroll.ts`, `turn/` (turn, item, user message, answer header, error
+      notice), `compaction/` (three marks and their `Rule`) and `loading/` (the two placeholders).
+- [x] `transcript/activity.tsx` (9 components). Now `transcript/activity/` (`activity-group`, `step-row`,
+      `mark`, `step-body`, `thought-body`, `group-images`); `useNow` is `transcript/use-now.ts` and
+      `formatDuration` is in `lib/format.ts`, because the answer header and the group both read them.
+- [x] `shell/sessions.tsx` (1366 lines): row, rename form, filter state, resize and gestures. Now
+      `shell/sessions/`: `sessions.tsx` (the list and its filtering), `session-row.tsx`, `rename-form.tsx`,
+      `rename-dialog.tsx`, `sidebar-header.tsx`, `folder-menu.tsx`, five hooks (`use-sidebar-collapsed`,
+      `use-session-search`, `use-session-actions`, `use-menu-runner`, `use-folder-scope`) and small
+      files for what they share (`rail.ts`, `sidebar-width.ts`, `session-groups.ts`, `menu-item.ts`,
+      `busy-label.tsx`). The session list rows (about 25 props) stay in `sessions.tsx`: a `SessionList`
+      component would only pass them on.
+- [x] `composer/composer.tsx` (881 lines): completion, drag and drop, the send toolbar. Now
+      `composer.tsx` (the box, `submit`), `completion/` (candidates, `useCompletion`, the list),
+      `history/` (the arrow-key history), `attachments/` (the drop overlay and its two hooks, uploads,
+      the attach button), `toolbar/` (model chip, send button and its modes) and `queued-actions.ts`.
+      `submit` stays in `composer.tsx`: it reads the draft, the files, the quotes, the mode and the
+      history, so a hook for it would take all of them.
+- [x] `App.tsx` (693 lines): navigation and panel coordination into hooks. Now `usePanelCoordination`
+      (`shell/panels/`, with `panels.tsx`, `pages.tsx` and `tabs.tsx` moved there), `useSessionHandlers`
+      and `useWindowFocus` (`shell/`) and `useModelMenu` (`composer/`). `App.tsx` keeps the session list,
+      the conversation, the derived `activeSession` and the layout; the derived values stay because each
+      one is memoized for the components below it.
+- [x] The rest of the shell, one file at a time:
+    - [x] `shell/folder-picker.tsx` (704 lines). Now `shell/folder-picker/`: `folder-picker.tsx`, `row.tsx`,
+          `option.tsx`, `use-favourites.ts`, `use-folder-listing.ts`, `use-offered.ts`; `crumbs` joined the
+          path helpers of `folder-picker-keys.ts`. The dialog's `onKeyDown` and `onFocus` stay: they read nine
+          pieces of its state and refs, so a function for them would only take all nine.
+    - [x] `shell/sessions-status.tsx` (306 lines). Now `shell/sessions-status/`: `sessions-status.tsx` and
+          `row.tsx`, the status row with its submenu. `Rows`, the clock around them, stays: 40 lines used once.
+    - [x] `shell/appearance-dialog.tsx` (5 components). Now `shell/settings/appearance/`: `appearance-button.tsx`,
+          `flavour-grid.tsx`, `width-picker.tsx`, `diff-layout-picker.tsx`, `preview.tsx`. The settings files
+          (`settings`, `settings-content`, `extensions-dialog`, `extension-details`) moved into `shell/settings/`
+          and `sidebar-bottom.tsx` into `shell/sessions/`, so `shell/` keeps eight files and its folders.
+    - [x] `ui/diff.tsx` (336 lines). Now `ui/diff/`: `diff-card.tsx`, `counts.tsx`, `line.tsx`, `split-body.tsx` (with
+          its private column), `use-tokens.ts`, `use-room.ts` and `tones.ts`.
+    - [x] `ui/markdown.tsx` (270 lines). Now `ui/markdown/code-block.tsx` and `ui/markdown/components.tsx`;
+          `ui/markdown.tsx` keeps `Markdown` and re-exports `CodeBlock`, because two extensions import it from
+          there. Phase 8 points them at `ui/markdown/code-block.tsx` and drops the re-export.
+- [x] `lib/turns.ts` (705 lines): split, because three jobs shared one header. `turns.ts` keeps the
+      types and the grouping (`turnsOf`, 282 lines); `step-summary.ts` says what a call was about and what
+      it came to (`argOf`, `outcomeOf`, `summarize`, `imagesOf`); `turn-equality.ts` holds the `same*`
+      comparisons the memo boundaries use. `turnsOf` calls none of the summary helpers, so no cycle.
+- Review of phase 7: no blocker, no behavioural regression. One nit fixed: the width and diff pickers shared
+  one row look, now owned by `shell/settings/appearance/setting-row.tsx`.
 
 ## Phase 8: extensions
 

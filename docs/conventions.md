@@ -132,6 +132,9 @@ the neighbour it disagrees with.
 - **A feature folder splits by sub-feature, not by kind.** `web/src/shell`, `transcript` and
   `composer` grow a subfolder when they pass ~8 files (`composer/model-menu/`), never a shared
   `components/` or `hooks/` folder. The mistake: one `hooks/` that everything half-belongs to.
+- **A file in a sub-feature folder reaches other folders through `@/`**, a sibling through `./`, and
+  its feature's parent through `../`. `../../../lib/format.ts` breaks when the file moves one level;
+  `@/lib/format.ts` does not.
 
 ### Server
 

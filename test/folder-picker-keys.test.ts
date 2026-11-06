@@ -11,7 +11,7 @@ import {
     parentOf,
     rowFor,
     rowsOf,
-} from "../web/src/shell/folder-picker-keys.ts";
+} from "../web/src/shell/folder-picker/folder-picker-keys.ts";
 
 /** One pane as the picker draws it: a row is a button carrying its folder, and a favourite row holds a star. */
 function pane(): { rows: HTMLElement[]; star: Element } {

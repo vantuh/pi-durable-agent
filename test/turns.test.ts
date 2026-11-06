@@ -7,15 +7,10 @@ import type {
     ClientImage,
     ClientLive,
 } from "../shared/protocol.ts";
+import { imagesOf, outcomeOf, summarize, testOutcome } from "../web/src/lib/step-summary.ts";
+import { sameTurn } from "../web/src/lib/turn-equality.ts";
 import type { Item, Step, Turn, TurnStats } from "../web/src/lib/turns.ts";
-import {
-    imagesOf,
-    outcomeOf,
-    sameTurn,
-    summarize,
-    testOutcome,
-    turnsOf,
-} from "../web/src/lib/turns.ts";
+import { turnsOf } from "../web/src/lib/turns.ts";
 
 const IDLE: ClientLive = { busy: false, usage: { input: 0, output: 0, cost: 0 } };
 

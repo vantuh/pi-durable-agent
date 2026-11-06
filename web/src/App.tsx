@@ -9,40 +9,28 @@ import { AboveComposerItems } from "./composer/above-items.tsx";
 import { Composer } from "./composer/composer.tsx";
 import { SessionMeta } from "./composer/meta.tsx";
 import { ModelMenu } from "./composer/model-menu.tsx";
-import { useExtensionsLoaded, usePages, usePanels } from "./extensions.ts";
-import {
-    type Health,
-    createSession,
-    deleteSession,
-    getHealth,
-    type Models,
-    listModels,
-    listSessions,
-    setAgent,
-    setSessionArchived,
-    setSessionTitle,
-    addScopedModel,
-    removeScopedModel,
-    setDefaultModel,
-} from "./lib/api.ts";
+import { useModelMenu } from "./composer/use-model-menu.ts";
+import { type Health, getHealth } from "./lib/api.ts";
 import { useConversation } from "./lib/conversation.ts";
 import { noticeTarget } from "./lib/notice.ts";
 import { useRoute } from "./lib/route.ts";
 import { useSeen } from "./lib/seen.ts";
 import { useSessionList } from "./lib/session-list.ts";
 import { useShellCommand } from "./sdk/commands.ts";
-import { focusComposer, restoreComposerFocus } from "./sdk/composer.ts";
 import { useEdgeSwipe } from "./shell/edge-swipe.ts";
-import { FolderPicker } from "./shell/folder-picker.tsx";
+import { FolderPicker } from "./shell/folder-picker/folder-picker.tsx";
 import { HeaderItems } from "./shell/header-items.tsx";
 import { Home } from "./shell/home.tsx";
-import { PageHost, pageKey } from "./shell/pages.tsx";
-import { PanelHost, panelKey, useOpenPanel } from "./shell/panels.tsx";
+import { PageHost, pageKey } from "./shell/panels/pages.tsx";
+import { PanelHost } from "./shell/panels/panels.tsx";
+import { ExtensionTabs } from "./shell/panels/tabs.tsx";
+import { usePanelCoordination } from "./shell/panels/use-panel-coordination.ts";
 import { showSessionAlert } from "./shell/session-alert.tsx";
-import { Sessions } from "./shell/sessions.tsx";
-import { Settings } from "./shell/settings.tsx";
+import { Sessions } from "./shell/sessions/sessions.tsx";
+import { Settings } from "./shell/settings/settings.tsx";
 import { StatusBar } from "./shell/status-bar.tsx";
-import { ExtensionTabs } from "./shell/tabs.tsx";
+import { useSessionHandlers } from "./shell/use-session-handlers.ts";
+import { useWindowFocus } from "./shell/use-window-focus.ts";
 import { Transcript } from "./transcript/transcript.tsx";
 import { StatusItems } from "./ui/status-fields.tsx";
 
@@ -64,17 +52,33 @@ function shortName(model: string | null): string {
 
 export function App() {
     const [health, setHealth] = useState<Health | undefined>(undefined);
-    const { route, go, openPage, setPageSub, backPage, closePage, dropPage } = useRoute();
+    const navigation = useRoute();
+    const { route, go, setPageSub, backPage } = navigation;
     const current = route.session;
     const [picker, setPicker] = useState(false);
-    const [menu, setMenu] = useState(false);
-    const [models, setModels] = useState<Models>({ scoped: [], all: [], default: null });
     const [sheet, setSheet] = useState(false);
     const [settings, setSettings] = useState(false);
     const settingsGear = useRef<HTMLButtonElement>(null);
-    const panels = usePanels();
-    const pages = usePages();
-    const extensionsLoaded = useExtensionsLoaded();
+    const {
+        panels,
+        tabPages,
+        panel,
+        panelShown,
+        panelOpen,
+        panelExpanded,
+        pageOpen,
+        openPageItem,
+        sidebarOpen,
+        closePanel,
+        setPanelExpanded,
+        forgetPanel,
+        leavePage,
+        selectPanel,
+        selectPage,
+        openFromHeader,
+        toggleSidebar,
+    } = usePanelCoordination(navigation);
+    useWindowFocus();
 
     const goToSession = useCallback(
         (id: number) => {
@@ -93,24 +97,6 @@ export function App() {
     });
 
     const { state, send, stop, loadOlder } = useConversation(current);
-    const {
-        shown: panelShown,
-        last: panelLast,
-        open: panelOpen,
-        setOpen: setPanelOpen,
-        forget: forgetPanel,
-    } = useOpenPanel(current);
-    // A panel may fill the conversation instead of the drawer; it is the visit's choice, so another tab
-    // opens the same way and only closing the panel or leaving the session drops it.
-    const [expanded, setExpanded] = useState<{ session: number | null } | null>(null);
-
-    // A session change starts in the drawer, even one coming back to a session that was expanded: an open
-    // panel is remembered per session, so the mode must not outlive the visit that asked for it. Adjusted
-    // during render, as React asks: the state is only ever wrong for the render that sees the change.
-    if (expanded !== null && expanded.session !== current) {
-        setExpanded(null);
-    }
-
     useEffect(() => {
         let alive = true;
 
@@ -132,11 +118,6 @@ export function App() {
             localStorage.setItem(SESSION_KEY, String(current));
         }
     }, [current]);
-
-    // The stream catches up a moment later; an action's own result is shown at once.
-    const reload = useCallback(async (): Promise<void> => {
-        setSessions(await listSessions());
-    }, [setSessions]);
 
     const active = sessions.find((session) => session.id === current);
 
@@ -183,157 +164,6 @@ export function App() {
     // arrived, its folder, revision and busy flag are guesses that change a moment later, so they get no session.
     const activeSession = loading || active === undefined ? null : knownSession;
 
-    const tabPages = useMemo(() => pages.filter((candidate) => candidate.tab !== false), [pages]);
-    const panel = panels.find((candidate) => panelKey(candidate) === panelShown);
-    const openPageItem =
-        route.page === null
-            ? undefined
-            : pages.find((candidate) => pageKey(candidate) === route.page?.key);
-    const pageOpen = openPageItem !== undefined;
-    const panelExpanded =
-        panelOpen &&
-        !pageOpen && // a page reached by browser Back while the panel was open is not made inert by it
-        expanded !== null &&
-        expanded.session === current;
-    // Closing the panel drops the mode with it, so reopening it comes back to the drawer.
-    const closePanel = useCallback(() => {
-        setPanelOpen(null);
-        setExpanded(null);
-    }, [setPanelOpen]);
-    const setPanelExpanded = useCallback(
-        (value: boolean) => {
-            setExpanded(value ? { session: current } : null);
-        },
-        [current],
-    );
-
-    // The address may name a page no folder answers — turned off, or a typo. Once the folders are in,
-    // the address is rewritten to the conversation instead of keeping a frame with nothing in it.
-    useEffect(() => {
-        if (extensionsLoaded && route.page !== null && openPageItem === undefined) {
-            dropPage();
-        }
-    }, [extensionsLoaded, route.page, openPageItem, dropPage]);
-    // The page hides the conversation's controls; on the way out the keyboard goes back to the composer,
-    // or, when a panel tab took its place, to that tab.
-    const pendingFocus = useRef<"composer" | "tab" | null>(null);
-    const hadPage = useRef(false);
-
-    useEffect(() => {
-        if (pageOpen) {
-            hadPage.current = true;
-            return;
-        }
-
-        if (!hadPage.current) {
-            return;
-        }
-
-        hadPage.current = false;
-
-        const asked = pendingFocus.current;
-        const lost = document.activeElement === null || document.activeElement === document.body;
-
-        pendingFocus.current = null;
-
-        if (asked === "tab") {
-            document.querySelector<HTMLElement>('[data-slot="panel-host"] [aria-current]')?.focus();
-            return;
-        }
-
-        // Back out of the page leaves focus on nothing; a moved-away session keeps its own focus.
-        if (asked === "composer" || lost) {
-            focusComposer();
-        }
-    }, [pageOpen]);
-
-    // A panel that closes, or shrinks from the whole conversation to the drawer, takes the keyboard with it; the
-    // page's exit above does the same for a page. A field still focused in the panel keeps the caret.
-    const panelBefore = useRef({ open: false, expanded: false });
-
-    useEffect(() => {
-        const after = { open: panelOpen, expanded: panelExpanded };
-        const before = panelBefore.current;
-        const released = (before.open && !after.open) || (before.expanded && !after.expanded);
-
-        panelBefore.current = after;
-
-        if (released) {
-            restoreComposerFocus("close");
-        }
-    }, [panelOpen, panelExpanded]);
-
-    // Coming back to the window or tab: Chromium restores the focused element itself, so only an unclaimed
-    // keyboard is filled.
-    useEffect(() => {
-        const back = (): void => {
-            if (document.visibilityState === "visible") {
-                restoreComposerFocus("window");
-            }
-        };
-
-        window.addEventListener("focus", back);
-        document.addEventListener("visibilitychange", back);
-
-        return () => {
-            window.removeEventListener("focus", back);
-            document.removeEventListener("visibilitychange", back);
-        };
-    }, []);
-
-    const leavePage = useCallback(() => {
-        pendingFocus.current = "composer";
-        // Leaving by the page's own close or the toggle also forgets the panel, so it does not come back under it.
-        closePanel();
-        closePage();
-    }, [closePanel, closePage]);
-    // A page without a tab does not light the sidebar's button: it is no part of the sidebar.
-    const sidebarOpen =
-        (pageOpen && openPageItem.tab !== false) || (panelOpen && panel !== undefined);
-    const selectPanel = useCallback(
-        (key: string) => {
-            if (pageOpen) {
-                pendingFocus.current = "tab";
-            }
-
-            closePage();
-            setPanelOpen(key);
-        },
-        [pageOpen, closePage, setPanelOpen],
-    );
-    const selectPage = useCallback(
-        (key: string) => {
-            if (route.page?.key !== key) {
-                closePanel();
-                openPage(key);
-            }
-        },
-        [route.page?.key, closePanel, openPage],
-    );
-    // A header item's page, at its own sub-location: the same step as a tab, but already being on the page
-    // is no reason to stay at its current sub.
-    const openFromHeader = useCallback(
-        (key: string, sub?: string) => {
-            closePanel();
-            openPage(key, sub);
-        },
-        [closePanel, openPage],
-    );
-    // Closed, it brings back the panel opened last, else the first panel, else the first tabbed page.
-    const toggleSidebar = (): void => {
-        if (sidebarOpen) {
-            leavePage();
-            return;
-        }
-
-        const first = panels.find((candidate) => panelKey(candidate) === panelLast) ?? panels[0];
-
-        if (first !== undefined) {
-            selectPanel(panelKey(first));
-        } else if (tabPages[0] !== undefined) {
-            openPage(pageKey(tabPages[0]));
-        }
-    };
     const tabs = (
         <ExtensionTabs
             panels={panels}
@@ -344,47 +174,6 @@ export function App() {
             onPanel={selectPanel}
             onPage={selectPage}
         />
-    );
-
-    const select = useCallback(
-        (id: number | null) => {
-            go(id);
-            setSheet(false);
-
-            // The same session is not mounted again, so the composer's own focus on mount does not run.
-            if (id === current) {
-                restoreComposerFocus("close");
-            }
-        },
-        [go, current],
-    );
-    const home = useCallback(() => {
-        select(null);
-    }, [select]);
-    const archive = useCallback(
-        async (id: number, archived: boolean) => {
-            await setSessionArchived(id, archived);
-            setSessions((rows) => rows.map((row) => (row.id === id ? { ...row, archived } : row)));
-        },
-        [setSessions],
-    );
-    const remove = useCallback(
-        async (id: number) => {
-            await deleteSession(id);
-            setSessions((rows) => rows.filter((row) => row.id !== id));
-
-            if (id === current) {
-                go(null);
-            }
-        },
-        [setSessions, current, go],
-    );
-    const rename = useCallback(
-        async (id: number, name: string) => {
-            await setSessionTitle(id, name);
-            setSessions(await listSessions());
-        },
-        [setSessions],
     );
     const askFolder = useCallback(() => {
         setPicker(true);
@@ -398,23 +187,13 @@ export function App() {
     }, []);
 
     useEdgeSwipe(openSheet);
-
-    // A new session in `path`, opened at once.
-    const openSession = useCallback(
-        (path: string): void => {
-            void (async () => {
-                const id = await createSession(path);
-
-                if (id !== 0) {
-                    go(id);
-                    setSheet(false);
-                }
-
-                await reload();
-            })();
-        },
-        [go, reload],
-    );
+    const { reload, select, home, archive, remove, rename, openSession } = useSessionHandlers({
+        current,
+        go,
+        setSessions,
+        closeSheet,
+    });
+    const { menu, toggleMenu, menuProps } = useModelMenu(current, reload);
 
     // The screen around the reply keeps its props across a frame, so none of it renders again for one. Every fresh
     // function or element below would defeat that memo.
@@ -422,15 +201,6 @@ export function App() {
         () => <AboveComposerItems session={activeSession} openSession={go} />,
         [activeSession, go],
     );
-    const toggleMenu = useCallback((): void => {
-        void (async () => {
-            if (!menu) {
-                setModels(await listModels());
-            }
-
-            setMenu((open) => !open);
-        })();
-    }, [menu]);
     const stopRun = useCallback((): void => {
         void stop();
     }, [stop]);
@@ -540,51 +310,9 @@ export function App() {
                                 <div className="relative">
                                     {menu ? (
                                         <ModelMenu
-                                            scoped={models.scoped}
-                                            all={models.all}
+                                            {...menuProps}
                                             current={active?.model ?? null}
                                             level={active?.thinkingLevel ?? null}
-                                            defaultModel={models.default}
-                                            onClose={() => {
-                                                setMenu(false);
-                                            }}
-                                            onAddScoped={(choice) => {
-                                                void (async () => {
-                                                    await addScopedModel(choice);
-                                                    setModels(await listModels());
-                                                })();
-                                            }}
-                                            onRemoveScoped={(choice) => {
-                                                void (async () => {
-                                                    await removeScopedModel(choice);
-                                                    setModels(await listModels());
-                                                })();
-                                            }}
-                                            onMakeDefault={(choice, level) => {
-                                                void (async () => {
-                                                    await setDefaultModel({
-                                                        provider: choice.provider,
-                                                        modelId: choice.id,
-                                                        thinkingLevel: level,
-                                                    });
-                                                    setModels(await listModels());
-                                                })();
-                                            }}
-                                            onPick={(choice, level) => {
-                                                void (async () => {
-                                                    if (current !== null) {
-                                                        await setAgent(current, {
-                                                            model: {
-                                                                provider: choice.provider,
-                                                                modelId: choice.id,
-                                                            },
-                                                            thinkingLevel: level,
-                                                        });
-                                                    }
-
-                                                    await reload();
-                                                })();
-                                            }}
                                         />
                                     ) : null}
 

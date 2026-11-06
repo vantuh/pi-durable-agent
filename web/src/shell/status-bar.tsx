@@ -7,7 +7,7 @@ import { Hint } from "@/components/ui/tooltip";
 import type { ClientStatus, SessionSummary } from "../../../shared/protocol.ts";
 import type { StatusProps } from "../sdk/types.ts";
 import { StatusField, StatusItems } from "../ui/status-fields.tsx";
-import { SessionsStatus } from "./sessions-status.tsx";
+import { SessionsStatus } from "./sessions-status/sessions-status.tsx";
 
 type Props = {
     connected: boolean;
