@@ -10,16 +10,9 @@ import { z } from "zod";
 
 import { writeJsonFile } from "../atomic-write.ts";
 import { type ApiEnv, readBytes, RESPONSE_ALREADY_SENT } from "../http.ts";
+import { IMAGE_TYPES } from "../image-types.ts";
 import { readJsonFile } from "../json-file.ts";
 import { jsonBody, lenient, queryOf, StringList } from "../validate.ts";
-
-export const IMAGE_TYPES: Record<string, string> = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-};
 
 const FavouritesBody = z.object({ folders: StringList });
 /** `hidden=1` shows the folders that start with a dot. */

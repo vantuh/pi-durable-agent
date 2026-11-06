@@ -3,7 +3,7 @@
 // means a schema made an optional field required in `z.input`.
 import { hc } from "hono/client";
 
-import type { mountRoutes } from "../server/main.ts";
+import type { mountRoutes } from "../server/app.ts";
 
 const client = hc<ReturnType<typeof mountRoutes>>("");
 

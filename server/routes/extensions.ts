@@ -4,7 +4,9 @@ import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import { ActionNotFound, type Extensions, type SessionRef } from "../extensions.ts";
+import { ActionNotFound } from "../errors.ts";
+import type { SessionRef } from "../extensions/contract.ts";
+import type { Extensions } from "../extensions/extensions.ts";
 import { answer, type ApiEnv, failureOf, RESPONSE_ALREADY_SENT } from "../http.ts";
 import type { Opened } from "../sessions.ts";
 import { jsonBody, PositiveId } from "../validate.ts";

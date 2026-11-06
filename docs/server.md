@@ -16,9 +16,24 @@ POST /api/restart       { ok } then exit 75, for `scripts/serve.ts` to start the
 POST /api/build         { ok, log } rebuilds `dist/` with the checkout's Vite; no restart needed
 ```
 
-- `server/main.ts` — the HTTP surface, the harness, the watch of each conversation.
+- `server/main.ts` — the composition root: opens the lock, the port and the harness, builds the streams and the
+  extension loader, mounts the routes, and stops them. It keeps no long-lived state of its own beyond what boot
+  creates.
+- `server/app.ts` — the Hono app: the host, same-origin and HEAD gates, the list refresh after a route, and every
+  route (`mountRoutes`, whose type is `AppType`).
+- `server/streams/` — the two event streams: `conversation.ts` (attach and detach, the last state of each session,
+  the `hello`, live frames), `hello.ts` (the byte-cut first page), `sessions.ts` (the list: whole, then rows),
+  `event-stream.ts` (a frame written to many responses, the heartbeat).
+- `server/extension-sessions.ts` — what an extension may ask of one session: its next request, its context, its
+  first prompt.
+- `server/conversation-id.ts` — `idOf`, the one place a plain session number becomes a `ConversationId`.
 - `server/history.ts` — the older transcript, paged back from the entry log.
-- `server/extensions.ts` — the loader ([extensions.md](extensions.md)).
+- `server/extensions/` — the extension loader ([extensions.md](extensions.md)): `extensions.ts` owns what is
+  installed and registered; `contract.ts` (the types an extension sees), `host.ts` (the host one version is
+  handed), `versions.ts` (the live version of each folder and the ones draining), `watcher.ts`,
+  `discovery.ts`, `module-exports.ts`, `resolve-hook.ts`, `collision.ts`, `listeners.ts`.
+- `server/errors.ts`, `server/image-types.ts`, `server/user-entry.ts` — leaves that a route, a service and the
+  projection all read.
 - `server/projection.ts` — the harness's committed view → `shared/protocol.ts`.
 - `shared/protocol.ts` — the only contract the browser sees.
 
@@ -133,7 +148,7 @@ convention, not an authentication or trust boundary, and folding a card does not
 
 Every value taken from a document is `unknown` until narrowed. `recordOf()` in `shared/guards.ts` is the
 one way to take a record out of it, so a document that an older version of this file wrote cannot
-crash the process. The other assertion is in `server/main.ts`: a session id from the browser (a plain number) becomes
+crash the process. The other assertion is `idOf` in `server/conversation-id.ts`: a session id from the browser (a plain number) becomes
 a `ConversationId`, with a disable comment that says why. Anything else that needs an `as` is a design smell.
 
 ## Running it
@@ -222,7 +237,7 @@ POST /api/extensions/:extension/actions/:action   { session?, args? } → { resu
 
 ## Routing
 
-`server/main.ts` builds the app: one Hono instance with two middlewares in front of every route — the
+`server/app.ts` builds the app: one Hono instance with two middlewares in front of every route — the
 `Host` gate that blocks DNS rebinding, the built shell for a path outside `/api/`
 (`server/static.ts`), the same-origin gate for `/api/`, and the session-list bookkeeping that runs
 after the route. Each `server/routes/<group>.ts` returns a chained sub-app, so a route declares its

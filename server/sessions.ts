@@ -23,7 +23,7 @@ import {
 } from "@earendil-works/pi-durable";
 
 import type { SessionSummary } from "../shared/protocol.ts";
-import { projectEntry } from "./projection.ts";
+import { userTextOf } from "./user-entry.ts";
 
 /** When a session's newest run started, or when it was created. 0 until something sets it. */
 const ClockDoc = defineDoc({
@@ -124,10 +124,10 @@ async function firstQuestion(tx: Tx, id: ConversationId): Promise<string | null>
     const page = await tx.scanEntries({ conversationId: id, order: "ascending" }, 5);
 
     for (const record of page.items) {
-        const entry = projectEntry(record);
+        const text = userTextOf(record);
 
-        if (entry.kind === "user") {
-            const line = oneLine(entry.text);
+        if (text !== undefined) {
+            const line = oneLine(text);
 
             if (line !== "") {
                 return line.slice(0, 80);

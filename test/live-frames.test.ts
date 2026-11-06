@@ -21,7 +21,7 @@ import { STATUS_TEXT, STATUS_TITLE } from "./fixtures/faux-status-extension.ts";
 import { ANSWER, THINKING } from "./fixtures/faux-streaming-model.ts";
 
 const REPO = join(import.meta.dirname, "..");
-/** `LIVE_FRAME_MS` in `server/main.ts`. */
+/** `LIVE_FRAME_MS` in `server/streams/conversation.ts`. */
 const WINDOW_MS = 250;
 const roots: string[] = [];
 const running: ChildProcess[] = [];

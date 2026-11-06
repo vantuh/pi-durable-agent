@@ -139,11 +139,28 @@ the neighbour it disagrees with.
   nothing else. Behaviour sits in a service beside the routes (`server/sessions.ts`,
   `server/history.ts`). `server/main.ts` is the composition root: build the dependencies, wire the
   routes, start listening; it keeps no long-lived state of its own.
+- **A service with state is a factory that takes what it needs** (`conversationStream`, `sessionsStream`,
+  `extensionSessions`), not a module with `let`s that `boot` fills in. What does not exist yet when it is
+  built is passed as a function (`sessions: () => sessions`): the extensions' host calls back into the streams,
+  and the sessions open after the extensions load, so the cycle is real and the function says where it is.
+  The mistake it prevents: module-level state that a test or a second caller cannot construct twice.
 - **A subsystem that outgrows one file becomes a folder** (`server/extensions/`), with an `index.ts`
   only when that keeps import paths stable.
 - **Lower layers never import higher ones.** `server/http.ts` and `server/projection.ts` know nothing
-  of `routes/` or `extensions/`. The mistake it prevents: a projection that reaches for the extension
-  loader, so neither can be tested without the other.
+  of `routes/` or `extensions/`; oxlint's `no-restricted-imports` rejects it. What both sides need goes
+  down into a leaf (`server/errors.ts`, `server/image-types.ts`, `server/user-entry.ts`). The mistake it
+  prevents: a projection that reaches for the extension loader, so neither can be tested without the
+  other.
+- **A subsystem splits by who owns its state, not by method.** In `server/extensions/` the loader
+  (`extensions.ts`) is the one owner of what is installed and what each version registered; the
+  files around it hold no state of theirs that it reads (`contract.ts`, `module-exports.ts`,
+  `discovery.ts`, `collision.ts`, `listeners.ts`), or own a state of their own that it only calls into
+  (`versions.ts`, `watcher.ts`), or build something for it (`host.ts`). A seam that would need the
+  loader's private maps passed in to work is not cut.
+- **A guard on `server/` reaches into its subfolders**, so `**/server/*` is not enough: the single star stops
+  at the first folder, and a file in `server/extensions/` was not covered. For `web/` it is `**/server/**`. For
+  `extensions/` the pattern lists the paths that climb out of the extension (`../../server/**`, `../../../server/**`,
+  ...), because an extension's own `server/` folder is allowed; `test/lint-extension-imports.test.ts` pins both.
 
 ### Hono routes
 

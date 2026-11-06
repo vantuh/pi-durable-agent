@@ -12,6 +12,7 @@ import { z } from "zod";
 import { runCommand } from "../commands.ts";
 import { entryAt, historyPage } from "../history.ts";
 import { answer, type ApiEnv, RESPONSE_ALREADY_SENT } from "../http.ts";
+import { IMAGE_TYPES } from "../image-types.ts";
 import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
 import type { Opened, Sessions } from "../sessions.ts";
@@ -25,7 +26,6 @@ import {
     StringList,
     ThinkingLevel,
 } from "../validate.ts";
-import { IMAGE_TYPES } from "./files.ts";
 
 /** A session a body names: none means the root one, and anything else must be an id. */
 const BodySession = PositiveId.nullish();

@@ -10,7 +10,8 @@ import { createRegistry } from "@earendil-works/pi-durable";
 import { getRequestListener } from "@hono/node-server";
 import { Hono } from "hono";
 
-import { ActionNotFound, Extensions } from "../server/extensions.ts";
+import { ActionNotFound } from "../server/errors.ts";
+import { Extensions } from "../server/extensions/extensions.ts";
 import type { ApiEnv } from "../server/http.ts";
 import { extensionRoutes } from "../server/routes/extensions.ts";
 import { sameOrigin } from "../server/same-origin.ts";

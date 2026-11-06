@@ -8,7 +8,8 @@ import { setTimeout } from "node:timers/promises";
 import { createRegistry, type Registry } from "@earendil-works/pi-durable";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 
-import { ActionError, ActionNotFound, Extensions } from "../server/extensions.ts";
+import { ActionError, ActionNotFound } from "../server/errors.ts";
+import { Extensions } from "../server/extensions/extensions.ts";
 import type { ExtensionNotice } from "../shared/protocol.ts";
 
 const CALLS = "__extensionTestCalls";
@@ -352,6 +353,40 @@ void describe("Extensions disposers", () => {
             message: "Extension “alpha” removed",
         });
         assert.deepEqual(calls(), ["v1", "v2"]);
+    });
+
+    void it("reloads once for one save however often watch() was called", async () => {
+        await write("alpha", source({ tags: ["v1"] }));
+        await extensions.load();
+        // macOS FSEvents can still deliver the writes above to a watcher started right after them.
+        await setTimeout(500);
+        extensions.watch();
+        extensions.watch();
+
+        await noticeFor(() => write("alpha", source({ tags: ["v2"] })), 1);
+        // A second reload would arrive within the settle time of the first; this is far past it.
+        await setTimeout(600);
+
+        assert.equal(notices.length, 1);
+        assert.deepEqual(calls(), ["v1"]);
+    });
+
+    void it("does not reload after dispose, whichever watch() call saw the save", async () => {
+        await write("alpha", source({ tags: ["v1"] }));
+        await extensions.load();
+        await setTimeout(500);
+        extensions.watch();
+        extensions.watch();
+
+        // The save settles 150 ms later; dispose comes first.
+        await write("alpha", source({ tags: ["v2"] }));
+        await setTimeout(50);
+        await extensions.dispose();
+        const after = notices.length;
+        await setTimeout(600);
+
+        assert.equal(notices.length, after);
+        assert.ok(!calls().includes("v2"));
     });
 
     void it("keeps failures from untouched folders during a targeted reload", async () => {

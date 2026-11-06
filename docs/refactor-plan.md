@@ -215,16 +215,74 @@ kiro-acp `claude-haiku-4.5` all answered. `local` and `simplex` were not tried.
 
 ## Phase 6: split the server
 
-- [ ] `server/main.ts` (993 lines) becomes the composition root only: the conversation stream and the
+- [x] `server/main.ts` (993 lines) becomes the composition root only: the conversation stream and the
       session-list stream move to `server/streams/`.
-- [ ] `server/extensions.ts` (1314 lines) becomes `server/extensions/`: contract, loader and watcher,
+    - [x] `idOf` to `server/conversation-id.ts`, the hello page to `server/streams/hello.ts`.
+    - [x] The session-list stream to `server/streams/sessions.ts`, the frame and heartbeat writers both streams
+          share to `server/streams/event-stream.ts`. The stream takes `sessions` and `extensions` as
+          functions: the extensions' host calls back into it, and the sessions open after the extensions
+          load, so neither exists when the stream is built.
+    - [x] The conversation stream to `server/streams/conversation.ts`: attach and detach, the last state and
+          busy mark of each session, the `hello`, live frames and what each browser holds of them.
+    - [x] The services extensions get for a session (request, context, prompt) to
+          `server/extension-sessions.ts`.
+    - [x] What `boot` creates (models, runtime, extensions, sessions, harness, the streams) is local to `boot`;
+          only `lifecycle` and the mounted app stay at module level, because `stop` and the listener read them.
+    - [x] The gates and `mountRoutes` to `server/app.ts`, so importing the app type no longer loads the module
+          that starts a server. `AppType` and `test/route-inputs.types.ts` read it from there; the inferred type is
+          the same (`hc` still types `/api/health` as before). The `app.fetch` the listener served before boot
+          is a 503 now; `listen` admits nothing before `ready()`, so no request reaches it.
+- [x] `server/extensions.ts` (1303 lines) becomes `server/extensions/`: contract, loader and watcher,
       host construction, version tracking. Split by state ownership, not by method, or the coupling
       only moves.
-- [ ] Cut the upward imports: `server/http.ts` imports `ActionError`/`ActionNotFound` from
-      `extensions.ts`; `server/sessions.ts` imports all of `projection.ts` for the first question;
-      `routes/conversation.ts` imports `IMAGE_TYPES` from `routes/files.ts`.
-- [ ] `server/projection.ts`: entry projection apart from live projection, if it still reads as two
-      things after phase 4.
+    - [x] The file moves to `server/extensions/extensions.ts` (a move only).
+    - [x] `contract.ts`: the types an extension is handed and exports (the host, `CommitView`, `Action`, ...).
+    - [x] `resolve-hook.ts`: the module hook that versions an extension's helper imports.
+    - [x] `module-exports.ts` and `discovery.ts`: the readers of `server.ts`'s exports, of the folders and of
+          the owner's on/off file; no state.
+    - [x] `watcher.ts`: the file watch and its settle timer.
+    - [x] `versions.ts`: the live version of each folder and the ones draining.
+    - [x] `host.ts`: the host an extension version is handed.
+    - [x] `collision.ts` and `listeners.ts`: the install check and the delivery to listeners; no state.
+    - Not cut: `call` and `serveHttp` (twenty lines that read the loader's own `actions` and `http` maps),
+      `statuses`, `markOf`, `groupOf`, `publish` and `forget` (they read the maps `#load` writes), and
+      `#install`, `#drop` and `#build`: the install, the registration maps and the drain are one
+      transition, and a file for any of them would take the loader's private maps as arguments.
+    - The guards that kept `extensions/` to `server/sdk.ts` and `web/` to `server/app-type.ts` used
+      `**/server/*`, which does not reach into `server/extensions/`; they are `**/server/**` now, and
+      `server/http.ts` and `server/projection.ts` may not import `routes/` or `extensions/`.
+- [x] Cut the upward imports (and a guard: `no-restricted-imports` on `server/http.ts` and
+      `server/projection.ts`, see above):
+    - [x] `server/http.ts` imported `ActionError`/`ActionNotFound` from `extensions.ts`: the two classes
+          moved to `server/errors.ts`, a leaf both import. Mapping them at the route boundary would not do:
+          an extension's raw HTTP calls `answerError` itself, so `failureOf` has to know them.
+    - [x] `server/sessions.ts` imported all of `projection.ts` for the first question: the rule for what a
+          user entry is and says moved to `server/user-entry.ts`, which `projection.ts` and `sessions.ts` both
+          read (`test/user-entry.test.ts` pins that they agree).
+    - [x] `routes/conversation.ts` imported `IMAGE_TYPES` from `routes/files.ts`: it moved to
+          `server/image-types.ts`, which both routes import.
+- [x] `server/projection.ts`: entry projection apart from live projection, if it still reads as two
+      things after phase 4. Not split. After `user-entry.ts` took the text readers it is 460 lines, and the
+      live half (`projectLive`, `projectUsage`, `queuedOf`, `toolsOf`, about 110 lines) calls the entry
+      half's parsers: `blocksOf` for the streamed answer, `filesOf` and `authorOf` for a queued input,
+      `optionalNumber` and `numberAt`. A split would put those in a third file that both import, or have the
+      live file import the entry file; either way the two files would change together whenever a block, a
+      file or an author gains a field.
+- [x] Not cut in `server/streams/conversation.ts` (417 lines): attach, publish, the live frame and the `hello` share
+      `latest`, `busy`, `clients` and the two timers, so each piece would take them as arguments. The one pure
+      piece, the byte-cut page, is `hello.ts`.
+- [x] Checked on a temporary data directory and a free port: under `scripts/serve.ts` `POST /api/restart`
+      answers `{ ok }`, the server comes back and answers `/api/health`; started alone it answers 409.
+      `pnpm test` (1032 tests, 6 new in `test/user-entry.test.ts`) spawns the real server for the stream,
+      list, notice and route tests.
+- [x] Independent review of phase 6: one P1 and one P2, both fixed. P1: `watch()` is a no-op while a watcher
+      exists (two calls had made two watchers with a settle timer each, so one save reloaded twice and a dispose
+      cancelled only the newest timer; the first fs watcher also leaked); tests in `test/extensions.test.ts`.
+      P2: the `**/server/**` guard also matched an extension's own `./server/` helpers, which the phase 8 layout
+      needs; the rule now lists the climbing paths (`../../server/**` up to five levels), and
+      `test/lint-extension-imports.test.ts` lints a fixture folder: own `./server/` and `../server/` imports pass,
+      the core loader is refused from an extension's top level, `server/` and `web/`. Limit: a file four or more
+      folders deep that imports its own `server/` through `../../server/` is refused too.
 
 ## Phase 7: split the web shell
 

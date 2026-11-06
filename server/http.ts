@@ -8,7 +8,7 @@ import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import type { ErrorHandler } from "hono";
 import type { ContentfulStatusCode, SuccessStatusCode } from "hono/utils/http-status";
 
-import { ActionError, ActionNotFound } from "./extensions.ts";
+import { ActionError, ActionNotFound } from "./errors.ts";
 
 const MAX_BODY = 100_000_000;
 /** Unsent bytes past which a stream's reader is gone, as a phone asleep on a dead tunnel is. */

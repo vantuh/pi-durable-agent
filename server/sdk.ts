@@ -3,7 +3,6 @@
 export {
     type Action,
     type ActionCall,
-    ActionError,
     type CommitListener,
     type CommitView,
     type FolderGroup,
@@ -14,7 +13,8 @@ export {
     type SessionGoneListener,
     type SessionSendOptions,
     type StatusProvider,
-} from "./extensions.ts";
+} from "./extensions/contract.ts";
+export { ActionError } from "./errors.ts";
 export type { FetchWrapper, ModelFetch, RequestModel, ResolveModelAuth } from "./model-requests.ts";
 export { writeFileAtomic, writeJsonFile, type WriteOptions } from "./atomic-write.ts";
 export { readJsonFile } from "./json-file.ts";

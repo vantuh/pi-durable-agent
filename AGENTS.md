@@ -148,7 +148,7 @@ second mechanism.
 1. ~~**`server/main.ts` + `shared/protocol.ts`.** One conversation, `GET /api/events` (SSE),
    `POST /api/messages`.~~ **Done**: `curl` shows streamed tokens and a tool call
    ([docs/server.md](docs/server.md)).
-2. ~~**`server/extensions.ts`.** Load `extensions/*/server.ts`, hand each a host, install what it
+2. ~~**`server/extensions/`.** Load `extensions/*/server.ts`, hand each a host, install what it
    returns.~~ **Done**, with `extensions/prompt` as the first extension: adding, breaking, and
    removing a folder all work live ([docs/extensions.md](docs/extensions.md)).
 3. ~~**The theme.**~~ **Done**: Catppuccin in `web/src/styles/catppuccin.css`, four flavours

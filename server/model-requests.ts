@@ -2,7 +2,7 @@
 import type { Api, Message, Model, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
-import type { SessionRequest } from "./extensions.ts";
+import type { SessionRequest } from "./extensions/contract.ts";
 
 export type RequestModel = { readonly provider: string };
 export type RequestShaper = (payload: unknown, model: RequestModel) => unknown;

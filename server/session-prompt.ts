@@ -19,7 +19,7 @@ import type {
     ToolRegistration,
 } from "@earendil-works/pi-durable";
 
-import type { SessionPrompt } from "./extensions.ts";
+import type { SessionPrompt } from "./extensions/contract.ts";
 import type { ModelCatalog } from "./sessions.ts";
 
 // shortcut: follows pi-durable 1.5.0 internals; replace when a public prompt-preview API exists.

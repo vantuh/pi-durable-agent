@@ -1,6 +1,6 @@
 import type { ConversationView } from "@earendil-works/pi-durable";
 
-import type { CommitView } from "./extensions.ts";
+import type { CommitView } from "./extensions/contract.ts";
 
 /**
  * A commit as extensions see it: the folder its tools run in, from the agent document, and the

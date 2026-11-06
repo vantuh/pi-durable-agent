@@ -64,8 +64,14 @@
                     {
                         "patterns": [
                             {
-                                "group": ["**/server/*", "!**/server/sdk.ts"],
-                                "message": "Extensions take core server code only from server/sdk.ts."
+                                "group": [
+                                    "../../server/**",
+                                    "../../../server/**",
+                                    "../../../../server/**",
+                                    "../../../../../server/**",
+                                    "!**/server/sdk.ts"
+                                ],
+                                "message": "Extensions take core server code only from server/sdk.ts. Their own server/ folder is imported as ./server/ or ../server/."
                             }
                         ]
                     }
@@ -80,8 +86,24 @@
                     {
                         "patterns": [
                             {
-                                "group": ["**/server/*", "!**/server/app-type.ts"],
+                                "group": ["**/server/**", "!**/server/app-type.ts"],
                                 "message": "The browser takes only `import type { AppType }` from server/app-type.ts."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["server/http.ts", "server/projection.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "group": ["**/routes/**", "**/extensions/**", "**/extensions.ts"],
+                                "message": "A lower layer knows nothing of routes/ or extensions/: move what both need down."
                             }
                         ]
                     }

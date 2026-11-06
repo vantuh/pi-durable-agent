@@ -26,7 +26,7 @@ not a list of every function in the repository.
 ### 5.1 Unknown values and error text → `shared/`
 
 - [x] `isRecord` (a non-null, non-array object) had twenty-four copies: `server/http.ts` (`record`),
-      `server/projection.ts` (`recordOf`), `server/extensions.ts` (`isRecord`, accepts arrays),
+      `server/projection.ts` (`recordOf`), `server/extensions/extensions.ts` (`isRecord`, accepts arrays),
       `web/src/lib/api.ts` (`record`), and the extensions' own — `usage-limits` (readers, refs),
       `dictation/store`, `push` (store, completion, subscription, refs), `keep-warm/refs`,
       `web-search/wire`, `mcp/connections`, `anthropic-subscription` (account-refs, refs); `files/refs`,
@@ -39,7 +39,7 @@ not a list of every function in the repository.
       keeps its `record` as a one-line adapter over `isRecord`: it answers `{}` rather than `undefined`,
       and twenty-four call sites read through it.
 - [x] Error to text (`error instanceof Error ? error.message : String(error)`) had twenty-three copies:
-      `server/extensions.ts` (`reasonOf`), `extensions/browser/lib/errors.ts` (`describe`; the file is
+      `server/extensions/extensions.ts` (`reasonOf`), `extensions/browser/lib/errors.ts` (`describe`; the file is
       gone), `extensions/git-history/web.tsx` (`errorText`), and the same expression inline across server
       and extension catch sites — plus, missed by the audit, `mcp/connections.ts` (`errorText`),
       `auto-session-name/server.ts` (`errorMessage`), `dictation/record.ts` (`messageOf`, exported to two

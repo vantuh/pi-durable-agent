@@ -19,15 +19,10 @@ import type {
     ClientTool,
     ClientUsage,
 } from "../shared/protocol.ts";
+import { stringOf, textOf, userInputOf } from "./user-entry.ts";
 
 /** Tool output reaches the browser cut; a tool that prints a megabyte must not close a socket. */
 const OUTPUT_LIMIT = 4000;
-
-function stringOf(record: Record<string, unknown> | undefined, key: string): string | undefined {
-    const value = record?.[key];
-
-    return typeof value === "string" ? value : undefined;
-}
 
 function numberAt(record: Record<string, unknown> | undefined, key: string): number {
     const value = record?.[key];
@@ -86,28 +81,6 @@ function blocksOf(content: unknown, streaming = false): ClientBlock[] {
     }
 
     return blocks;
-}
-
-function textOf(content: unknown): string {
-    if (typeof content === "string") {
-        return content;
-    }
-
-    if (!Array.isArray(content)) {
-        return "";
-    }
-
-    let text = "";
-
-    for (const raw of content) {
-        const part = recordOf(raw);
-
-        if (stringOf(part, "type") === "text") {
-            text += stringOf(part, "text") ?? "";
-        }
-    }
-
-    return text;
 }
 
 /** Types a browser may be handed as an image: anything else (SVG, HTML) could run script from this origin. */
@@ -286,11 +259,13 @@ export function projectEntry(entry: EntryRecord): ClientEntry {
     const id = Number(entry.id);
     const message = recordOf(Array.isArray(entry.model) ? entry.model[0] : undefined);
 
-    switch (entry.kind) {
-        case "pi.user":
-        case "chat.user":
-            return userOf(id, message, recordOf(entry.data));
+    const user = userInputOf(entry);
 
+    if (user !== undefined) {
+        return userOf(id, user.message, user.data);
+    }
+
+    switch (entry.kind) {
         case "pi.assistant": {
             const model = stringOf(message, "model");
             const error = stringOf(message, "errorMessage");
@@ -340,13 +315,8 @@ export function projectEntry(entry: EntryRecord): ClientEntry {
             return { id, kind: "compaction", ...(summary === undefined ? {} : { summary }) };
         }
 
-        default: {
-            const data = recordOf(entry.data);
-
-            return message?.["role"] === "user" && authorOf(data) !== undefined
-                ? userOf(id, message, data)
-                : { id, kind: "other", entryKind: entry.kind };
-        }
+        default:
+            return { id, kind: "other", entryKind: entry.kind };
     }
 }
 
