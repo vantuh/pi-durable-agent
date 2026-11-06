@@ -5,7 +5,6 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { basename, extname } from "node:path";
 
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import type { Conversation, Harness, SubmissionId } from "@earendil-works/pi-durable";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -17,7 +16,15 @@ import { projectFiles } from "../project-files.ts";
 import { toolImageOf } from "../projection.ts";
 import type { Opened, Sessions } from "../sessions.ts";
 import { expandSkillCommand, skillsFor } from "../skills.ts";
-import { jsonBody, lenient, PositiveId, queryOf, QueryNumber, StringList } from "../validate.ts";
+import {
+    jsonBody,
+    lenient,
+    PositiveId,
+    queryOf,
+    QueryNumber,
+    StringList,
+    ThinkingLevel,
+} from "../validate.ts";
 import { IMAGE_TYPES } from "./files.ts";
 
 /** A session a body names: none means the root one, and anything else must be an id. */
@@ -42,7 +49,7 @@ const AbortBody = z.object({ session: BodySession });
 const AgentBody = z.object({
     session: BodySession,
     model: lenient(ModelBody),
-    thinkingLevel: lenient(z.enum(MODEL_THINKING_LEVELS)),
+    thinkingLevel: lenient(ThinkingLevel),
 });
 const CommandBody = z.object({
     session: BodySession,

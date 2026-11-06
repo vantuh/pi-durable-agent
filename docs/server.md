@@ -221,8 +221,9 @@ and `queryOf` for the query string (`server/validate.ts`), and the handler reads
 `c.req.valid("json")` or `c.req.valid("query")`. A refused request answers 400 with `{ error }`, one
 sentence per route. `jsonBody` reads the body through `readJson`, so a body past 100 MB answers 413 and
 one that is not JSON answers 400, and it records the session the body names for the list refresh.
-Because the typed browser client (`hc`) comes next, a route answers with `c.json(body, status)` rather
-than writing JSON by hand.
+The browser's client (`hc`, in `web/src/lib/api.ts`) reads its types from the routes through
+`AppType` (`server/app-type.ts`), so a route answers with `c.json(body, status)` rather than writing
+JSON by hand; a raw write has no type for the browser, and the client parses that answer itself.
 Three things do write the response, and return `RESPONSE_ALREADY_SENT` so the adapter leaves it
 alone: the two event streams, a file's bytes (`/api/entry-image`, `/api/uploads`, and the two answers
 gzipped for size, `/api/sessions` and `/api/history`), and an extension's own HTTP, which still hands

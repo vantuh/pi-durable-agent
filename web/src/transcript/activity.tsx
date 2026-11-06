@@ -28,10 +28,10 @@ import {
     useToolIcons,
     useToolViews,
 } from "../extensions.ts";
+import { entryImageUrl } from "../lib/api.ts";
 import { langOfPath } from "../lib/highlight.ts";
 import {
     argOf,
-    type GroupImage,
     imagesOf,
     type Item,
     outcomeOf,
@@ -269,10 +269,6 @@ const STEP_HEAD =
 /** Under a step's line, in line with its label. 42px is the indent, the mark and the row's 10px gap. */
 const STEP_BODY = "mt-1.5 mr-3.5 mb-3 ml-[42px] flex min-w-0 flex-col gap-2";
 
-function imageUrl(session: number, image: GroupImage): string {
-    return `/api/entry-image?session=${String(session)}&entry=${String(image.entry)}&index=${String(image.index)}`;
-}
-
 /** Pictures the group's calls returned, below its lines: seen without opening a call. */
 function GroupImages({ steps }: { steps: Step[] }) {
     const session = useSession();
@@ -285,7 +281,7 @@ function GroupImages({ steps }: { steps: Step[] }) {
     return (
         <ImageThumbs
             images={images.map((image) => ({
-                src: imageUrl(session, image),
+                src: entryImageUrl(session, image.entry, image.index),
                 name: image.name,
             }))}
         />

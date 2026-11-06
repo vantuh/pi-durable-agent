@@ -187,6 +187,7 @@ void describe("model routes refuse bad input", () => {
                 { thinkingLevel: "off" },
                 { model: { provider: "p", modelId: "m" } },
                 { model: { provider: "p", modelId: "m" }, thinkingLevel: "loud" },
+                { model: { provider: "p", modelId: "m" }, thinkingLevel: 5 },
                 { model: { provider: "p" }, thinkingLevel: "off" },
                 { model: "p/m", thinkingLevel: "off" },
                 { model: [], thinkingLevel: "off" },

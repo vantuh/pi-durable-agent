@@ -181,7 +181,9 @@ pnpm fix       # repairs formatting and anything auto-fixable
 - [ ] Every promise is awaited or explicitly ignored with `void`.
 - [ ] Tests and standalone Harness checks use disposable databases, never the working `data/state.sqlite`.
       Test servers set `PI_DURABLE_DATA_DIR` to a temporary folder and use a free `PORT`.
-- [ ] `web/` never imports from `server/`; extensions never import each other's files.
+- [ ] `web/` never imports from `server/`, except `import type { AppType }` from
+      `server/app-type.ts` for the typed client (oxlint enforces it); extensions never import each
+      other's files.
 - [ ] **No colour is ever invented.** Every colour is a `--role-*` name from the theme. No hex,
       no `rgb()`, no `oklch()`, no Tailwind palette class, no inline `style={{ color }}`, not
       even once and not even in dev. A colour that is missing gets a role added to

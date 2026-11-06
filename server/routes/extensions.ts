@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { ActionNotFound, type Extensions, type SessionRef } from "../extensions.ts";
-import { answer, answerError, type ApiEnv, RESPONSE_ALREADY_SENT } from "../http.ts";
+import { answer, type ApiEnv, failureOf, RESPONSE_ALREADY_SENT } from "../http.ts";
 import type { Opened } from "../sessions.ts";
 import { jsonBody, PositiveId } from "../validate.ts";
 
@@ -116,9 +116,9 @@ export function extensionRoutes(deps: {
 
                     return c.json({ result }, 200);
                 } catch (error) {
-                    answerError(c.env.outgoing, error, "the action failed");
+                    const { status, ...body } = failureOf(error, "the action failed");
 
-                    return RESPONSE_ALREADY_SENT;
+                    return c.json(body, status);
                 }
             },
         )
@@ -145,9 +145,9 @@ export function extensionRoutes(deps: {
                         200,
                     );
                 } catch (error) {
-                    answerError(c.env.outgoing, error, "the change failed");
+                    const { status, ...body } = failureOf(error, "the change failed");
 
-                    return RESPONSE_ALREADY_SENT;
+                    return c.json(body, status);
                 }
             },
         );

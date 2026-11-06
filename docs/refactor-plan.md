@@ -28,7 +28,7 @@ Working rules:
 | HTTP framework   | Hono, not Express or Fastify: validators give typed bodies, and `hc` gives the browser types inferred from the routes, so the wire types are written once.                                                                                                       |
 | Validation       | Zod, through `@hono/zod-validator`. Schemas the browser also needs live in `shared/`.                                                                                                                                                                            |
 | Raw Node paths   | SSE, extension raw HTTP, byte answers and static files write to `c.env.outgoing` and return `RESPONSE_ALREADY_SENT`. `streamSSE` and `hono/compress` would drop the gzip flush per event and the 1 MB stall cap.                                                 |
-| Browser types    | `web/` may `import type { AppType }` from `server/` for `hc`, and nothing else from `server/`. The rule in `AGENTS.md` is relaxed in phase 3, not before.                                                                                                        |
+| Browser types    | `web/` may `import type { AppType }` from `server/` for `hc`, and nothing else from `server/`. The rule in `AGENTS.md` was relaxed in phase 3 (`server/app-type.ts`).                                                                                            |
 | Front and server | Stay one repository with vertical extension folders. A monorepo (`apps/web`, `apps/server`) would cut every extension in half.                                                                                                                                   |
 | pi 1.5           | Upgrade forward only; no rollback to 1.4. Back up `data/state.sqlite` before the first 1.5 start.                                                                                                                                                                |
 | Order            | Hono first (it rebuilds the routes anyway), then pi 1.5 (it rewrites the stream code in `server/main.ts`), then the `server/main.ts` split, so nothing is moved twice.                                                                                           |
@@ -93,15 +93,61 @@ they were.
 
 ## Phase 3: typed browser client (`hc`)
 
-- [ ] Export `AppType` from the server; relax the `web/` import rule in `AGENTS.md` to `import type`
-      of `AppType` only.
-- [ ] Move `web/src/lib/api.ts` to `hc` one domain at a time: sessions, models, files, conversation,
-      extensions. Drop the hand-written response types and the `str`/`num`/`list` fallbacks each domain
-      no longer needs.
-- [ ] SSE stays on `EventSource`; build its URLs with `$url()`.
-- [ ] Stale bundle after a server restart (PWA in `web/sw.js`): reload when the build changes, or keep
-      a Zod parse on the few answers that matter. Check first whether it happens at all.
-- [ ] Watch the IDE type-check time; split into per-sub-app clients if it drags.
+- [x] Export `AppType` from the server (`server/app-type.ts`); relax the `web/` import rule in
+      `AGENTS.md` to `import type` of `AppType` only; oxlint's `no-restricted-imports` enforces it for
+      `web/**`: `refactor(web): export AppType for the typed client`. `c008dcb`. The guard is
+      path-based: it exempts `server/app-type.ts` as a file and rejects every other `server/` path. It
+      does not check that an import is type-only; that holds because `app-type.ts` exports nothing but a
+      type and `consistent-type-imports` demands `import type` for one.
+- [x] Move `web/src/lib/api.ts` to `hc` one domain at a time, keeping the exported function names.
+      Drop the hand-written response types and the `str`/`num`/`list` fallbacks each domain no longer
+      needs. `api.ts` went from 505 to 374 lines; what is left of the parsers reads the SSE list frames
+      (`sessionsEventOf`) and the two raw answers. `web/src/sdk/actions.ts` stays on `fetch`: an action's
+      result is `unknown` by design (its ref parses it), and `hc` does not encode a path parameter.
+    - [x] sessions: `refactor(web): move the session calls to the typed client` (`d3dcd59`). `GET /api/sessions`
+          and `GET /api/history` stay raw writes, so `listSessions` and `fetchHistory` keep their
+          parsers (`sessionsOf` is also what reads the `sessions` frame of the SSE list). `hono/compress`
+          does not keep the behaviour: `c.json` sets no `Content-Length`, so its threshold never
+          applies and a 15-byte body is gzipped; it ignores `q` values (`gzip;q=0, *` gets `deflate`
+          where `answer()` sends plain). Measured on Hono 4.13.16.
+    - [x] models: `refactor(web): move the model calls to the typed client` (`7c7fb26`). `Models` is the
+          inferred answer, except that `default` may be `null` before the first answer.
+    - [x] files: `refactor(web): move the file calls to the typed client` (`bf9a59b`). The upload stays a raw
+          body through `hc`'s `init.body` (the file is not copied: `deepMerge` assigns it); the two
+          `/api/uploads?path=` strings are one `uploadUrl()`.
+    - [x] conversation: `refactor(web): move the conversation calls to the typed client` (`9de873f`). The two
+          stream paths and the entry-image URL come from `$path()`; `fetchHistory` keeps `parseHistory`
+          (raw route). `AgentBody`'s level uses the same `ThinkingLevel` as the default model's.
+    - [x] extensions: `refactor(web): move the extension calls to the typed client` (`a2b37af`). The two
+          extension routes answered a caught failure with a raw write, which made their whole answer
+          `unknown` to `hc`; they now answer `c.json(failureOf(...))`. Two browser fakes answered
+          `/api/extensions` with `{}` and now answer its real shape.
+    - [x] health, build, restart: `refactor(web): move health, build and restart to the typed client` (`15daf67`).
+          `json()`, `post()` and `str()` are gone; `api.ts` keeps `num`/`list` for the stream frames.
+- [x] SSE stays on `EventSource`; its paths come from the client's `$path()` (`sessionsStreamPath`,
+      `conversationStreamPath`), not `$url()`: that one returns an absolute `URL`, and an
+      `EventSource` takes the same-origin path as it is.
+- [x] Stale bundle after a server restart: checked, and nothing is done. A navigation to `/` goes to
+      the network first (`web/sw.js`) and `index.html` is `no-cache`, so a reload always gets HTML
+      and hashed `/assets/*` from the same build; the worker has no `skipWaiting`, and an asset
+      missing from the old precache comes from the network. What can mismatch is a tab that stays
+      open across a restart: nothing reloads it (only `rebuildShell` offers a Reload), so old
+      JavaScript talks to the new server over the same `EventSource`. That is no new gap, but
+      typed answers make it louder: the old `str`/`num`/`list` fallbacks turned a changed shape into
+      empty values, `hc` now trusts the shape and a missing field is `undefined` or a `TypeError`
+      (the two browser fakes that answered `{}` for `/api/extensions` showed it). Closing it takes a
+      build id in the `hello` frame and a reload when it changes, which is more than a line. Left
+      until a route shape changes while a tab is open.
+- [x] Independent review of `c008dcb..10a4c4c`: no blockers, two P2 findings, both fixed. Four browser
+      fakes still answered `{}` to routes the typed client reads (`/api/extensions`, `/api/skills`, and
+      the like), so the shell sat waiting while the tests passed: the fakes now share
+      `test/fixtures/api-defaults.ts`, one real empty shape per route (`a1f9502`). And
+      `test/api-client.test.ts` pinned only some requests: every function's URL, method, headers and body
+      is now asserted, the session-scoped ones against a session that is not the root one, and
+      `rebuildShell` against a recording fake so no build overwrites `dist/` (`ee0dab7`). Each assertion
+      was checked by changing the request in `api.ts` and watching a test fail.
+- [x] IDE type-check time: `tsc --noEmit` took 1.1-1.3 s before and 1.1-1.2 s after (TypeScript 7),
+      so one client over `AppType` stays. The entry chunk is 48.2 kB gzipped both ways.
 
 ## Phase 4: pi 1.5
 
@@ -110,12 +156,19 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md) (be
 - [ ] Stop the server; back up `data/state.sqlite` (with `-wal`/`-shm`). 1.5 migrates 1.4 data on
       read; 1.4 cannot read what 1.5 wrote.
 - [ ] Bump `pi-durable`, `pi-ai`, `pi-coding-agent` and `chord` to 1.5.0 together, pinned exactly.
-- [ ] Keep `typebox` as a direct dependency where extensions import it; fix the one `Type` import
-      from `pi-ai` (`extensions/context-meter/server.test.ts`).
+- [ ] Keep `typebox` as a direct dependency where extensions import it; fix the `Type` import from
+      `pi-ai` in two files, `extensions/context-meter/server.test.ts:5` (also `:111`) and
+      `test/session-prompt.test.ts:12` (also `:71`, `:77`), with plain JSON Schema objects
+      (`{ type: "object", properties: {} }`): no new dependency.
 - [ ] Rewrite `viewState` to `Conversation.watch` in place in `server/main.ts`; adapt `publish()` to
       the windowed view (50 entries, trimmed past 100).
 - [ ] `subscribeCommits` to `observeCommits` (`server/new-conversations.ts`); `onReport(report)`
       with `kind` (`server/main.ts`); `compactionFailure.reason` to `trigger`.
+- [ ] `extensions/context-meter/server.ts` (~197, ~239) keeps `view.entries` per session and sums its
+      breakdown over it. In 1.5 that is a window of 50 to 100 entries, so the breakdown would count
+      only the recent part: read the whole conversation another way (`Conversation.context()`, see the
+      code-impact table in [pi-1.5-migration.md](pi-1.5-migration.md)) or say that the split is for the
+      recent window.
 - [ ] Replace `hasOlder` and the retry loop in `stream()` with `view.before`.
 - [ ] Optional: show `pi.live.runFailure` in the transcript, so a failed run is not silent.
 

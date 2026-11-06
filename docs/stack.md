@@ -22,7 +22,7 @@ The first choice, recorded so later decisions can be read against it. Versions a
 | Icons      | `lucide-react`                         | What `shadcn` expects                                                      | One dependency for tree-shaken icons                              |
 | Zoom       | `react-zoom-pan-pinch` 4.2.0           | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
 | Agent      | `@earendil-works/pi-durable` 1.4.0     | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
-| Routing    | Hono 4, `@hono/node-server` 2          | Typed routes and validators now, one typed browser client (`hc`) later     | A framework in the server; the raw paths depend on its adapter    |
+| Routing    | Hono 4, `@hono/node-server` 2          | Typed routes and validators, and the browser's typed client (`hc`)         | A framework in the server; the raw paths depend on its adapter    |
 | Validation | Zod 4, `@hono/zod-validator`           | One schema is a route's checked input and `hc`'s typed input               | Two dependencies; `jsonBody` reads the body itself                |
 | Lint       | `oxlint`                               | Fast, no plugin zoo                                                        | Rule coverage is smaller than ESLint's                            |
 | Format     | `oxfmt`                                | 4 spaces, 100 columns, sorted imports and Tailwind classes                 | Young tool; formatting may shift between versions                 |
@@ -45,7 +45,9 @@ The first choice, recorded so later decisions can be read against it. Versions a
 
 1. Server files import with the `.ts` extension: `import { x } from "./db.ts"`.
 2. Server files use erasable syntax only: no `enum`, no parameter properties, no `namespace`.
-3. Client files never import from `server/`. The only contract is HTTP and the event stream.
+3. Client files never import from `server/`, except `import type { AppType }` from
+   `server/app-type.ts`, which types the `hc` client. The rest of the contract is the event stream
+   and `shared/`.
 4. The browser learns state from the server's event stream. No polling loops.
 5. The server binds `127.0.0.1`. With no sign-in, that binding **is** the security model.
 6. One gate and one repair: `pnpm check` and `pnpm fix`. The strict flags and rules, and the

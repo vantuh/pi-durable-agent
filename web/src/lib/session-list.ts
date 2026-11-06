@@ -6,7 +6,7 @@ import type {
     SessionSummary,
     SessionsEvent,
 } from "../../../shared/protocol.ts";
-import { sessionsEventOf } from "./api.ts";
+import { sessionsEventOf, sessionsStreamPath } from "./api.ts";
 import { openStream } from "./stream.ts";
 
 /**
@@ -53,7 +53,7 @@ export function useSessionList(onNotice?: (notice: ExtensionNotice) => void): {
 
     useEffect(
         () =>
-            openStream("/api/sessions/events", {
+            openStream(sessionsStreamPath(), {
                 onOpen: () => {
                     setConnected(true);
                 },

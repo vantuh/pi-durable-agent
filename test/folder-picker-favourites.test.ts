@@ -19,6 +19,7 @@ import type { Chromium } from "../extensions/browser/lib/cdp.ts";
 import { answer, readJson, writeEvent } from "../server/http.ts";
 import { recordOf } from "../shared/guards.ts";
 import type { SessionsEvent } from "../shared/protocol.ts";
+import { defaultAnswer } from "./fixtures/api-defaults.ts";
 
 const SESSION = 1;
 /** A folder of the last session: it is what the picker offers to star. */
@@ -209,7 +210,7 @@ async function withApp(
         }
 
         // Everything else the shell asks for is not what this test is about: an empty answer keeps it quiet.
-        answer(response, 200, {});
+        answer(response, 200, defaultAnswer(url.pathname));
     });
     let browser: Chromium | undefined;
 

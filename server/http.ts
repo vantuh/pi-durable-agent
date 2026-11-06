@@ -6,6 +6,7 @@ import { constants, createGzip, gzipSync, type Gzip } from "node:zlib";
 import type { HttpBindings } from "@hono/node-server";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import type { ErrorHandler } from "hono";
+import type { ContentfulStatusCode, SuccessStatusCode } from "hono/utils/http-status";
 
 import { ActionError, ActionNotFound } from "./extensions.ts";
 
@@ -32,11 +33,14 @@ export type ApiEnv = {
 /** A route that wrote the response itself returns this, so the adapter leaves the bytes alone. */
 export { RESPONSE_ALREADY_SENT };
 
+/** A status that refuses: `hc` tells an answer that failed from one that did not by it. */
+export type FailureStatus = Exclude<ContentfulStatusCode, SuccessStatusCode>;
+
 /** A failure that names the status its answer takes; `answerError` answers with it. */
 export class HttpError extends Error {
-    readonly status: number;
+    readonly status: FailureStatus;
 
-    constructor(status: number, message: string) {
+    constructor(status: FailureStatus, message: string) {
         super(message);
         this.status = status;
     }
@@ -213,17 +217,32 @@ export const routeFailed: ErrorHandler<ApiEnv> = (error, c) => {
     );
 };
 
-/** 404 for something unknown, 400 for bad input, the `HttpError`'s own status, 500 for any other failure. */
-export function answerError(response: ServerResponse, error: unknown, fallback: string): void {
+/**
+ * What a failure answers: 404 for something unknown, 400 for bad input, the `HttpError`'s own status, 500 for any
+ * other failure. A route answering through Hono sends it with `c.json`, so `hc` types it as a failure.
+ */
+export function failureOf(
+    error: unknown,
+    fallback: string,
+): { status: FailureStatus; error: string } {
     const message = error instanceof Error ? error.message : fallback;
 
     if (error instanceof HttpError) {
-        answer(response, error.status, { error: message });
-    } else if (error instanceof ActionNotFound) {
-        answer(response, 404, { error: message });
-    } else if (error instanceof ActionError || error instanceof URIError) {
-        answer(response, 400, { error: message });
-    } else {
-        answer(response, 500, { error: message });
+        return { status: error.status, error: message };
     }
+
+    if (error instanceof ActionNotFound) {
+        return { status: 404, error: message };
+    }
+
+    return error instanceof ActionError || error instanceof URIError
+        ? { status: 400, error: message }
+        : { status: 500, error: message };
+}
+
+/** `failureOf`, written to a response by hand: for the raw paths an extension owns. */
+export function answerError(response: ServerResponse, error: unknown, fallback: string): void {
+    const { status, ...body } = failureOf(error, fallback);
+
+    answer(response, status, body);
 }

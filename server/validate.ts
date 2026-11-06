@@ -3,6 +3,7 @@
  * 400 with the one sentence it has always used; its handler reads the checked input from `c.req.valid(...)`.
  */
 
+import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import { zValidator } from "@hono/zod-validator";
 import type { Context, MiddlewareHandler, TypedResponse } from "hono";
 import { z } from "zod";
@@ -12,6 +13,12 @@ import { type ApiEnv, readJson } from "./http.ts";
 
 /** An id (of a session, an entry, a queued input) is a positive safe integer. */
 export const PositiveId = z.int().positive();
+
+/**
+ * A thinking level, read from a string and then checked against Pi's list. Not a bare `z.enum`: its `z.input` is the
+ * union, and the model menu holds the level as a `string`, so `hc` would make the screen cast it.
+ */
+export const ThinkingLevel = z.string().pipe(z.enum(MODEL_THINKING_LEVELS));
 
 /** A number in a query string, as `Number(text)` reads it; what is no number fails the check that follows. */
 export const QueryNumber = z.string().transform(Number);

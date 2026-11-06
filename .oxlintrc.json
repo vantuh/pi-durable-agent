@@ -73,6 +73,22 @@
             }
         },
         {
+            "files": ["web/**"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "group": ["**/server/*", "!**/server/app-type.ts"],
+                                "message": "The browser takes only `import type { AppType }` from server/app-type.ts."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
             "files": ["**/*.test.ts", "**/*.test.tsx", "test/**"],
             "rules": { "typescript/no-non-null-assertion": "off" }
         }

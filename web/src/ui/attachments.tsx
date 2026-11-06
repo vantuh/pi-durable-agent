@@ -14,6 +14,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Hint } from "@/components/ui/tooltip";
 
+import { uploadUrl } from "../lib/api.ts";
+
 /** A file in the composer: on screen at once, `path` once the server has it. */
 export type Pending = {
     key: string;
@@ -43,9 +45,7 @@ function srcOf(file: Pending): string | undefined {
         return file.preview;
     }
 
-    return file.path === undefined
-        ? undefined
-        : `/api/uploads?path=${encodeURIComponent(file.path)}`;
+    return file.path === undefined ? undefined : uploadUrl(file.path);
 }
 
 /** A file as a card, its picture a chip: a message's attachments, and the composer's row. */

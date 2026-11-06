@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SendMode } from "../../../shared/protocol.ts";
 import { refreshExtensions } from "../extensions.ts";
-import { fetchHistory, sendMessage, stopRun } from "./api.ts";
+import { conversationStreamPath, fetchHistory, sendMessage, stopRun } from "./api.ts";
 import { type ConversationState, START, withEvent, withOlder } from "./conversation-state.ts";
 import { parseEvent } from "./event.ts";
 import { openStream } from "./stream.ts";
@@ -24,7 +24,7 @@ export function useConversation(session: number | null): {
             return undefined;
         }
 
-        return openStream(`/api/events?session=${String(session)}`, {
+        return openStream(conversationStreamPath(session), {
             onMessage: (data) => {
                 const event = parseEvent(data);
 

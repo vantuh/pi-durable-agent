@@ -26,6 +26,7 @@ import type { Chromium } from "../extensions/browser/lib/cdp.ts";
 import { hasOlder, historyPage } from "../server/history.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import { projectEntry } from "../server/projection.ts";
+import { defaultAnswer } from "./fixtures/api-defaults.ts";
 
 const OLDEST = "older question 0";
 /** Long enough for Vite to compile the app on the first request, short enough to fail a broken page. */
@@ -303,7 +304,7 @@ async function withApp(
         }
 
         // Everything else the shell asks for is not what this test is about: an empty answer keeps it quiet.
-        answer(response, 200, {});
+        answer(response, 200, defaultAnswer(url.pathname));
     });
     const profile = await mkdtemp(join(tmpdir(), "older-page-browser-"));
     let browser: Chromium | undefined;

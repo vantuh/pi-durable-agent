@@ -1,3 +1,6 @@
+import { hc, type InferResponseType } from "hono/client";
+
+import type { AppType } from "../../../server/app-type.ts";
 import { recordOf } from "../../../shared/guards.ts";
 import type {
     ClientHistory,
@@ -11,28 +14,13 @@ import type {
 } from "../../../shared/protocol.ts";
 import { parseHistory } from "./event.ts";
 
-export type Health = {
-    cwd: string;
-    home: string;
-};
+const client = hc<AppType>("/");
 
-export type UploadedFile = {
-    path: string;
-    name: string;
-    size: number;
-    mime: string | null;
-};
+export type Health = InferResponseType<typeof client.api.health.$get, 200>;
 
-export type FolderPage = {
-    path: string;
-    parent: string | null;
-    home: string;
-    dirs: { name: string; path: string }[];
-};
+export type UploadedFile = InferResponseType<typeof client.api.files.$post, 201>;
 
-function str(value: unknown, fallback: string): string {
-    return typeof value === "string" ? value : fallback;
-}
+export type FolderPage = InferResponseType<typeof client.api.fs.$get, 200>;
 
 function num(value: unknown, fallback: number): number {
     return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -42,43 +30,40 @@ function list(value: unknown): unknown[] {
     return Array.isArray(value) ? value : [];
 }
 
-async function json(path: string, init?: RequestInit): Promise<unknown> {
-    const response = await fetch(path, init);
+/** The answer of a route when it succeeded; any other status throws `/path?query: status`. */
+async function ok<R extends { ok: boolean; status: number; url: string }>(
+    pending: Promise<R>,
+): Promise<Exclude<R, { ok: false }>> {
+    const response = await pending;
 
-    if (!response.ok) {
-        throw new Error(`${path}: ${String(response.status)}`);
+    if (!isOk(response)) {
+        const { pathname, search } = new URL(response.url);
+
+        throw new Error(`${pathname}${search}: ${String(response.status)}`);
     }
 
-    return response.json();
+    return response;
 }
 
-function post(path: string, body: unknown): Promise<unknown> {
-    return json(path, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-    });
+function isOk<R extends { ok: boolean }>(response: R): response is Exclude<R, { ok: false }> {
+    return response.ok;
 }
 
 export async function getHealth(): Promise<Health | undefined> {
     try {
-        const body = recordOf(await json("/api/health"));
-
-        if (body === undefined) {
-            return undefined;
-        }
-
-        return {
-            cwd: str(body["cwd"], ""),
-            home: str(body["home"], ""),
-        };
+        return await (await ok(client.api.health.$get())).json();
     } catch {
         return undefined;
     }
 }
 
+/** Where the session list streams from; an `EventSource` takes the path as it is. */
+export function sessionsStreamPath(): string {
+    return client.api.sessions.events.$path();
+}
+
 export async function listSessions(): Promise<SessionSummary[]> {
-    return sessionsOf(await json("/api/sessions"));
+    return sessionsOf(await (await ok(client.api.sessions.$get())).json());
 }
 
 /** The rows of a list answer or of a `sessions` event; both carry them as `sessions`. */
@@ -165,26 +150,24 @@ function rowsOf(value: unknown): SessionSummary[] {
 }
 
 export async function setSessionArchived(session: number, archived: boolean): Promise<void> {
-    await post("/api/sessions/archive", { session, archived });
+    await ok(client.api.sessions.archive.$post({ json: { session, archived } }));
 }
 
 export async function setSessionTitle(session: number, title: string): Promise<void> {
-    await post("/api/sessions/title", { session, title });
+    await ok(client.api.sessions.title.$post({ json: { session, title } }));
 }
 
 export async function markSeen(session: number): Promise<void> {
-    await post("/api/sessions/seen", { session });
+    await ok(client.api.sessions.seen.$post({ json: { session } }));
 }
 
 /** Out of the sidebar for good: only a note says it is deleted, the transcript stays on disk. */
 export async function deleteSession(session: number): Promise<void> {
-    await post("/api/sessions/delete", { session });
+    await ok(client.api.sessions.delete.$post({ json: { session } }));
 }
 
 export async function createSession(cwd: string): Promise<number> {
-    const body = recordOf(await post("/api/sessions", { cwd }));
-
-    return num(body?.["session"], 0);
+    return (await (await ok(client.api.sessions.$post({ json: { cwd } }))).json()).session;
 }
 
 /** Older entries, older than `before`: the start of a conversation the event stream no longer carries. */
@@ -192,120 +175,86 @@ export async function fetchHistory(
     session: number,
     before: number,
 ): Promise<ClientHistory | undefined> {
-    return parseHistory(
-        await json(`/api/history?session=${String(session)}&before=${String(before)}`),
+    const response = await ok(
+        client.api.history.$get({ query: { session: String(session), before: String(before) } }),
     );
+
+    return parseHistory(await response.json());
 }
 
-export type SkillInfo = { name: string; description: string };
+export type SkillInfo = InferResponseType<typeof client.api.skills.$get, 200>["skills"][number];
 
 /** The skills a session can run with `/skill:name`. */
 export async function listSkills(session: number): Promise<SkillInfo[]> {
-    const body = recordOf(await json(`/api/skills?session=${String(session)}`));
+    const response = await ok(client.api.skills.$get({ query: { session: String(session) } }));
 
-    return list(body?.["skills"]).flatMap((item) => {
-        const skill = recordOf(item);
-
-        return skill === undefined
-            ? []
-            : [{ name: str(skill["name"], ""), description: str(skill["description"], "") }];
-    });
+    return (await response.json()).skills;
 }
 
 /** The files of the session's folder, as paths relative to it. */
 export async function listProjectFiles(session: number): Promise<string[]> {
-    return list(
-        recordOf(await json(`/api/project-files?session=${String(session)}`))?.["files"],
-    ).filter((path): path is string => typeof path === "string");
+    const response = await ok(
+        client.api["project-files"].$get({ query: { session: String(session) } }),
+    );
+
+    return (await response.json()).files;
 }
 
 export async function getFavourites(): Promise<string[]> {
-    return list(recordOf(await json("/api/favourites"))?.["folders"]).filter(
-        (entry): entry is string => typeof entry === "string",
-    );
+    return (await (await ok(client.api.favourites.$get())).json()).folders;
 }
 
 export async function setFavourites(folders: string[]): Promise<void> {
-    await json("/api/favourites", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ folders }),
-    });
+    await ok(client.api.favourites.$put({ json: { folders } }));
 }
 
-export type Models = {
-    scoped: ModelChoice[];
-    all: ModelChoice[];
-    default: DefaultModel | null;
-};
+type ServedModels = InferResponseType<typeof client.api.models.$get, 200>;
+
+/** What the server answers, except that the screen starts with no default before the first answer. */
+export type Models = Omit<ServedModels, "default"> & { default: ServedModels["default"] | null };
 
 export async function listModels(): Promise<Models> {
-    const body = recordOf(await json("/api/models"));
-    const stored = recordOf(body?.["default"]);
-    const provider = str(stored?.["provider"], "");
-    const modelId = str(stored?.["modelId"], "");
-
-    return {
-        scoped: choices(body?.["scoped"]),
-        all: choices(body?.["all"]),
-        default:
-            provider === "" || modelId === ""
-                ? null
-                : { provider, modelId, thinkingLevel: str(stored?.["thinkingLevel"], "off") },
-    };
+    return (await ok(client.api.models.$get())).json();
 }
 
 export async function setDefaultModel(choice: DefaultModel): Promise<void> {
-    await post("/api/default", {
-        model: { provider: choice.provider, modelId: choice.modelId },
-        thinkingLevel: choice.thinkingLevel,
-    });
+    await ok(
+        client.api.default.$post({
+            json: {
+                model: { provider: choice.provider, modelId: choice.modelId },
+                thinkingLevel: choice.thinkingLevel,
+            },
+        }),
+    );
 }
 
 export async function addScopedModel(choice: ModelChoice): Promise<void> {
-    await post("/api/scoped", { provider: choice.provider, modelId: choice.id });
+    await ok(client.api.scoped.$post({ json: { provider: choice.provider, modelId: choice.id } }));
 }
 
 export async function removeScopedModel(choice: ModelChoice): Promise<void> {
-    await json("/api/scoped", {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: choice.provider, modelId: choice.id }),
-    });
-}
-
-function choices(value: unknown): ModelChoice[] {
-    const out: ModelChoice[] = [];
-
-    for (const raw of list(value)) {
-        const model = recordOf(raw);
-        const provider = str(model?.["provider"], "");
-        const id = str(model?.["id"], "");
-
-        if (provider === "" || id === "") {
-            continue;
-        }
-
-        out.push({
-            provider,
-            id,
-            name: str(model?.["name"], id),
-            contextWindow: num(model?.["contextWindow"], 0),
-            reasoning: model?.["reasoning"] === true,
-            levels: list(model?.["levels"]).filter(
-                (level): level is string => typeof level === "string",
-            ),
-        });
-    }
-
-    return out;
+    await ok(
+        client.api.scoped.$delete({ json: { provider: choice.provider, modelId: choice.id } }),
+    );
 }
 
 export async function setAgent(
     session: number,
     change: { model?: { provider: string; modelId: string }; thinkingLevel?: string },
 ): Promise<void> {
-    await post("/api/agent", { session, ...change });
+    await ok(client.api.agent.$post({ json: { session, ...change } }));
+}
+
+/** Where a conversation streams from; an `EventSource` takes the path as it is. */
+export function conversationStreamPath(session: number): string {
+    return client.api.events.$path({ query: { session: String(session) } });
+}
+
+/** Where the picture an entry's tool call returned is served from, for an `img`'s `src`. */
+export function entryImageUrl(session: number, entry: number, index: number): string {
+    return client.api["entry-image"].$path({
+        query: { session: String(session), entry: String(entry), index: String(index) },
+    });
 }
 
 /**
@@ -317,22 +266,15 @@ export async function runCommand(
     name: string,
     args: string,
 ): Promise<CommandResult["status"]> {
-    const response = await fetch("/api/commands", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session, name, args }),
-    });
-    const body: unknown = await response.json().catch(() => undefined);
-    const error: unknown =
-        typeof body === "object" && body !== null ? Reflect.get(body, "error") : undefined;
+    const response = await client.api.commands.$post({ json: { session, name, args } });
 
     if (!response.ok) {
-        throw new Error(typeof error === "string" ? error : `/api/commands: ${response.status}`);
+        const refusal = await response.json().catch(() => undefined);
+
+        throw new Error(refusal?.error ?? `/api/commands: ${String(response.status)}`);
     }
 
-    return typeof body === "object" && body !== null && Reflect.get(body, "status") === "empty"
-        ? "empty"
-        : "started";
+    return (await response.json()).status;
 }
 
 export async function sendMessage(
@@ -341,10 +283,8 @@ export async function sendMessage(
     files: string[],
     mode?: SendMode,
 ): Promise<boolean> {
-    const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session, text, files, ...(mode === undefined ? {} : { mode }) }),
+    const response = await client.api.messages.$post({
+        json: { session, text, files, ...(mode === undefined ? {} : { mode }) },
     });
 
     return response.ok;
@@ -356,65 +296,42 @@ export async function withdrawQueued(
     id: number,
 ): Promise<"aborted" | "already_placed" | "settled" | "not_found" | undefined> {
     try {
-        const body = recordOf(await post("/api/queued/withdraw", { session, id }));
-        const result = body?.["result"];
-
-        return result === "aborted" ||
-            result === "already_placed" ||
-            result === "settled" ||
-            result === "not_found"
-            ? result
-            : undefined;
+        return (
+            await (await ok(client.api.queued.withdraw.$post({ json: { session, id } }))).json()
+        ).result;
     } catch {
         return undefined;
     }
 }
 
 export async function stopRun(session: number): Promise<void> {
-    await fetch("/api/abort", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session }),
-    });
+    await client.api.abort.$post({ json: { session } });
 }
 
 /** Asks the supervisor for a new server process; the event stream reconnects on its own. */
 export async function restartServer(): Promise<void> {
-    await json("/api/restart", { method: "POST" });
+    await ok(client.api.restart.$post());
 }
 
 /** Rebuilds `dist/` in place; the next reload loads the new shell. `log` is Vite's failure output. */
 export async function rebuildShell(): Promise<{ ok: boolean; log: string }> {
-    const body = recordOf(await json("/api/build", { method: "POST" }));
-
-    return { ok: body?.["ok"] === true, log: str(body?.["log"], "") };
+    return (await ok(client.api.build.$post())).json();
 }
 
+/** Where an uploaded file can be read back, as an image's `src`. */
+export function uploadUrl(path: string): string {
+    return client.api.uploads.$path({ query: { path } });
+}
+
+/** The bytes go as the body, as they are; the name travels in a header because a body has no room for it. */
 export async function uploadFile(file: File): Promise<UploadedFile | undefined> {
     try {
-        const response = await fetch("/api/files", {
-            method: "POST",
+        const response = await client.api.files.$post(undefined, {
             headers: { "x-filename": encodeURIComponent(file.name) },
-            body: file,
+            init: { body: file },
         });
 
-        if (!response.ok) {
-            return undefined;
-        }
-
-        const body = recordOf(await response.json());
-        const path = str(body?.["path"], "");
-
-        if (path === "") {
-            return undefined;
-        }
-
-        return {
-            path,
-            name: str(body?.["name"], file.name),
-            size: num(body?.["size"], file.size),
-            mime: typeof body?.["mime"] === "string" ? body["mime"] : null,
-        };
+        return response.ok ? await response.json() : undefined;
     } catch {
         return undefined;
     }
@@ -422,84 +339,36 @@ export async function uploadFile(file: File): Promise<UploadedFile | undefined> 
 
 export async function listFolders(path: string, hidden: boolean): Promise<FolderPage | undefined> {
     try {
-        const query = new URLSearchParams({ path, hidden: hidden ? "1" : "0" });
-        const body = recordOf(await json(`/api/fs?${query.toString()}`));
-        const dirs: { name: string; path: string }[] = [];
-
-        for (const raw of list(body?.["dirs"])) {
-            const dir = recordOf(raw);
-            const name = str(dir?.["name"], "");
-            const full = str(dir?.["path"], "");
-
-            if (name !== "" && full !== "") {
-                dirs.push({ name, path: full });
-            }
-        }
-
-        return {
-            path: str(body?.["path"], path),
-            parent: typeof body?.["parent"] === "string" ? body["parent"] : null,
-            home: str(body?.["home"], ""),
-            dirs,
-        };
+        return await (
+            await ok(client.api.fs.$get({ query: { path, hidden: hidden ? "1" : "0" } }))
+        ).json();
     } catch {
         return undefined;
     }
 }
 
-export type ExtensionInfo = {
-    name: string;
-    title: string;
-    description: string;
-    enabled: boolean;
-    installed: boolean;
-    error?: string;
-};
-
-function extensionInfo(value: unknown): ExtensionInfo | undefined {
-    const row = recordOf(value);
-    const name = str(row?.["name"], "");
-
-    if (row === undefined || name === "" || typeof row["enabled"] !== "boolean") {
-        return undefined;
-    }
-
-    const error = row["error"];
-
-    return {
-        name,
-        title: str(row["title"], name),
-        description: str(row["description"], ""),
-        enabled: row["enabled"],
-        installed: row["installed"] === true,
-        ...(typeof error === "string" ? { error } : {}),
-    };
-}
+export type ExtensionInfo = InferResponseType<
+    typeof client.api.extensions.$get,
+    200
+>["extensions"][number];
 
 export async function listExtensions(): Promise<ExtensionInfo[]> {
-    const body = recordOf(await json("/api/extensions"));
-
-    return list(body?.["extensions"]).flatMap((raw) => extensionInfo(raw) ?? []);
+    return (await (await ok(client.api.extensions.$get())).json()).extensions;
 }
 
 /** Throws an `Error` with the server's message when the change is refused. */
 export async function setExtensionEnabled(name: string, enabled: boolean): Promise<ExtensionInfo> {
-    const response = await fetch(`/api/extensions/${encodeURIComponent(name)}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enabled }),
+    // `hc` puts a path parameter in as it is, and a folder name may hold anything.
+    const response = await client.api.extensions[":name"].$put({
+        param: { name: encodeURIComponent(name) },
+        json: { enabled },
     });
-    const body = recordOf(await response.json().catch(() => undefined));
 
     if (!response.ok) {
-        throw new Error(str(body?.["error"], String(response.status)));
+        const refusal = await response.json().catch(() => undefined);
+
+        throw new Error(refusal?.error ?? String(response.status));
     }
 
-    const info = extensionInfo(body);
-
-    if (info === undefined) {
-        throw new Error("the server sent an answer that is not an extension");
-    }
-
-    return info;
+    return response.json();
 }

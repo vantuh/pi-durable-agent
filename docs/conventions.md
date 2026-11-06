@@ -92,8 +92,20 @@ itself an error.
 
 ## Browser files
 
-`web/src/**` is bundled by Vite. `@/` is `web/src`. The client never imports from `server/`; the
-only contract is HTTP and the event stream.
+`web/src/**` is bundled by Vite. `@/` is `web/src`. The client never imports from `server/`, except
+`import type { AppType }` from `server/app-type.ts`, which types `hc` in `web/src/lib/api.ts`
+(oxlint's `no-restricted-imports` rejects any other `server/` path under `web/`). The rest of the
+contract is the event stream and `shared/`.
+
+- **`web/src/lib/api.ts` is the one place that calls `hc`.** Components call its functions; the
+  response types are inferred (`InferResponseType`), not written again. A URL the browser needs as a
+  string (an `EventSource`, an `img`'s `src`) is an exported helper over `$path()`.
+- **A call checks `response.ok` through `ok()`**, which throws `/path?query: status`, or reads the
+  failure body from `response.json()`. The mistake it prevents: a 400 read as the success type.
+- **A raw write has no response type.** The routes that end in `RESPONSE_ALREADY_SENT` give `hc`
+  an `unknown` body, so the call parses it as before (`sessionsOf`, `parseHistory`).
+- **`hc` does not encode a path parameter**: pass `encodeURIComponent(name)`. A raw body goes in
+  `init: { body }` of the call's second argument, with its headers in `headers`.
 
 ## File and folder structure
 
@@ -163,6 +175,15 @@ the neighbour it disagrees with.
   before keeps working. A field with a fallback value is `.default(x).catch(x)`: `.catch` alone leaves
   the key required in `z.input`, and `hc` would demand it. `test/route-inputs.types.ts` holds the least
   input of every route.
+- **A strict enum a screen holds as a `string` is `z.string().pipe(z.enum(...))`** (`ThinkingLevel`
+  in `server/validate.ts`). The check is the same and so is the refusal, but `z.input` stays `string`,
+  so the model menu's level reaches `hc` without a cast. `lenient(...)` and `.catch` keep the inner
+  schema's input type, so the same goes inside them.
+- **A caught failure is `failureOf(error, fallback)` and `c.json(body, status)`.** `status` is a
+  `FailureStatus` (no 2xx), so `hc` reads the body as the failure and the rest as the success;
+  `HttpError` takes the same type. `answerError` is `failureOf` written by hand, for the raw paths an
+  extension owns. The mistake it prevents: a route that ends in `RESPONSE_ALREADY_SENT` in its `catch`,
+  which makes its whole answer `unknown` to the browser.
 - **`jsonBody` sets `changedSession`** from the body's `session`, whether or not the rest passes. A route
   never sets it. The mistake it prevents: a whole-list rebuild for one renamed session.
 
@@ -177,3 +198,8 @@ the neighbour it disagrees with.
 - **Tests share their setup.** The free `PORT`, the temporary `PI_DURABLE_DATA_DIR` and the test
   server live in `test/fixtures/`, imported rather than copied. The mistake it prevents: sixty copies
   of a start-up that drift into writing the working `data/state.sqlite`.
+- **A fake server in a browser test answers the real shape of every route the shell reads**, through
+  `defaultAnswer()` in `test/fixtures/api-defaults.ts`. The
+  typed client no longer falls back for a missing field (`/api/extensions` answering `{}` once gave an
+  empty list, and now leaves the shell waiting). `test/api-client.test.ts` runs the client against the
+  real server; it is where a route's wire format is pinned.

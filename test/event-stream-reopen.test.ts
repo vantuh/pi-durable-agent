@@ -20,6 +20,7 @@ import { createServer as createViteServer } from "vite";
 import type { Chromium } from "../extensions/browser/lib/cdp.ts";
 import { answer, writeEvent } from "../server/http.ts";
 import type { ClientEntry, ServerEvent, SessionsEvent } from "../shared/protocol.ts";
+import { defaultAnswer } from "./fixtures/api-defaults.ts";
 
 const SESSION = 1;
 const FIRST = "the page the first stream carried";
@@ -218,7 +219,7 @@ async function withApp(
         }
 
         // Everything else the shell asks for is not what this test is about: an empty answer keeps it quiet.
-        answer(response, 200, {});
+        answer(response, 200, defaultAnswer(url.pathname));
     });
     let browser: Chromium | undefined;
 

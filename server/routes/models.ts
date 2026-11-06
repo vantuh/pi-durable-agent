@@ -1,20 +1,16 @@
 /** The model picker: the catalog, scoped by Pi's `enabledModels`, and the default for new sessions. */
 
 import { type Api, getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
-import { MODEL_THINKING_LEVELS } from "@earendil-works/pi-ai/providers/model-schema";
 import { type ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { Hono } from "hono";
 import { z } from "zod";
 
 import type { ApiEnv } from "../http.ts";
 import { type Sessions, supportedLevel } from "../sessions.ts";
-import { jsonBody } from "../validate.ts";
+import { jsonBody, ThinkingLevel } from "../validate.ts";
 
 const ModelBody = z.object({ provider: z.string(), modelId: z.string() });
-const DefaultBody = z.object({
-    model: ModelBody,
-    thinkingLevel: z.enum(MODEL_THINKING_LEVELS),
-});
+const DefaultBody = z.object({ model: ModelBody, thinkingLevel: ThinkingLevel });
 
 /** Read through the manager that saves it, so a model added here is in the next read. */
 export function enabledModels(): string[] | undefined {

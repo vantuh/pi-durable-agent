@@ -30,6 +30,7 @@ import {
     runCommand,
     type SkillInfo,
     uploadFile,
+    uploadUrl,
     withdrawQueued,
 } from "../lib/api.ts";
 import { fuzzyScore } from "../lib/fuzzy.ts";
@@ -183,7 +184,7 @@ function pendingOf(file: ClientAttachment): Pending {
         image: file.image,
         state: "done",
         path: file.path,
-        ...(file.image ? { preview: `/api/uploads?path=${encodeURIComponent(file.path)}` } : {}),
+        ...(file.image ? { preview: uploadUrl(file.path) } : {}),
     };
 }
 
