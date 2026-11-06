@@ -1,13 +1,5 @@
-import {
-    getFiletypeFromFileName,
-    hasResolvedThemes,
-    parsePatchFiles,
-    preloadHighlighter,
-    registerCustomCSSVariableTheme,
-    type CodeViewItem,
-    type FileDiffMetadata,
-} from "@pierre/diffs";
-import { CodeView, type CodeViewDiffItem, type CodeViewHandle } from "@pierre/diffs/react";
+import type { CodeViewItem, FileDiffMetadata } from "@pierre/diffs";
+import type { CodeViewDiffItem, CodeViewHandle } from "@pierre/diffs/react";
 import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
     type ReactNode,
@@ -26,62 +18,22 @@ import { Button } from "@/components/ui/button";
 import { Item, ItemContent } from "@/components/ui/item";
 import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { DiffList } from "@/ui/diff/diff-list.tsx";
+import { parsePatch, prepareDiffs } from "@/ui/diff/pierre.ts";
 
 import type { ChangedFile, Changes } from "../refs.ts";
 import { FileTree } from "./file-tree.tsx";
 import { FileMark } from "./icons.tsx";
 import { PendingPane } from "./pending-pane.tsx";
-import {
-    changedFilesShown,
-    diffStyle,
-    setChangedFilesShown,
-    subscribeChangedFiles,
-    subscribeDiffStyle,
-} from "./preferences.ts";
+import { changedFilesShown, setChangedFilesShown, subscribeChangedFiles } from "./preferences.ts";
 import type { TreeFile } from "./tree.ts";
 
-const theme = "git-history-roles";
-// Reuse the loaded theme across Vite hot reloads.
-if (!hasResolvedThemes([theme])) {
-    registerCustomCSSVariableTheme(theme, {
-        foreground: "var(--role-ink)",
-        background: "var(--role-panel)",
-        "token-keyword": "var(--role-code-keyword)",
-        "token-string": "var(--role-code-string)",
-        "token-string-expression": "var(--role-code-string)",
-        "token-comment": "var(--role-code-comment)",
-        "token-constant": "var(--role-code-constant)",
-        "token-parameter": "var(--role-code-parameter)",
-        "token-function": "var(--role-code-function)",
-        "token-punctuation": "var(--role-code-punctuation)",
-        "token-link": "var(--role-info)",
-        "token-inserted": "var(--role-ok)",
-        "token-deleted": "var(--role-danger)",
-        "token-changed": "var(--role-warn)",
-    });
-}
-
 const options = {
-    theme,
-    overflow: "scroll",
-    hunkSeparators: "metadata",
     stickyHeaders: true,
     // Our own header row is 36px tall: the layout reserves what the header really takes, or every
     // item below it is placed a little too low and a file cannot be scrolled to exactly.
     itemMetrics: { diffHeaderHeight: 36 },
-    unsafeCSS: `:host {
-        color-scheme: inherit;
-        --diffs-font-family: var(--font-mono);
-        --diffs-font-size: var(--text-meta);
-        --diffs-mixer: var(--role-ink);
-        --diffs-fg-number-override: var(--role-muted);
-        --diffs-bg-context-override: var(--role-raised);
-        --diffs-bg-separator-override: var(--role-raised);
-        --diffs-addition-color-override: var(--role-ok);
-        --diffs-deletion-color-override: var(--role-danger);
-        --diffs-modified-color-override: var(--role-info);
-    }`,
-} satisfies NonNullable<Parameters<typeof CodeView>[0]["options"]>;
+};
 
 const PARSED_KEPT = 10;
 const warmed = new Map<
@@ -105,12 +57,8 @@ export function warmPreview(patch: string): Promise<FileDiffMetadata[]> {
     }
     const entry: { files?: FileDiffMetadata[]; started: Promise<FileDiffMetadata[]> } = {
         started: (async () => {
-            const files = parsePatchFiles(patch, undefined, true).flatMap((diff) => diff.files);
-            // Pierre's first client render needs its theme and grammars already loaded.
-            await preloadHighlighter({
-                themes: [theme],
-                langs: files.map((file) => getFiletypeFromFileName(file.name)),
-            });
+            const files = parsePatch(patch);
+            await prepareDiffs(files);
             return files;
         })(),
     };
@@ -262,7 +210,6 @@ export function PatchPreview({
     header: ReactNode;
     viewRef: RefObject<CodeViewHandle<undefined, undefined> | null>;
 }) {
-    const style = useSyncExternalStore(subscribeDiffStyle, diffStyle);
     const treeShown = useSyncExternalStore(subscribeChangedFiles, changedFilesShown);
     const [parsed, setParsed] = useState<{
         files: FileDiffMetadata[];
@@ -480,10 +427,10 @@ export function PatchPreview({
                     {treeShown ? <FileTree files={files} onPick={pick} /> : null}
                 </div>
             )}
-            <CodeView
+            <DiffList
                 ref={viewRef}
                 items={items}
-                options={{ ...options, diffStyle: style }}
+                options={options}
                 renderCustomHeader={fileHeader}
                 renderCodeViewHeader={() => pageHeader}
                 renderCodeViewFooter={() =>

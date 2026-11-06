@@ -545,6 +545,33 @@ void describe("outcomeOf", () => {
         );
     });
 
+    void it("counts the displayed edit rather than every line of its replacement argument", () => {
+        const edit = step(
+            "edit",
+            { edits: [{ oldText: "same\nold\nsame", newText: "same\nnew\nsame" }] },
+            "ok",
+        );
+        assert.deepEqual(
+            outcomeOf({
+                ...edit,
+                result: { ...edit.result, diff: " 1 same\n-2 old\n+2 new\n 3 same" },
+            }),
+            {
+                text: "+1 −1",
+                tone: "ok",
+                counts: { added: 1, removed: 1 },
+            },
+        );
+        assert.deepEqual(
+            outcomeOf({ ...edit, result: { ...edit.result, diff: "unrecognized diff" } }),
+            {
+                text: "+3 −3",
+                tone: "ok",
+                counts: { added: 3, removed: 3 },
+            },
+        );
+    });
+
     void it("counts lines, edits, and says how a call failed", () => {
         assert.deepEqual(outcomeOf(step("read", { path: "a" }, "1\n2\n3")), { text: "3 lines" });
         assert.deepEqual(outcomeOf(step("bash", { command: "true" }, "")), { text: "no output" });

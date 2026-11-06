@@ -10,6 +10,7 @@ const twMerge = extendTailwindMerge({
         theme: {
             text: ["meta", "code", "ui", "interface", "subheading", "heading"],
             shadow: ["float"],
+            leading: ["diff"],
             spacing: ["stripe", "header"],
         },
     },

@@ -47,13 +47,7 @@ export function StepBody({
     const failed = step.status === "error";
 
     if (!failed && step.result?.diff !== undefined) {
-        return (
-            <DiffCard
-                diff={step.result.diff}
-                lang={langOfPath(path)}
-                {...(path === undefined ? {} : { path })}
-            />
-        );
+        return <DiffCard diff={step.result.diff} {...(path === undefined ? {} : { path })} />;
     }
 
     if (!failed && content !== undefined) {

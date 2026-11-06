@@ -170,7 +170,9 @@ export function outcomeOf(
     switch (step.name) {
         case "edit": {
             const counts =
-                result.diff === undefined ? editCounts(step.args) : diffCounts(result.diff);
+                result.diff === undefined
+                    ? editCounts(step.args)
+                    : (diffCounts(result.diff) ?? editCounts(step.args));
 
             return counts === undefined
                 ? undefined

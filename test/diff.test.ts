@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { diffRows, parseDiff, piecesOf, wordDiff } from "../web/src/lib/diff.ts";
+import { parsePatchFiles } from "@pierre/diffs";
+
+import { diffCounts, editPatch } from "../web/src/lib/diff.ts";
 
 // The shape `pi-durable`'s edit tool writes (`generateDiffString`): sign, padded number, space, text.
 const DIFF = [
@@ -13,79 +15,105 @@ const DIFF = [
     "    ...",
 ].join("\n");
 
-void describe("parseDiff", () => {
-    void it("reads lines, numbers and skips, and marks the words that changed", () => {
-        const lines = parseDiff(DIFF);
+function parsed(diff: string) {
+    const adapted = editPatch(diff);
+    assert.ok(adapted);
+    const files = parsePatchFiles(adapted.patch, undefined, true).flatMap((patch) => patch.files);
+    assert.equal(files.length, 1);
+    const file = files[0];
+    assert.ok(file);
+    return { adapted, file };
+}
 
+void describe("editPatch", () => {
+    void it("preserves source text and old/new line numbers in Pierre's parser", () => {
+        const { adapted, file } = parsed(DIFF);
+        assert.match(adapted.patch, /@@ -9,3 \+9,4 @@/);
+        assert.equal(file.type, "change");
+        assert.deepEqual(file.deletionLines, [
+            "const a = 1;\n",
+            "const name = 'old';\n",
+            "export {};\n",
+        ]);
+        assert.deepEqual(file.additionLines, [
+            "const a = 1;\n",
+            "const name = 'new';\n",
+            "const extra = true;\n",
+            "export {};\n",
+        ]);
+        assert.equal(file.hunks[0]?.deletionStart, 9);
+        assert.equal(file.hunks[0]?.additionStart, 9);
+        assert.deepEqual(diffCounts(DIFF), { added: 2, removed: 1 });
+    });
+
+    void it("carries the line shift across omitted context without inventing that context", () => {
+        const { adapted, file } = parsed(
+            "    ...\n-10 old\n+10 new\n+11 extra\n 11 after\n    ...\n 30 later\n-31 gone\n 32 end\n    ...",
+        );
+        assert.equal(file.hunks.length, 2);
+        assert.match(adapted.patch, /@@ -10,2 \+10,3 @@/);
+        assert.match(adapted.patch, /@@ -30,3 \+31,2 @@/);
+        assert.equal(file.hunks[1]?.deletionStart, 30);
+        assert.equal(file.hunks[1]?.additionStart, 31);
+        assert.equal(file.deletionLines.length, 5);
+        assert.equal(file.additionLines.length, 5);
+    });
+
+    void it("handles insertions and deletions with an empty side, including the start of a file", () => {
+        for (const [diff, header, added, removed] of [
+            ["+1 first\n+2 second", "@@ -0,0 +1,2 @@", 2, 0],
+            ["-1 first\n-2 second", "@@ -1,2 +0,0 @@", 0, 2],
+            ["    ...\n+20 inserted", "@@ -19,0 +20,1 @@", 1, 0],
+            ["    ...\n-20 removed", "@@ -20,1 +19,0 @@", 0, 1],
+        ] as const) {
+            const { adapted, file } = parsed(diff);
+            assert.ok(adapted.patch.includes(header));
+            assert.equal(file.hunks[0]?.additionLines, added);
+            assert.equal(file.hunks[0]?.deletionLines, removed);
+        }
+    });
+
+    void it("preserves blank lines, indentation, Unicode and text resembling diff metadata", () => {
+        const before = ["\tпривіт 😀  ", "", "--- old", "@@ header"];
+        const after = ["\tвітаю 🦄  ", "", "+++ new", "..."];
+        const diff = [
+            ...before.map((line, index) => `-${String(index + 1)} ${line}`),
+            ...after.map((line, index) => `+${String(index + 1)} ${line}`),
+        ].join("\n");
+        const { file } = parsed(diff);
         assert.deepEqual(
-            lines.map((line) =>
-                line.type === "skip" ? "skip" : `${line.type}${String(line.num)}`,
-            ),
-            // The context line after one more added than removed takes the new file's number.
-            ["ctx9", "del10", "add10", "add11", "ctx12", "skip"],
+            file.deletionLines,
+            before.map((line) => `${line}\n`),
         );
-        assert.deepEqual(lines[1]?.type !== "skip" && lines[1]?.spans, [
-            { text: "const name = '", changed: false },
-            { text: "old", changed: true },
-            { text: "';", changed: false },
-        ]);
-        // The second added line has no removed line to pair with: shown whole.
-        assert.deepEqual(lines[3]?.type !== "skip" && lines[3]?.spans, [
-            { text: "const extra = true;", changed: false },
-        ]);
-    });
-
-    void it("shows a pair with little in common whole", () => {
-        assert.deepEqual(wordDiff("return a;", "throw new Error(x)"), {
-            del: [{ text: "return a;", changed: false }],
-            add: [{ text: "throw new Error(x)", changed: false }],
-        });
-    });
-});
-
-void describe("diffRows", () => {
-    const shape = (diff: string): string[] =>
-        diffRows(parseDiff(diff)).map((row) =>
-            row.type === "skip"
-                ? `skip ${row.text}`
-                : `${row.left === undefined ? "-" : String(row.left.num)}|${
-                      row.right === undefined ? "-" : String(row.right.num)
-                  }`,
+        assert.deepEqual(
+            file.additionLines,
+            after.map((line) => `${line}\n`),
         );
-
-    void it("pairs a change line by line, a context line on both sides with each file's number", () => {
-        assert.deepEqual(shape(DIFF), ["9|9", "10|10", "-|11", "11|12", "skip ..."]);
     });
 
-    void it("leaves the longer side of a change unpaired", () => {
-        assert.deepEqual(shape(["-1 a;", "-2 b;", "+1 c;"].join("\n")), ["1|1", "2|-"]);
-    });
-});
-
-void describe("piecesOf", () => {
-    void it("cuts the changed spans where the highlighted tokens begin and end", () => {
-        const spans = [
-            { text: "let x = ", changed: false },
-            { text: "old", changed: true },
-            { text: ";", changed: false },
-        ];
-        const tokens = [
-            { text: "let", className: "k" },
-            { text: " x = ", className: "p" },
-            { text: "old;", className: "s" },
-        ];
-
-        assert.deepEqual(piecesOf(spans, tokens), [
-            { text: "let", changed: false, className: "k" },
-            { text: " x = ", changed: false, className: "p" },
-            { text: "old", changed: true, className: "s" },
-            { text: ";", changed: false, className: "s" },
-        ]);
+    void it("keeps the server's truncation notice outside the patch, including a cut change block", () => {
+        const { adapted, file } = parsed("-1 old\n-2 other\n+1 new\n … 19 more lines");
+        assert.equal(adapted.note, "… 19 more lines");
+        assert.equal(file.hunks[0]?.deletionLines, 2);
+        assert.equal(file.hunks[0]?.additionLines, 1);
+        assert.ok(!adapted.patch.includes("more lines"));
     });
 
-    void it("keeps the spans when the tokens spell another line", () => {
-        const spans = [{ text: "a", changed: false }];
-
-        assert.deepEqual(piecesOf(spans, [{ text: "b", className: "k" }]), spans);
+    void it("rejects malformed text and inconsistent numbering instead of silently losing content", () => {
+        for (const diff of [
+            "",
+            "    ...",
+            "-1 old\nunknown",
+            "-1 old\n+2 new",
+            "-0 old\n+0 new",
+            "-1 old\n 4 jump",
+            "-10 old\n+10 new\n    ...\n-5 earlier",
+            "-1 old\n\n+1 new",
+            "-1 old\n … 2 more lines\n+1 new",
+            "-9007199254740992 old",
+        ]) {
+            assert.equal(editPatch(diff), undefined, diff);
+            assert.equal(diffCounts(diff), undefined, diff);
+        }
     });
 });

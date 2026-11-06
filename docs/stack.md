@@ -24,6 +24,7 @@ What the app is built with, why, and what each choice costs. Versions are what `
 | Icons      | `lucide-react`                          | What `shadcn` expects                                                      | One dependency for tree-shaken icons                              |
 | Toasts     | `sonner`                                | Animation, stacking, announcements and timeouts we would otherwise write   | Its own skin is switched off and replaced by the theme            |
 | Markdown   | `react-markdown`, `remark-gfm`, `shiki` | Answers render as Markdown; code is highlighted                            | Shiki's languages and themes are lazy chunks                      |
+| Diffs      | `@pierre/diffs` 1.5.2                   | One parser, word diff and theme for tool edits and extension diff lists    | Loaded lazily; uses Shiki for syntax highlighting                 |
 | Zoom       | `react-zoom-pan-pinch` 4.2.0            | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
 | Agent      | `@earendil-works/pi-durable` 1.5.0      | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
 | Routing    | Hono 4, `@hono/node-server` 2           | Typed routes and validators, and the browser's typed client (`hc`)         | A framework in the server; the raw paths depend on its adapter    |

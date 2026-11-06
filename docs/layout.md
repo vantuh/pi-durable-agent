@@ -191,7 +191,15 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
       Opened, it is a timeline: a line per step with its status, name, subject and time; a step opens
       to its arguments and output. The grouping is `web/src/lib/turns.ts`, after Pi Pocket's `turns.js`.
       An opened `edit` is a diff card (`details.diff` of its result, line numbers, the changed words
-      marked); an opened `write` is its file as a highlighted code block.
+      marked); an opened `write` is its file as a highlighted code block. The card and extension diff
+      lists share Pierre, theme roles and layout through `web/src/ui/diff/`. `web/src/lib/diff.ts`
+      adapts the numbered tool output to a partial unified patch; Pierre owns parsing, word changes
+      and layout. Skipped context is not reconstructed, and the server's truncation notice stays
+      below the card. Display diffs do not carry EOF newline metadata. Malformed input or a failed
+      renderer keeps the original text visible. The renderer loads only when the card opens; summary
+      counts need neither Pierre nor Shiki. Cards stay in the transcript's scroll, while diff lists
+      own a bounded, virtualized viewport. Appearance's layout applies to both; viewers narrower than
+      560 px use Unified without changing the saved choice.
 - **Composer**: `sunken` card, textarea grows with its content from 2 to 10 lines (including wrapped
   lines), then scrolls internally. Native CSS `field-sizing: content` also shrinks it when text is
   removed or sent. `Enter` sends, `Shift+Enter` breaks the line. A command typed in the box

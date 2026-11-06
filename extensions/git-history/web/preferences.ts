@@ -1,24 +1,17 @@
-export type DiffStyle = "unified" | "split";
+import { applyDiffLayout, DIFF_LAYOUT_KEY } from "@/lib/diff-layout.ts";
 
-const STYLE = "git-history:diff-style";
+// Keep the old choice only when Appearance has no saved layout of its own.
+if (typeof window !== "undefined" && localStorage.getItem(DIFF_LAYOUT_KEY) === null) {
+    const previous = localStorage.getItem("git-history:diff-style");
+    if (previous === "unified" || previous === "split") {
+        applyDiffLayout(previous);
+    }
+}
 const TREE = "git-history:changed-files";
 const VIEWED = "git-history:viewed";
 const SEEN = "git-history:seen";
 /** The commits a folder remembers as opened: enough for the 200 the list can load, plus a branch's worth. */
 const SEEN_CAPPED = 500;
-
-export function diffStyle(): DiffStyle {
-    return localStorage.getItem(STYLE) === "split" ? "split" : "unified";
-}
-
-export function setDiffStyle(value: DiffStyle): void {
-    localStorage.setItem(STYLE, value);
-    window.dispatchEvent(new Event(STYLE));
-}
-
-export function subscribeDiffStyle(listener: () => void): () => void {
-    return subscribe(STYLE, listener);
-}
 
 /** The changed-files column starts shown; a person who hid it keeps it hidden. */
 export function changedFilesShown(): boolean {

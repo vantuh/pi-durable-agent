@@ -22,16 +22,17 @@ fetches.
 The subject, full message, sha, author and local date, the actions, a file summary
 and the diffs.
 
-- Diffs are rendered by `@pierre/diffs` with line numbers, syntax and word-level highlighting. Each
+- Diffs use the core's shared `web/src/ui/diff/` Pierre renderer, theme and syntax/word highlighting. Each
   file has a sticky header with its line counts; clicking it folds the file (200 ms; a reduced-motion
   setting folds at once). Files start expanded.
 - On a wide screen a changed-files column sits beside the diff with folders and per-file counts.
   Clicking a file unfolds it and scrolls to it. A button hides the column to a narrow rail; the choice
   is saved in this browser. A phone, or a change of one file, shows the diff alone.
 - Untracked non-ignored files are included. Binary files are listed without a text diff.
-- **Settings → Extensions → Git history & review** chooses **Unified** (default) or **Side by side**
-  for history previews. It is saved in this browser and applies to all sessions. Plannotator's layout
-  is controlled inside its own UI.
+- **Settings → Appearance → Diffs** chooses **Unified** (default) or **Side by side** for both history
+  previews and edit output. Narrow viewers use Unified regardless of the saved choice. The setting is
+  saved in this browser and applies to all sessions. A previous history-only choice is kept only when
+  Appearance has no saved layout. Plannotator's layout is controlled inside its own UI.
 
 ### Reword
 
