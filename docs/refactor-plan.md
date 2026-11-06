@@ -5,7 +5,8 @@ A cleanup, not a rewrite, done on the `refactor/structure` worktree
 read: smaller files, one exported component per file, one responsibility per file, typed HTTP
 routes, and library primitives where we used to write our own.
 
-Status marks: `[x]` done (with commit), `[~]` in progress, `[ ]` to do. Every step keeps behaviour
+Status marks: `[x]` done (with commit; the history was squashed to one commit per phase, so
+several steps name the same commit), `[~]` in progress, `[ ]` to do. Every step keeps behaviour
 unless it says otherwise, and lands only with `pnpm check` and `pnpm test` green. A non-trivial
 step also gets an independent review before the next one starts.
 
@@ -37,17 +38,17 @@ Working rules:
 ## Phase 0: ground rules
 
 - [x] Worktree `refactor/structure` from `main` `64c32fe`.
-- [x] File and folder structure rules in `docs/conventions.md`, pointers in `AGENTS.md` — `9de2b01`.
+- [x] File and folder structure rules in `docs/conventions.md`, pointers in `AGENTS.md` — `cd77ad3`.
 
 ## Phase 1: Hono as the route table
 
-- [x] Add `hono` and `@hono/node-server` — `797dfaf`.
+- [x] Add `hono` and `@hono/node-server` — `85f7389`.
 - [x] Route factories return chained Hono sub-apps; `server/lifecycle.ts` keeps the socket, admission
       and shutdown through `getRequestListener`; the `Route` table, the dispatcher and the WeakMap body
-      re-read are gone — `2c2badc`.
-- [x] `AGENTS.md`, `docs/stack.md`, `docs/server.md` describe the new routing — `8c2fafb`.
-- [x] Independent review of `9de2b01..8c2fafb`; its five findings fixed — `7b9e2b3` (an extension
-      gets the path still encoded; a bad escape in a name answers 400), `a0a77fa` (`changedSession`
+      re-read are gone — `85f7389`.
+- [x] `AGENTS.md`, `docs/stack.md`, `docs/server.md` describe the new routing — `85f7389`.
+- [x] Independent review of `cd77ad3..85f7389`; its five findings fixed — `85f7389` (an extension
+      gets the path still encoded; a bad escape in a name answers 400), `85f7389` (`changedSession`
       on every JSON route that has a session, no list refresh after a route that threw, route
       factories keep their inferred schema).
 
@@ -57,24 +58,24 @@ they were.
 
 ## Phase 2: Zod validation
 
-- [x] Add `zod` and `@hono/zod-validator`: `build: add zod and @hono/zod-validator`. `b6fa987`
+- [x] Add `zod` and `@hono/zod-validator`: `build: add zod and @hono/zod-validator`. `8e3ecde`
 - [x] Pin what every route answers to input it refuses, on the real server, before touching a route:
-      `test(server): pin what the routes answer to input they refuse` (`test/route-answers.test.ts`). `6e65a8c`
+      `test(server): pin what the routes answer to input they refuse` (`test/route-answers.test.ts`). `8e3ecde`
 - [x] One route file at a time: replace `recordOf` and field checks with schemas; error bodies and
       statuses stay as they are. The body is read by `jsonBody` in `server/validate.ts`, not by Hono's
       JSON validator (see [conventions.md](conventions.md#hono-routes)); a query goes through
       `queryOf`, which wraps `zValidator("query")`.
-    - [x] `sessions`: `refactor(server): validate the session routes with Zod` `95c3026`
-    - [x] `models`: `refactor(server): validate the model routes with Zod` `ee13c1a`
-    - [x] `files`: `refactor(server): validate the file routes with Zod` `ee982c6`
-    - [x] `conversation`: `refactor(server): validate the conversation routes with Zod` `db313f4`
-    - [x] `extensions`: `refactor(server): validate the extension routes with Zod` `1160f6f`
+    - [x] `sessions`: `refactor(server): validate the session routes with Zod` `8e3ecde`
+    - [x] `models`: `refactor(server): validate the model routes with Zod` `8e3ecde`
+    - [x] `files`: `refactor(server): validate the file routes with Zod` `8e3ecde`
+    - [x] `conversation`: `refactor(server): validate the conversation routes with Zod` `8e3ecde`
+    - [x] `extensions`: `refactor(server): validate the extension routes with Zod` `8e3ecde`
     - The three inline routes of `mountRoutes` (`/api/build`, `/api/restart`, `/api/health`) read no
       input, so they have no schema.
 - [x] Record `changedSession` in one place: `jsonBody` sets it from the body's `session`, checked or
       refused; no route sets it (`test/validate.test.ts`).
 - [x] Map `HttpError` in `app.onError`, so an oversized `/api/files` body answers 413, not 500:
-      `5e16142` `fix(server): answer an HttpError with its own status`. `readBytes` also stops destroying the
+      `8e3ecde` `fix(server): answer an HttpError with its own status`. `readBytes` also stops destroying the
       socket past the limit (the client saw a reset, never an answer) and drops the rest of the body.
 - [x] Decide whether the HEAD guard stays: it stays. Hono answers HEAD from the GET route, and the
       GET routes of `/api/events` and `/api/sessions/events` open an event stream and register a client
@@ -87,15 +88,15 @@ they were.
 - [x] Review fixes: `jsonBody` marks no session for extension routes (`marksSession: false`), and
       fields with a `.catch` fallback also get `.default`, so `hc` may leave them out
       (`test/route-inputs.types.ts`): `fix(server): keep extension bodies out of the list refresh and
-      the fallback fields optional` `cffe552`.
-- [x] Independent review of `43fa317..2ae79be`: no blockers, no runtime regressions; its two notes
+      the fallback fields optional` `8e3ecde`.
+- [x] Independent review of `85f7389..8e3ecde`: no blockers, no runtime regressions; its two notes
       are the fixes above.
 
 ## Phase 3: typed browser client (`hc`)
 
 - [x] Export `AppType` from the server (`server/app-type.ts`); relax the `web/` import rule in
       `AGENTS.md` to `import type` of `AppType` only; oxlint's `no-restricted-imports` enforces it for
-      `web/**`: `refactor(web): export AppType for the typed client`. `c008dcb`. The guard is
+      `web/**`: `refactor(web): export AppType for the typed client`. `1c8cf48`. The guard is
       path-based: it exempts `server/app-type.ts` as a file and rejects every other `server/` path. It
       does not check that an import is type-only; that holds because `app-type.ts` exports nothing but a
       type and `consistent-type-imports` demands `import type` for one.
@@ -104,25 +105,25 @@ they were.
       needs. `api.ts` went from 505 to 374 lines; what is left of the parsers reads the SSE list frames
       (`sessionsEventOf`) and the two raw answers. `web/src/sdk/actions.ts` stays on `fetch`: an action's
       result is `unknown` by design (its ref parses it), and `hc` does not encode a path parameter.
-    - [x] sessions: `refactor(web): move the session calls to the typed client` (`d3dcd59`). `GET /api/sessions`
+    - [x] sessions: `refactor(web): move the session calls to the typed client` (`1c8cf48`). `GET /api/sessions`
           and `GET /api/history` stay raw writes, so `listSessions` and `fetchHistory` keep their
           parsers (`sessionsOf` is also what reads the `sessions` frame of the SSE list). `hono/compress`
           does not keep the behaviour: `c.json` sets no `Content-Length`, so its threshold never
           applies and a 15-byte body is gzipped; it ignores `q` values (`gzip;q=0, *` gets `deflate`
           where `answer()` sends plain). Measured on Hono 4.13.16.
-    - [x] models: `refactor(web): move the model calls to the typed client` (`7c7fb26`). `Models` is the
+    - [x] models: `refactor(web): move the model calls to the typed client` (`1c8cf48`). `Models` is the
           inferred answer, except that `default` may be `null` before the first answer.
-    - [x] files: `refactor(web): move the file calls to the typed client` (`bf9a59b`). The upload stays a raw
+    - [x] files: `refactor(web): move the file calls to the typed client` (`1c8cf48`). The upload stays a raw
           body through `hc`'s `init.body` (the file is not copied: `deepMerge` assigns it); the two
           `/api/uploads?path=` strings are one `uploadUrl()`.
-    - [x] conversation: `refactor(web): move the conversation calls to the typed client` (`9de873f`). The two
+    - [x] conversation: `refactor(web): move the conversation calls to the typed client` (`1c8cf48`). The two
           stream paths and the entry-image URL come from `$path()`; `fetchHistory` keeps `parseHistory`
           (raw route). `AgentBody`'s level uses the same `ThinkingLevel` as the default model's.
-    - [x] extensions: `refactor(web): move the extension calls to the typed client` (`a2b37af`). The two
+    - [x] extensions: `refactor(web): move the extension calls to the typed client` (`1c8cf48`). The two
           extension routes answered a caught failure with a raw write, which made their whole answer
           `unknown` to `hc`; they now answer `c.json(failureOf(...))`. Two browser fakes answered
           `/api/extensions` with `{}` and now answer its real shape.
-    - [x] health, build, restart: `refactor(web): move health, build and restart to the typed client` (`15daf67`).
+    - [x] health, build, restart: `refactor(web): move health, build and restart to the typed client` (`1c8cf48`).
           `json()`, `post()` and `str()` are gone; `api.ts` keeps `num`/`list` for the stream frames.
 - [x] SSE stays on `EventSource`; its paths come from the client's `$path()` (`sessionsStreamPath`,
       `conversationStreamPath`), not `$url()`: that one returns an absolute `URL`, and an
@@ -138,13 +139,13 @@ they were.
       (the two browser fakes that answered `{}` for `/api/extensions` showed it). Closing it takes a
       build id in the `hello` frame and a reload when it changes, which is more than a line. Left
       until a route shape changes while a tab is open.
-- [x] Independent review of `c008dcb..10a4c4c`: no blockers, two P2 findings, both fixed. Four browser
+- [x] Independent review of `1c8cf48`: no blockers, two P2 findings, both fixed. Four browser
       fakes still answered `{}` to routes the typed client reads (`/api/extensions`, `/api/skills`, and
       the like), so the shell sat waiting while the tests passed: the fakes now share
-      `test/fixtures/api-defaults.ts`, one real empty shape per route (`a1f9502`). And
+      `test/fixtures/api-defaults.ts`, one real empty shape per route (`1c8cf48`). And
       `test/api-client.test.ts` pinned only some requests: every function's URL, method, headers and body
       is now asserted, the session-scoped ones against a session that is not the root one, and
-      `rebuildShell` against a recording fake so no build overwrites `dist/` (`ee0dab7`). Each assertion
+      `rebuildShell` against a recording fake so no build overwrites `dist/` (`1c8cf48`). Each assertion
       was checked by changing the request in `api.ts` and watching a test fail.
 - [x] IDE type-check time: `tsc --noEmit` took 1.1-1.3 s before and 1.1-1.2 s after (TypeScript 7),
       so one client over `AppType` stays. The entry chunk is 48.2 kB gzipped both ways.
@@ -160,7 +161,7 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Li
       start a server on a copy taken from a running server: it resumes the runs in flight and runs
       their tools for real ([pi-1.5-migration.md](pi-1.5-migration.md), step 1).
 - [x] Bump `pi-durable`, `pi-ai`, `pi-coding-agent`, `chord`, and the two that ride with them, `pi-codemode` and
-      `pi-mcp`, to 1.5.0 together, pinned exactly: `7201235`, with the next three bullets.
+      `pi-mcp`, to 1.5.0 together, pinned exactly: `84a671e`, with the next three bullets.
 - [x] Keep `typebox` as a direct dependency where extensions import it (replaced in Phase 5); fix the `Type` import from
       `pi-ai` in two files, `extensions/context-meter/server.test.ts:5` (also `:111`) and
       `test/session-prompt.test.ts:12` (also `:71`, `:77`), with plain JSON Schema objects
@@ -174,13 +175,13 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Li
       with `kind` (`server/main.ts`); `compactionFailure.reason` to `trigger`.
 - [x] Done with a new host member, `host.sessionContext(session)` (the conversation's `context().entries`,
       read when the popover asks), so the meter measures the whole context again; a commit's `entries`
-      stays the window and its type says so — `44aae64`. The meter had summed its breakdown over
+      stays the window and its type says so — `84a671e`. The meter had summed its breakdown over
       `view.entries`, which in 1.5 is a window of 50 to 100 entries.
 - [x] `hello` byte cut kept (a window of 100 entries is not bounded in bytes); `docs/server.md` rewritten for
-      the window — `2f40983`.
-- [x] Replace `hasOlder` and the retry loop in `stream()` with `view.before` — `4c695a5`.
+      the window — `84a671e`.
+- [x] Replace `hasOlder` and the retry loop in `stream()` with `view.before` — `84a671e`.
 - [x] `bash-timeout`: a test that `afterTool` on an `invalid_arguments` result with no memo says nothing —
-      `692a4e9`.
+      `84a671e`.
 - [ ] Optional: show `pi.live.runFailure` in the transcript, so a failed run is not silent. Since 1.5 a
       run cut off by the restart limit or an interrupted model request ends idle, and
       `extensions/finished/web.tsx` (~64–99) chimes its success notice on that idle transition; it
@@ -190,7 +191,7 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Li
       database (779 sessions, 620 MB) with `HOME` pointed at an empty folder: the list loads, the
       largest sessions open with a `hello` of 49–86 KB (50 entries, `more`), and older pages load back
       to the first message.
-- [x] Review of phase 4 (`411e023..50ab731`): no blocker. The cache-hit tooltip now says it covers the
+- [x] Review of phase 4 (`1c8cf48..84a671e`): no blocker. The cache-hit tooltip now says it covers the
       recent answers. Known limit kept in `docs/server.md`: one watch call appending more than 50
       entries would leave a gap in the stream; nothing in the app writes that many today.
 
@@ -199,7 +200,7 @@ Details and the code impact list: [pi-1.5-migration.md](pi-1.5-migration.md). Li
 Details: [pi-schema-migration.md](pi-schema-migration.md). One extension per step, smallest first; the
 last step removes `typebox`. The gain is one dependency fewer and alignment with upstream, nothing
 functional. Each switch is preceded by a test that pins the schema the tool installs (pi-ai still converts it per
-provider). Review of `56126f4..17e581b`: no blocker. Live check on a fresh database, every request
+provider). Review of `84a671e..6de9a3f`: no blocker. Live check on a fresh database, every request
 carrying all tools with the two changed schemas: openai `gpt-6.1-sol` (and an `mcp` call with `{}`
 through the new validation), anthropic `claude-haiku-5-5`, opencode-go `deepseek-v4.1-flash` and
 kiro-acp `claude-haiku-4.5` all answered. `local` and `simplex` were not tried.
@@ -352,11 +353,11 @@ lists the steps that move the extensions to it.
 - [x] Core: the loader reinstalls an extension when a file in `server/` changes. It also reinstalled
       for a `.ts` file in `web/`, `assets/` or `fixtures/` (it skipped only `web.tsx`, test files and
       names with a dot); `server/extensions/watcher.ts` now ignores those three subfolders. Test:
-      `test/extensions.test.ts`, "reloads for a change in server/, and not for web/, assets/ or fixtures/". `7bf9451`
+      `test/extensions.test.ts`, "reloads for a change in server/, and not for web/, assets/ or fixtures/". `6bae875`
 - [x] Core: the module resolve hook versions helper imports in subfolders: it matches any file under the
       same extension folder, so an edited `server/*.ts` is picked up on reload (the same test, and
-      "a reload runs a changed helper, also in a subfolder"). `7bf9451`
-- [x] Write the layout into `docs/extensions.md`; `AGENTS.md` and `docs/conventions.md` point to it. `ed94d73`
+      "a reload runs a changed helper, also in a subfolder"). `6bae875`
+- [x] Write the layout into `docs/extensions.md`; `AGENTS.md` and `docs/conventions.md` point to it. `6bae875`
 - [x] Move one extension per commit, smallest first, with `git mv` so history follows. A move commit
       only moves files and fixes imports; splitting a large file is its own commit after it.
       Order: `prompt`, `cache-hit`, `tokens-per-second`, `kiro-acp`, `image-limit`,
@@ -368,14 +369,14 @@ lists the steps that move the extensions to it.
       Already in the layout, no commit: `prompt`, `cache-hit`, `tokens-per-second`, `kiro-acp`, `image-limit`,
       `codemode`, `caveman`, `context-meter`, `git-branch`, `bash-timeout`. `hotkeys`, `keep-warm` and
       `anthropic-subscription` also folded their shared file (`lib.ts`, `due.ts`, `account-refs.ts`) into `refs.ts`.
-      `push/sw.js` moved to `assets/`; `pwa.ts` now reads it there. Commits `be1b6ea` (web-fetch) to `84fbf01`
-      (git-history), one per extension, with the folds as their own commits.
+      `push/sw.js` moved to `assets/`; `pwa.ts` now reads it there. Commit `6bae875`; the history before squashing
+      had one commit per extension, with the folds as their own commits.
 - [x] Add a `README.md` where it is missing: `cache-hit`, `finished`, `prompt`, `tags`,
       `tokens-per-second`.
-      `files` and `browser` had none either and got one too. `b1b752e`
+      `files` and `browser` had none either and got one too. `6bae875`
 - [x] `subagents/HANDOFF.md` deleted. Its two open items (bound long reports, stop agents when a
       parent is deleted) and the isolated-UI recipe are in the README's "Open work" and "Verification"
-      sections; the commit list, the live-database evidence and the finished items were stale. `eaac230`
+      sections; the commit list, the live-database evidence and the finished items were stale. `6bae875`
 - [x] Split the large files inside the new folders:
     - [x] `git-history/web.tsx` (1429 lines, 8 components). Now 20 lines of wiring and, in `web/`: components
           `git-history-page.tsx` (236), `commit-detail.tsx` (215), `review-view.tsx`, `changes-view.tsx`,
@@ -383,7 +384,7 @@ lists the steps that move the extensions to it.
           (the list, the lookup of a commit the list stops short of, the idle prefetch), `use-review.ts` (the
           Plannotator poll, cancel on leaving, feedback to the composer), `use-page-keys.ts`; plain modules
           `place.ts`, `shown.ts`, `patch-cache.ts`, `prefetch.ts`, `page-button.ts`, `exact-time.ts`,
-          `review-running.ts`. The two identical refresh handlers became `reload` in `use-history.ts`. `cfaa06f`
+          `review-running.ts`. The two identical refresh handlers became `reload` in `use-history.ts`. `6bae875`
     - [x] `browser/server/page.ts` (1333 lines). Now 850. The seams that own their state or touch no state of the
           page moved out: `page-log.ts` (`PageLog`: console lines, sequence, error count), `screencast.ts`
           (`Screencast`: frames and the watchers that keep it running), `load-tracker.ts` (`LoadTracker`: loading,
@@ -392,21 +393,21 @@ lists the steps that move the extensions to it.
           as leaves. `BrowserPage` keeps the event switch, popups, navigation and the element actions: they write
           a dozen of its fields (`#url`, `#title`, `#frameId`, `#crashed`, the timers), so cutting them would
           pass those fields around instead of separating anything. Checked with a real Chrome: a scripted run of
-          every public method gave the same transcript before and after. `4bbdcf3`
+          every public method gave the same transcript before and after. `6bae875`
     - [x] `subagents/server.ts` (925 lines). Now 59 (meta, the commit listener, `defineExtension`) and in
           `server/`: `tools.ts` (329), `tasks.ts` (171), `actions.ts` (120), `prompt.ts` (88), `child-agent.ts`,
-          `strip.ts`, `docs.ts`, `answer.ts`. `profiles.ts` and `profile-model.ts` were already there. `b7b4f91`
+          `strip.ts`, `docs.ts`, `answer.ts`. `profiles.ts` and `profile-model.ts` were already there. `6bae875`
     - [x] `git-worktree/web.tsx` (624 lines). Now 38 lines of wiring and, in `web/`: `mark.tsx` (264, the session
           title's worktree menu), `worktree.tsx` (the new-session choice), `remove-worktree-dialog.tsx`,
           `session-mark.tsx`, hooks `use-worktree.ts` and `use-worktree-choices.ts`, and `collected.ts` (the
-          new-session answers). `a1d64ba`
-    - [x] `browser/web/panel.tsx` (525 lines). Now `panel.tsx` (164) and, beside it, `stage.tsx`, `console.tsx`, `icon-button.tsx` and the hooks `use-page-state.ts`, `use-frame.ts`, `use-input.ts`. `530c427`
-    - [x] `terminal/web/panel.tsx` (586 lines). Now `panel.tsx` (27, the empty state and the restart counter) and `shell.tsx` (450), with `terminal-theme.ts`, `control-byte.ts` (the Ctrl+C rules, pure) and `stop-dialog.tsx` cut out of it. `shell.tsx` stays over 300 lines on purpose: the xterm effect, the stop/restart state machine and the toolbar share `live`, `pending`, `terminal`, `over` and `problem`, so a hook for the effect would take seven arguments and give nothing back but those. `5a86098`
-    - [x] `notes/web/todos.tsx` (460 lines). Now `todos.tsx` (169) and, beside it, `row.tsx`, `sortable-row.tsx`, `todo-details.tsx`, the hook `use-todo-list.ts` and the `Patch` type in `todo-patch.ts`. `f4491ac`
-    - [x] `subagents/web.tsx` (453 lines). Now 25 lines of wiring and, in `web/`: `chip.tsx`, `agents.tsx` (the strip), `agent-row.tsx`, `agents-area.tsx`, `agents-working.tsx`, `agents-marker.tsx`, `agents-submenu.tsx`, `models-section.tsx`, the hooks `use-strip.ts`, `use-names.ts`, `use-minute.ts`, and `strip-row.ts` (the row height both views share). `65f2cb5`
+          new-session answers). `6bae875`
+    - [x] `browser/web/panel.tsx` (525 lines). Now `panel.tsx` (164) and, beside it, `stage.tsx`, `console.tsx`, `icon-button.tsx` and the hooks `use-page-state.ts`, `use-frame.ts`, `use-input.ts`. `6bae875`
+    - [x] `terminal/web/panel.tsx` (586 lines). Now `panel.tsx` (27, the empty state and the restart counter) and `shell.tsx` (450), with `terminal-theme.ts`, `control-byte.ts` (the Ctrl+C rules, pure) and `stop-dialog.tsx` cut out of it. `shell.tsx` stays over 300 lines on purpose: the xterm effect, the stop/restart state machine and the toolbar share `live`, `pending`, `terminal`, `over` and `problem`, so a hook for the effect would take seven arguments and give nothing back but those. `6bae875`
+    - [x] `notes/web/todos.tsx` (460 lines). Now `todos.tsx` (169) and, beside it, `row.tsx`, `sortable-row.tsx`, `todo-details.tsx`, the hook `use-todo-list.ts` and the `Patch` type in `todo-patch.ts`. `6bae875`
+    - [x] `subagents/web.tsx` (453 lines). Now 25 lines of wiring and, in `web/`: `chip.tsx`, `agents.tsx` (the strip), `agent-row.tsx`, `agents-area.tsx`, `agents-working.tsx`, `agents-marker.tsx`, `agents-submenu.tsx`, `models-section.tsx`, the hooks `use-strip.ts`, `use-names.ts`, `use-minute.ts`, and `strip-row.ts` (the row height both views share). `6bae875`
 - [x] A check that fails when a top-level file outside the layout appears (a test over
       `extensions/*`), so the shape does not drift back: `test/extension-layout.test.ts`. It also fails on a
-      Node import in the code the browser loads. `f5ea2d2`, tightened in the review fix below.
+      Node import in the code the browser loads. `6bae875`, tightened in the review fix below.
 - Review of phase 8: no blocker, no behavioural regression; one P2 fixed test-first, the browser-code check now reads every import form and rejects bare Node builtins and runtime imports of `server/`.
 
 ## Phase 9: tests and scripts
@@ -414,19 +415,19 @@ lists the steps that move the extensions to it.
 - [x] `test/fixtures/`: one helper for a free port, a temporary `PI_DURABLE_DATA_DIR`, and a running
       test server, replacing the copies in each test file, in three groups:
     - [x] The real server (`server.ts`: `sandbox`, `linkExtension`, `startServer`, `spawnServer`, `cleanUp`):
-          twelve tests no longer probe a port, make a data folder or spawn `server/main.ts` themselves. `fe1f7f9`
+          twelve tests no longer probe a port, make a data folder or spawn `server/main.ts` themselves. `651de2e`
     - [x] The app's Vite and Chromium (`vite.ts`, `browser.ts`): ten tests (four render a component, six open
           the shell in Chromium). Vite now gets `ws: false` as well as `hmr: false`, which ends the repeated
-          "Port 24678 is already in use". `c93bea3`
-    - [x] Temporary git repositories (`git.ts`: `git`, `initRepo`, `run`): four test files. `5716b7d`
+          "Port 24678 is already in use". `651de2e`
+    - [x] Temporary git repositories (`git.ts`: `git`, `initRepo`, `run`): four test files. `651de2e`
     - [x] A `node:http` server on a free port (`serve.ts`: `listen`): seven test files and `browser.ts`.
-          `8a66db4`
+          `651de2e`
 - [x] `pnpm dev:web` and `pnpm dev:server` beside `pnpm dev`, so either side runs alone: `scripts/dev.ts`
       takes `web` (Vite alone; the rest of the arguments go to Vite) or `server` (the supervised server
       alone). Documented in [running.md](running.md). Checked on ports 18788 and 15191 with an empty `HOME`
-      and a temporary data folder: each answered, stopped on SIGINT, and left no process behind. `2a71558`
+      and a temporary data folder: each answered, stopped on SIGINT, and left no process behind. `7884790`
 - [x] A test server's `close` (`listen` in `serve.ts`) lets a response in flight finish before it cuts the
       connection: `static.test.ts` failed 4 runs in 30 with a "Premature close" from its teardown, and
-      passed 30 of 30 after. `c6f1eb3`
+      passed 30 of 30 after. `651de2e`
 - [x] Independent review of phase 9: no blocker; one P2 (the comment in `git.ts` claimed more than it
       does) fixed in the commit below.
