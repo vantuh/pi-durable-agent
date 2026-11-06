@@ -7,6 +7,12 @@ import type { Turn } from "@/lib/turns.ts";
 import { Attachments } from "@/ui/attachments.tsx";
 import { QuoteCard } from "@/ui/quote.tsx";
 
+const CLOCK = new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+});
+
 /** `@path` after whitespace, anywhere in the text; the punctuation that ends a sentence is not part of the path. */
 const MENTION = /(^|\s)@([^\s@]*[^\s@.,;:!?)\]])/g;
 
@@ -81,16 +87,27 @@ export const UserMessage = memo(function UserMessage({
     user: NonNullable<Turn["user"]>;
 }) {
     return (
-        <div className="bg-panel text-interface text-ink relative flex min-w-0 flex-col gap-1.5 py-2 pr-3 pl-4">
+        <div className="bg-panel text-interface text-ink relative flex min-w-0 items-end gap-3 py-2 pr-3 pl-4">
             <span aria-hidden className="bg-accent w-stripe absolute inset-y-0 left-0" />
-            <Attachments
-                files={(user.files ?? []).map((file, index) => ({
-                    ...file,
-                    key: String(index),
-                    state: "done",
-                }))}
-            />
-            <UserText text={user.text} />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Attachments
+                    files={(user.files ?? []).map((file, index) => ({
+                        ...file,
+                        key: String(index),
+                        state: "done",
+                    }))}
+                />
+                <UserText text={user.text} />
+            </div>
+            {user.at === undefined ? null : (
+                <time
+                    className="text-meta text-muted shrink-0 tabular-nums"
+                    dateTime={new Date(user.at).toISOString()}
+                    title={new Date(user.at).toLocaleString()}
+                >
+                    {CLOCK.format(user.at)}
+                </time>
+            )}
         </div>
     );
 });
