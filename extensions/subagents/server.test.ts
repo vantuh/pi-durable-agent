@@ -129,6 +129,7 @@ void describe("subagents", () => {
     let wiring: Wiring;
     let host: Host;
     let registry: ReturnType<typeof createRegistry>;
+    let installed: ReturnType<typeof subagents>;
     let previousAgentDir: string | undefined;
     const faux = fauxProvider({
         models: [
@@ -209,7 +210,8 @@ void describe("subagents", () => {
         registry = createRegistry();
 
         registry.install(CodingTools);
-        registry.install(subagents(host));
+        installed = subagents(host);
+        registry.install(installed);
         harness = await Harness.open(
             await openNodeSqliteStorage(join(dir, "state.sqlite")),
             { models, registry, env: ({ cwd }) => new NodeExecutionEnv({ cwd: cwd ?? dir }) },
@@ -626,9 +628,38 @@ void describe("subagents", () => {
             const { parent: parentPrompt, child } = await prompts("");
 
             assert.match(parentPrompt, /Profiles:/);
+            assert.match(parentPrompt, /Repository facts/);
+            assert.match(parentPrompt, /independent review/);
+            assert.match(parentPrompt, /one writer per worktree/);
+            assert.match(parentPrompt, /only when a profile of that name is listed/);
             assert.match(child, /RULES-TEXT/);
             assert.match(child, /ALL-SKILLS/);
             assert.doesNotMatch(child, /Profiles:/);
+            assert.doesNotMatch(child, /Repository facts|independent review|one writer/);
+        });
+
+        void it("has no delegation policy once the extension is uninstalled", async () => {
+            registry.install(
+                defineExtension({
+                    name: "stand-in",
+                    sections: [section("other", () => "OTHER-TEXT")],
+                }),
+            );
+            registry.uninstall(installed);
+
+            let prompt = "";
+
+            faux.setResponses([
+                (request) => {
+                    prompt = systemOf(request);
+
+                    return fauxAssistantMessage("ok");
+                },
+            ]);
+            await (await parent.submit({ type: "input", content: "hi" }, context)).wait(context);
+
+            assert.match(prompt, /OTHER-TEXT/);
+            assert.doesNotMatch(prompt, /## Agents|Repository facts|Profiles:/);
         });
     });
 

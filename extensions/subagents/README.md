@@ -168,6 +168,10 @@ thinking are never fallbacks.
   its working directory. A tool allowlist is not a filesystem boundary (`bash` can write files), and
   several editing agents can overwrite one another, so delegate edits only to disjoint file sets. The
   prompt recommends at most four independent agents in parallel; that is guidance, not a limit.
+- **The delegation policy lives in the `agents` section.** The parent's prompt says when to delegate
+  and when not to, by the roles `scout`, `researcher`, `worker` and `reviewer`, which apply only when
+  a profile of that name is listed. It is parent-only and goes away with the extension. The extension
+  does not ship those profiles.
 
 ### Reports
 
