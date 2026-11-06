@@ -88,7 +88,8 @@ docs/                        decisions, written before code
 ```
 
 A file goes in `shell/`, `transcript/` or `composer/` when one of them owns it. When two of them do,
-it goes in `ui/` rather than making a feature import another feature.
+it goes in `ui/` rather than making a feature import another feature. One exported component per
+file, and how a folder splits when it grows: [docs/conventions.md](docs/conventions.md#file-and-folder-structure).
 
 Today `server/`, `shared/`, `web/src/` and `extensions/` exist: `server/` runs several conversations,
 and `extensions/` holds `prompt`, `cache-hit`, `context-meter`, `tokens-per-second` and `git-branch`.
@@ -107,8 +108,12 @@ extensions/files/
   refs.ts        action refs and types shared by `server.ts` and `web.tsx`, safe for the browser
   web.tsx        what it adds to the browser: status-bar items and settings sections
   api.ts         its typed contract: what other extensions may call, and its tier  (not built yet)
+  components/    UI beyond one component
+  lib/           server helpers the entry points import
 ```
 
+- **The top level stays small** — under ~8 files, so the entry points are what a reader sees. The
+  full rules: [docs/conventions.md](docs/conventions.md#file-and-folder-structure).
 - **One folder, one extension, named after the folder.** The loader replaces by name, so a name
   that drifts installs twice. `coding-tools` is reserved by the core.
 - **Documentation lives with the extension.** Keep feature-specific guides in its `README.md`,

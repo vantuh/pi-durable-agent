@@ -94,3 +94,45 @@ itself an error.
 
 `web/src/**` is bundled by Vite. `@/` is `web/src`. The client never imports from `server/`; the
 only contract is HTTP and the event stream.
+
+## File and folder structure
+
+Where a file goes is decided by these rules, not by taste, so an agent adding a feature never has to
+invent a place for it. The code is still being moved to match them; until then, the rule wins over
+the neighbour it disagrees with.
+
+### Components
+
+- **One exported component per `.tsx`, named after the file in kebab-case.** `sessions-status.tsx`
+  exports `SessionsStatus`; a second export is a second file. A helper used only inside that file
+  stays there, unexported. The exception is a shadcn primitive in `web/src/components/ui/`, which
+  keeps its compound API (`Dialog`, `DialogContent`, …) together.
+  The mistake it prevents: `panel.tsx` exporting four components, so nothing can be found by name.
+- **~300 lines is a signal, not a limit.** Past it, split by responsibility: the data and state in a
+  hook, the pure logic on its own, the view in the component. A hook with real logic lives in a
+  `use-*.ts` file next to the component that owns it, never inline in the view.
+- **A feature folder splits by sub-feature, not by kind.** `web/src/shell`, `transcript` and
+  `composer` grow a subfolder when they pass ~8 files (`composer/model-menu/`), never a shared
+  `components/` or `hooks/` folder. The mistake: one `hooks/` that everything half-belongs to.
+
+### Server
+
+- **Routes are HTTP, services hold behaviour.** `server/routes/` parses, validates, calls, answers —
+  nothing else. Behaviour sits in a service beside the routes (`server/sessions.ts`,
+  `server/history.ts`). `server/main.ts` is the composition root: build the dependencies, wire the
+  routes, start listening; it keeps no long-lived state of its own.
+- **A subsystem that outgrows one file becomes a folder** (`server/extensions/`), with an `index.ts`
+  only when that keeps import paths stable.
+- **Lower layers never import higher ones.** `server/http.ts` and `server/projection.ts` know nothing
+  of `routes/` or `extensions/`. The mistake it prevents: a projection that reaches for the extension
+  loader, so neither can be tested without the other.
+
+### Extensions and tests
+
+- **Extension layout:** entry points `server.ts` and `web.tsx`, plus `refs.ts`, `README.md` and
+  `server.test.ts` as today; UI beyond one component goes in `components/`, server helpers in `lib/`;
+  an extra top-level file is fine while the folder stays under ~8 files. Current extensions do not all
+  follow this yet; the refactor aligns them.
+- **Tests share their setup.** The free `PORT`, the temporary `PI_DURABLE_DATA_DIR` and the test
+  server live in `test/fixtures/`, imported rather than copied. The mistake it prevents: sixty copies
+  of a start-up that drift into writing the working `data/state.sqlite`.
