@@ -1,77 +1,91 @@
-# Git history and embedded review
+# Git history & review
 
-`extensions/git-history` adds **Git history**, a page in place of the conversation: the list is its
-root and a commit is a sub-page. It has no tab in the right sidebar (`tab: false`); the header badge
-(`+added −deleted ↑ahead ↓behind` and Push, see
-[Header badge and push](#header-badge-and-push)) is the way in, and the same folder
-serves the badge's counts and push. It runs in the selected session's working folder, not a
-browser-supplied filesystem path.
+A **Git history** page in place of the conversation, with a header badge for uncommitted changes and
+Push, and an embedded Plannotator review of a commit or the working tree. It runs in the selected session's working folder, never a browser-supplied path.
 
-## Workflow
+## Usage
 
-- Open Git history to see the branch, last-fetch ahead/behind counts, incoming commits, and the newest
-  50 local commits in a toolbar and a list. Load older commits up to 200. Refresh reads local Git
-  only; it never fetches.
-- Uncommitted changes appear above the commits. A row shows the subject and `sha · author · time`;
-  the whole row is a button, and it opens the commit as a sub-page (`?page=git-history:history&sub=<sha>`,
-  or `sub=working` for the working tree). The list slides out to the left as the detail slides in from
-  the right; browser Back or the frame's back arrow plays it in reverse and the list keeps its
-  scroll position and the keyboard on the row that was opened.
-- The detail page shows the subject, the full message, the sha, author and local date, the actions,
-  a file summary and the diffs. It has one scroll for the whole page: the diff view itself is the
-  scroller, so no part of a diff scrolls by itself. Only the files and lines near the viewport are
-  mounted, and the read-only 400 KiB cap below bounds the text. A commit's diff cannot change, so
-  reopening it is a cache hit; the working tree is read again every time.
-- A commit's diff is rendered by `@pierre/diffs`, with line numbers, syntax and word-level
-  highlighting. Each file has its own sticky header with its line counts: it pins to the top of the
-  page scroll while that file is under it, and clicking it folds the file under that header. The
-  fold takes 200 ms and the files below move with it rather than after it; a reduced-motion setting
-  folds at once. Files start expanded. Every file carries a mark for its kind. On a wide screen a
-  changed-files column sits beside the diff, with its folders and per-file counts: clicking a file
-  unfolds it if it was folded and scrolls the diff to it. A button at the column's top hides it to a
-  narrow rail that keeps the way back; the choice is saved in this browser. A phone, or a change of
-  one file, shows the diff alone.
-  Untracked non-ignored files are included; binary files are listed without a text diff.
-- In **Settings → Extensions → Git history & review**, choose **Unified** (the default) or
-  **Side by side** for history previews. The choice is saved in this browser, applies to all
-  sessions and updates open previews. Plannotator's layout is controlled inside its own UI.
-- Click **Review**. The server launches the installed `plannotator` CLI with browser opening
-  disabled. Its real UI fills the page body at `<sha>/review` (or `working/review`), not a new tab;
-  the frame's back arrow returns to the commit without stopping the process.
-- Uncommitted changes use Plannotator's native Git mode, with full-file context and its normal
-  Git-aware features. This is a **live** review: an agent or terminal can change the working tree
-  while it is open. Plannotator controls its refresh/staleness UI. Git actions inside that UI can
-  modify the index; our history reader itself never changes Git state.
-- A selected commit uses a static patch against its **first parent** (a root commit against the
-  empty tree). No checkout or history rewrite. Static-patch mode has no full-file expansion,
-  image/Markdown previews, staging or Git-context switching. The patch is never silently cut to
-  fit: patches exceeding 8 MiB are refused.
-- Send feedback / approve inside Plannotator. The CLI's `decision` and rendered `message` return
-  to this session. Nonempty feedback is **appended to the composer**, preserving existing text,
-  once per review per page lifetime, and the history page closes so the person lands in the chat
-  with the draft. It is **not sent to the model**. Closing without feedback adds nothing.
-- **Reword** on a commit's page opens a form with the current title and description. It is shown
-  only for a commit the upstream cannot reach: not an incoming commit, and either unpushed or on a
-  branch with no upstream. Saving rewrites the message of that commit and writes every commit
-  after it on the checked-out branch again with the same trees, authors and messages, so those
-  commits get new ids while the files stay exactly as they are, and the page returns to the list.
-  The index and the working tree are never touched; no dirty-tree guard is needed. The branch moves
-  with a compare-and-swap on its old id, so a branch that changed meanwhile fails the save instead
-  of losing a commit; the reflog keeps the old history. Git's own refusal (a pushed commit, a commit
-  of another branch) is shown in the form. Reword and the explicitly confirmed header Push are
-  the extension's Git writes; it never fetches or checks out.
+The page has no tab in the right sidebar (`tab: false`). The header badge opens it, or
+`ctrl+a g` with [hotkeys](../hotkeys/README.md) enabled (the shell command
+`extension.git-history.open`, rebindable in `data/hotkeys.json`).
 
-The read-only history preview stops at 400 KiB of diff: the files that fit keep theirs, the rest are
-listed without one. Tracked files stay in the list; at most 500 untracked files are included, with
-a truncation notice when there are more. New symlinks are listed but never followed into files
-outside the checkout.
+### History list
 
-## Keyboard
+The branch, last-fetch ahead/behind counts, incoming commits, and the newest 50
+local commits; **Load older commits** goes up to 200. Uncommitted changes appear above the commits. A row
+shows the subject and `sha · author · time`, and opens the commit as a sub-page
+(`?page=git-history:history&sub=<sha>`, or `sub=working`). Refresh reads local Git only; it never
+fetches.
 
-With [hotkeys](../hotkeys/README.md) enabled, the prefix then `g` (`ctrl+a g` by default) opens this
-page's list for the conversation on screen. It is the shell command `extension.git-history.open`, so
-it can be rebound in `data/hotkeys.json` like the shell's own commands. The header badge draws it as
-the button's hint. The page's own keys need no extension:
+### Commit page
+
+The subject, full message, sha, author and local date, the actions, a file summary
+and the diffs.
+
+- Diffs are rendered by `@pierre/diffs` with line numbers, syntax and word-level highlighting. Each
+  file has a sticky header with its line counts; clicking it folds the file (200 ms; a reduced-motion
+  setting folds at once). Files start expanded.
+- On a wide screen a changed-files column sits beside the diff with folders and per-file counts.
+  Clicking a file unfolds it and scrolls to it. A button hides the column to a narrow rail; the choice
+  is saved in this browser. A phone, or a change of one file, shows the diff alone.
+- Untracked non-ignored files are included. Binary files are listed without a text diff.
+- **Settings → Extensions → Git history & review** chooses **Unified** (default) or **Side by side**
+  for history previews. It is saved in this browser and applies to all sessions. Plannotator's layout
+  is controlled inside its own UI.
+
+### Reword
+
+On a commit's page, a form with the current title and description. It is shown only for a
+commit the upstream cannot reach: not incoming, and either unpushed or on a branch with no upstream.
+Saving rewrites that commit's message and writes every later commit on the checked-out branch again
+with the same trees, authors and messages, so those commits get new ids while the files stay as they
+are. The index and working tree are never touched. The branch moves with a compare-and-swap on its
+old id, so a branch that changed meanwhile fails the save; the reflog keeps the old history. Git's own
+refusal (a pushed commit, a commit of another branch) is shown in the form.
+
+### Review
+
+Click **Review**. The server launches the installed `plannotator` CLI with browser
+opening disabled, and its UI fills the page body at `<sha>/review` (or `working/review`).
+
+- Uncommitted changes use Plannotator's native Git mode with full-file context. This is a **live**
+  review: an agent or terminal can change the working tree while it is open. Git actions inside that
+  UI can modify the index; this extension's own history reader never changes Git state.
+- A selected commit uses a static patch against its **first parent** (a root commit against the empty
+  tree). Static-patch mode has no full-file expansion, image/Markdown previews, staging or
+  Git-context switching.
+- Send feedback or approve inside Plannotator. The CLI's `decision` and rendered `message` return to
+  this session. Nonempty feedback is **appended to the composer**, preserving existing text, once per
+  review per page lifetime, and the history page closes. It is **not sent to the model**. Closing
+  without feedback adds nothing.
+- The frame's back arrow returns to the commit without stopping the process; **Resume review**
+  returns to it. **Cancel review** (list toolbar or the review's header) stops it and shows errors.
+  Leaving the history page (close button, browser Back, opening another session) asks the server to
+  cancel an active review, including one still starting; a failed cancel is not shown.
+
+### Header badge and push
+
+A rounded `+added −deleted ↑ahead ↓behind` badge in the
+[header slot](../../docs/extensions.md#header-items). It opens the page at uncommitted changes
+(`sub=working`) while there are changed lines, and the list otherwise.
+
+- Line counts compare the whole working tree with HEAD (staged and unstaged), including untracked,
+  non-ignored files. A replaced line is one deletion and one addition. Binary files add no counts.
+- An initial branch without commits works. Outside a working-tree repository the badge draws nothing.
+- In an ordinary checkout, commit counts compare with the configured upstream as of the **last
+  fetch**; nothing fetches or pulls automatically. Without an upstream the counters show `?` and Push
+  is disabled.
+- In a **linked worktree**, the arrows compare HEAD with the branch the main checkout has checked out
+  **now**: ↑ commits here that branch lacks, ↓ commits of that branch missing here. Both come from
+  local refs. A main checkout on a detached or unborn HEAD, or a bare one, offers no base, so the badge
+  keeps the upstream arrows. The badge's title names the branch it compares with. Push is unaffected.
+- **Push** asks for confirmation, rechecks the branch on the server and sends only HEAD to that
+  branch's configured upstream. No force, tag following or recursive submodule pushes, no automatic
+  commit, upstream creation or pull/rebase. A behind or diverged branch must be reconciled in Git
+  first. 60-second timeout, terminal credential prompts disabled (configure credentials beforehand).
+  Failures show in the header popover and can be dismissed.
+
+### Keys
 
 | Where    | Key                    | Does                                                            |
 | -------- | ---------------------- | --------------------------------------------------------------- |
@@ -82,134 +96,89 @@ the button's hint. The page's own keys need no extension:
 | A commit | `Escape`               | back to the list, with the cursor on the commit just read       |
 | A review | `Escape`               | back to its commit, as the frame's Back, without stopping it    |
 
-The page opens with the cursor on the row it rings — the commit last read in this folder — or on its
-first row. A row in focus is the cursor, so a mouse and the arrows agree: the next arrow starts from
-the row the pointer last pressed. Keys are left to whatever holds the keyboard: a field being typed
-into (the reword form, the sidebar's search), an open dialog or popover, a form, the terminal, an
-input method in the middle of a word, and any press a nearer component has already answered. The
-frame's own Back and Close take the page's keys as they do the mouse.
+The cursor starts on the commit last read in this folder, or the first row. Keys are left to whatever
+holds the keyboard: a field being typed into, an open dialog or popover, a form, the terminal, an
+input method mid-word, and any press a nearer component has already answered.
 
-## Processes, settings and limits
+## Configuration
 
-Requires `plannotator` on the **server process's PATH**. Tested with 0.28.27. No skill or model call
-is involved in opening Review. The read-only preview uses `@pierre/diffs`; the interactive
-review UI still comes from the installed CLI, not a bundled Plannotator package.
+Requires `plannotator` on the **server process's PATH**. Remote Git checks and automatic CLI updates
+are disabled for these processes; other Plannotator features follow the user's own configuration, and
+its optional AI/provider actions are separate from merely opening a review.
 
-One process per session. Leaving the history page — its close button, browser Back, or opening
-another session — asks the server to cancel an active review, including one still starting; the page
-is already gone when the answer comes, so a failed cancellation is not shown. **Cancel review** in
-the list toolbar or the review's own header stops it explicitly and shows the error. The back arrow
-only hides the iframe; **Resume review** returns to it without stopping the process. Disabling, removing or
-reloading the extension, or stopping the server, stops its processes. Startup times out after 45
-seconds; a running review expires after two hours.
-Session/decision tracking is ephemeral and resets on server restart. Plannotator's own drafts,
-preferences and feedback history follow its installed configuration. The app's composer drafts
-currently survive session switching, not a page reload.
+## Behavior
 
-Remote Git checks and automatic CLI updates are disabled for these processes. Other Plannotator
-features follow the user's configuration; optional AI/provider actions inside its UI are separate
-from merely opening a review and can invoke their own tools when explicitly requested.
+- **Limits on size.** The read-only preview stops at 400 KiB of diff: files that fit keep theirs, the
+  rest are listed without one. At most 500 untracked files are included, with a notice when there are
+  more. New symlinks are listed but never followed outside the checkout. A review patch over 8 MiB
+  is refused rather than cut.
+- **Processes.** One review process per session. Startup times out after 45 seconds; a running review
+  expires after two hours. Disabling, removing or reloading the extension, or stopping the server,
+  stops them. Review and decision tracking resets on server restart. Plannotator's own drafts and
+  preferences follow its installed configuration. Composer drafts survive session switching, not a
+  page reload.
+- **Badge freshness.** Each `stats` call leases its session for three minutes; the browser's
+  once-a-minute call renews it. While any lease is held, the server reads each leased folder every
+  3 s and, when the numbers differ, calls `host.notifySessionChanged` for that folder's sessions, so
+  the badge re-reads through `session.revision`. With no lease there is no Git work, and a reload
+  stops the poller. Counts also refresh after agent activity and after a push.
+- **A commit opens without waiting.** A commit cannot change, so it is cached in layers; only the
+  working tree is read every time.
 
-## Header badge and push
+    | Layer                    | Kept                                                         | Where             |
+    | ------------------------ | ------------------------------------------------------------ | ----------------- |
+    | prefetch                 | the newest three commits, on idle; any row on hover or focus | `web.tsx`         |
+    | patch                    | 20 commits per browser tab                                   | `web.tsx`         |
+    | parsed diff and grammars | 10 patches per browser tab                                   | `web/preview.tsx` |
+    | patch                    | 20 commits per server process                                | `server.ts`       |
 
-`extensions/git-history` uses the [header slot](../../docs/extensions.md#header-items) for a rounded
-`+added −deleted ↑ahead ↓behind` badge. Its icon and numbers are one button with one highlight:
-it opens the history page at uncommitted changes
-(`sub=working`, whose Back leads to the list) while there are changed lines, and the list otherwise.
+    Reading one commit costs three Git processes (the repository root is remembered per process, the
+    commit and its first parent come from one `rev-list`, and the title is not read). New files in the
+    working tree cost two processes each, read eight at a time.
 
-- Line counts compare the whole working tree with HEAD (staged and unstaged combined), including
-  untracked, non-ignored files. A replaced line contributes one deletion and one addition; Git does
-  not report a separate “modified lines” count. Binary files contribute no line counts.
-- An initial branch without commits is supported. Outside a working-tree repository, it draws nothing.
-- In an ordinary checkout, commit counts compare against the configured upstream as of the **last
-  fetch**. The extension does not fetch or pull automatically. Without an upstream, the counters
-  show `?` and Push is disabled.
-- In a **linked worktree** (`git worktree add`), the arrows compare HEAD with the branch the main
-  checkout has checked out **now**, not the branch the worktree was started from: ↑ commits here
-  that branch does not contain, ↓ commits of that branch missing here. Both come from local refs —
-  there is no fetch — and are the unique commits on each side, not a lifetime total. A main checkout
-  on a detached or unborn HEAD, or a bare one, offers no base, so the badge keeps the upstream
-  arrows. The badge's title and accessible label name the branch it compares with. Push is
-  unaffected: it still counts and names the configured upstream in its confirmation.
-- Counts refresh after agent activity, after a push, and within about 3 s of a change in the working tree (see [Git history](#how-the-badge-stays-current)); the browser's own poll is every minute.
-- Push asks for confirmation, rechecks the branch on the server and sends only HEAD to that branch's
-  configured upstream. No force, tag following or recursive submodule pushes. No automatic commit,
-  upstream creation or pull/rebase. A behind/diverged branch must be reconciled in Git first.
-- Push has a 60-second timeout and disables terminal credential prompts; configure Git credentials
-  beforehand. Failures are shown in the header popover and can be dismissed.
+- **Layout.** The diff view is the detail page's scroller. It mounts only the files near the viewport,
+  and the changed-files column is its sibling. The file header is our own 36 px row, and
+  `itemMetrics.diffHeaderHeight` must say the same, or a jump to a file lands a header's height off.
+- **File icons.** The marks beside file names are 27 Nerd Font glyphs (6.6 KB) subsetted from
+  JetBrains Mono Nerd Font into `assets/icons.woff2`, coloured by a theme role per family
+  (`web/icons.tsx`). A kind with no mark falls back to plain lines; a new one goes into
+  `web/icons.tsx` and the subset is rebuilt from the repository root:
 
-## How the badge stays current
+    ```bash
+    uvx --with fonttools --with brotli python -c "
+    from fontTools import subset
+    subset.main([
+        '<path-to>/JetBrainsMonoNLNerdFont-Regular.ttf',
+        '--unicodes=e628,e60c,e625,e73e,e64e,eb0f,e615,e8eb,e672,e614,e60e,e691,e706,e60d,e698,e6a0,e606,e724,e68b,e66d,e608,e605,e699,e634,e620,e650,f0fc3',
+        '--output-file=extensions/git-history/assets/icons.woff2',
+        '--flavor=woff2', '--no-hinting', '--desubroutinize', '--layout-features=', '--drop-tables+=DSIG',
+    ])
+    "
+    ```
 
-Each `stats` call leases its session for three minutes; the browser's once-a-minute call renews it. While any lease is held, the server reads each leased folder every 3 s and, when the numbers differ from the last reading, calls `host.notifySessionChanged` for the sessions of that folder, so the badge re-reads through `session.revision`. With no lease there is no Git work, and a reload stops the poller.
+- **Embedding and security.** The CLI binds loopback. The iframe loads an opaque, random per-review
+  URL under `/api/extensions/git-history/http/<capability>/`. HTML, API, SSE and binary traffic go
+  through this server, so a phone uses the app's existing HTTPS origin rather than the computer's
+  localhost. A small injected adapter rebases Plannotator's root-relative fetch, XHR, EventSource,
+  beacon and resource URLs to that namespace. The raw HTTP seam is not a WebSocket-upgrade API;
+  Plannotator's review uses SSE. HTML is gzip-compressed when accepted. Unknown or ended capabilities
+  return 410, and caller-supplied upstream hosts and ports are never accepted.
+- Core rejects foreign Origin / Fetch-Site requests before calling raw extension HTTP handlers or
+  extension actions. The proxy reanchors accepted origins to the fixed upstream and forwards only
+  `plannotator-*` preference cookies. Plannotator's response cookies are restricted to its own
+  namespace, and framing is restricted to the app itself. Vite preserves Host; production reverse
+  proxies must preserve the public Host too.
 
-## Why a commit opens without waiting
+## Limits
 
-A commit cannot change, so three layers answer for it and only the working tree is read again on
-every look:
+- The iframe holds a **trusted installed program**, not untrusted content. Scripts and same-origin
+  storage are necessary for it to work, so its sandbox is not a security boundary from the app (it
+  does block top-level navigation). Never embed an arbitrary website through this proxy.
+- The adapter is tested against Plannotator 0.28.27, not a stable embedding API. Recheck transports
+  and resource URLs after a CLI upgrade.
+- Mobile Chromium viewport testing is not a substitute for a physical iOS/Android keyboard,
+  clipboard and file-upload test.
 
-| Layer                    | Kept                                                         | Where             |
-| ------------------------ | ------------------------------------------------------------ | ----------------- |
-| prefetch                 | the newest three commits, on idle; any row on hover or focus | `web.tsx`         |
-| patch                    | 20 commits per browser tab                                   | `web.tsx`         |
-| parsed diff and grammars | 10 patches per browser tab                                   | `web/preview.tsx` |
-| patch                    | 20 commits per server process                                | `server.ts`       |
-
-A click on a prefetched commit is the mount of the diff view and nothing else. Reading one commit
-costs three Git processes: the repository root is remembered per process, the commit and its first
-parent come from one `rev-list`, and the title is not read at all — the list the client already has
-says what each commit is called. New files in the working tree cost two processes each, so they are
-read eight at a time.
-
-The diff view is the detail page's scroller: it measures the box between the page frame and the
-bottom and mounts only the files near it, so the diff does not scroll inside another scroll box.
-The changed-files column is a sibling of that scroller, not a wrapper around it.
-The preview's file header is our own row, 36 px tall, and `itemMetrics.diffHeaderHeight` says the
-same. A header of another height leaves every file below it a little too low and a jump to a file a
-header's height off.
-
-The marks beside a file name are Nerd Font glyphs — 27 of them, 6.6 KB — subsetted from the
-JetBrains Mono Nerd Font an editor uses, so a file's header shows the same picture a terminal does
-without an icon package. The colour is a theme role picked by family: `text-info` for TypeScript,
-`text-agent` for components, `text-warn` for JavaScript and JSON, `text-accent` for styles and
-media, `text-ok` for shells, `text-spark` for config and data, `text-ember` for markup, SQL and
-Rust. A kind of file that has no mark yet falls back to plain lines; a new one goes into
-`web/icons.tsx` and the subset is rebuilt. Run from the repository root:
-
-```bash
-uvx --with fonttools --with brotli python -c "
-from fontTools import subset
-subset.main([
-    '/Users/vantuh/Library/Fonts/JetBrainsMonoNLNerdFont-Regular.ttf',
-    '--unicodes=e628,e60c,e625,e73e,e64e,eb0f,e615,e8eb,e672,e614,e60e,e691,e706,e60d,e698,e6a0,e606,e724,e68b,e66d,e608,e605,e699,e634,e620,e650,f0fc3',
-    '--output-file=extensions/git-history/assets/icons.woff2',
-    '--flavor=woff2', '--no-hinting', '--desubroutinize', '--layout-features=', '--drop-tables+=DSIG',
-])
-"
-```
-
-## Embedding and security
-
-The CLI binds loopback. The iframe loads an opaque, random per-review URL under
-`/api/extensions/git-history/http/<capability>/`. HTML and API/SSE/binary traffic go through our
-server, so a phone uses the app's existing HTTPS origin, not the computer's localhost or another
-exposed port. Serving the app to a physical phone still requires the app's normal secure network
-access; the extension does not publish the app itself.
-
-A small injected adapter rebases Plannotator's root-relative fetch, XHR, EventSource, beacon and
-resource URLs to this namespace. Current Plannotator review uses SSE; the raw HTTP seam is not a
-WebSocket-upgrade API. HTML is gzip-compressed when accepted. Unknown/ended capabilities return
-410, and arbitrary caller-supplied upstream hosts/ports are never accepted.
-
-Core rejects foreign Origin / Fetch-Site requests before calling raw extension HTTP handlers or
-extension actions. The proxy reanchors accepted origins to the fixed upstream and forwards only
-`plannotator-*` preference cookies, never app authorization or unrelated cookies. Plannotator's
-response cookies are restricted to its own namespace. Framing is restricted to the app itself.
-Vite preserves Host, and production reverse proxies must preserve the public Host too.
-
-The iframe contains a **trusted installed program**, not untrusted content. Scripts and same-origin
-storage are necessary for it to function; its sandbox is not a security isolation boundary from
-the app. It does block top-level navigation. Never embed an arbitrary website through this proxy.
-
-The adapter is tested against 0.28.27, not a stable upstream embedding API. Recheck transports and
-resource URLs after a CLI upgrade. Mobile Chromium viewport testing is not a substitute for a
-physical iOS/Android keyboard, clipboard and file-upload test.
+The commit rewrite in `server/git.ts` and the Reword form are ported from pi-pocket's
+`extensions/git-history` (MIT, `LICENSE.pi-pocket`). `assets/icons.woff2` is a subset of JetBrains
+Mono Nerd Font (`LICENSE.icons`).

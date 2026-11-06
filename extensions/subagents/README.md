@@ -1,28 +1,23 @@
 # Subagents
 
-Hand a self-contained task to another agent without blocking the conversation you are in. Each
-agent has its own durable conversation, works with a named profile, and sends its answer back to
-the conversation that started it. You can steer it, stop its current run, or continue it later
-without losing its context.
-
-This is the guide to the **current implementation**, not a list of promised features. Work that is
-not done is under [Open work](#open-work). The extension contract and reload rules are in
+Hand a self-contained task to another agent without blocking the conversation you are in. Each agent
+has its own durable conversation, works with a named profile, and sends its answer back to the
+conversation that started it. You can steer it, stop its current run, or continue it later without
+losing its context. The extension contract and reload rules are in
 [docs/extensions.md](../../docs/extensions.md).
 
-## Start here
-
-1. Enable **Subagents** in Settings → Extensions (extensions are enabled by default).
-2. Put a Markdown profile in `~/.pi/agent/agents/` or the project's `.pi/agents/`.
-3. Ask the orchestrator to delegate a specific task using that profile.
-4. Continue unrelated work, or let the orchestrator end its turn. The report arrives automatically.
-5. Expand the report to read it, or use its open-conversation link to inspect the agent's work.
+## Usage
 
 The **orchestrator** is the agent in the parent conversation. The **profile** is a reusable set of
-instructions, a required model, and optional thinking/tool choices. The **agent name** identifies
-one child conversation within that parent; it is what `agent_send`, `agent_stop`, and `agent_status`
-address.
+instructions, a required model, and optional thinking and tool choices. The **agent name** identifies
+one child conversation within that parent; `agent_send`, `agent_stop` and `agent_status` address it.
 
-For example, save this as `.pi/agents/reviewer.md`:
+1. Put a Markdown profile in `~/.pi/agent/agents/` or the project's `.pi/agents/`.
+2. Ask the orchestrator to delegate a specific task using that profile.
+3. Continue unrelated work, or let the orchestrator end its turn. The report arrives automatically.
+4. Expand the report to read it, or use its open-conversation link to inspect the agent's work.
+
+Example `.pi/agents/reviewer.md`:
 
 ```md
 ---
@@ -38,42 +33,15 @@ Report concrete defects with file paths, evidence, and their impact.
 If the allowed tools cannot establish a claim, say what you could not verify.
 ```
 
-Set `model` to an exact available model ID for your installation; the example is not automatically
-mapped to another provider. Missing or unavailable models fail the spawn instead of inheriting the
-parent's model.
+Set `model` to an exact available model ID for your installation. A missing or unavailable model
+fails the spawn instead of inheriting the parent's model.
 
-The orchestrator can then make these tool calls. They are JSON arguments to the named tools, not
-HTTP endpoints or commands to paste into a terminal:
+### The four tools
 
-```text
-agent_spawn({
-  "agent": "reviewer",
-  "name": "Review",
-  "task": "Review extensions/subagents/server.ts for duplicate report delivery. Read-only. Report concrete defects with evidence; do not edit or run commands."
-})
-
-agent_send({
-  "name": "Review",
-  "message": "Also check what happens when a steering message joins a run already in progress."
-})
-
-agent_stop({ "name": "Review" })
-
-agent_send({
-  "name": "Review",
-  "message": "Continue the review using the context you already have."
-})
-```
-
-`agent_send` is a correction while the agent is working, or a follow-up after it finishes. It is
-not necessary to resend the original task. Use `agent_status({ "name": "Review" })` only when the
-user asks or a decision requires it, not to poll until the work finishes.
-
-## The four tools
-
-All four tools operate on agents started by the **current parent conversation**. Another parent
-can have an agent with the same name; names are not process-wide identifiers. Names and profile
-names are case-sensitive; leading and trailing whitespace in tool arguments is trimmed.
+The orchestrator calls these tools (JSON arguments, not HTTP endpoints). All four operate on agents
+started by the **current parent conversation**; another parent can have an agent with the same name.
+Names and profile names are case-sensitive, and leading and trailing whitespace in arguments is
+trimmed.
 
 | Tool           | Arguments                                                                  | Effect                                                                                                                        |
 | -------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -82,65 +50,51 @@ names are case-sensitive; leading and trailing whitespace in tool arguments is t
 | `agent_stop`   | `name: string`                                                             | Aborts that child's current run and cancels messages not yet delivered. Keeps the conversation and its name for a later send. |
 | `agent_status` | Optional `name: string`                                                    | Lists agents and their working/idle state, or returns one agent's state and latest text preview. Read-only.                   |
 
-### Spawn and naming
+**Spawn and naming**
 
-- Only `agent`, `task`, optional `name`, and optional `cwd` are accepted. Extra arguments, including
-  `model`, `thinking`, and `thinkingLevel`, fail schema validation even if they match the profile's
-  values. The orchestrator must choose an existing Markdown profile, not construct or override one
-  inline.
-- `cwd` must be an absolute path to an existing directory. Omitted, empty or whitespace-only means
-  the parent's working directory. A supplied path is trimmed and normalized before it is stored;
-  it changes the child's folder, not where the parent's profiles are discovered.
-- `agent` must match a profile's frontmatter `name`, not necessarily its filename.
-- An empty task or an unknown profile returns a tool error. An unknown-profile error lists the
-  available profile names.
-- Without a non-empty explicit name, the extension title-cases the profile name: `code-reviewer`
-  becomes `Code Reviewer`. If that name is taken, it uses `Code Reviewer #2`, then `#3`, and so on.
-- An explicit name already in use returns an error rather than replacing the agent. Use
-  `agent_send` to continue it, or choose another name for a fresh context.
-- The sidebar title is `<Name>: <task>`, with whitespace collapsed and the task cut to 60
-  characters. Renaming the session in the UI does not change the name used by the tools.
+- Only `agent`, `task`, `name` and `cwd` are accepted. Extra arguments, including `model`, `thinking`
+  and `thinkingLevel`, fail schema validation even if they match the profile. The orchestrator picks
+  an existing profile; it cannot build or override one inline.
+- `cwd` must be an absolute path to an existing directory. Omitted, empty or whitespace-only means the
+  parent's working directory. It changes the child's folder, not where profiles are discovered.
+- `agent` must match a profile's frontmatter `name`, not necessarily its filename. An empty task or an
+  unknown profile returns a tool error; the unknown-profile error lists the available names.
+- Without an explicit name, the profile name is title-cased (`code-reviewer` becomes `Code Reviewer`),
+  then `Code Reviewer #2`, `#3` and so on when taken. An explicit name already in use returns an error
+  rather than replacing the agent.
+- The sidebar title is `<Name>: <task>`, whitespace collapsed and the task cut to 60 characters.
+  Renaming the session in the UI does not change the name the tools use.
 
-### Send and status
+**Send and status**
 
-- A send uses `whenBusy: "steer"`: it joins the working run at the next applicable boundary,
-  rather than interrupting the provider request immediately. If idle, the child starts a new run.
-- A successful send clears the flag set by `agent_stop`.
-- Without `name`, status lists every agent this parent has ever started, including idle ones.
-- With `name`, status scans the newest 20 entries of the child's conversation for non-empty
-  assistant text, then keeps at most its last 2000 characters. This may be partial/intermediate
-  text, not a final result; the tool labels it as a preview. It can find nothing if the newest 20
-  entries contain no assistant text.
-- There is **no `full` parameter** today. Open the child conversation to inspect the full answer.
-- Working means `pi.live.run` exists. Idle does not distinguish success, failure, and a stopped
-  run. Inspect the report or transcript for the outcome.
+- A send uses `whenBusy: "steer"`: it joins the working run at the next applicable boundary, or starts
+  a new run if the child is idle. A successful send clears the flag set by `agent_stop`.
+- Without `name`, status lists every agent this parent has ever started, idle ones included.
+- With `name`, status scans the newest 20 entries of the child's conversation for non-empty assistant
+  text and keeps at most its last 2000 characters, labelled as a preview. It may be partial text and
+  can be empty. There is no `full` parameter; open the child conversation for the full answer.
+- "Working" means `pi.live.run` exists. Idle does not distinguish success, failure and a stopped run.
 
-## Profiles: discovery and precedence
+## Configuration
+
+### Profiles
 
 Profiles are read from disk when the orchestrator's `agents` prompt section is built and when
-`agent_spawn` runs. No restart is needed for a profile edit. Changes affect future spawns, not
-agents already created; `agent_send` does not read or reapply the profile.
+`agent_spawn` runs, so an edit needs no restart. It affects future spawns, not existing agents;
+`agent_send` does not reapply the profile. The lookup order:
 
-The lookup order is:
-
-1. `<agent directory>/agents/*.md`. The agent directory comes from Pi's `getAgentDir()`:
-   normally `~/.pi/agent`, or the directory selected by `PI_CODING_AGENT_DIR`.
+1. `<agent directory>/agents/*.md`. The agent directory is Pi's `getAgentDir()`: normally
+   `~/.pi/agent`, or `PI_CODING_AGENT_DIR`.
 2. The **nearest** `.pi/agents/` directory, searching from the parent conversation's working
-   directory upward to the filesystem root. Its profiles replace user profiles with the same
-   frontmatter `name`.
+   directory up to the filesystem root. Its profiles replace user profiles with the same `name`.
 
-Only one project directory is used. If `<cwd>/.pi/agents/` exists but is empty, an ancestor's
-`.pi/agents/` is not also read. If the conversation has no working directory, lookup starts at
-`host.cwd` (the directory the app was started in).
+Only one project directory is used: an empty `<cwd>/.pi/agents/` does not fall through to an
+ancestor's. With no working directory, lookup starts at `host.cwd`. Only direct `.md` files are read,
+in sorted filename order, with no recursive scan; of two files with the same name the later wins.
+Unreadable directories or files, parse failures and profiles missing required fields are silently
+skipped.
 
-Within each directory, only direct files ending in `.md` are read, in sorted filename order; no
-recursive scan. If two files declare the same name, the later filename wins. Missing/unreadable
-directories, unreadable files, parsing failures, and profiles missing required fields are silently
-skipped; they do not prevent other profiles from loading.
-
-### Frontmatter
-
-| Field           | Required      | Current meaning                                                                                         |
+| Field           | Required      | Meaning                                                                                                 |
 | --------------- | ------------- | ------------------------------------------------------------------------------------------------------- |
 | `name`          | Yes           | Non-empty string used to select the profile and stored with the agent.                                  |
 | `description`   | Yes           | Non-empty string shown with the name in the orchestrator's profile list.                                |
@@ -150,104 +104,75 @@ skipped; they do not prevent other profiles from loading.
 | `skills`        | No            | `none` or an empty list lists no skills; names list only those skills; omitted lists every skill.       |
 | `system-prompt` | No            | `replace` drops the `rules` section, as Pi's base prompt; anything else keeps it.                       |
 
-The Markdown body becomes the child's instructions followed by the extension's agent protocol.
+The Markdown body becomes the child's instructions, followed by the extension's agent protocol.
 Unknown frontmatter fields are ignored. As in Pi, `system-prompt: replace` replaces only the base
 rules: project instructions stay, and `skills` decides the skills listing.
 
-The tool list can also be written as:
-
-```yaml
-tools:
-    - read
-    - bash
-```
-
-Important details:
-
-- An absent `tools` key keeps the parent's tool set, except this extension's own tools. An empty
-  list (`tools: []`, a bare `tools:`, or `tools: ""`) gives the child no tools.
-- A `tools` value that is not a list of names or a comma-separated string makes the profile
-  invalid: `agent_spawn` returns an error and starts no agent.
-- With a non-empty list, only tools the parent actually has survive. Unknown names are silently
-  dropped; a list containing only unknown names leaves the child with no tools.
-- `model` is required at spawn. The provider and model ID must match exactly; there is no fuzzy
-  matching, provider mapping, or fallback to the parent's model.
-- A missing, malformed, unknown, or unauthenticated model returns a tool error before creating
-  any child conversation or background task. The error identifies the profile and problem; an
-  unavailable-model error lists the available IDs for that provider (or says none).
-- Model availability is checked with `api.models.getAvailable(provider)`, including authentication,
-  not just catalog membership. Fix the Markdown profile, provider registration, or authentication;
-  do not work around an error by passing a model override.
-- Omitted `thinking` explicitly means `off`, independent of the parent's level. A supplied value
-  must be a supported string level for that model; invalid values (including null/numbers) and
-  unsupported levels fail the spawn. There is no automatic clamping to a different level.
-- Missing-model profiles stay discoverable so spawn can explain the invalid frontmatter rather
-  than reporting an unknown profile. The report card names the model that answered that report;
-  the child's own model and statistics are in its conversation. A successful spawn is not proof
-  that a later provider request will succeed.
+- `tools` may also be a YAML list. An absent key keeps the parent's tool set except this extension's
+  own tools. An empty value (`tools: []`, a bare `tools:`, `tools: ""`) gives the child no tools. A
+  value that is neither a list of names nor a comma-separated string makes the profile invalid, and
+  `agent_spawn` returns an error. With a non-empty list only tools the parent has survive; unknown
+  names are dropped silently.
+- `model` is matched exactly, with no fuzzy matching, provider mapping or fallback. It is checked with
+  `api.models.getAvailable(provider)`, including authentication. A missing, malformed, unknown or
+  unauthenticated model returns a tool error before any child conversation or task is created, naming
+  the profile and, for an unavailable model, listing that provider's available IDs. Profiles with a
+  bad model stay discoverable so spawn can explain the problem.
+- Omitted `thinking` means `off`, independent of the parent's level. An invalid value or a level the
+  model does not support fails the spawn; there is no clamping.
 
 ### Changing a model from the Extensions dialog
 
-`details.tsx` lists every profile a spawn would see, with the model and thinking level its
-Markdown names, and a **Change model** button that opens the composer's own model menu. The menu
-here offers the same `scoped` and `all` tabs, scoped first, from the same `enabledModels` the
-composer reads; a menu with nothing scoped lists the catalog. The chosen model and level are
-written by the `setModel` action into the profile's frontmatter, so the next `agent_spawn` uses
-them; an agent already running keeps what it started with. There is no "default": a profile
-without a model cannot spawn, so the dialog only changes a model, never removes it.
+`details.tsx` lists every profile a spawn would see, with the model and thinking level its Markdown
+names, and a **Change model** button that opens the composer's model menu (`scoped` and `all` tabs,
+from the same `enabledModels`; a menu with nothing scoped lists the catalog). The `setModel` action
+writes the chosen model and level into the profile's frontmatter, so the next `agent_spawn` uses
+them. A profile without a model cannot spawn, so the dialog only changes a model, never removes it.
+The same editor appears as the **Subagent models** settings section (`web/profile-models.tsx`).
 
-- The "+" that adds a model to `enabledModels` and **Make default** belong to the composer's
-  session, so this menu leaves them out; it writes a profile, not a setting.
-- The browser sends a profile **name**, never a path: the action looks the name up in the profiles
-  discovery found for the request's session, and writes to the file that name belongs to. A project
-  profile therefore stays in the project's `.pi/agents/`; the user profile it replaces is untouched.
-- The Extensions dialog has no conversation, so the action resolves profiles from `host.cwd` (the
-  directory the app was started in), not from a session's folder. A profile that exists only under
-  another folder's `.pi/agents/` is not listed there.
-- `server/profile-model.ts` rewrites one line per key and no other byte: it resolves a symlink and edits
-  the file it points at, keeps the line endings and the file mode, quotes the value as JSON and
-  replaces the file atomically (temp file + rename). It refuses a file with no complete frontmatter
-  block, a repeated `model:`/`thinking:` line, a value written on several lines, or an edit that
-  would change any other field. That refusal is a 400 with the reason; the file is left as it was.
-- `thinking` is written together with the model, at a level the chosen model supports, so a new
-  model cannot leave the profile with a level it rejects. Edit `tools` by hand; the dialog does not
-  touch it.
+- The browser sends a profile **name**, never a path. The action looks the name up among the profiles
+  discovered for the request's session and writes to the file it belongs to, so a project profile
+  stays in the project's `.pi/agents/` and the user profile it replaces is untouched.
+- The Extensions dialog has no conversation, so the action resolves profiles from `host.cwd`. A
+  profile that exists only under another folder's `.pi/agents/` is not listed there.
+- `server/profile-model.ts` rewrites one line per key and no other byte: it follows a symlink, keeps
+  line endings and file mode, quotes the value as JSON and replaces the file atomically. It refuses a
+  file with no complete frontmatter block, a repeated `model:` or `thinking:` line, a value on several
+  lines, or an edit that would change any other field. That is a 400 with the reason, and the file is
+  left as it was.
+- `thinking` is written together with the model, at a level the chosen model supports. Edit `tools`
+  by hand; the dialog does not touch it.
 
-## What the child inherits, and what it does not
+## Behavior
+
+### What the child inherits
 
 The harness starts a task-owned child with the parent's agent configuration, including extensions,
-tools, and working directory. Before creating it, the extension validates the profile's required
-model and thinking (`off` when omitted). It then explicitly sets both, along with the profile's
-instructions and optional tool allowlist. The parent's model and thinking are never used as fallbacks.
+tools and working directory. The extension validates the profile's model and thinking, then sets both
+explicitly with the profile's instructions and optional tool allowlist. The parent's model and
+thinking are never fallbacks.
 
-**The parent's transcript is not the child's context.** Every task must include the goal, scope,
-relevant paths, constraints, expected output, and whether edits are permitted. Include the check to
-run for an implementation task. A follow-up through `agent_send` keeps the child's own context.
+- **The parent's transcript is not the child's context.** Every task must include the goal, scope,
+  relevant paths, constraints, expected output, and whether edits are permitted, plus the check to
+  run for an implementation task. A follow-up through `agent_send` keeps the child's own context.
+- Other prompt sections still apply: project instructions and, when the tools permit reading them, the
+  skills its `skills` field allows. The profile body replaces only `rules`, and only with
+  `system-prompt: replace`.
+- The `subagents` extension stays selected in the child for its `rules` and `skills` wraps, but the
+  child gets none of the four tools and an empty `agents` section; its `subagents.child` document
+  marks it. Recursive delegation is not supported.
+- The appended protocol asks the child to keep progress short, return a complete text answer, and end
+  with `AGENT_RESULT: done | blocked — <summary>`. If blocked on a question, it ends its turn with that
+  question and the parent answers via `agent_send`. The marker is an instruction, not a parsed field.
+- **This is not a sandbox.** A child has the parent's machine permissions and, unless `cwd` is given,
+  its working directory. A tool allowlist is not a filesystem boundary (`bash` can write files), and
+  several editing agents can overwrite one another, so delegate edits only to disjoint file sets. The
+  prompt recommends at most four independent agents in parallel; that is guidance, not a limit.
 
-Other installed prompt sections still apply: project instructions and, when the tools permit
-reading them, the skills its `skills` field allows. The profile body replaces only `rules`, and only
-with `system-prompt: replace`. The `subagents` extension stays selected in the child for its `rules`
-and `skills` wraps, but the child gets none of these four tools and an empty `agents` section: its
-`subagents.child` document marks it. Recursive delegation is not supported.
+### Reports
 
-**This is not a sandbox.** A child uses the same machine permissions as the parent, and the same
-working directory unless `agent_spawn` is given `cwd`, an absolute folder such as a worktree, in
-which case that child's tools run there and not in the parent's folder.
-
-Multiple editing agents can overwrite one another's work. Delegate edits only to disjoint file
-sets; a tool allowlist is not a filesystem permission boundary (`bash`, for example, can write
-files). The prompt recommends at most four independent agents in parallel; that is guidance to the
-model, not an enforced concurrency limit.
-
-The appended protocol asks the child to keep progress short, return a complete text answer, and
-end with `AGENT_RESULT: done | blocked — <summary>`. If blocked on a question, it should end its
-turn with that question; the parent can answer via `agent_send`. The marker is an instruction,
-not a parsed status field or a separate question-delivery channel.
-
-## Reports and the screen
-
-When a child's submitted input settles with an answer, the reporter extracts the answer entry's
-text blocks, joins and trims them, and sends them to the parent as input:
+When a child's submitted input settles with an answer, the reporter joins the answer entry's text
+blocks and sends them to the parent as input:
 
 ```text
 [agent Review (reviewer) finished]
@@ -256,15 +181,10 @@ text blocks, joins and trims them, and sends them to the parent as input:
 ```
 
 No text blocks means `(no text)`. The header says the submission produced an answer; it does not
-prove that the task succeeded or that the answer's claims were checked. The parent should verify
-important claims and summarize the outcome for the person.
-
-Reports use `whenBusy: "steer"`: they join the parent's current run at its next boundary, or
-start a run if the parent is idle. They are not a synchronous return value of `agent_spawn`.
-A missing child conversation produces a failure report, as does an unanswered submission unless
-`agent_stop` has set the suppression flag.
-
-### Model input versus displayed text
+prove the task succeeded or the answer's claims were checked. Reports use `whenBusy: "steer"`: they
+join the parent's current run at its next boundary, or start a run if the parent is idle. A missing
+child conversation produces a failure report, as does an unanswered submission unless `agent_stop`
+has set the suppression flag.
 
 Each submission has separate model content and application entry data:
 
@@ -273,156 +193,82 @@ Each submission has separate model content and application entry data:
 | Parent → child | `subagents.instruction` | `Orchestrator` | Parent conversation ID | Task or follow-up text                 | none                         |
 | Child → parent | `subagents.report`      | Agent name     | Child conversation ID  | Answer text, without the report header | Provider/model of the answer |
 
-The model reads the submission's `content`. The UI prefers `data.text`, so the parent sees the
-report header in its model context while the person sees the answer under the agent's name.
-`data.model` is `provider/model` taken from the answer entry that was reported, with the engine
-the provider itself reported preferred when it named one; it is not looked up from the profile
-again, so a profile edited after the spawn cannot relabel a report. Failure reports carry no
-model, because nothing answered. A report or checkpoint written before this field existed simply
-has none, and the card draws no badge for it.
-**Reports are not length-limited today:** the full text enters both the parent's context and the
-report card. Folding the card saves screen space, not context tokens.
+The model reads the submission's `content`; the UI prefers `data.text`, so the person sees the answer
+under the agent's name without the header. `data.model` is `provider/model` taken from the reported
+answer entry (the engine the provider reported, when it named one), not looked up from the profile, so
+a later profile edit cannot relabel a report. Failure reports carry no model, and reports written
+before the field existed draw no badge.
 
 Core projects an application entry with a user-role model message and a non-empty string
-`data.author` as a user entry with an author. The optional numeric `data.session` supplies its
-open-conversation link. This is a generic convention, not a core dependency on this extension;
-see [the server contract](../../docs/server.md#messages-from-application-authors).
+`data.author` as a user entry with an author; the optional numeric `data.session` supplies the
+open-conversation link. This is a generic convention (see
+[the server contract](../../docs/server.md#messages-from-application-authors)).
 
-The transcript draws authored messages as left-hand cards with an agent-coloured stripe, bot icon,
-name, and a first-line preview. A report also shows its model's own name, without the provider, as
-a small badge on the right, before the open-conversation link: truncated on a phone, and the whole
-`provider/model` in its hover title. Cards are folded by default; expand to read Markdown. The open link navigates to the source
-conversation (an ordinary link also works in a new tab).
+### On screen
 
-While a report or instruction is queued, the composer shows its author and mode using the same
-agent styling. It can be withdrawn, but not edited and resent as the person's own message.
-Withdrawing a queued report does not cause the reporter to send it again.
+`web.tsx` registers the bot icon for the four `agent_*` tools in the activity timeline, plus the
+parts below.
 
-`web.tsx` registers the bot icon for all four `agent_*` tools in the activity timeline. It adds
-the strip, the agents area, the agents count and the popover marker below, plus a **Subagent models**
-settings section using the same profile editor as the Extensions dialog. It adds no panel.
-
-### Agents area in the sidebar
-
-Under the session list (the `sidebarBottom` slot, with the core's resize handle) the area lists
-every agent of the open session, or of the session that started the open one, so the siblings
-stay visible while one is open. It is absent when there are none, and for an agent whose parent
-is not in the list (that agent is a row of the main list). Working agents come first, then
-finished ones, newest first. A row has the working mark, the agent's name and `working`, or a
-dimmed name with `4m ago`. The open agent has the selected row's background. A plain
-click opens the agent in the app; a modified click is the browser's.
-
-Names and profiles come from the `agents` action, which reads the parent's `subagents.agents`
-document. The browser asks when the area's parent or the children's IDs/busy states change; an
-agent with no record shows its session title.
-
-**The time in `4m ago`.** It is `SessionSummary.endedAt` from the core: the end of the
-conversation's latest run, stored with the conversation, so it survives a restart. It is not
-`activeAt`, which is when a person last wrote to the session or created it and for an agent stays
-near the moment it was started. An agent whose end the core never recorded (it finished before the
-core began to store it) shows plain `finished` and sorts after the agents with a known end.
-Finished agents are ordered by `endedAt`, newest first. The `agents` action returns only names and
-profiles.
-
-### Status bar and popover
-
-- A status item in the `start` slot, right after the session counts: `· 2 agents working`, in the
-  warn colour. It counts the working agents of every parent, except the open one, and is absent
-  at 0.
-- In the status popover (the list behind the "working" count), a parent row with an agent
-  working has the working mark and the count inside the row, next to the time. The whole row opens
-  a submenu of that parent's working agents (hover, ArrowRight, Space); a click on the row opens
-  the parent, and a click on an agent in the submenu opens the agent. The popover has no row of
-  its own for an agent. The marker's count includes the open agent: the core does not tell a
-  marker which session is open.
-
-### Working-agents strip
-
-Above the composer, in the `aboveComposer` slot, one horizontal line shows the agents the open
-conversation started that are working now. With none working, nothing is drawn, not even an empty
-row. Each chip is a link to the agent's conversation: the animated working mark, the agent's name,
-its model (the id without the provider, in small faint text, cut at 84px), and a context bar with a
-percentage. The bar turns `warn` above 70%. The full model with its provider, the profile and the
-exact token counts are in the hover title. A child working in another folder also shows its full
-path in the title and a short folder badge on wider screens. There is no speed figure.
-
-- The line scrolls sideways when the chips do not fit. Chips are 36px tall, 40px under 760px wide.
-- The percentage is an estimate like the context meter's: the agent's latest answer (input, output,
-  cache read and write) over the model's context window. Before its first answer the chip shows a dash.
-- When the open conversation is itself an agent's, the strip is replaced by one link,
-  "← Back to <parent title>", with the same outer height, so the composer does not move between the
-  two views. A plain click opens the conversation in the app; a modified click opens a new tab.
-- The `strip` action (`refs.ts`) feeds it. Which conversations are agents comes from the core's
-  owner link (`session.owner` in a commit view and in an action call), not from any entry. "Working"
-  is the commit's busy flag, and the latest answer gives the context fill. The name and the profile
-  come from the parent's `subagents.agents` document, read once per call with `host.readDoc`: the
-  record whose `conversationId` is the child gives the name (its key) and the profile (`agent`).
-  That document is durable and does not depend on the child's entries, so a compaction cannot lose
-  a name. A conversation the parent has no record of (owned by the parent but not started by this
-  extension) shows as "Agent" with no profile and no model until its first answer.
+- **Report cards.** Authored messages are left-hand cards with an agent-coloured stripe, bot icon,
+  name and a first-line preview, folded by default (expand to read Markdown). A report also shows its
+  model's name without the provider as a badge before the open-conversation link. While a report or
+  instruction is queued, the composer shows its author and mode; it can be withdrawn, but not edited
+  and resent as the person's own message.
+- **Working-agents strip** (`aboveComposer`). One horizontal line of chips for the agents the open
+  conversation started that are working now; nothing is drawn when none are. A chip links to the
+  agent's conversation and shows the working mark, name, model (without provider), and a context bar
+  with a percentage (an estimate like the context meter's: the agent's latest answer over the model's
+  context window; a dash before its first answer; `warn` above 70%). The hover title has the full
+  model, profile and exact token counts, and a child in another folder shows its path. When the open
+  conversation is itself an agent's, the strip is replaced by a "← Back to <parent title>" link of
+  the same height.
+- **Agents area** (`sidebarBottom`, with the core's resize handle). Lists every agent of the open
+  session, or of the session that started the open one, working first, then finished, newest first. A
+  row shows the working mark, name and `working`, or a dimmed name with `4m ago`. It is absent when
+  there are none and for an agent whose parent is not in the list (that agent stays a row of the main
+  list). A plain click opens the agent in the app. The time is `SessionSummary.endedAt`, the end of
+  the conversation's latest run, stored with it; an agent whose end was never recorded shows
+  `finished` and sorts last.
+- **Status bar** (`start` slot): `· 2 agents working` in the warn colour, counting working agents of
+  every parent except the open one; absent at 0. In the status popover, a parent row with a working
+  agent shows the mark and count, and opens a submenu of that parent's working agents (hover,
+  ArrowRight, Space); a click on the row opens the parent. The marker's count includes the open agent.
 - Every commit of an agent calls `host.notifySessionChanged(parent)`. The core sends the parent's
-  browsers a new `session.revision` at most every 250 ms, and the strip asks again when it moves, so
-  an agent appears, fills and disappears without the person touching the page. Nothing polls.
-- The lower sidebar area lists all agents, finished ones included; see
-  [Agents area in the sidebar](#agents-area-in-the-sidebar).
+  browsers a new `session.revision` at most every 250 ms and the strip asks again, so nothing polls.
+  The `strip` action (`refs.ts`) reads the child's owner from `session.owner`, "working" from the
+  commit's busy flag, and name and profile from the parent's `subagents.agents` document via
+  `host.readDoc`, so a compaction cannot lose a name. A child the parent has no record of shows as
+  "Agent" with no profile or model until its first answer.
+- Child sessions are hidden from the main list while their parent is present and appear in the agents
+  area instead.
 
-## Stop, direct messages, archive, and delete
+### Stop, direct messages, archive and delete
 
-| Action                          | What happens now                                                                                                                                                       |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stop in the parent conversation | Aborts the parent's foreground run, not its background agent/reporter tasks. Agents keep working. A later report may start the parent again.                           |
-| `agent_stop` in the parent      | Sets the child's suppression flag, then aborts its current run. An unanswered submission under that flag produces no report. Context remains for `agent_send`.         |
-| Stop an already idle agent      | Returns that nothing was running; still sets the suppression flag until the next `agent_send`.                                                                         |
-| Stop directly in the child's UI | Aborts the child without setting the extension's suppression flag. A waiting reporter can therefore send a failure report.                                             |
-| Type directly into the child    | Runs there, but creates no new reporter, so there is no automatic report for that direct submission.                                                                   |
-| Archive a session               | Changes sidebar visibility only; it does not stop the session or its children.                                                                                         |
-| Delete the parent               | Marks the parent deleted and aborts its foreground run. Its background agents are not explicitly stopped by the current delete path. Do not use deletion to stop them. |
-| Delete a child                  | Marks it deleted for the core list/open API; it does not remove the parent's agent record. `agent_send` still addresses the durable conversation through the harness.  |
+| Action                          | What happens                                                                                                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stop in the parent conversation | Aborts the parent's foreground run, not its background agents or reporters. Agents keep working; a later report may start the parent again.                    |
+| `agent_stop` in the parent      | Sets the child's suppression flag, then aborts its current run. An unanswered submission under that flag produces no report. Context remains for `agent_send`. |
+| Stop an already idle agent      | Returns that nothing was running; still sets the flag until the next `agent_send`.                                                                             |
+| Stop directly in the child's UI | Aborts the child without setting the flag, so a waiting reporter can send a failure report.                                                                    |
+| Type directly into the child    | Runs there, but creates no reporter, so no automatic report.                                                                                                   |
+| Archive a session               | Sidebar visibility only; it stops neither the session nor its children.                                                                                        |
+| Delete the parent               | Marks it deleted and aborts its foreground run. Its background agents are not stopped. Stop them first.                                                        |
+| Delete a child                  | Marks it deleted for the core list; the parent's agent record stays, and `agent_send` still addresses the durable conversation.                                |
 
-Each stop increments a durable counter. An older reporter is suppressed even after a later
-`agent_send` clears the flag. It checks before submitting work and again before preparing a report;
-a submission racing with a stop is withdrawn, or its run aborted if the input was already placed.
-Stopping is not a recall: a report already prepared or submitted may still arrive.
-If a parent is deleted with agents working, their background work may continue; stop them first.
-Deleting is not a purge of stored entries. See [session-delete.md](../../docs/session-delete.md).
+Each stop increments a durable counter, so an older reporter is suppressed even after a later
+`agent_send` clears the flag. The reporter checks before submitting work and again before preparing a
+report; a submission racing with a stop is withdrawn, or its run aborted if the input was already
+placed. Stopping is not a recall: a report already prepared or submitted may still arrive. Deleting is
+not a purge of stored entries; see [sessions.md](../../docs/sessions.md). Agent records have no
+close or remove operation, so finished agents stay addressable and the parent's status list grows.
+Turning the extension off does not stop agents; use `agent_stop` first.
 
-Child sessions are hidden from the main session list while their parent is present and appear in
-the extension's agents area instead. A child whose parent is absent remains a top-level row.
-Agent records have no close/remove operation. Finished agents remain addressable, and the parent's
-no-name status list grows as more are spawned.
+### Durability
 
-## Implementation and durability
+The pattern comes from Pi Durable's README, "Abort and Subagents", example 23. No custom agent loop
+or child process is created here.
 
-The pattern comes from Pi Durable's README, “Abort and Subagents”, example 23. The example file is
-not shipped with the installed package; the README text is the reference. No custom agent loop or
-child process is created here.
-
-### File map
-
-| File                      | Responsibility                                                                                                                    |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `server/profiles.ts`      | Profile discovery, frontmatter parsing, and precedence.                                                                           |
-| `server.ts`               | Entry: installs the tools, tasks and prompt parts from `server/`, keeps the strip's record of working agents, exports `actions`.  |
-| `server/tools.ts`         | The four tools: `agent_spawn`, `agent_send`, `agent_stop`, `agent_status`.                                                        |
-| `server/tasks.ts`         | The anchor task and the reporter task (`deliver`, then `report`).                                                                 |
-| `server/docs.ts`          | The `subagents.agents` document and the `subagents.child` document (how a child's prompt differs).                                |
-| `server/child-agent.ts`   | Turns a profile into the child's model, thinking, tools and instructions, or an error.                                            |
-| `server/prompt.ts`        | The `agents` section, the child's protocol text, and the wraps for `system-prompt: replace` and `skills`.                         |
-| `server/answer.ts`        | Reads the text and the answering model out of an assistant entry.                                                                 |
-| `server/strip.ts`         | What the strip knows of a working child, and how a row is built.                                                                  |
-| `server/actions.ts`       | The `agents`, `profiles`, `setModel` and `strip` actions.                                                                         |
-| `refs.ts`                 | The `strip`, `agents`, `profiles` and `setModel` action refs and their types, shared by `server.ts`, `web.tsx` and `details.tsx`. |
-| `server/profile-model.ts` | Writes `model:` and `thinking:` into a profile's frontmatter, and nothing else. Tested in `server/profile-model.test.ts`.         |
-| `details.tsx`             | Mounts the profile editor in the Extensions dialog.                                                                               |
-| `web/profile-models.tsx`  | Shared profile editor used by the Extensions dialog and the Subagent models settings section.                                     |
-| `web/area.ts`             | Pure helpers for the area: parent, order, "ago", counts. Tested in `web/area.test.ts`.                                            |
-| `web.tsx`                 | Bot icons, the strip, the agents area, the status count and the popover marker.                                                   |
-| `server.test.ts`          | Real-Harness integration tests with a faux model and disposable SQLite storage.                                                   |
-| `README.md`               | Current usage, behavior, constraints, and maintenance guide.                                                                      |
-
-### Parent document
-
-`subagents.agents`, version 1, is a conversation-scoped document. Its shape is:
+`subagents.agents`, version 1, is a conversation-scoped document on the parent:
 
 ```text
 {
@@ -439,57 +285,62 @@ child process is created here.
 }
 ```
 
-State lives in the harness, not in a module-level map or a results directory. `reported` currently
-grows by one ID per answer selected for reporting, without pruning. Profiles are files, but the full
-answers are already stored as entries in the child's conversation; the extension writes no separate
-report files.
-
-### Anchor and reporter tasks
+State lives in the harness, not in a module-level map or a results directory. `reported` grows by one
+ID per reported answer, without pruning. The full answers are already entries in the child's
+conversation; no separate report files are written.
 
 1. **Spawn transaction:** find a replayed `callId` or choose a free name; create a background
-   `subagents.anchor` task owned by the parent; create the child owned by that anchor; configure
-   it; save its record; create a background `subagents.reporter` task owned by the parent.
-2. **Anchor:** ends immediately. Its ownership establishes the background boundary that prevents
-   the parent's normal abort from reaching the child. It is not a worker loop.
+   `subagents.anchor` task owned by the parent; create the child owned by that anchor; configure it;
+   save its record; create a background `subagents.reporter` task owned by the parent.
+2. **Anchor:** ends immediately. Its ownership is the background boundary that keeps the parent's
+   normal abort from reaching the child. It is not a worker loop.
 3. **Reporter, `deliver`:** submit the instruction to the child with
    `requestId: subagents:<reporter task ID>` and wait for that submission to settle.
-4. **Checkpoint transaction:** suppress a result if the record's `stops` differs from the reporter's
-   captured counter; otherwise consult `stopped` for an unanswered submission. For an answer,
-   suppress a duplicate `reported` ID or append it, and save the report text and the answering
-   model in the task checkpoint.
+4. **Checkpoint transaction:** suppress the result if the record's `stops` differs from the reporter's
+   captured counter, or consult `stopped` for an unanswered submission. For an answer, suppress a
+   duplicate `reported` ID or append it, and save the report text and answering model in the task
+   checkpoint.
 5. **Reporter, `report`:** submit the saved report to the parent with
    `requestId: subagents-report:<reporter task ID>`, then end the reporter task.
 
-`agent_send` schedules another reporter against the same child, unless its `callId` is the one
-already stored. A steering submission can settle with the same answer as the run it joined, so
-multiple reporters may observe one answer; the transaction's `reported` check lets only one
-prepare that report.
+`agent_send` schedules another reporter against the same child, unless its `callId` is already stored.
+A steering submission can settle with the same answer as the run it joined; the `reported` check lets
+only one reporter prepare that report. The tools declare `replay: "safe"`: `callId` guards
+scheduling, request IDs guard duplicate submissions, and the checkpoint lets the second phase resume
+without asking the child again. Keep these protections when changing the tasks. They protect
+extension delivery across replay and restart, not external effects of a child's tools. Do not
+casually change task phases, checkpoint shapes or document versions: stored work may still use them.
 
-Both tools declare `replay: "safe"`; `callId` guards scheduling, request IDs guard duplicate
-submissions, and the report checkpoint lets the second phase resume without asking the child
-again. Keep these protections when changing the tasks. They protect extension delivery across
-replay/restart, not arbitrary external effects of a child's tools. Running work is durable and can
-resume when the server reopens its state with the extension installed.
+### Files
+
+| File                      | Responsibility                                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `server.ts`               | Installs the tools, tasks and prompt parts from `server/`, tracks working agents for the strip, exports `actions`. |
+| `server/profiles.ts`      | Profile discovery, frontmatter parsing, precedence.                                                                |
+| `server/tools.ts`         | The four tools.                                                                                                    |
+| `server/tasks.ts`         | The anchor task and the reporter task (`deliver`, then `report`).                                                  |
+| `server/docs.ts`          | The `subagents.agents` and `subagents.child` documents.                                                            |
+| `server/child-agent.ts`   | Turns a profile into the child's model, thinking, tools and instructions, or an error.                             |
+| `server/prompt.ts`        | The `agents` section, the child's protocol text, the wraps for `system-prompt` and `skills`.                       |
+| `server/answer.ts`        | Reads the text and answering model from an assistant entry.                                                        |
+| `server/strip.ts`         | What the strip knows of a working child.                                                                           |
+| `server/actions.ts`       | The `agents`, `profiles`, `setModel` and `strip` actions.                                                          |
+| `server/profile-model.ts` | Writes `model:` and `thinking:` into a profile's frontmatter, and nothing else.                                    |
+| `refs.ts`                 | The action refs and their types, shared by `server.ts`, `web.tsx` and `details.tsx`.                               |
+| `web.tsx`, `web/`         | Bot icons, strip, agents area, status count, popover marker, profile editor; `web/area.ts` holds the pure helpers. |
+| `details.tsx`             | Mounts the profile editor in the Extensions dialog.                                                                |
 
 ### Reloading
 
-- Profile edit: picked up on the next prompt build/spawn; existing children keep their configuration.
-- `server.ts` or a helper it imports from this folder: the loader reinstalls the extension on save;
-  an already-running tool call finishes on its old version. A broken replacement keeps the last
-  working version. Do not casually change task phases, checkpoint shapes, or document versions:
-  stored work may still use them.
-- `web.tsx`: Vite HMR in development. Production needs `pnpm build` and a page refresh to use the
-  new browser bundle; a server restart alone does not rebuild it.
-- Core projection/protocol/UI changes: follow the core reload rules. Server changes need a server
-  restart; production browser changes need a rebuild. An old server without the author convention
-  hides application report entries instead of drawing the cards.
+- A profile edit is picked up on the next prompt build or spawn; existing children keep their
+  configuration.
+- `server.ts` or a helper it imports: reinstalled on save; a running tool call finishes on its old
+  version, and a broken replacement keeps the last working one.
+- `web.tsx`: Vite HMR in development; production needs `pnpm build` and a page refresh.
+- Core projection, protocol and UI changes follow the core reload rules. An old server without the
+  author convention hides application report entries instead of drawing the cards.
 
-Do not assume turning the extension off is a stop-all command: it has no explicit cleanup that
-walks its agents and aborts them. Use `agent_stop` for agents you intend to stop before disabling.
-
-## Verification and safe local work
-
-Run from the repository root:
+## Verification
 
 ```bash
 node --test extensions/subagents/
@@ -497,82 +348,31 @@ pnpm check
 pnpm test
 ```
 
-The extension tests use a real `Harness`, real task scheduling, and a temporary SQLite file.
-A faux model distinguishes parent and child by `## Agent protocol` in the child's system messages.
-They check:
+`server.test.ts` uses a real `Harness`, real task scheduling and a temporary SQLite file. A faux model
+tells parent from child by `## Agent protocol` in the child's system messages; a scripted faux tool
+call must use `stopReason: "toolUse"`, or the harness treats it as an answer. Tests set
+`PI_CODING_AGENT_DIR` to a temporary directory so the owner's profiles do not leak in. They cover
+spawn (separate conversation, instructions, tool allowlist, title, reports with author and source in
+both directions, follow-up keeping the original model and thinking), `cwd`, prompt options, profile
+and model errors without a child, omitted thinking becoming `off`, and `agent_stop`.
+[`test/projection.test.ts`](../../test/projection.test.ts) covers authored entries and queued
+messages.
 
-- Spawn creates a separate conversation, applies instructions and the tool allowlist, removes the
-  four subagent tools while keeping the extension's prompt wraps, sets the title, and delivers the
-  report with author/source metadata in both directions. A follow-up keeps the child's original
-  model/thinking even after the profile file is edited.
-- `cwd` changes only the child's working directory; invalid paths start no child. Prompt tests cover
-  `system-prompt: replace`, named skills, `skills: none`, and the absence of the child's profile list.
-- Unknown profiles, missing/malformed/unavailable/unauthenticated models, invalid or unsupported
-  thinking, and inline model/thinking overrides return tool errors without creating a child.
-- Omitted thinking becomes `off` even when the parent uses `high`.
-- `agent_stop` aborts a working child without reporting its unanswered run to the parent and
-  prevents an older reporter from starting work after a stop; a later send can continue the agent.
+For manual testing use a disposable `PI_DURABLE_DATA_DIR` and a free `PORT`, never the running app's
+`data/state.sqlite` or port. Disable unrelated extensions in that data folder before startup, since a
+new data directory enables them by default and they may make network requests. A Vite instance must
+proxy `/api` to the test server.
 
-The tests set `PI_CODING_AGENT_DIR` to a temporary directory so the owner's profiles do not leak
-in. A scripted faux tool call must use `stopReason: "toolUse"`; otherwise the harness treats it as
-an answer. The current suite does **not** establish exhaustive profile parsing, restart/replay,
-steering-race, or browser behavior coverage. Projection tests in
-[`test/projection.test.ts`](../../test/projection.test.ts) separately cover authored entries and
-queued messages.
+## Limits
 
-For manual testing, use a disposable `PI_DURABLE_DATA_DIR` and a free `PORT`, never the running
-app's `data/state.sqlite` or its port. Disable unrelated extensions in that temporary data folder
-before startup; a new data directory otherwise enables them by default and they may make network
-requests. A Vite instance must proxy `/api` to that test server, not the owner's server.
-A successful test run is not evidence that the owner's production bundle has been rebuilt.
-
-An isolated instance for looking at the UI, as it was done before:
-
-1. `D=$(mktemp -d /tmp/subagents-ui-XXXX)`, and write `$D/extensions.json` as
-   `{ "disabled": [every folder except subagents] }`, so the rest stays off.
-2. Seed `$D/state.sqlite` with a script that opens a `Harness` on it and appends the conversations
-   and entries to show. Run it from the project root so imports resolve to its `node_modules`.
-3. `PI_DURABLE_DATA_DIR=$D PORT=8799 node server/main.ts`.
-4. Run Vite on another port with a config under `node_modules/.cache/<name>/` (ignored by git; a
-   config outside the project cannot resolve `vite`) that merges the base config with
-   `root: "<abs>/web"` and a `/api` proxy to `http://127.0.0.1:8799`.
-
-## Troubleshooting and known limits
-
-| Symptom                                                 | Check                                                                                                                                                                                   |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Profile missing from the prompt / unknown profile error | Required `name` and `description`, readable `.md` file, the session's cwd, nearest project-directory precedence, and `PI_CODING_AGENT_DIR`. Invalid profiles are skipped silently.      |
-| Spawn rejects a profile's model or thinking             | Read the tool error and fix the Markdown profile or provider/auth setup. `model` is required; thinking must be supported (`off` when omitted). There is no fallback or inline override. |
-| Child has too many or too few tools                     | An absent `tools` key inherits; any list, even empty, intersects exact parent tool names. Editing the profile does not reconfigure an existing child.                                   |
-| Spawn says the name exists                              | Continue it with `agent_send`, or choose a fresh name; session titles and tool names are separate.                                                                                      |
-| A model set in the dialog is not used                   | The profile edits apply to the next spawn, not to a running agent. Check the row's model and that `agent_spawn` names the profile you changed.                                          |
-| No report after typing in the child                     | Direct input creates no reporter. Send through the parent when a report is required.                                                                                                    |
-| No report after `agent_stop`                            | An unanswered stopped run is intentionally suppressed. Continue with `agent_send`.                                                                                                      |
-| Report exists but is invisible in the UI                | Check for an old server without author projection, an old browser build, or a report still queued at a boundary.                                                                        |
-| Parent starts again after Stop                          | Its background agents/reporters outlive a foreground stop. Stop the specific agents too if that is the intent.                                                                          |
-| Status preview is stale, cut, or empty                  | It reads assistant text from only the newest 20 entries and keeps the last 2000 characters. Open the child transcript.                                                                  |
-| Large agent list or parent context                      | Finished agents stay in the sidebar's agents area and remain addressable; reports are not bounded. There is no agent close/remove operation.                                            |
-
-Deliberately absent: recursive agents, an `ask_question` tool, a full-result status option, model
-mapping, and automatic worktree creation. An existing worktree can be selected through `cwd`.
-Questions travel as ordinary final answers; the parent answers with `agent_send`.
-
-## Open work
-
-Two items are not done. Neither is started in the code.
-
-- **Bound long reports.** The whole answer goes into the parent's context, so a 20 000-character
-  review costs that much on every later request until compaction. The full answer is already stored
-  as an entry in the child's conversation, so a bound needs no file: put an excerpt (for example the
-  first 4 000 and the last 2 000 characters, cut at line boundaries and never inside a fenced code
-  block) in the report's model content, keep `data.text`, which the screen shows, whole, and let
-  `agent_status({ name })` return the full latest answer on request. The excerpt function is the
-  part to unit-test.
-- **Deleting a parent stops its agents.** Deleting a parent aborts only its foreground run; the
-  agents keep working unseen, now hidden from the list as well (see
-  [Stop, direct messages, archive, and delete](#stop-direct-messages-archive-and-delete)). The core
-  already calls a listener registered with `host.onSessionGone` when a session is deleted, so the
-  extension can run the `agent_stop` logic on each child of the deleted parent from there; this
-  extension does not register one yet. Archiving does not stop anything and has no hook; decide
-  separately whether it should. A real-Harness test: a parent with a working agent is deleted, and
-  the child's run ends; stopping the parent alone leaves the child running.
+- **Reports are not length-limited.** The whole answer enters the parent's context and the report
+  card, so a 20 000-character review costs that much on every later request until compaction. Folding
+  the card saves screen space, not context tokens.
+- **Deleting a parent does not stop its agents.** They keep working unseen, hidden from the list. The
+  extension registers no `host.onSessionGone` listener. Archiving stops nothing either.
+- Direct input into a child creates no report; send through the parent when one is required.
+- A stopped, unanswered run is intentionally not reported; continue with `agent_send`.
+- Status previews read only the newest 20 entries and the last 2000 characters.
+- Not supported: recursive agents, an `ask_question` tool, a full-result status option, model mapping and
+  automatic worktree creation (an existing worktree can be selected through `cwd`). Questions travel
+  as ordinary final answers.

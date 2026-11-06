@@ -1,59 +1,55 @@
 # Hotkeys
 
-`extensions/hotkeys` binds physical keys (`KeyboardEvent.code`), so shortcuts work across keyboard
+Keyboard shortcuts bound to physical keys (`KeyboardEvent.code`), so they work across keyboard
 layouts. It runs the shell's commands through `@/sdk/commands.ts` and supplies each command's first
 binding to the core's [keyboard hints](../../docs/extensions.md#keys-for-a-shell-command). Disabling
 the extension removes both its shortcuts and its hints.
 
-## Defaults and configuration
+## Usage
 
-`hotkeys.json` lives in the server's data directory (normally `data/hotkeys.json`). These are the
-complete defaults:
+Press the prefix, release it, then press the second key within 1.5 seconds. The status bar shows the
+armed prefix. A second prefix passes that key through to the browser; an unbound second key cancels
+the sequence and is consumed.
 
-```json
-{
-    "prefix": "ctrl+a",
-    "keys": {
-        "session.new": [],
-        "session.new.pick": ["prefix+c"],
-        "folder.pick": ["prefix+s"],
-        "session.search": ["prefix+f"],
-        "session.rename": ["prefix+r", "prefix+,"],
-        "session.prev": ["shift+left", "prefix+p"],
-        "session.next": ["shift+right", "prefix+n"],
-        "sidebar.toggle": ["prefix+b"],
-        "extension.git-history.open": ["prefix+g"]
-    }
-}
-```
+Commands and their default bindings (`ctrl+a` is the prefix):
 
-Two commands start a session: `session.new` takes the folder on screen at once and `session.new.pick`
-opens the folder picker first. The picker is bound by default; `session.new` is there for a key of
-your own.
+| Command                      | Default                   | Does                                         |
+| ---------------------------- | ------------------------- | -------------------------------------------- |
+| `session.new`                | none                      | New session in the folder on screen          |
+| `session.new.pick`           | `prefix+c`                | New session, folder picker first             |
+| `folder.pick`                | `prefix+s`                | Opens the sidebar's folder menu              |
+| `session.search`             | `prefix+f`                | Session search                               |
+| `session.rename`             | `prefix+r`, `prefix+,`    | Renames the session                          |
+| `session.prev`               | `shift+left`, `prefix+p`  | Previous session                             |
+| `session.next`               | `shift+right`, `prefix+n` | Next session                                 |
+| `sidebar.toggle`             | `prefix+b`                | Collapses or expands the sidebar to its rail |
+| `extension.git-history.open` | `prefix+g`                | [Git history](../git-history/README.md) list |
 
-`sidebar.toggle` collapses and expands the sidebar to its rail, the same toggle as the button in its
-header: it saves the state the button saves, so the next visit starts the way the key left it. The
-rail exists from `lg` up; below that the sidebar is a full-screen sheet, where the key flips the saved
-state and nothing on screen moves.
+`sidebar.toggle` is the same toggle as the button in the sidebar header and saves the same state. The
+rail exists from `lg` up; below that the sidebar is a full-screen sheet, where the key flips the
+saved state and nothing on screen moves.
 
-- Press the prefix, release it, then press the second key within 1.5 seconds. The status bar shows
-  the armed prefix. A second prefix passes that key through to the browser; an unbound second key
-  cancels the sequence and is consumed.
+An extension's own command is named `extension.<folder>.<command>`. The core knows no extension by
+name; this file is the only place a key is given to one. It is bound here rather than by the
+extension, and newer versions add their defaults to an older file.
+
+## Configuration
+
+`hotkeys.json` in the server's data directory (normally `data/hotkeys.json`), shaped like the
+defaults above: `{ "prefix": "ctrl+a", "keys": { "<command>": ["<binding>", …] } }`.
+
 - Override only the entries you need. A command accepts one binding string or a list; `[]` unbinds
   it. Missing or invalid entries keep their defaults; a missing or broken file uses all defaults.
 - Modifiers are `ctrl`, `alt`, `shift` and `meta`. Keys are letters, digits, arrows (`left`, `right`,
   `up`, `down`), `escape`, `enter`, `tab`, `space`, and `, . - / [ ]`. A prefix needs Ctrl, Alt or
   Meta. A non-prefixed printable key also needs one of those modifiers.
-- Each mounted browser reads the map once. After editing the file, reload that page to apply it.
-- `extension.git-history.open` is [Git history](../git-history/README.md)'s commit list for the
-  conversation on screen. An extension's own command is named `extension.<folder>.<command>`: the
-  core knows no extension by name, and this file is the only place a key is given to one. It is
-  bound here rather than by the extension, and newer versions add their defaults to an older file.
+- Each mounted browser reads the map once. After editing the file, reload that page.
 
-## Fields and dialogs
+## Behavior
 
-A normal field keeps its keys except the prefix. A field inside `[data-shell-keys]`, including the
-composer's textarea, also lets unprefixed shell shortcuts through, so Shift+Left/Right switches
-sessions there. A field inside `[data-own-keys]`, such as the terminal, keeps every key, the prefix
-included. Dialogs keep the keyboard unless a prefix sequence was already armed. Composition
-input and repeated key presses do not run commands.
+- A normal field keeps its keys except the prefix.
+- A field inside `[data-shell-keys]`, including the composer's textarea, also lets unprefixed shell
+  shortcuts through, so Shift+Left/Right switches sessions there.
+- A field inside `[data-own-keys]`, such as the terminal, keeps every key, the prefix included.
+- Dialogs keep the keyboard unless a prefix sequence was already armed.
+- Composition input and repeated key presses do not run commands.

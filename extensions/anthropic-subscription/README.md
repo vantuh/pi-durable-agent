@@ -1,85 +1,63 @@
 # Anthropic subscription
 
-`extensions/anthropic-subscription` adds the Claude Code billing system block to native
-Anthropic OAuth payloads, following Pi Pocket's `anthropic-subscription` feature and the
-billing recipe in `@gotgenes/pi-anthropic-auth`. It does not launch Claude Code, rewrite
-project prompts, suppress warnings, or guarantee subscription classification by Anthropic.
-API-key payloads and other providers are left unchanged. Existing billing blocks are not duplicated;
-messages, tools, and cache controls stay intact.
+Adds the Claude Code billing system block to native Anthropic OAuth payloads, following Pi Pocket's
+`anthropic-subscription` feature and the billing recipe in `@gotgenes/pi-anthropic-auth` (MIT, see
+`LICENSE.pi-anthropic-auth`). API-key payloads and other providers are left unchanged. Existing
+billing blocks are not duplicated; messages, tools and cache controls stay intact.
 
-It is enabled by default, like other folders; turn **Anthropic subscription** off in the
-Extensions dialog to send Pi's original payloads. The version defaults to `2.1.280` and can
-be overridden with `PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION=X.Y.Z` before starting the server.
-A malformed override fails the extension load instead of silently sending a bad identity.
+## Usage
 
-## Extension details
+It is enabled by default. Turn **Anthropic subscription** off in the Extensions dialog to send Pi's
+original payloads. The open details refresh every three seconds (no polling while disabled or
+collapsed) and show:
 
-Anthropic subscription details separate the selected billing version and its source from
-**Sent billing version**, parsed from the outgoing billing block. Existing blocks remain
-unchanged; an absent or unparseable version shows unavailable instead of the selected value.
-The last-request fields describe only Anthropic POST messages requests across all sessions;
-other providers and endpoints cannot overwrite them. Request fields are published as one
-snapshot, and late responses/retries cannot replace a more recently started request's snapshot.
-The learned floor is shared knowledge and may still be raised by an older request.
-These in-memory diagnostics reset on extension reload/disable and retain no message text,
-system prompt or token.
-The open details refresh every three seconds, with no polling while disabled or collapsed.
-A disabled folder shows only the bundled default, not a claim about the effective env override.
-The displayed version is not the transport's HTTP User-Agent, and an applied shape does
-not prove either a successful response or subscription billing.
+- the selected billing version and its source, and the **Sent billing version** parsed from the
+  outgoing billing block (unavailable when absent or unparseable);
+- the last Anthropic `POST messages` request across all sessions, published as one snapshot (a late
+  response or retry cannot replace a more recently started request's snapshot);
+- the learned minimum version and whether the last OAuth request's retry recovered;
+- **Check subscription**, which queries Anthropic's undocumented `/api/oauth/profile` endpoint only
+  when clicked and shows the subscription type and status, seat and rate-limit tiers, and whether
+  extra usage is enabled. Missing fields show Unknown. Email and organization name are left out
+  unless **Include email and organization** is checked; unchecking clears the profile.
 
-## OAuth detection
+The diagnostics are in memory, reset on reload or disable, and keep no message text, system prompt
+or token.
 
-Anthropic subscription now checks the actual outgoing Bearer OAuth token on POST messages
-requests instead of trusting a system-prompt identity marker. API keys and other providers
-pass through untouched, even if their prompts contain a Claude Code identity. The helper
-that builds the billing block assumes its caller has already checked OAuth authorization.
+## Configuration
 
-## Billing-version synchronization
+`PI_ANTHROPIC_AUTH_CLAUDE_CODE_VERSION=X.Y.Z`, set before starting the server, overrides the version
+(default `2.1.280`). An override is absolute, even when lower. A malformed value fails the extension
+load instead of silently sending a bad identity.
 
-For OAuth messages requests, the selected version is the numeric maximum of the bundled
-version, the learned minimum and the final `claude-cli/X.Y.Z` User-Agent token. The token
-may follow other whitespace-separated User-Agent tokens, but partial names and versions
-with extra components or suffixes do not match. The HTTP User-Agent itself
-is not rewritten. An explicit environment override is absolute, even when lower.
-Details show both billing and observed Pi versions and distinguish a transport-derived
-version. Unknown User-Agents fall back to the bundled version; no package registry or
-local Claude installation is queried. Existing billing blocks are not replaced.
+## Behavior
 
-## Version rejection hints
+- **OAuth detection.** The extension checks the actual outgoing Bearer OAuth token on POST messages
+  requests, not a system-prompt identity marker. API keys and other providers pass through, even if
+  their prompts contain a Claude Code identity.
+- **Version selection.** For OAuth requests the version is the numeric maximum of the bundled
+  version, the learned minimum and the final `claude-cli/X.Y.Z` token of the HTTP User-Agent. Partial
+  names and versions with extra components or suffixes do not match. The User-Agent itself is not
+  rewritten. No package registry or local Claude installation is queried.
+- **Rejection hints.** Only a structured HTTP 400 whose `error.details.error_code` is
+  `claude_code_version_too_old` counts as a version rejection. The required floor and a recovery hint
+  appear in the details and are appended to the original SDK error message; the error code, status
+  and request ID stay intact. Unknown wording gives a hint without inventing a floor. If the sent
+  version already meets the floor, the hint recommends updating Pi. Successful streams, other HTTP
+  errors and non-JSON responses are not consumed or rewritten.
+- **Recovery.** A rejection with a higher, named floor replays the request once with a rebuilt
+  billing block. Never retried: existing blocks, unknown floors, explicit overrides, aborted
+  requests, network failures and other HTTP errors. The caller's transport and signal serve both
+  attempts. The learned minimum is shared across this extension's requests in memory. A second
+  rejection is surfaced with a hint, never chased.
+- **Account lookup.** The lookup times out after five seconds, disallows redirects and returns
+  sanitized failures. API-key or missing authorization causes no profile request. Nothing is
+  persisted and no model call is made.
 
-Only a structured HTTP 400 with `error.details.error_code=claude_code_version_too_old`
-is interpreted as a version rejection. A named required floor and recovery hint appear
-in extension details and are appended to the original SDK error message. The error code,
-status and request ID remain intact. Unknown wording produces a hint without inventing a
-floor. Successful streams, other HTTP errors and non-JSON responses are not consumed or
-rewritten. Diagnostic state keeps only the generated hint, floor and timestamp, not the
-raw upstream error. Explicit version overrides get a specific explanation. If the actual
-sent billing version already meets the required floor, the hint recommends updating Pi
-rather than setting the billing version to the same value. Unparseable existing blocks
-never result in a claim that their version met the floor.
+## Limits
 
-## Bounded version recovery
-
-A structured version rejection with a higher, explicitly named floor may replay the
-request exactly once with a rebuilt billing block. Only blocks generated by this extension
-are replayed; existing blocks, unknown floors, explicit overrides and aborted requests
-are never retried. Network failures, successful responses and other HTTP errors get no
-extension retry. The caller's transport and signal are used for both attempts.
-The learned minimum is shared across this extension's requests in memory and discarded
-on reload/disable. A second version rejection is surfaced with a hint, never chased.
-Details show the learned minimum and whether the last OAuth request's retry recovered.
-
-## On-demand account lookup
-
-**Check subscription** in the extension details queries Anthropic's undocumented
-`https://api.anthropic.com/api/oauth/profile` endpoint only when clicked. It shows the
-organization/subscription type and status, seat/rate-limit tiers, and whether extra usage
-is enabled. Missing or unfamiliar fields show Unknown. This does not report remaining
-quota or prove which pool a model request was billed against.
-
-Email and organization name are excluded from the server's result unless **Include email
-and organization** is explicitly checked. Unchecking clears the displayed profile. Nothing
-is persisted; there is no background profile polling. Lookup has a five-second timeout,
-disallows redirects and returns sanitized failures rather than raw auth errors or bodies.
-API-key or missing authorization causes no profile HTTP request. No model call is made.
+- It does not launch Claude Code, rewrite project prompts, suppress warnings, or guarantee that
+  Anthropic classifies the request as subscription use.
+- An applied billing shape does not prove a successful response or subscription billing. The
+  profile lookup does not report remaining quota or the pool a request was billed against.
+- The displayed version is not the transport's HTTP User-Agent.
