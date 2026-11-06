@@ -5,6 +5,17 @@
 `pnpm dev` runs the server on `127.0.0.1:8788` and Vite with HMR. `pnpm start` builds the shell and
 serves it from the server alone.
 
+Either half runs alone, through the same `scripts/dev.ts`:
+
+| Command           | Runs                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `pnpm dev:server` | The server under `scripts/serve.ts` (so Restart works), on `PORT` (default 8788). No Vite.        |
+| `pnpm dev:web`    | Vite alone on `localhost:5190`, proxying `/api` to `127.0.0.1:8788`. Options after it go to Vite. |
+
+`pnpm dev:web --port 5191` moves Vite to another port. The proxy target stays `127.0.0.1:8788`, so a
+server on another `PORT` is not reached through it. Ctrl+C stops what runs, and either half dying stops
+the other.
+
 ## On the phone
 
 Through Tailscale: `tailscale serve --bg 8443 http://127.0.0.1:8788` puts the server's own

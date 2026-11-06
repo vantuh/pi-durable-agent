@@ -6,6 +6,8 @@
     "scripts": {
         "prepare": "git config core.hooksPath .githooks",
         "dev": "node scripts/dev.ts",
+        "dev:web": "node scripts/dev.ts web",
+        "dev:server": "node scripts/dev.ts server",
         "serve": "node scripts/serve.ts",
         "start": "pnpm build && node scripts/serve.ts",
         "build": "vite build",
