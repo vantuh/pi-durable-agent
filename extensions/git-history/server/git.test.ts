@@ -166,7 +166,7 @@ void describe("git-history reads", () => {
             ["one", "two"],
         );
         assert.deepEqual(
-            parsePatchFiles(diff.patch, undefined, true)
+            parsePatchFiles(diff.patch, { throwOnError: true })
                 .flatMap((patch) => patch.files)
                 .map((file) => file.name),
             ["one"],
@@ -186,7 +186,7 @@ void describe("git-history reads", () => {
         const working = await readChanges(repo, "worktree");
         const committed = await readChanges(repo, await commit());
         for (const data of [working, committed]) {
-            const files = parsePatchFiles(data.patch, undefined, true).flatMap(
+            const files = parsePatchFiles(data.patch, { throwOnError: true }).flatMap(
                 (patch) => patch.files,
             );
             assert.deepEqual(

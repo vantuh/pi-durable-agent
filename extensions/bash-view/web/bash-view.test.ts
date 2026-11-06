@@ -96,7 +96,7 @@ void it("highlights interpreter code inside one frame and copies the complete sh
                         ...container.querySelectorAll(
                             `.${command.tokenClass ?? "text-code-keyword"}`,
                         ),
-                    ].some((token) => token.textContent === command.keyword);
+                    ].some((token) => token.textContent?.trim() === command.keyword);
                 const deadline = Date.now() + 5000;
 
                 while (!highlighted() && Date.now() < deadline) {

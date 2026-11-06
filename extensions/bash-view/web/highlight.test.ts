@@ -34,7 +34,8 @@ void it("mixes Bash, Python and JavaScript tokens without changing source text o
                     .flat()
                     .some(
                         (token) =>
-                            token.content === word && token.color === "var(--shiki-token-keyword)",
+                            token.content.trim() === word &&
+                            token.color === "var(--role-code-keyword)",
                     ),
                 word,
             );
@@ -48,7 +49,8 @@ void it("mixes Bash, Python and JavaScript tokens without changing source text o
                 ?.flat()
                 .some(
                     (token) =>
-                        token.content === "const" && token.color === "var(--shiki-token-keyword)",
+                        token.content.trim() === "const" &&
+                        token.color === "var(--role-code-keyword)",
                 ),
         );
     } finally {

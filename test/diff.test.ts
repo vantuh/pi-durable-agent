@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { parsePatchFiles } from "@pierre/diffs";
+import { getHighlighterIfLoaded, getHighlighterType, parsePatchFiles } from "@pierre/diffs";
 
 import { diffCounts, editPatch } from "../web/src/lib/diff.ts";
+import { diffOptions, parsePatch, prepareDiffs } from "../web/src/ui/diff/pierre.ts";
 
 // The shape `pi-durable`'s edit tool writes (`generateDiffString`): sign, padded number, space, text.
 const DIFF = [
@@ -18,12 +19,51 @@ const DIFF = [
 function parsed(diff: string) {
     const adapted = editPatch(diff);
     assert.ok(adapted);
-    const files = parsePatchFiles(adapted.patch, undefined, true).flatMap((patch) => patch.files);
+    const files = parsePatchFiles(adapted.patch, { throwOnError: true }).flatMap(
+        (patch) => patch.files,
+    );
     assert.equal(files.length, 1);
     const file = files[0];
     assert.ok(file);
     return { adapted, file };
 }
+
+void it("warms diff previews with Highlights and preserves the role theme and unsupported languages", async () => {
+    const { file } = parsed(DIFF);
+    file.name = "demo.ts";
+    const unsupported = { ...file, name: "demo.hjson" };
+
+    await prepareDiffs([file, unsupported]);
+
+    assert.equal(getHighlighterType(), "highlights");
+    const highlighter = getHighlighterIfLoaded();
+    assert.ok(highlighter);
+    const source = "const message = 'нове 😀';";
+    const { tokens } = highlighter.codeToTokens(source, { lang: "ts", theme: diffOptions.theme });
+    assert.equal(
+        tokens
+            .flat()
+            .map((token) => token.content)
+            .join(""),
+        source,
+    );
+    assert.ok(tokens.flat().some((token) => token.color?.includes("var(--role-code-keyword)")));
+    const plain = highlighter.codeToTokens(source, { lang: "hjson", theme: diffOptions.theme });
+    assert.equal(
+        plain.tokens
+            .flat()
+            .map((token) => token.content)
+            .join(""),
+        source,
+    );
+    assert.ok(plain.tokens.flat().every((token) => !token.color?.includes("--role-code-")));
+});
+
+void it("rejects malformed patches rather than recovering with missing content", () => {
+    assert.throws(() =>
+        parsePatch("--- a/demo.ts\n+++ b/demo.ts\n@@ -1 +1 @@\n-old\n+new\n+extra\n"),
+    );
+});
 
 void describe("editPatch", () => {
     void it("preserves source text and old/new line numbers in Pierre's parser", () => {

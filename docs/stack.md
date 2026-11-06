@@ -13,27 +13,44 @@ What the app is built with, why, and what each choice costs. Versions are what `
 
 ## Chosen
 
-| Layer      | Choice                                  | Why                                                                        | Cost                                                              |
-| ---------- | --------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Runtime    | Node 26                                 | Runs `.ts` directly by type stripping: no build, no watcher for the server | Imports need the `.ts` extension; erasable syntax only            |
-| Language   | TypeScript 7, `strict`, `noEmit`        | Vite and Node strip types; `tsc` only checks                               | Nothing is emitted, so no declaration files                       |
-| UI         | React 19                                | Known; the ecosystem `shadcn` copies expect                                | A virtual DOM we do not need for a mostly-append-only transcript  |
-| Build      | Vite 8, root `web/`, output `dist/`     | Fast HMR on the client, nothing on the server                              | Two module systems to keep apart                                  |
-| Styles     | Tailwind 4 through `@tailwindcss/vite`  | No `tailwind.config.js`; design tokens live in CSS `@theme`                | Class strings are long; needs `sortTailwindcss`                   |
-| Components | `shadcn/ui`, copied in on demand        | The code lands in the repo, so it can be edited freely                     | Radix comes as the single `radix-ui` package                      |
-| Icons      | `lucide-react`                          | What `shadcn` expects                                                      | One dependency for tree-shaken icons                              |
-| Toasts     | `sonner`                                | Animation, stacking, announcements and timeouts we would otherwise write   | Its own skin is switched off and replaced by the theme            |
-| Markdown   | `react-markdown`, `remark-gfm`, `shiki` | Answers render as Markdown; code is highlighted                            | Shiki's languages and themes are lazy chunks                      |
-| Diffs      | `@pierre/diffs` 1.5.2                   | One parser, word diff and theme for tool edits and extension diff lists    | Loaded lazily; uses Shiki for syntax highlighting                 |
-| Zoom       | `react-zoom-pan-pinch` 4.2.0            | Wheel, pinch and drag in the viewer, as people expect them                 | A dependency for gestures; it injects its own stylesheet          |
-| Agent      | `@earendil-works/pi-durable` 1.5.0      | Tools, durable state, model turns, subagents, tasks, extensions            | Marked experimental upstream: the API may change between releases |
-| Routing    | Hono 4, `@hono/node-server` 2           | Typed routes and validators, and the browser's typed client (`hc`)         | A framework in the server; the raw paths depend on its adapter    |
-| Validation | Zod 4, `@hono/zod-validator`            | One schema is a route's checked input and `hc`'s typed input               | Two dependencies; `jsonBody` reads the body itself                |
-| Lint       | `oxlint`                                | Fast, no plugin zoo                                                        | Rule coverage is smaller than ESLint's                            |
-| Format     | `oxfmt`                                 | 4 spaces, 100 columns, sorted imports and Tailwind classes                 | Young tool; formatting may shift between versions                 |
-| Packages   | pnpm 11                                 | Matches the other repos                                                    | —                                                                 |
+| Layer      | Choice                                                     | Why                                                                          | Cost                                                                            |
+| ---------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Runtime    | Node 26                                                    | Runs `.ts` directly by type stripping: no build, no watcher for the server   | Imports need the `.ts` extension; erasable syntax only                          |
+| Language   | TypeScript 7, `strict`, `noEmit`                           | Vite and Node strip types; `tsc` only checks                                 | Nothing is emitted, so no declaration files                                     |
+| UI         | React 19                                                   | Known; the ecosystem `shadcn` copies expect                                  | A virtual DOM we do not need for a mostly-append-only transcript                |
+| Build      | Vite 8, root `web/`, output `dist/`                        | Fast HMR on the client, nothing on the server                                | Two module systems to keep apart                                                |
+| Styles     | Tailwind 4 through `@tailwindcss/vite`                     | No `tailwind.config.js`; design tokens live in CSS `@theme`                  | Class strings are long; needs `sortTailwindcss`                                 |
+| Components | `shadcn/ui`, copied in on demand                           | The code lands in the repo, so it can be edited freely                       | Radix comes as the single `radix-ui` package                                    |
+| Icons      | `lucide-react`                                             | What `shadcn` expects                                                        | One dependency for tree-shaken icons                                            |
+| Toasts     | `sonner`                                                   | Animation, stacking, announcements and timeouts we would otherwise write     | Its own skin is switched off and replaced by the theme                          |
+| Markdown   | `react-markdown`, `remark-gfm`, `@pierre/highlights` 0.4.0 | Answers render as Markdown; code uses fast Wasm tokenization and theme roles | All built-in lexers arrive in one lazy chunk; less language coverage than Shiki |
+| Diffs      | `@pierre/diffs` 1.6.4                                      | One parser, word diff and theme for tool edits and extension diff lists      | Loaded lazily; uses the Highlights backend for syntax highlighting              |
+| Zoom       | `react-zoom-pan-pinch` 4.2.0                               | Wheel, pinch and drag in the viewer, as people expect them                   | A dependency for gestures; it injects its own stylesheet                        |
+| Agent      | `@earendil-works/pi-durable` 1.5.0                         | Tools, durable state, model turns, subagents, tasks, extensions              | Marked experimental upstream: the API may change between releases               |
+| Routing    | Hono 4, `@hono/node-server` 2                              | Typed routes and validators, and the browser's typed client (`hc`)           | A framework in the server; the raw paths depend on its adapter                  |
+| Validation | Zod 4, `@hono/zod-validator`                               | One schema is a route's checked input and `hc`'s typed input                 | Two dependencies; `jsonBody` reads the body itself                              |
+| Lint       | `oxlint`                                                   | Fast, no plugin zoo                                                          | Rule coverage is smaller than ESLint's                                          |
+| Format     | `oxfmt`                                                    | 4 spaces, 100 columns, sorted imports and Tailwind classes                   | Young tool; formatting may shift between versions                               |
+| Packages   | pnpm 11                                                    | Matches the other repos                                                      | —                                                                               |
 
 `@/` maps to `web/src`. The theme is Catppuccin ([theme.md](theme.md)).
+
+## Syntax highlighting
+
+`web/src/lib/highlight.ts` is the shared adapter for Markdown fences, file previews, write results,
+codemode and bash-view's embedded Python/JavaScript. Highlights returns line tokens with UTF-16 source
+offsets, so the existing renderers and shell overlays keep their contract. A CSS-variable palette maps
+syntax scopes to existing theme roles; no bundled colours or inline styles reach the renderer.
+The engine loads on first use. Unlabelled code does not load it; unsupported languages stay plain.
+ANSI is deliberately not interpreted, because that would change the source text.
+
+`@pierre/diffs` 1.6.4 uses its native Highlights backend for edit cards and Git diff lists. The shared
+options and prefetch both select `preferredHighlighter: "highlights"`, so whichever opens first uses
+the same backend. Diff syntax colours still come from the shared role theme. Shiki remains an upstream
+dependency, but these renderers do not select its backend.
+Highlights uses lexers rather than TextMate grammars: token boundaries and classifications differ,
+and some Shiki languages/aliases (for example `nushell`, `pkl`, `hjson`) now stay plain. Streaming
+still uses the existing 150 ms debounce and full-block tokenization, not a second incremental pipeline.
 
 ## What we did not take
 

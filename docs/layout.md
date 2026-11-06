@@ -197,7 +197,7 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
       and layout. Skipped context is not reconstructed, and the server's truncation notice stays
       below the card. Display diffs do not carry EOF newline metadata. Malformed input or a failed
       renderer keeps the original text visible. The renderer loads only when the card opens; summary
-      counts need neither Pierre nor Shiki. Cards stay in the transcript's scroll, while diff lists
+      counts need neither Pierre nor Highlights. Cards stay in the transcript's scroll, while diff lists
       own a bounded, virtualized viewport. Appearance's layout applies to both; viewers narrower than
       560 px use Unified without changing the saved choice.
 - **Composer**: `sunken` card, textarea grows with its content from 2 to 10 lines (including wrapped

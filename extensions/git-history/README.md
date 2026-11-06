@@ -22,7 +22,7 @@ fetches.
 The subject, full message, sha, author and local date, the actions, a file summary
 and the diffs.
 
-- Diffs use the core's shared `web/src/ui/diff/` Pierre renderer, theme and syntax/word highlighting. Each
+- Diffs use the core's shared `web/src/ui/diff/` Pierre renderer, role theme, Highlights backend and word highlighting. Each
   file has a sticky header with its line counts; clicking it folds the file (200 ms; a reduced-motion
   setting folds at once). Files start expanded.
 - On a wide screen a changed-files column sits beside the diff with folders and per-file counts.
@@ -126,12 +126,12 @@ its optional AI/provider actions are separate from merely opening a review.
 - **A commit opens without waiting.** A commit cannot change, so it is cached in layers; only the
   working tree is read every time.
 
-    | Layer                    | Kept                                                         | Where             |
-    | ------------------------ | ------------------------------------------------------------ | ----------------- |
-    | prefetch                 | the newest three commits, on idle; any row on hover or focus | `web.tsx`         |
-    | patch                    | 20 commits per browser tab                                   | `web.tsx`         |
-    | parsed diff and grammars | 10 patches per browser tab                                   | `web/preview.tsx` |
-    | patch                    | 20 commits per server process                                | `server.ts`       |
+    | Layer       | Kept                                                         | Where             |
+    | ----------- | ------------------------------------------------------------ | ----------------- |
+    | prefetch    | the newest three commits, on idle; any row on hover or focus | `web.tsx`         |
+    | patch       | 20 commits per browser tab                                   | `web.tsx`         |
+    | parsed diff | 10 patches per browser tab                                   | `web/preview.tsx` |
+    | patch       | 20 commits per server process                                | `server.ts`       |
 
     Reading one commit costs three Git processes (the repository root is remembered per process, the
     commit and its first parent come from one `rev-list`, and the title is not read). New files in the

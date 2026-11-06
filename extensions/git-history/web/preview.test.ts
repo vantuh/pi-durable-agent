@@ -47,6 +47,7 @@ await import(${JSON.stringify(`/@fs/${resolve("extensions/git-history/web/fixtur
                     10_000,
                 ),
             );
+            assert.equal(await page.read("window.diffFixture.highlighter()"), "highlights");
             assert.equal(
                 await page.read(`document.querySelector("#broken pre").textContent`),
                 "-1 old\nunknown output",

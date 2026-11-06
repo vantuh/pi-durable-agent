@@ -1,5 +1,5 @@
+import type { ThemedToken } from "@pierre/highlights";
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { ThemedToken } from "shiki";
 
 import { classOf, tokensOf } from "@/lib/highlight.ts";
 
@@ -43,7 +43,7 @@ export function CodeText({
             }
         };
 
-        // Shiki's tokens are the whole block, so re-highlighting one that is still arriving would redo all of it for
+        // Highlights' tokens are the whole block, so re-highlighting one that is still arriving would redo all of it for
         // every 100 ms chunk: it waits for the text to stop instead, and the new text shows plain meanwhile.
         const timer = setTimeout(
             () => {

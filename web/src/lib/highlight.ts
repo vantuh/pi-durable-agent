@@ -1,57 +1,70 @@
 /**
- * Code highlighting with shiki, coloured by the theme's roles: shiki's css-variables theme names a token kind
- * (`var(--shiki-token-keyword)`), and `classOf` turns that name into a Tailwind class over a `--role-code-*`. No
- * colour comes from shiki itself. Grammars load on first use, each in its own chunk.
+ * Code highlighting with Highlights, coloured by the theme's roles. The CSS-variable palette names a token kind,
+ * and `classOf` turns that name into a Tailwind class over a `--role-code-*`. No colour comes from Highlights
+ * itself. The engine and its built-in languages load on first use, in one lazy chunk.
  */
 
-import type { BundledLanguage, ThemedToken } from "shiki";
+import type { Theme, ThemedToken } from "@pierre/highlights";
 
 const CLASSES: Record<string, string> = {
-    "var(--shiki-foreground)": "text-ink",
-    "var(--shiki-token-keyword)": "text-code-keyword",
-    "var(--shiki-token-string)": "text-code-string",
-    "var(--shiki-token-string-expression)": "text-code-string",
-    "var(--shiki-token-comment)": "text-code-comment",
-    "var(--shiki-token-constant)": "text-code-constant",
-    "var(--shiki-token-parameter)": "text-code-parameter",
-    "var(--shiki-token-function)": "text-code-function",
-    "var(--shiki-token-punctuation)": "text-code-punctuation",
-    "var(--shiki-token-link)": "text-info",
-    "var(--shiki-token-inserted)": "text-ok",
-    "var(--shiki-token-deleted)": "text-danger",
-    "var(--shiki-token-changed)": "text-warn",
+    "var(--role-ink)": "text-ink",
+    "var(--role-code-keyword)": "text-code-keyword",
+    "var(--role-code-string)": "text-code-string",
+    "var(--role-code-comment)": "text-code-comment",
+    "var(--role-code-constant)": "text-code-constant",
+    "var(--role-code-parameter)": "text-code-parameter",
+    "var(--role-code-function)": "text-code-function",
+    "var(--role-code-punctuation)": "text-code-punctuation",
+    "var(--role-info)": "text-info",
+    "var(--role-ok)": "text-ok",
+    "var(--role-danger)": "text-danger",
 };
 
 type Loaded = Awaited<ReturnType<typeof makeHighlighter>>;
 
-function isBundled(languages: Loaded["languages"], id: string): id is BundledLanguage {
-    return Object.hasOwn(languages, id);
-}
-
 let loaded: Promise<Loaded> | undefined;
 
-/**
- * The three modules below, not the `shiki` barrel: the barrel also imports the oniguruma engine it never runs
- * (622 kB of wasm) and all bundled themes it never loads.
- */
+/** The CSS-variable palette emits role names, not literal colours or a bundled theme's palette. */
 async function makeHighlighter() {
-    const [{ bundledLanguages }, core, js] = await Promise.all([
-        import("shiki/langs"),
-        import("shiki/core"),
-        import("shiki/engine/javascript"),
-    ]);
-    const theme = core.createCssVariablesTheme({ name: "roles", fontStyle: true });
-    const createBundled = core.createBundledHighlighter({
-        langs: bundledLanguages,
-        themes: {},
-        engine: () => js.createJavaScriptRegexEngine(),
-    });
-    const shiki = await createBundled({ themes: [theme], langs: [] });
+    const { codeToTokens, isSupportedLanguage, tokenNames } = await import("@pierre/highlights");
+    const theme: Theme = {
+        name: "roles",
+        appearance: "dark",
+        cssVariables: { prefix: "--role-" },
+        style: {
+            foreground: "ink",
+            background: "panel",
+            syntax: {
+                ...Object.fromEntries(tokenNames.map((name) => [name.split(".")[0], "ink"])),
+                keyword: "code-keyword",
+                preproc: "code-keyword",
+                string: "code-string",
+                comment: { color: "code-comment", font_style: "italic" },
+                constant: "code-constant",
+                boolean: "code-constant",
+                number: "code-constant",
+                type: "code-constant",
+                "variable.parameter": "code-parameter",
+                function: "code-function",
+                constructor: "code-function",
+                tag: "code-keyword",
+                attribute: "code-parameter",
+                punctuation: "code-punctuation",
+                operator: "code-punctuation",
+                link_text: "info",
+                link_uri: "info",
+                "diff.plus": "ok",
+                "diff.minus": "danger",
+                emphasis: { color: "ink", font_style: "italic" },
+                "emphasis.strong": { color: "ink", font_weight: 700 },
+            },
+        },
+    };
 
-    return { shiki, languages: bundledLanguages, theme };
+    return { codeToTokens, isSupportedLanguage, theme };
 }
 
-/** shiki is imported here, not at the top: a static import would put its engine in the entry chunk. */
+/** Highlights is imported here, not at the top: a static import would put its engine in the entry chunk. */
 export function load(): Promise<Loaded> {
     loaded ??= makeHighlighter();
 
@@ -71,7 +84,7 @@ export function classOf(token: ThemedToken): string {
         .join(" ");
 }
 
-/** Lines of tokens, or undefined for a language shiki does not know: that code stays plain. */
+/** Lines of tokens, or undefined for a language Highlights does not know: that code stays plain. */
 export async function tokensOf(code: string, lang: string): Promise<ThemedToken[][] | undefined> {
     const id = lang.toLowerCase();
 
@@ -80,20 +93,17 @@ export async function tokensOf(code: string, lang: string): Promise<ThemedToken[
         return undefined;
     }
 
-    const { shiki, languages, theme } = await load();
+    const { codeToTokens, isSupportedLanguage, theme } = await load();
 
-    if (!isBundled(languages, id)) {
+    // ANSI interprets escapes and changes the source; code blocks must preserve it verbatim.
+    if (id === "ansi" || !isSupportedLanguage(id)) {
         return undefined;
     }
 
-    if (!shiki.getLoadedLanguages().includes(id)) {
-        await shiki.loadLanguage(id);
-    }
-
-    return shiki.codeToTokensBase(code, { lang: id, theme });
+    return codeToTokens(code, { lang: id, theme }).tokens;
 }
 
-/** A file's language, from its path's extension: shiki knows most by it (`ts`, `py`, `yml`, `sh`). */
+/** A file's language, from its path's extension: Highlights knows most by it (`ts`, `py`, `yml`, `sh`). */
 export function langOfPath(path: string | undefined): string {
     const name = path?.split("/").at(-1) ?? "";
     const dot = name.lastIndexOf(".");

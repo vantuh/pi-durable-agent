@@ -31,6 +31,7 @@ if (!hasResolvedThemes([theme])) {
 
 export const diffOptions = {
     theme,
+    preferredHighlighter: "highlights",
     overflow: "scroll",
     hunkSeparators: "metadata",
     unsafeCSS: `:host {
@@ -49,12 +50,13 @@ export const diffOptions = {
 } satisfies BaseDiffOptions;
 
 export function parsePatch(patch: string): FileDiffMetadata[] {
-    return parsePatchFiles(patch, undefined, true).flatMap((diff) => diff.files);
+    return parsePatchFiles(patch, { throwOnError: true }).flatMap((diff) => diff.files);
 }
 
 export async function prepareDiffs(files: FileDiffMetadata[]): Promise<void> {
-    // Pierre's first client render needs its theme and grammars already loaded.
+    // Pierre's first client render needs its theme and highlighter already loaded.
     await preloadHighlighter({
+        preferredHighlighter: diffOptions.preferredHighlighter,
         themes: [theme],
         langs: files.map((file) => file.lang ?? getFiletypeFromFileName(file.name)),
     });

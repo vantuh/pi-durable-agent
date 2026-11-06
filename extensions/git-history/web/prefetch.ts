@@ -1,8 +1,8 @@
 import { loadChanges } from "./patch-cache.ts";
 
 /**
- * Pierre's diff view and its shiki warm-up are 630 kB of client code that only the open page draws, so the
- * module is fetched when a commit opens: at boot it would be downloaded for a page that may never open.
+ * Pierre's diff view and its Highlights warm-up are only used by the open page, so the module is fetched
+ * when a commit opens: at boot it would be downloaded for a page that may never open.
  */
 export const loadPreview = () => import("./preview.tsx");
 

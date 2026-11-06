@@ -1,3 +1,4 @@
+import { getHighlighterType } from "@pierre/diffs";
 import type { CodeViewHandle } from "@pierre/diffs/react";
 import { useRef } from "react";
 import { createRoot } from "react-dom/client";
@@ -41,6 +42,7 @@ function DiffPage() {
     Object.assign(window, {
         diffFixture: {
             layout: applyDiffLayout,
+            highlighter: getHighlighterType,
         },
     });
     return (

@@ -48,7 +48,7 @@ export function knownPreview(patch: string): FileDiffMetadata[] | undefined {
 
 /**
  * One parse and one highlight pass per patch, whether the diff is about to be shown or only
- * hovered over: the grammars live on after the first, so a later call is nearly free.
+ * hovered over: the highlighter lives on after the first, so a later call is nearly free.
  */
 export function warmPreview(patch: string): Promise<FileDiffMetadata[]> {
     const found = warmed.get(patch);
