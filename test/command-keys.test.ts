@@ -68,7 +68,7 @@ void it("one command has one owner: the last extension to state keys keeps them"
 });
 
 void it("a read hands back the same value until the keys change, so the hook cannot loop", () => {
-    const command: ShellCommand = "folder.pick";
+    const command: ShellCommand = "session.search";
 
     setCommandKeys(command, ctrlAThenC);
 

@@ -5,6 +5,7 @@ const EMPTY: Record<string, unknown> = {
     "/api/skills": { skills: [] },
     "/api/project-files": { files: [] },
     "/api/favourites": { folders: [] },
+    "/api/folder-layout": { order: [], collapsed: [], folders: {} },
     "/api/models": {
         scoped: [],
         all: [],

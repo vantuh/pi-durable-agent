@@ -1,7 +1,9 @@
 import { PanelLeftClose, PanelLeftOpen, Plus, Search, X } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { SheetTitle } from "@/components/ui/sheet";
 import { Hint } from "@/components/ui/tooltip";
 import { isPlainClick, sessionHref } from "@/lib/route.ts";
@@ -13,8 +15,8 @@ import type { useSessionSearch } from "./use-session-search.ts";
 export function SidebarHeader({
     asSheet,
     current,
-    scope,
     search,
+    controls,
     onToggleCollapsed,
     onHome,
     onNew,
@@ -23,9 +25,9 @@ export function SidebarHeader({
     asSheet: boolean;
     /** Null on the home page. */
     current: number | null;
-    /** The folder the search looks in, for its placeholder. */
-    scope: string;
     search: ReturnType<typeof useSessionSearch>;
+    /** What narrows the list (the extensions' filters, the archive switch), before the buttons that act on it. */
+    controls: ReactNode;
     onToggleCollapsed: () => void;
     onHome: () => void;
     onNew: () => void;
@@ -37,7 +39,7 @@ export function SidebarHeader({
     const Heading = asSheet ? SheetTitle : "h2";
 
     return (
-        <header className="border-edge-soft relative flex items-center gap-2 px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:border-b lg:group-data-[collapsed]/side:px-1.5">
+        <header className="border-edge-soft @container relative flex items-center gap-2 px-3 py-2.5 transition-[padding] duration-200 lg:group-data-[collapsed]/side:flex-col lg:group-data-[collapsed]/side:gap-1 lg:group-data-[collapsed]/side:border-b lg:group-data-[collapsed]/side:px-1.5">
             {/* The rail has room for one button: there the logo expands, and shows it on hover. */}
             <Hint label="Expand sidebar">
                 <Button
@@ -84,16 +86,13 @@ export function SidebarHeader({
                 </Button>
             </Hint>
             <Heading
-                className={`text-ui text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden ${FADE}`}
+                // Under 18rem the header's icons leave no room for the word, and a clipped one reads worse than none.
+                className={`text-ui text-ink min-w-0 flex-1 overflow-hidden font-medium whitespace-nowrap lg:group-data-[collapsed]/side:hidden @max-2xs:sr-only ${FADE}`}
             >
                 Sessions
             </Heading>
-            <div className="flex items-center gap-1 lg:group-data-[collapsed]/side:hidden">
-                <Hint label="New session">
-                    <Button variant="ghost" size="icon-sm" aria-label="New session" onClick={onNew}>
-                        <Plus className="size-4" />
-                    </Button>
-                </Hint>
+            <div className="ml-auto flex items-center gap-1 lg:group-data-[collapsed]/side:hidden">
+                {controls}
                 <Hint label="Search sessions" keys={<CommandKeys command="session.search" />}>
                     <Button
                         ref={searchTrigger}
@@ -106,6 +105,12 @@ export function SidebarHeader({
                         }}
                     >
                         <Search className="size-4" />
+                    </Button>
+                </Hint>
+                <Separator orientation="vertical" className="mx-1 h-4 self-center" />
+                <Hint label="New session">
+                    <Button variant="ghost" size="icon-sm" aria-label="New session" onClick={onNew}>
+                        <Plus className="size-4" />
                     </Button>
                 </Hint>
                 <Hint label="Collapse sidebar">
@@ -140,7 +145,7 @@ export function SidebarHeader({
                     type="search"
                     value={query}
                     aria-label="Search sessions"
-                    placeholder={`Search in ${scope}`}
+                    placeholder="Search sessions"
                     tabIndex={searching ? undefined : -1}
                     onChange={(event) => {
                         setQuery(event.target.value);

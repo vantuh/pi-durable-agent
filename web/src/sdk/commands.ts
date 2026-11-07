@@ -7,7 +7,6 @@ import { useEffect, useSyncExternalStore } from "react";
 export type ShellCommand =
     | "session.new"
     | "session.new.pick"
-    | "folder.pick"
     | "session.search"
     | "session.rename"
     | "session.prev"

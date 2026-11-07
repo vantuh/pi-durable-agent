@@ -1,6 +1,7 @@
 import { hc, type InferResponseType } from "hono/client";
 
 import type { AppType } from "../../../server/app-type.ts";
+import type { FolderLayout } from "../../../shared/folders.ts";
 import { recordOf } from "../../../shared/guards.ts";
 import type {
     ClientHistory,
@@ -206,6 +207,14 @@ export async function getFavourites(): Promise<string[]> {
 
 export async function setFavourites(folders: string[]): Promise<void> {
     await ok(client.api.favourites.$put({ json: { folders } }));
+}
+
+export async function getFolderLayout(): Promise<FolderLayout> {
+    return (await (await ok(client.api["folder-layout"].$get())).json()) satisfies FolderLayout;
+}
+
+export async function setFolderLayout(layout: FolderLayout): Promise<void> {
+    await ok(client.api["folder-layout"].$put({ json: layout }));
 }
 
 type ServedModels = InferResponseType<typeof client.api.models.$get, 200>;

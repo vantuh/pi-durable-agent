@@ -1,4 +1,4 @@
-/** Uploads, the folder browser of the session picker, and its favourite folders. */
+/** Uploads, the folder browser of the session picker, its favourite folders, and the sidebar's folder layout. */
 
 import { randomInt } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
@@ -8,6 +8,7 @@ import { basename, extname, join, resolve, sep } from "node:path";
 import { Hono } from "hono";
 import { z } from "zod";
 
+import { FOLDER_COLORS, MAX_FOLDER_NAME } from "../../shared/folders.ts";
 import { writeJsonFile } from "../atomic-write.ts";
 import { type ApiEnv, readBytes, RESPONSE_ALREADY_SENT } from "../http.ts";
 import { IMAGE_TYPES } from "../image-types.ts";
@@ -15,6 +16,21 @@ import { readJsonFile } from "../json-file.ts";
 import { jsonBody, lenient, queryOf, StringList } from "../validate.ts";
 
 const FavouritesBody = z.object({ folders: StringList });
+/** A file or body with a wrong part keeps the right ones: a bad colour is no colour, not a lost layout. */
+const FolderLayoutBody = z.object({
+    order: StringList,
+    collapsed: StringList,
+    folders: z
+        .record(
+            z.string(),
+            z.object({
+                name: z.string().max(MAX_FOLDER_NAME).optional().catch(undefined),
+                color: z.enum(FOLDER_COLORS).optional().catch(undefined),
+            }),
+        )
+        .default({})
+        .catch({}),
+});
 /** `hidden=1` shows the folders that start with a dot. */
 const FsQuery = z.object({
     path: lenient(z.string()),
@@ -25,6 +41,7 @@ const UploadsQuery = z.object({ path: lenient(z.string()) });
 export function fileRoutes({ dataDir }: { dataDir: string }) {
     const uploadDir = join(dataDir, "uploads");
     const favouritesFile = join(dataDir, "favourites.json");
+    const foldersFile = join(dataDir, "folders.json");
 
     return new Hono<ApiEnv>()
         .get("/api/favourites", async (c) => {
@@ -36,6 +53,17 @@ export function fileRoutes({ dataDir }: { dataDir: string }) {
             await writeJsonFile(favouritesFile, folders);
 
             return c.json({ folders }, 200);
+        })
+        .get("/api/folder-layout", async (c) => {
+            return c.json(FolderLayoutBody.parse((await readJsonFile(foldersFile)) ?? {}));
+        })
+        .put("/api/folder-layout", jsonBody(FolderLayoutBody), async (c) => {
+            const layout = c.req.valid("json");
+
+            // shortcut: the last write wins between two devices, upgrade if their edits collide.
+            await writeJsonFile(foldersFile, layout);
+
+            return c.json(layout, 200);
         })
         .post("/api/files", async (c) => {
             const raw = c.req.header("x-filename");

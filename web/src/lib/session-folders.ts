@@ -1,12 +1,8 @@
 import type { SessionSummary } from "../../../shared/protocol.ts";
 
-/** One folder of the sidebar's folder menu, with the folders shown under it. */
-export type FolderRow = {
+/** One folder of the sidebar, with the worktree folders shown under it. */
+type FolderRow = {
     cwd: string;
-    /** The folder this one is shown under; null for a root. */
-    under: string | null;
-    /** Its own sessions plus every worktree's. */
-    count: number;
     /** The newest `activeAt` among them, so a folder rises when one of its worktrees was worked in. */
     lastUse: number;
     /** In the order they are drawn. */
@@ -18,7 +14,7 @@ export type FolderRow = {
  * is nested there when that folder has sessions of its own; otherwise it stays a root.
  */
 export function folderRows(sessions: readonly SessionSummary[]): FolderRow[] {
-    const own = new Map<string, { count: number; lastUse: number }>();
+    const own = new Map<string, number>();
     const claimed = new Map<string, string>();
 
     for (const session of sessions) {
@@ -26,12 +22,7 @@ export function folderRows(sessions: readonly SessionSummary[]): FolderRow[] {
             continue;
         }
 
-        const bucket = own.get(session.cwd) ?? { count: 0, lastUse: 0 };
-
-        own.set(session.cwd, {
-            count: bucket.count + 1,
-            lastUse: Math.max(bucket.lastUse, session.activeAt ?? 0),
-        });
+        own.set(session.cwd, Math.max(own.get(session.cwd) ?? 0, session.activeAt ?? 0));
         if (session.under !== undefined && !claimed.has(session.cwd)) {
             claimed.set(session.cwd, session.under);
         }
@@ -42,7 +33,7 @@ export function folderRows(sessions: readonly SessionSummary[]): FolderRow[] {
 
         return under !== undefined && under !== cwd && own.has(under) ? under : undefined;
     };
-    // A folder that would end up under itself is a root, so no loop hides a folder from the menu.
+    // A folder that would end up under itself is a root, so no loop hides a folder from the sidebar.
     const loops = (cwd: string): boolean => {
         const seen = new Set<string>();
 
@@ -68,20 +59,17 @@ export function folderRows(sessions: readonly SessionSummary[]): FolderRow[] {
         }
     }
 
-    const build = (cwd: string, under: string | null): FolderRow => {
-        const worktrees = (children.get(cwd) ?? []).map((child) => build(child, cwd));
-        const bucket = own.get(cwd);
+    const build = (cwd: string): FolderRow => {
+        const worktrees = (children.get(cwd) ?? []).map(build);
 
         return {
             cwd,
-            under,
-            count: (bucket?.count ?? 0) + worktrees.reduce((sum, row) => sum + row.count, 0),
-            lastUse: Math.max(bucket?.lastUse ?? 0, ...worktrees.map((row) => row.lastUse)),
+            lastUse: Math.max(own.get(cwd) ?? 0, ...worktrees.map((row) => row.lastUse)),
             worktrees: worktrees.toSorted(byLastUse),
         };
     };
 
-    return roots.map((cwd) => build(cwd, null)).toSorted(byLastUse);
+    return roots.map(build).toSorted(byLastUse);
 }
 
 // The path breaks ties, so equal times do not swap rows.
@@ -94,19 +82,72 @@ export function cwdsOf(row: FolderRow): string[] {
     return [row.cwd, ...row.worktrees.flatMap(cwdsOf)];
 }
 
-/** The row for `cwd` at any depth, or undefined when no row is for it. */
-export function rowOf(rows: readonly FolderRow[], cwd: string | null): FolderRow | undefined {
-    for (const row of rows) {
-        if (row.cwd === cwd) {
-            return row;
-        }
+/** The group of sessions that have no folder. A path is absolute, so no real folder is named like this. */
+export const LOOSE = "no folder";
 
-        const found = rowOf(row.worktrees, cwd);
+/** Sessions a folder shows before "more", and the step of each "more". */
+export const FOLDER_PAGE = 5;
 
-        if (found !== undefined) {
-            return found;
-        }
+/** One folder of the sidebar with the sessions it shows; a worktree's sessions sit in its folder's group. */
+type FolderGroupData = { cwd: string; sessions: SessionSummary[] };
+
+/**
+ * The folders in the order the sidebar draws them: the ones `order` does not name first, worked in last first,
+ * then the named ones as saved. A name `order` lists twice, or that no session uses, is skipped.
+ */
+export function orderedFolders(
+    all: readonly SessionSummary[],
+    order: readonly string[],
+): FolderRow[] {
+    const rows = folderRows(all);
+    const named = new Set(order);
+    const byCwd = new Map(rows.map((row) => [row.cwd, row]));
+
+    return [
+        ...rows.filter((row) => !named.has(row.cwd)),
+        ...[...named].flatMap((cwd) => byCwd.get(cwd) ?? []),
+    ];
+}
+
+/**
+ * `shown` (filtered, in the order to draw) split by `orderedFolders`. A folder with none of `shown` has no group.
+ * Sessions with no folder go last, in the group named `LOOSE`.
+ */
+export function groupByFolder(
+    all: readonly SessionSummary[],
+    shown: readonly SessionSummary[],
+    order: readonly string[],
+): FolderGroupData[] {
+    const groups = orderedFolders(all, order).map((row) => {
+        const cwds = new Set(cwdsOf(row));
+
+        return {
+            cwd: row.cwd,
+            sessions: shown.filter((session) => session.cwd !== null && cwds.has(session.cwd)),
+        };
+    });
+    const loose = shown.filter((session) => session.cwd === null);
+
+    return [...groups, { cwd: LOOSE, sessions: loose }].filter(
+        (group) => group.sessions.length > 0,
+    );
+}
+
+/**
+ * How many of a folder's sessions are open: the count it was opened to, enough pages to reach the open session
+ * (`current`), and all of them while searching, so no hit hides behind "more".
+ */
+export function openCount(
+    sessions: readonly SessionSummary[],
+    shown: number,
+    current: number | null,
+    searching: boolean,
+): number {
+    if (searching) {
+        return sessions.length;
     }
 
-    return undefined;
+    const at = sessions.findIndex((session) => session.id === current);
+
+    return Math.max(shown, at === -1 ? 0 : Math.ceil((at + 1) / FOLDER_PAGE) * FOLDER_PAGE);
 }

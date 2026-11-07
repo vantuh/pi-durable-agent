@@ -349,14 +349,14 @@ on the rows at once.
 ### Filters in the session list
 
 `web.tsx` may export `sessionFilter: [{ id, component }]`. The component is drawn in the sidebar's
-list header, before the archive button, inside an error boundary, and draws the whole control
-itself: an icon button fits the row. The extension that has nothing to filter by draws nothing. It gets
+header, before the archive button, inside an error boundary, and draws the whole control
+itself: a 24px icon button (`size="icon-sm"`) fits the header. The extension that has nothing to filter by draws nothing. It gets
 `setMatch(match)`: the predicate the list keeps, or `null` for every session. Call it from an effect
 or a handler, never while rendering, and only when the answer moved — a new function re-renders the
 list and every row.
 
-The folder scope, the fuzzy search and the archive switch still apply on top, and the counts in the
-folder menu stay as they were: a filter narrows the list, it does not re-count the folders.
+The fuzzy search and the archive switch still apply on top; a filter runs before the sessions are grouped
+by folder, so a folder with none left disappears, and the count in a folder header is what is left.
 `extensions/tags` draws a filter icon there that opens a checklist of tags, counts the chosen ones
 on the icon, and keeps every session that carries at least one chosen tag.
 
@@ -447,7 +447,7 @@ setCommandKeys("session.new", null); // the command shows no key again
 | `notifySessionChanged`  | `(session) => void`: says that something about the session changed which its own commits do not show, such as a conversation this extension started for it. Within 250 ms the server sends that session's `live` event again with a new `revision`, and a web component reads it as `session.revision` in `StatusProps`. Many calls in the window make one event                                                                                                                                                                                                                                                                                                             |
 | `notify`                | `(notice: { level: "success" \| "error", message, session?, description? }) => void`: a toast in every open browser tab. With `session` it is that session's own toast, top right for six seconds, and it rides the session list stream, which every tab holds whether or not it shows a session: `message` is the session's title, `description` the line under it, a click opens the session, and a tab already showing that session stays silent, since its transcript shows what happened. Without `session` it is the plain notice the loader sends, in the bottom centre, on the conversation streams a tab showing a session holds. A throw is the caller's to handle |
 | `registerModelProvider` | `(provider: Provider) => () => void`: puts a pi-ai provider in the catalog and in front of the model picker, and returns how to take it out. The registration goes with this extension version                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `folderGroup`           | `(resolve: (cwd) => Promise<string \| undefined>) => void`: says which folder a session's folder is shown under in the sidebar's folder menu and in the new session picker, such as the repository a worktree belongs to; undefined leaves it a folder of its own, and a throw counts the same. The first answer in folder order wins. It goes with this extension version, and the list is sent again when it changes                                                                                                                                                                                                                                                       |
+| `folderGroup`           | `(resolve: (cwd) => Promise<string \| undefined>) => void`: says which folder a session's folder is shown under in the sidebar and in the new session picker, such as the repository a worktree belongs to; undefined leaves it a folder of its own, and a throw counts the same. The first answer in folder order wins. It goes with this extension version, and the list is sent again when it changes                                                                                                                                                                                                                                                                     |
 
 For `sessionRequest.send`, omitted `reasoning` inherits the session's thinking level; `"off"`
 explicitly disables thinking for that request.

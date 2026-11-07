@@ -8,8 +8,8 @@ to what floats over it: menus, popovers, tooltips, toasts, dialogs (`shadow-floa
 ┌────────────────┬───────────────────────────────────────┬────────────┐
 │ Sessions       │ Session name            ⎇ branch       │ (Settings  │
 │ 264px, drag    ├───────────────────────────────────────┤ sheet over │
-│ folder pill    │ transcript  (the only scroller)        │ the app,   │
-│ list of rows   │                                        │ 360px)     │
+│ folders, rows  │ transcript  (the only scroller)        │ the app,   │
+│                │                                        │ 360px)     │
 │                ├───────────────────────────────────────┤            │
 │                │ composer                               │            │
 ├────────────────┴───────────────────────────────────────┴────────────┤
@@ -39,15 +39,10 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
 
 ## Sidebar
 
-- **Top**, two rows. Row 1: the app icon at the left edge, which goes home, `Sessions`, new session,
-  search and the collapse button. Row 2: a pill with the folder the conversation
-  works in (on the home page, the folder of the last session opened), the extensions' list filters
-  (`sessionFilter`), and the archive switch. The pill opens a list of the folders
-  that sessions use, with the session count of each; choosing one opens its latest session. A folder
-  that is a git worktree is listed under the folder it belongs to, and choosing that folder shows
-  its worktrees' sessions too. The
-  `+` (new session) button opens `FolderPicker`: it browses the server's folders (hidden ones
-  optional), lists recent folders and favourites (kept through `/api/favourites`), and creates a
+- **Top**, one row: the app icon at the left edge, which goes home, `Sessions`, the extensions' list
+  filters (`sessionFilter`), the archive switch and search, a rule, then new session and the collapse button. The `+`
+  (new session) button opens `FolderPicker`: it browses the server's folders
+  (hidden ones optional), lists recent folders and favourites (kept through `/api/favourites`), and creates a
   session in the folder you open.
   `FolderPicker`, the model menu, and the attachment preview are all `Dialog` modals
   (`components/ui/dialog.tsx`): Escape closes them, focus stays inside and returns on close. The
@@ -71,10 +66,25 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
   screen when no row is highlighted (`web/src/shell/folder-picker/folder-picker-keys.ts`). `Ctrl+A` then `C` opens
   this picker (`session.new.pick`); each extension's option in the footer is asked about that same
   folder.
-- **List**: a row per session: a state dot (idle `faint`, working `warn`), the title, and how long ago
-  its newest run started (`now`, `5m`, `2h`, `3d`, then a date). The title is the first thing that
-  was asked, cut at 80 characters. Rows are grouped `Today`, `Yesterday`, `This week`, `Older`, each
-  with its count; a session with no known time is under `Older` and shows no time.
+- **List**: one group per folder, then a row per session: a state dot (idle `faint`, working `warn`), the
+  title, and how long ago its newest run started (`now`, `5m`, `2h`, `3d`, then a date). The title is the
+  first thing that was asked, cut at 80 characters; a session with no known time shows none. A folder
+  that is a git worktree has its sessions in the group of the folder it belongs to. Sessions with no folder
+  are last, under `no folder`.
+- **Folders**: a header with a fold chevron, the folder's icon, its name and the count of its sessions.
+  A group shows its five newest sessions, indented under the header; `N more` opens the next five with the same motion as the fold,
+  and `Less` goes back to five; they share the width of the rows. The open session is always reachable: its page opens by itself, and
+  while searching every hit is open. A folded folder with a working or unseen session shows that session's
+  mark on its header. Pressing the header folds it; dragging it (a mouse moves 8px, a finger rests 250ms,
+  so a click and a scroll stay what they are) reorders the folders. The `⋯` menu starts a new session in the folder and opens it, renames the folder (a name
+  shown instead of its own; the folder on disk is untouched, an empty name goes back), colours its icon
+  with one of the eight `tag-*` hues, and moves it up or down for those who cannot drag. The order, the
+  folds, the names and the colours are kept on the server: `GET`/`PUT /api/folder-layout` read and replace
+  `data/folders.json` (`{ order, collapsed, folders: { [path]: { name?, color? } } }`), and the sidebar reads
+  it again when the tab comes back to the front, so a phone and a computer show the same list. A folder
+  `order` does not name goes first, worked in last first. How many pages each folder has open is the
+  browser's own (`localStorage`, `sidebarFolderShown`). `shift+left` / `shift+right` step through the rows
+  as they are drawn, across folders, skipping what is folded or still behind `more`.
 - **Started from another session**: a session with `parent` (the one it was started from) is not a
   row while that parent is in the full session list, whatever the folder, archive or search
   filter. The folder counts, the group counts and the search follow the rows shown. When such a
@@ -99,8 +109,8 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
   `localStorage` (`sidebarWidth`); a double click on the edge puts it back to 264px.
 - **Under the list**: extensions may add an area with its own height (`sidebarBottom`, see
   [extensions.md](extensions.md#under-the-session-list)), with a drag handle between it and the list.
-- **Search** (the magnifier in row 1, or `session.search`) is a fuzzy search over the titles of the
-  selected folder's sessions; Escape closes it and gives the focus back where it was.
+- **Search** (the magnifier in the header, or `session.search`) is a fuzzy search over the titles of every
+  folder's sessions, hits grouped by folder; Escape closes it and gives the focus back where it was.
 - Hidden below `lg`, where the conversation takes the screen. There, the panel icon in the
   conversation header opens the list as a full-screen sheet; choosing a session closes it.
 

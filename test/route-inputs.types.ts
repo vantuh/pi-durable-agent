@@ -19,6 +19,7 @@ export const leastInputs: {
     unscope: Input<typeof client.api.scoped.$delete>;
     setDefault: Input<typeof client.api.default.$post>;
     favourites: Input<typeof client.api.favourites.$put>;
+    folderLayout: Input<(typeof client.api)["folder-layout"]["$put"]>;
     folders: Input<typeof client.api.fs.$get>;
     upload: Input<typeof client.api.uploads.$get>;
     events: Input<typeof client.api.events.$get>;
@@ -43,6 +44,7 @@ export const leastInputs: {
     unscope: { json: { provider: "p", modelId: "m" } },
     setDefault: { json: { model: { provider: "p", modelId: "m" }, thinkingLevel: "off" } },
     favourites: { json: {} },
+    folderLayout: { json: {} },
     folders: { query: {} },
     upload: { query: {} },
     events: { query: {} },

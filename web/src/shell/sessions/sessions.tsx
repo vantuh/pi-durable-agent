@@ -1,3 +1,13 @@
+import {
+    closestCenter,
+    DndContext,
+    type DragEndEvent,
+    MouseSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Archive, ArrowLeft } from "lucide-react";
 import {
     memo,
@@ -12,32 +22,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Hint } from "@/components/ui/tooltip";
 import { useSessionFilters, useSessionMenu } from "@/extensions.ts";
 import { fuzzyMatch } from "@/lib/fuzzy.ts";
 import { isSheet, watchSheet } from "@/lib/narrow.ts";
+import {
+    FOLDER_PAGE,
+    groupByFolder,
+    LOOSE,
+    openCount,
+    orderedFolders,
+} from "@/lib/session-folders.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "@/lib/session-nesting.ts";
 import { newestFirst } from "@/lib/session-order.ts";
 import { ago, MINUTE } from "@/lib/time.ts";
 import { useShellCommand } from "@/sdk/commands.ts";
 import { restoreComposerFocus } from "@/sdk/composer.ts";
 import type { StatusProps } from "@/sdk/types.ts";
-import { GroupHeading } from "@/ui/group-heading.tsx";
 import { ItemBoundary } from "@/ui/item-boundary.tsx";
 import { ResizeHandle } from "@/ui/resize-handle.tsx";
 
 import type { SessionSummary } from "../../../../shared/protocol.ts";
-import { FolderMenu } from "./folder-menu.tsx";
-import { FADE, FOLD } from "./rail.ts";
+import { folderName } from "../session-parts.tsx";
+import { FolderGroup } from "./folder-group.tsx";
 import { RenameDialog } from "./rename-dialog.tsx";
-import { GROUPS, groupOf } from "./session-groups.ts";
 import { SessionRow } from "./session-row.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 import { SidebarHeader } from "./sidebar-header.tsx";
 import { resetWidth, savedWidth, setWidth } from "./sidebar-width.ts";
-import { useFolderScope } from "./use-folder-scope.ts";
+import { useFolderLayout } from "./use-folder-layout.ts";
+import { useFolderShown } from "./use-folder-shown.ts";
 import { useMenuRunner } from "./use-menu-runner.ts";
 import { useSessionActions } from "./use-session-actions.ts";
 import { useSessionSearch } from "./use-session-search.ts";
@@ -50,8 +65,6 @@ type Props = {
     current: number | null;
     /** The open session as extensions see it, for the area under the list. */
     session: StatusProps["session"];
-    /** The folder the list follows until one is picked: the open session's, or the last one's on the home page. */
-    folder: string | null;
     onHome: () => void;
     onArchive: (id: number, archived: boolean) => Promise<void>;
     /** Out of the list for good: the row disappears, the transcript is never shown again. */
@@ -59,9 +72,9 @@ type Props = {
     /** An empty name returns the session to its automatic title. */
     onRename: (id: number, name: string) => Promise<void>;
     onSelect: (id: number) => void;
-    /** A folder was picked in the filter: show its latest session, keeping the list open. */
-    onFolder: (id: number) => void;
     onNew: () => void;
+    /** A new session in a folder, opened at once. */
+    onNewIn: (cwd: string) => void;
     /** Below `lg` the list is a full-screen sheet; this says whether it is showing. */
     open: boolean;
     onClose: () => void;
@@ -74,14 +87,13 @@ export const Sessions = memo(function Sessions({
     sessions,
     current,
     session: activeSession,
-    folder: openFolder,
     onHome,
     onSelect,
     onArchive,
     onDelete,
     onRename,
-    onFolder,
     onNew,
+    onNewIn,
     open: sheet,
     onClose,
 }: Props) {
@@ -152,19 +164,13 @@ export const Sessions = memo(function Sessions({
     // Checked against the full list, before the folder, archive and search filters below.
     const topLevel = sidebarSessions(sessions);
     const holding = holdingRow(current, sessions);
-    const {
-        all,
-        folder,
-        folders,
-        scope,
-        scopeCwds,
-        scopeOpen,
-        setScopeOpen,
-        chosen,
-        latest,
-        pickFolder,
-        pickAll,
-    } = useFolderScope(topLevel, openFolder, onFolder, expand);
+    const { layout, setOrder, toggleFold, setLook } = useFolderLayout();
+    const { countOf, setCount } = useFolderShown(FOLDER_PAGE);
+    const sensors = useSensors(
+        // A click stays a click; a finger must rest on the header before it drags, so a scroll stays a scroll.
+        useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    );
 
     const keptBy = filters.flatMap(({ id }) => {
         const match = kept[id];
@@ -172,7 +178,8 @@ export const Sessions = memo(function Sessions({
         return match === undefined ? [] : [match];
     });
 
-    const matches = (all ? topLevel.toSorted(newestFirst) : latest(scopeCwds))
+    const matches = topLevel
+        .toSorted(newestFirst)
         .filter((session) => session.archived === archived)
         .filter((session) => keptBy.every((match) => match(session)))
         .flatMap((session) => {
@@ -191,9 +198,31 @@ export const Sessions = memo(function Sessions({
 
         return ranges === undefined || ranges.length === 0 ? NO_RANGES : ranges;
     };
-    // The rows in the order they are drawn, so stepping follows the folder, archive and search filters.
-    const visible = GROUPS.flatMap((group) =>
-        shown.filter((session) => groupOf(session.activeAt, now) === group),
+    const filtering = query.trim() !== "";
+    const focus = holding ?? current;
+    const groups = groupByFolder(topLevel, shown, layout.order).map((group) => ({
+        ...group,
+        folded: !filtering && layout.collapsed.includes(group.cwd),
+        open: openCount(group.sessions, countOf(group.cwd), focus, filtering),
+    }));
+    // The whole order, not the groups shown: a filter that hides a folder must not drop it from the saved order.
+    const fullOrder = orderedFolders(topLevel, layout.order).map((row) => row.cwd);
+    const moveTo = (cwd: string, other: string | undefined): void => {
+        const from = fullOrder.indexOf(cwd);
+        const to = other === undefined ? -1 : fullOrder.indexOf(other);
+
+        if (from !== -1 && to !== -1) {
+            setOrder(arrayMove(fullOrder, from, to));
+        }
+    };
+    const dropped = ({ active, over }: DragEndEvent): void => {
+        if (over !== null) {
+            moveTo(String(active.id), String(over.id));
+        }
+    };
+    // The rows in the order they are drawn, so stepping follows the filters, the folds and the pages opened.
+    const visible = groups.flatMap((group) =>
+        group.folded ? [] : group.sessions.slice(0, group.open),
     );
     const stepTo = (step: 1 | -1): void => {
         const at = visible.findIndex((session) => session.id === (holding ?? current));
@@ -217,6 +246,38 @@ export const Sessions = memo(function Sessions({
         stepTo(1);
     });
 
+    const controls = (
+        <>
+            {filters.map((item) => {
+                const setMatch = setters.get(item.id);
+                const Filter = item.component;
+
+                return setMatch === undefined ? null : (
+                    <ItemBoundary
+                        key={`${item.folder}:${item.id}`}
+                        name={`${item.folder}:${item.id}`}
+                    >
+                        <Filter setMatch={setMatch} />
+                    </ItemBoundary>
+                );
+            })}
+            <Hint label={archived ? "Back to sessions" : "Show archived sessions"}>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={archived ? "Back to sessions" : "Show archived sessions"}
+                    aria-pressed={archived}
+                    className={archived ? "bg-raised text-ink" : ""}
+                    onClick={() => {
+                        setArchived(!archived);
+                    }}
+                >
+                    {archived ? <ArrowLeft className="size-4" /> : <Archive className="size-4" />}
+                </Button>
+            </Hint>
+        </>
+    );
+
     const aside = (
         // 37px, not a step: the collapsed rail is 6 + a 24px row + 6, plus the 1px border.
         <aside
@@ -230,65 +291,13 @@ export const Sessions = memo(function Sessions({
                 <SidebarHeader
                     asSheet={asSheet}
                     current={current}
-                    scope={scope}
                     search={search}
+                    controls={controls}
                     onToggleCollapsed={toggleCollapsed}
                     onHome={onHome}
                     onNew={onNew}
                     onClose={onClose}
                 />
-
-                <div
-                    className={`border-edge-soft flex items-center gap-1 border-b px-1.5 py-1 ${FADE} ${FOLD}`}
-                >
-                    <FolderMenu
-                        scopeOpen={scopeOpen}
-                        onScopeOpenChange={setScopeOpen}
-                        scope={scope}
-                        all={all}
-                        folder={folder}
-                        folders={folders}
-                        count={topLevel.length}
-                        chosen={chosen}
-                        onPick={pickFolder}
-                        onPickAll={pickAll}
-                    />
-                    <div className="flex items-center">
-                        {filters.map((item) => {
-                            const setMatch = setters.get(item.id);
-                            const Filter = item.component;
-
-                            return setMatch === undefined ? null : (
-                                <ItemBoundary
-                                    key={`${item.folder}:${item.id}`}
-                                    name={`${item.folder}:${item.id}`}
-                                >
-                                    <Filter setMatch={setMatch} />
-                                </ItemBoundary>
-                            );
-                        })}
-                        <Hint label={archived ? "Back to sessions" : "Show archived sessions"}>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={
-                                    archived ? "Back to sessions" : "Show archived sessions"
-                                }
-                                aria-pressed={archived}
-                                className={archived ? "bg-raised text-ink" : ""}
-                                onClick={() => {
-                                    setArchived(!archived);
-                                }}
-                            >
-                                {archived ? (
-                                    <ArrowLeft className="size-4" />
-                                ) : (
-                                    <Archive className="size-4" />
-                                )}
-                            </Button>
-                        </Hint>
-                    </div>
-                </div>
 
                 <ScrollArea ref={list} className="min-h-0 flex-1">
                     <nav className="p-1.5">
@@ -305,58 +314,73 @@ export const Sessions = memo(function Sessions({
                                       : "No sessions match"}
                             </Empty>
                         ) : null}
-                        {GROUPS.map((group) => {
-                            const rows = shown.filter(
-                                (session) => groupOf(session.activeAt, now) === group,
-                            );
-
-                            if (rows.length === 0) {
-                                return null;
-                            }
-
-                            return (
-                                <div key={group}>
-                                    <Separator
-                                        decorative={false}
-                                        className={`mx-2 mt-1 mb-0.5 w-auto [:first-child>&]:hidden ${FADE} ${FOLD}`}
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={dropped}
+                        >
+                            <SortableContext
+                                items={groups.map((group) => group.cwd)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {groups.map((group, index) => (
+                                    <FolderGroup
+                                        key={group.cwd}
+                                        cwd={group.cwd}
+                                        name={
+                                            layout.folders[group.cwd]?.name ?? folderName(group.cwd)
+                                        }
+                                        color={layout.folders[group.cwd]?.color}
+                                        sessions={group.sessions}
+                                        open={group.open}
+                                        folded={group.folded}
+                                        searching={filtering}
+                                        canMoveUp={index > 0}
+                                        canMoveDown={
+                                            index < groups.length - 1 &&
+                                            groups[index + 1]?.cwd !== LOOSE
+                                        }
+                                        onToggle={toggleFold}
+                                        onNew={onNewIn}
+                                        onOpenCount={setCount}
+                                        onLook={setLook}
+                                        onMove={(cwd, by) => {
+                                            moveTo(cwd, groups[index + by]?.cwd);
+                                        }}
+                                        renderRow={(session) => (
+                                            <SessionRow
+                                                key={session.id}
+                                                session={session}
+                                                working={workingChildren(session.id, sessions)}
+                                                time={
+                                                    session.activeAt === null
+                                                        ? null
+                                                        : ago(session.activeAt, now)
+                                                }
+                                                ranges={rangesOf(session.id)}
+                                                current={session.id === current}
+                                                holding={session.id === holding}
+                                                menu={menu}
+                                                running={running}
+                                                pending={pending}
+                                                renaming={renaming === session.id && !unanchored}
+                                                registerRow={registerRow}
+                                                onOpen={openRow}
+                                                onRunItem={runMenuItem}
+                                                onRename={startRename}
+                                                onRenameSave={saveName}
+                                                onRenameCancel={stopRenaming}
+                                                onArchive={changeArchive}
+                                                onDelete={setDeleting}
+                                                deleting={deleting?.id === session.id}
+                                                onConfirmDelete={confirmDelete}
+                                                onCancelDelete={cancelDelete}
+                                            />
+                                        )}
                                     />
-                                    <GroupHeading className={`${FADE} ${FOLD}`}>
-                                        {group} {rows.length}
-                                    </GroupHeading>
-
-                                    {rows.map((session) => (
-                                        <SessionRow
-                                            key={session.id}
-                                            session={session}
-                                            working={workingChildren(session.id, sessions)}
-                                            time={
-                                                session.activeAt === null
-                                                    ? null
-                                                    : ago(session.activeAt, now)
-                                            }
-                                            ranges={rangesOf(session.id)}
-                                            current={session.id === current}
-                                            holding={session.id === holding}
-                                            menu={menu}
-                                            running={running}
-                                            pending={pending}
-                                            renaming={renaming === session.id && !unanchored}
-                                            registerRow={registerRow}
-                                            onOpen={openRow}
-                                            onRunItem={runMenuItem}
-                                            onRename={startRename}
-                                            onRenameSave={saveName}
-                                            onRenameCancel={stopRenaming}
-                                            onArchive={changeArchive}
-                                            onDelete={setDeleting}
-                                            deleting={deleting?.id === session.id}
-                                            onConfirmDelete={confirmDelete}
-                                            onCancelDelete={cancelDelete}
-                                        />
-                                    ))}
-                                </div>
-                            );
-                        })}
+                                ))}
+                            </SortableContext>
+                        </DndContext>
                     </nav>
                 </ScrollArea>
                 <SidebarBottom

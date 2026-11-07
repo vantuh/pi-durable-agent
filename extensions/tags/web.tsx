@@ -129,7 +129,7 @@ function TagFilter({ setMatch }: SessionFilterProps) {
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon-sm"
                         aria-label="Filter by tag"
                         className={`relative ${live.length === 0 ? "" : "text-accent"}`}
                     >

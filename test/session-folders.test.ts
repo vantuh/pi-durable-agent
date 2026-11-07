@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { SessionSummary } from "../shared/protocol.ts";
-import { cwdsOf, folderRows, rowOf } from "../web/src/lib/session-folders.ts";
+import {
+    cwdsOf,
+    folderRows,
+    groupByFolder,
+    LOOSE,
+    openCount,
+} from "../web/src/lib/session-folders.ts";
 
 function session(id: number, cwd: string, extra: Partial<SessionSummary> = {}): SessionSummary {
     return {
@@ -28,30 +34,18 @@ void describe("folderRows", () => {
         const rows = folderRows([session(1, REPO), session(2, SIDE, { under: REPO })]);
 
         assert.deepEqual(
-            rows.map((row) => [row.cwd, row.under, row.worktrees.map((tree) => tree.cwd)]),
-            [[REPO, null, [SIDE]]],
+            rows.map((row) => [row.cwd, row.worktrees.map((tree) => tree.cwd)]),
+            [[REPO, [SIDE]]],
         );
-        assert.equal(rowOf(rows, SIDE)?.under, REPO);
     });
 
     void it("keeps a worktree a root when the folder it belongs under has no sessions", () => {
         const rows = folderRows([session(1, SIDE, { under: REPO })]);
 
         assert.deepEqual(
-            rows.map((row) => [row.cwd, row.under]),
-            [[SIDE, null]],
+            rows.map((row) => row.cwd),
+            [SIDE],
         );
-    });
-
-    void it("counts a folder's worktrees' sessions in its own", () => {
-        const rows = folderRows([
-            session(1, REPO),
-            session(2, SIDE, { under: REPO }),
-            session(3, SIDE, { under: REPO }),
-        ]);
-
-        assert.equal(rows[0]?.count, 3);
-        assert.equal(rows[0]?.worktrees[0]?.count, 2);
     });
 
     void it("sorts roots by the newest run among them, and worktrees by their own", () => {
@@ -106,7 +100,83 @@ void describe("cwdsOf", () => {
 
         assert.ok(root);
         assert.deepEqual(cwdsOf(root), [REPO, SIDE]);
-        assert.equal(rowOf(rows, "/nowhere"), undefined);
-        assert.equal(rowOf(rows, null), undefined);
+    });
+});
+
+void describe("groupByFolder", () => {
+    const names = (groups: ReturnType<typeof groupByFolder>) => groups.map((group) => group.cwd);
+    const all = [
+        session(1, "/work/a", { activeAt: 10 }),
+        session(2, "/work/b", { activeAt: 30 }),
+        session(3, "/work/c", { activeAt: 20 }),
+    ];
+
+    void it("puts the folders a saved order does not name first, worked in last first, then the saved ones", () => {
+        assert.deepEqual(names(groupByFolder(all, all, ["/work/a"])), [
+            "/work/b",
+            "/work/c",
+            "/work/a",
+        ]);
+        assert.deepEqual(names(groupByFolder(all, all, ["/work/c", "/work/a", "/work/b"])), [
+            "/work/c",
+            "/work/a",
+            "/work/b",
+        ]);
+    });
+
+    void it("skips what the order names but no session uses, and a name listed twice", () => {
+        assert.deepEqual(names(groupByFolder(all, all, ["/gone", "/work/b", "/work/b"])), [
+            "/work/c",
+            "/work/a",
+            "/work/b",
+        ]);
+    });
+
+    void it("leaves out a folder with none of the shown sessions", () => {
+        assert.deepEqual(
+            names(
+                groupByFolder(
+                    all,
+                    all.filter((row) => row.id === 2),
+                    [],
+                ),
+            ),
+            ["/work/b"],
+        );
+    });
+
+    void it("keeps a worktree's sessions in its folder's group", () => {
+        const withTree = [session(1, REPO), session(2, SIDE, { under: REPO })];
+        const [group] = groupByFolder(withTree, withTree, []);
+
+        assert.deepEqual(
+            group?.sessions.map((row) => row.id),
+            [1, 2],
+        );
+    });
+});
+
+void describe("openCount", () => {
+    const many = Array.from({ length: 12 }, (_, index) => session(index + 1, REPO));
+
+    void it("opens what was asked for, and every page up to the open session", () => {
+        assert.equal(openCount(many, 5, null, false), 5);
+        assert.equal(openCount(many, 5, 7, false), 10);
+        assert.equal(openCount(many, 10, 3, false), 10);
+    });
+
+    void it("opens every session while searching", () => {
+        assert.equal(openCount(many, 5, null, true), 12);
+    });
+});
+
+void describe("sessions with no folder", () => {
+    void it("go last, in a group named LOOSE", () => {
+        const rows = [{ ...session(1, REPO), cwd: null }, session(2, REPO)];
+
+        assert.deepEqual(
+            groupByFolder(rows, rows, []).map((group) => group.cwd),
+            [REPO, LOOSE],
+        );
     });
 });

@@ -265,6 +265,31 @@ void describe("file routes", () => {
         ]);
     });
 
+    void it("keeps the parts of a folder layout that are right", async () => {
+        await expectAnswers([
+            {
+                name: "a bad colour is no colour, a bad list is empty",
+                call: {
+                    method: "PUT",
+                    path: "/api/folder-layout",
+                    body: {
+                        order: ["/a", 5],
+                        collapsed: "/b",
+                        folders: { "/a": { name: "Main", color: "plaid" } },
+                    },
+                },
+                status: 200,
+                body: { order: ["/a"], collapsed: [], folders: { "/a": { name: "Main" } } },
+            },
+            {
+                name: "no body",
+                call: { method: "PUT", path: "/api/folder-layout" },
+                status: 200,
+                body: { order: [], collapsed: [], folders: {} },
+            },
+        ]);
+    });
+
     void it("lists a folder, the home folder by default", async () => {
         const home = await answerTo({ method: "GET", path: "/api/fs" });
 

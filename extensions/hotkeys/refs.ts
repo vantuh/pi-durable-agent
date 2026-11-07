@@ -10,7 +10,6 @@ import { actionRef } from "../../shared/extension-api.ts";
 export const COMMANDS = [
     "session.new",
     "session.new.pick",
-    "folder.pick",
     "session.search",
     "session.rename",
     "session.prev",
@@ -28,10 +27,9 @@ export type Keymap = { prefix: string; keys: Record<Command, string[]> };
 export const DEFAULT_KEYMAP: Keymap = {
     prefix: "ctrl+a",
     keys: {
-        // A new session in the folder on screen, or one picked by hand; the sidebar's `+` picks too.
+        // A new session in the folder of the session on screen; the sidebar's `+` picks one by hand.
         "session.new": [],
         "session.new.pick": ["prefix+c"],
-        "folder.pick": ["prefix+s"],
         "session.search": ["prefix+f"],
         "session.rename": ["prefix+r", "prefix+,"],
         "session.prev": ["shift+left", "prefix+p"],

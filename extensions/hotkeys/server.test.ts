@@ -91,7 +91,6 @@ void test("prefix then a bound key runs its command, then goes idle", () => {
         command: "session.new.pick",
         consume: true,
     });
-    assert.equal(step(DEFAULT_KEYMAP, true, key("KeyS")).command, "folder.pick");
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyP")).command, "session.prev");
     assert.equal(step(DEFAULT_KEYMAP, true, key("KeyF")).command, "session.search");
     assert.equal(step(DEFAULT_KEYMAP, true, key("Comma")).command, "session.rename");
@@ -250,7 +249,7 @@ void test("mergeKeymap lays valid entries over the defaults and drops the rest",
         prefix: "ctrl+b",
         keys: {
             "session.new": "prefix+n",
-            "folder.pick": ["prefix+f", "nonsense+x", 7],
+            "session.search": ["prefix+g", "nonsense+x", 7],
             "session.prev": ["junk+junk"],
             "session.next": [],
             "unknown.command": "prefix+q",
@@ -259,7 +258,7 @@ void test("mergeKeymap lays valid entries over the defaults and drops the rest",
 
     assert.equal(merged.prefix, "ctrl+b");
     assert.deepEqual(merged.keys["session.new"], ["prefix+n"]);
-    assert.deepEqual(merged.keys["folder.pick"], ["prefix+f"]);
+    assert.deepEqual(merged.keys["session.search"], ["prefix+g"]);
     assert.deepEqual(merged.keys["session.prev"], DEFAULT_KEYMAP.keys["session.prev"]);
     assert.deepEqual(merged.keys["session.next"], []);
     assert.deepEqual(Object.keys(merged.keys).toSorted(), [...COMMANDS].toSorted());

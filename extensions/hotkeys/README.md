@@ -17,7 +17,6 @@ Commands and their default bindings (`ctrl+a` is the prefix):
 | ---------------------------- | ------------------------- | -------------------------------------------- |
 | `session.new`                | none                      | New session in the folder on screen          |
 | `session.new.pick`           | `prefix+c`                | New session, folder picker first             |
-| `folder.pick`                | `prefix+s`                | Opens the sidebar's folder menu              |
 | `session.search`             | `prefix+f`                | Session search                               |
 | `session.rename`             | `prefix+r`, `prefix+,`    | Renames the session                          |
 | `session.prev`               | `shift+left`, `prefix+p`  | Previous session                             |

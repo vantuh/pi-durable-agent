@@ -39,7 +39,7 @@ own folder. It shows on a phone too, and only for a session whose folder is in a
   worktree with changes git would lose is refused, with git's own words in the dialog. The branch and
   its commits are kept.
 
-**Sidebar.** A worktree's sessions appear under their repository's folder in the folder menu (read
+**Sidebar.** A worktree's sessions appear in their repository's folder group in the sidebar (read
 through `folderGroup` and `mainCheckoutOf`; the answer is kept per folder until the extension
 reloads). A bare repository is nobody's. Turning `git-worktree` off makes them folders of their own
 again.

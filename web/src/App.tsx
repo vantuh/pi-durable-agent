@@ -130,7 +130,7 @@ export function App() {
         document.title = active?.title ? `Pi · ${active.title}` : "Pi";
     }, [active?.title]);
 
-    // The home page has no session; the sidebar keeps showing the folder of the last one opened.
+    // The home page has no session; a new one starts in the folder of the last one opened.
     const last = sessions.find(
         (session) => String(session.id) === localStorage.getItem(SESSION_KEY),
     );
@@ -228,14 +228,13 @@ export function App() {
                     sessions={sessions}
                     current={current}
                     session={activeSession}
-                    folder={folder}
                     onHome={home}
                     onArchive={archive}
                     onDelete={remove}
                     onRename={rename}
                     onSelect={select}
-                    onFolder={go}
                     onNew={askFolder}
+                    onNewIn={openSession}
                     open={sheet}
                     onClose={closeSheet}
                 />
