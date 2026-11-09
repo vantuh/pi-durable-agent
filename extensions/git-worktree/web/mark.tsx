@@ -19,7 +19,7 @@ import { appendComposerDraft } from "@/sdk/composer.ts";
 import type { StatusProps } from "@/sdk/types.ts";
 
 import { messageOf } from "../../../shared/guards.ts";
-import { create, move, slugOf, type WorktreeChoice } from "../refs.ts";
+import { create, folderOf, move, slugOf, type WorktreeChoice } from "../refs.ts";
 import { RemoveWorktreeDialog } from "./remove-worktree-dialog.tsx";
 import { useWorktreeChoices } from "./use-worktree-choices.ts";
 import { useWorktree } from "./use-worktree.ts";
@@ -73,7 +73,7 @@ export function Mark({ session }: StatusProps) {
     const taken = choices.some(
         (choice) =>
             folderNameOf(choice).toLowerCase() === needle ||
-            folderNameOf(choice) === slug ||
+            folderNameOf(choice) === folderOf(slug) ||
             choice.name === wanted ||
             choice.name === slug,
     );

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { git, initRepo, run } from "../../../test/fixtures/git.ts";
-import { slugOf } from "../refs.ts";
+import { folderOf, slugOf } from "../refs.ts";
 import { mainOfRemembered } from "./remembered.ts";
 import {
     groupOf,
@@ -573,7 +573,9 @@ void describe("git-worktree worktreesAmong", () => {
 void describe("git-worktree slugOf", () => {
     void it("gives what git takes as a branch name", () => {
         assert.equal(slugOf("Fix Auth"), "fix-auth");
-        assert.equal(slugOf("  feature/login  "), "feature-login");
+        assert.equal(slugOf("  feature/login  "), "feature/login");
+        assert.equal(slugOf("/feat//Header/"), "feat/header");
+        assert.equal(folderOf("feat/header"), "feat-header");
         assert.equal(slugOf("v2.1_hot-fix"), "v2.1_hot-fix");
         assert.equal(slugOf("!!!"), "");
         assert.equal(slugOf("x".repeat(60)).length, 40);

@@ -51,9 +51,10 @@ again.
   files are not copied either.
 - **Where it goes.** `worktrees/<repository>/<name>` under the server's data folder, never inside
   your repository. The repository's own name is used even when the picker is open inside a worktree.
-- **The name** is slugified (lowercase, letters, digits, `.`, `_`, `-`, at most 40 characters) and is
-  both the folder's name and the new branch's. A name that is already a branch, or a folder that is
-  there already, is refused with a message under the picker.
+- **The name** is slugified (lowercase, letters, digits, `.`, `_`, `-`, `/`, at most 40 characters)
+  and is the new branch's name; `feat/header` is that branch. The folder's name is the same with each
+  `/` turned into `-` (`feat-header`). A name that is already a branch, or a folder that is there
+  already, is refused with a message under the picker.
 - **Memory.** A worktree this server made is recorded in `git-worktree.json` in the data folder, so
   its sessions stay under the repository after the worktree is gone and git has forgotten it.
 - **Refusals.** A folder in no repository, and a repository with no commit yet. The server reads the

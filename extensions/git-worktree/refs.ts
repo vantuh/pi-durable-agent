@@ -13,14 +13,21 @@ export type MakeArgs = { cwd: string; name: string };
 
 export type LinkedArgs = { folders: string[] };
 
-/** A folder name and branch name for what someone typed: what git accepts, in lowercase. */
+/** A branch name for what someone typed: what git accepts, in lowercase. A `/` stays, so `feat/x` is a branch. */
 export function slugOf(name: string): string {
     return name
         .toLowerCase()
-        .replace(/[^a-z0-9._-]+/g, "-")
-        .replace(/^[-.]+|[-.]+$/g, "")
+        .split("/")
+        .map((part) => part.replace(/[^a-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, ""))
+        .filter((part) => part !== "")
+        .join("/")
         .slice(0, 40)
-        .replace(/[-.]+$/, "");
+        .replace(/[-./]+$/, "");
+}
+
+/** The folder a worktree of branch `slug` lives in: one level, so a `/` becomes `-`. */
+export function folderOf(slug: string): string {
+    return slug.replaceAll("/", "-");
 }
 
 /**

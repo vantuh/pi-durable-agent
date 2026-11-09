@@ -12,7 +12,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { ActionError } from "../../../server/sdk.ts";
-import { slugOf, type MadeWorktree, type WorktreeChoice } from "../refs.ts";
+import { folderOf, slugOf, type MadeWorktree, type WorktreeChoice } from "../refs.ts";
 import { mainOfRemembered, readRemembered, rememberWorktree } from "./remembered.ts";
 
 const run = promisify(execFile);
@@ -330,10 +330,12 @@ export async function makeWorktree(
 
     // Where `cwd` is within the repository, as git sees it: `cwd` may be reached through a symbolic link.
     const within = (await out(cwd, ["rev-parse", "--show-prefix"])).trim();
-    const worktree = join(dataDir, "worktrees", await repositoryName(cwd), slug);
+    const worktree = join(dataDir, "worktrees", await repositoryName(cwd), folderOf(slug));
 
     if (existsSync(worktree)) {
-        throw new ActionError(`There is already a worktree named ${slug}: pick another name.`);
+        throw new ActionError(
+            `There is already a worktree named ${folderOf(slug)}: pick another name.`,
+        );
     }
 
     if ((await out(root, ["rev-parse", "--verify", "--quiet", `refs/heads/${slug}`])) !== "") {
