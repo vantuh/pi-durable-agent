@@ -148,6 +148,8 @@ export type HeaderItemProps = StatusProps & {
 
 export type HeaderItem = {
     id: string;
+    /** Where it sits among the header's items: lower first, unset is `0`, and the folder decides among equals. */
+    order?: number;
     component: ComponentType<HeaderItemProps>;
 };
 

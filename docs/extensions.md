@@ -597,6 +597,8 @@ Deleting the folder is the whole removal, tests included.
 as a status item plus `openPage(id, sub?)`, which opens one of the same extension's own pages (at
 `sub`, in one history step, closing any open panel). It renders before the Extensions toggle, follows
 the extension's enabled switch and has its own error boundary. The shell knows no feature by name.
+`order` places it among the other items as a status item's does: lower first, unset is `0`, folder
+order among equals; `extensions/terminal` sets `-1` to sit before Git history's badge.
 
 [Git history](../extensions/git-history/README.md#header-badge-and-push) uses this slot for its badge.
 

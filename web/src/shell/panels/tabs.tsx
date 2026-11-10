@@ -38,10 +38,7 @@ function Tab({
             {item.icon}
             {item.title}
             {Count === undefined ? null : (
-                <Badge
-                    tone="accent"
-                    className="pointer-events-none h-3.5 min-w-3.5 justify-center px-1 leading-none empty:hidden"
-                >
+                <Badge tone="accent" size="count" className="pointer-events-none empty:hidden">
                     <ItemBoundary name={`${id}:badge`}>
                         <Count session={session} />
                     </ItemBoundary>

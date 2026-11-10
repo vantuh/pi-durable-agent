@@ -16,5 +16,6 @@ export default {
             component: TerminalPage,
         },
     ],
-    header: [{ id: "open", component: TerminalButton }],
+    // Before Git history's badge: folder order alone would put it after.
+    header: [{ id: "open", order: -1, component: TerminalButton }],
 } satisfies WebExtension;

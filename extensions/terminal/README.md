@@ -8,7 +8,7 @@ never sees them: no tools, prompt sections or hooks.
 
 - **Open it** from the terminal button in the conversation header, or with `prefix+t`
   (`extension.terminal.open`, rebindable in `data/hotkeys.json`). The page takes the conversation's
-  place, as Git history does; the button shows how many tabs the folder has. A folder with none gets
+  place, as Git history does; the button sits before Git history's badge and shows how many tabs the folder has in an accent badge on its top right corner. A folder with none gets
   its first tab when the page opens.
 - **Tabs.** `+` starts a new shell in a new tab; a tab's title is what runs in it now (`zsh`, `node`,
   `nvim`), re-read every 2 seconds. Close (the `×` in the toolbar) ends the tab's shell and the tab;

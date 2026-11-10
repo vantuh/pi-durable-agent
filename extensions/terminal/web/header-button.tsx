@@ -1,6 +1,7 @@
 import { SquareTerminal } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/tooltip";
 import { callAction } from "@/sdk/actions.ts";
@@ -60,13 +61,23 @@ export function TerminalButton({ session, openPage }: HeaderItemProps) {
                 variant="ghost"
                 size="sm"
                 aria-label={`Terminal: ${String(tabs)} tabs`}
-                className="h-7 gap-1.5 tabular-nums"
+                className="relative mr-1 h-7 gap-1.5 tabular-nums"
                 onClick={() => {
                     openPage(TERMINAL_PAGE);
                 }}
             >
                 <SquareTerminal className="size-3.5" />
-                {tabs > 0 ? tabs : null}
+                {/* The phone's header has no room for the word: the icon says it there. */}
+                <span className="hidden sm:inline">Terminal</span>
+                {tabs > 0 ? (
+                    <Badge
+                        tone="accent"
+                        size="count"
+                        className="pointer-events-none absolute -top-1 -right-1"
+                    >
+                        {tabs}
+                    </Badge>
+                ) : null}
             </Button>
         </Hint>
     );

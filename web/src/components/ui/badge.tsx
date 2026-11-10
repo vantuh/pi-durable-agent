@@ -13,16 +13,30 @@ const TONES = {
     danger: "border-danger/40 bg-danger/15 text-danger",
 };
 
+/** A label beside text, or a count on a control: a number in a box no wider than it needs. */
+const SIZES = {
+    default: "h-5 px-2",
+    count: "h-3.5 min-w-3.5 justify-center px-1 leading-none",
+};
+
 type BadgeProps = ComponentProps<"span"> & {
     tone?: keyof typeof TONES;
+    size?: keyof typeof SIZES;
     /** Hand the looks to the child element, so a link or a button stays one. */
     asChild?: boolean;
 };
 
 /** shadcn's badge, reduced to the tones this app uses: a small label that sits beside text. */
-export function Badge({ tone = "muted", asChild = false, className, ...props }: BadgeProps) {
+export function Badge({
+    tone = "muted",
+    size = "default",
+    asChild = false,
+    className,
+    ...props
+}: BadgeProps) {
     const classes = cn(
-        "text-meta inline-flex h-5 shrink-0 items-center gap-1 border px-2 font-mono whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0",
+        "text-meta inline-flex shrink-0 items-center gap-1 border font-mono whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0",
+        SIZES[size],
         TONES[tone],
         className,
     );

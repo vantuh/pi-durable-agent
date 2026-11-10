@@ -12,14 +12,17 @@ export const HeaderItems = memo(function HeaderItems({
     /** Opens a page by its key (`folder:id`); each item gets it narrowed to its own folder. */
     openPage: (key: string, sub?: string) => void;
 }) {
-    return useHeaderItems().map(({ folder, id, component: Item }) => (
-        <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
-            <Item
-                session={session}
-                openPage={(page, sub) => {
-                    openPage(`${folder}:${page}`, sub);
-                }}
-            />
-        </ItemBoundary>
-    ));
+    // Lower first; the copy keeps the folders' order for equals, since the sort is stable.
+    return [...useHeaderItems()]
+        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+        .map(({ folder, id, component: Item }) => (
+            <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+                <Item
+                    session={session}
+                    openPage={(page, sub) => {
+                        openPage(`${folder}:${page}`, sub);
+                    }}
+                />
+            </ItemBoundary>
+        ));
 });
