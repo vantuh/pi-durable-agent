@@ -24,6 +24,7 @@ import { presetOf, viewportFrom } from "./server/viewport.ts";
 export const meta = {
     title: "Browser",
     description: "A real Chromium that Pi drives and you watch in the Browser panel.",
+    toggle: true,
 };
 
 const ACTIONS = [

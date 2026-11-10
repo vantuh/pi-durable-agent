@@ -118,8 +118,8 @@ export const meta = {
 - Both fields must be non-empty strings. Otherwise the folder fails with a reason that names `meta`.
 - `toggle: true` (optional, boolean) also puts a switch for the folder in the Settings panel, under
   "Extensions", so the owner need not open the Extensions dialog. The row is drawn by the core from
-  `GET /api/extensions`, so it stays when the folder is off. `extensions/mcp` and `extensions/subagents`
-  set it.
+  `GET /api/extensions`, so it stays when the folder is off. `extensions/browser`, `extensions/mcp` and
+  `extensions/subagents` set it.
 - Without `meta` the title is the folder's name and the description is empty.
 - The owner can turn each folder on or off. The choice is stored on the server in
   `extensions.json` in the data directory: `{ "disabled": ["folder"] }`. A missing or broken file
