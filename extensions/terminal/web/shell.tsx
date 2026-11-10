@@ -3,7 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
 import { RotateCcw, Square, X } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ export function Shell({
     tabs,
     onRestart,
     onRemoved,
+    onEnded,
 }: {
     id: number;
     tab: number;
@@ -55,6 +56,8 @@ export function Shell({
     tabs: ReactNode;
     onRestart: () => void;
     onRemoved: () => void;
+    /** The shell ended by itself or by Stop; not called for Restart or Close. */
+    onEnded: () => void;
 }) {
     const field = useRef<HTMLDivElement>(null);
     /** Keys typed so far, one request at a time; a stop waits for it before ending the shell. */
@@ -78,6 +81,7 @@ export function Shell({
         busy.current = value;
         setWorking(value);
     };
+    const ended = useEffectEvent(onEnded);
 
     useEffect(() => {
         const node = field.current;
@@ -246,6 +250,7 @@ export function Shell({
                         if (message.includes(GONE)) {
                             live.current = false;
                             setOver((was) => was ?? "exited");
+                            ended();
 
                             return;
                         }
@@ -267,6 +272,7 @@ export function Shell({
                         if (next.exited) {
                             live.current = false;
                             setOver((was) => was ?? "exited");
+                            ended();
 
                             return;
                         }
@@ -323,6 +329,10 @@ export function Shell({
         try {
             if ((over === null || what === "remove") && !(await end(what))) {
                 return;
+            }
+
+            if (what === "stop") {
+                onEnded();
             }
 
             if (what === "restart") {

@@ -19,7 +19,8 @@ never sees them: no tools, prompt sections or hooks.
   pressed, never a remembered value, and when the foreground process is not the shell itself (`nvim`,
   `sleep`) the dialog names it and asks first; cancelling puts the caret back in the terminal.
 - A stopped shell keeps its tab, says so and waits for "Start a new shell"; nothing restarts it by
-  itself. One stop, restart or close runs at a time, and the page says stopped only once `close`
+  itself. The exception is the folder's only tab: when its shell exits or is stopped, the tab is
+  removed and the page returns to the conversation, as Close does. One stop, restart or close runs at a time, and the page says stopped only once `close`
   succeeded.
 - **Keys.** The shell keeps its keys. The page stops propagation (`attachCustomKeyEventHandler`) so
   the shell's Escape does not reach the app, and its container carries

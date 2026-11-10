@@ -9,7 +9,7 @@ import { callAction } from "@/sdk/actions.ts";
 import type { PageProps } from "@/sdk/types.ts";
 
 import { messageOf } from "../../../shared/guards.ts";
-import { type Tab, create, list } from "../refs.ts";
+import { type Tab, create, list, remove } from "../refs.ts";
 import { Shell } from "./shell.tsx";
 
 /** How often the tabs are re-read: a title follows what runs in it, and another session may add a tab. */
@@ -108,6 +108,20 @@ export function TerminalPage({ session, close }: PageProps) {
         setPoke((value) => value + 1);
     };
 
+    // The last shell stopping closes the terminal; a stopped tab beside others stays, to be restarted.
+    const ended = async (tab: number): Promise<void> => {
+        try {
+            const found = await callAction(list, undefined, id);
+
+            if (found.length === 1 && found[0]?.id === tab) {
+                await callAction(remove, { tab }, id);
+                close("composer");
+            }
+        } catch (failure) {
+            setProblem(messageOf(failure));
+        }
+    };
+
     const strip =
         active === undefined || tabs === null ? null : (
             <div className="flex min-w-0 items-center gap-1">
@@ -155,6 +169,9 @@ export function TerminalPage({ session, close }: PageProps) {
                     }}
                     onRemoved={() => {
                         removed(active.id);
+                    }}
+                    onEnded={() => {
+                        void ended(active.id);
                     }}
                 />
             )}
