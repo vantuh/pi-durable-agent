@@ -1,9 +1,10 @@
 /**
- * Terminal: a real shell (a PTY) in the session's folder, typed into from the Terminal panel. The agent
- * never sees it: no tools, prompt sections or hooks.
+ * Terminal: real shells (PTYs) in the session's folder, typed into from the Terminal page. The agent
+ * never sees them: no tools, prompt sections or hooks.
  *
- * One shell per session, started by the first `open` and kept while the panel comes and goes, so the
- * scrollback survives the tab being closed. It ends when the panel closes it, when it exits by itself,
+ * Shells belong to the folder, one per tab, so every session in that folder sees the same tabs. A shell
+ * is kept while the page comes and goes, so the scrollback survives. It ends when its tab stops or
+ * closes it, when it exits by itself, when the last session that used the folder's terminal is deleted,
  * or when this version of the extension is disposed and the folder goes or reloads.
  */
 
@@ -14,11 +15,11 @@ import { spawn, type IPty } from "node-pty";
 
 import { ActionError, type Action, type ActionCall, type Host } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
-import type { Output, Running, Size } from "./refs.ts";
+import type { Output, Running, Size, Tab } from "./refs.ts";
 
 export const meta = {
     title: "Terminal",
-    description: "A shell in the session's folder: a real PTY you type into.",
+    description: "Shells in the session's folder, in tabs: real PTYs you type into.",
 };
 
 /** The scrollback a panel gets when it attaches: the last screens and more. */
@@ -30,6 +31,8 @@ const BATCH_MS = 8;
 /** How long a shell that ignores the hangup gets before its process group is killed outright. */
 const KILL_MS = 2000;
 const MAX_SIDE = 32_767;
+/** The size a new tab starts at: its page resizes it as soon as it has measured the screen. */
+const START: Size = { cols: 80, rows: 24 };
 const TERM = "xterm-256color";
 
 /** What would make the shell think it runs inside the agent or an editor, with a name to tell them by. */
@@ -98,7 +101,8 @@ class Shell {
     #killer: NodeJS.Timeout | undefined;
     #batched = false;
 
-    constructor(cwd: string, size: Size) {
+    /** `onExit` hears the shell ending by itself, not by `dispose`. */
+    constructor(cwd: string, size: Size, onExit: () => void) {
         this.#pty = spawn(loginShell(), process.platform === "darwin" ? ["-l"] : [], {
             name: TERM,
             cols: size.cols,
@@ -111,6 +115,10 @@ class Shell {
             this.#push(data);
         });
         this.#pty.onExit(() => {
+            if (!this.#exited) {
+                onExit();
+            }
+
             this.#exited = true;
             this.#gone = true;
             clearTimeout(this.#killer);
@@ -225,59 +233,130 @@ class Shell {
     }
 }
 
-/** The shells of this version, by session. A reload builds a new map and the dispose below empties this one. */
-const shells = new Map<number, Shell>();
+/** One folder's shells by tab, and the sessions that used them: the last of those deleted ends them. */
+type Folder = { cwd: string; shells: Map<number, Shell>; sessions: Set<number>; next: number };
+
+/** The folders of this version, by path. A reload builds a new map and the dispose below empties this one. */
+const folders = new Map<string, Folder>();
+
+function tabOf(args: unknown): number {
+    const tab = recordOf(args)?.["tab"];
+
+    if (typeof tab !== "number" || !Number.isInteger(tab) || tab < 1) {
+        throw new ActionError("tab must be a whole number from 1");
+    }
+
+    return tab;
+}
 
 export const actions = (host: Host): Record<string, Action> => {
-    const at = (call: ActionCall): { id: number; cwd: string } => {
+    /** The folder of the calling session, which now keeps the folder's shells alive. */
+    const folderOf = (call: ActionCall): Folder => {
         if (call.session === null) {
             throw new ActionError("the terminal belongs to a session");
         }
 
-        return { id: call.session.id, cwd: call.session.cwd ?? host.cwd };
+        const cwd = call.session.cwd ?? host.cwd;
+        let folder = folders.get(cwd);
+
+        if (folder === undefined) {
+            folder = { cwd, shells: new Map(), sessions: new Set(), next: 1 };
+            folders.set(cwd, folder);
+        }
+
+        folder.sessions.add(call.session.id);
+
+        return folder;
+    };
+
+    /** Every session that shows this folder's tabs re-reads them: the header's count moves. */
+    const changed = (folder: Folder): void => {
+        for (const id of folder.sessions) {
+            host.notifySessionChanged(id);
+        }
+    };
+
+    const start = (folder: Folder, tab: number, size: Size): Shell => {
+        const shell = new Shell(folder.cwd, size, () => {
+            changed(folder);
+        });
+
+        folder.shells.set(tab, shell);
+
+        return shell;
     };
 
     const shellOf = (call: ActionCall): Shell => {
-        const shell = shells.get(at(call).id);
+        const shell = folderOf(call).shells.get(tabOf(call.args));
 
         if (shell === undefined) {
-            throw new ActionError("no shell is running in this session");
+            throw new ActionError("no shell is running in this tab");
         }
 
         return shell;
     };
 
     host.onDispose(() => {
-        for (const shell of shells.values()) {
-            shell.dispose();
+        for (const folder of folders.values()) {
+            for (const shell of folder.shells.values()) {
+                shell.dispose();
+            }
         }
 
-        shells.clear();
+        folders.clear();
     });
 
     host.onSessionGone((id) => {
-        shells.get(id)?.dispose();
-        shells.delete(id);
+        for (const folder of folders.values()) {
+            if (folder.sessions.delete(id) && folder.sessions.size === 0) {
+                for (const shell of folder.shells.values()) {
+                    shell.dispose();
+                }
+
+                folders.delete(folder.cwd);
+            }
+        }
     });
 
     return {
-        open(call) {
-            const { id, cwd } = at(call);
-            const size = sizeOf(call.args);
-            const shell = shells.get(id);
+        list(call): Tab[] {
+            return [...folderOf(call).shells].map(([id, shell]) => ({
+                id,
+                title: shell.running().foreground,
+                exited: shell.exited,
+            }));
+        },
 
-            if (shell !== undefined && !shell.exited) {
+        create(call) {
+            const folder = folderOf(call);
+            const tab = folder.next;
+
+            folder.next += 1;
+            start(folder, tab, START);
+            changed(folder);
+
+            return tab;
+        },
+
+        open(call) {
+            const folder = folderOf(call);
+            const tab = tabOf(call.args);
+            const size = sizeOf(call.args);
+            const shell = folder.shells.get(tab);
+
+            if (shell === undefined) {
+                throw new ActionError("no shell is running in this tab");
+            }
+
+            if (!shell.exited) {
                 shell.resize(size);
 
                 return shell.output(0);
             }
 
-            shell?.dispose();
-            const started = new Shell(cwd, size);
+            shell.dispose();
 
-            shells.set(id, started);
-
-            return started.output(0);
+            return start(folder, tab, size).output(0);
         },
 
         write(call) {
@@ -313,10 +392,18 @@ export const actions = (host: Host): Record<string, Action> => {
         },
 
         close(call) {
-            const { id } = at(call);
+            shellOf(call).dispose();
 
-            shells.get(id)?.dispose();
-            shells.delete(id);
+            return true;
+        },
+
+        remove(call) {
+            const folder = folderOf(call);
+            const tab = tabOf(call.args);
+
+            folder.shells.get(tab)?.dispose();
+            folder.shells.delete(tab);
+            changed(folder);
 
             return true;
         },

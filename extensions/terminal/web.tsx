@@ -2,15 +2,19 @@ import { SquareTerminal } from "lucide-react";
 
 import type { WebExtension } from "@/sdk/types.ts";
 
-import { TerminalPanel } from "./web/panel.tsx";
+import { TERMINAL_PAGE } from "./refs.ts";
+import { TerminalButton } from "./web/header-button.tsx";
+import { TerminalPage } from "./web/page.tsx";
 
 export default {
-    panels: [
+    pages: [
         {
-            id: "terminal",
+            id: TERMINAL_PAGE,
             title: "Terminal",
             icon: <SquareTerminal className="size-4" />,
-            component: TerminalPanel,
+            tab: false,
+            component: TerminalPage,
         },
     ],
+    header: [{ id: "open", component: TerminalButton }],
 } satisfies WebExtension;

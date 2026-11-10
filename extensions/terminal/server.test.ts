@@ -6,7 +6,7 @@ import { after, before, describe, it } from "node:test";
 
 import type { Host, SessionGoneListener } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { type Output, open, read } from "./refs.ts";
+import { type Output, create, list, open, read } from "./refs.ts";
 import { actions, tail } from "./server.ts";
 
 /** The fields this extension reads; the rest of the host is nothing it touches. */
@@ -48,16 +48,49 @@ void describe("terminal", () => {
     let started: ReturnType<typeof hostOf>;
     let run: ReturnType<typeof actions>;
 
-    const call = async (name: string, args: unknown): Promise<unknown> => {
+    /** The tab the shell helpers below talk to. */
+    let tab = 0;
+
+    const as = async (
+        session: { id: number; cwd: string },
+        name: string,
+        args: unknown,
+    ): Promise<unknown> => {
         const action = run[name];
 
         assert.ok(action, `the extension has an action named ${name}`);
 
-        return await action({ args, session: { id: 7, cwd: dir } });
+        return await action({ args, session });
     };
 
-    const start = async (): Promise<Output> =>
-        open.parse(await call("open", { cols: 80, rows: 24 }));
+    const call = async (name: string, args: unknown): Promise<unknown> =>
+        await as({ id: 7, cwd: dir }, name, args === undefined ? { tab } : { tab, ...args });
+
+    /** A new tab, attached at 80 by 24. */
+    const start = async (): Promise<Output> => {
+        tab = create.parse(await as({ id: 7, cwd: dir }, "create", undefined));
+
+        return open.parse(await call("open", { cols: 80, rows: 24 }));
+    };
+
+    /** Polls until `pid` is gone; fails, killing its group, when it outlives two seconds and more. */
+    const gone = async (pid: number, what: string): Promise<void> => {
+        for (let tries = 0; tries < 60; tries += 1) {
+            try {
+                process.kill(pid, 0);
+            } catch {
+                return;
+            }
+
+            await new Promise((done) => {
+                setTimeout(done, 100);
+            });
+        }
+
+        // Nothing may outlive the test, or the runner waits on the pty: end what the test found alive.
+        process.kill(-pid, "SIGKILL");
+        assert.fail(`the shell ${String(pid)} outlived ${what}`);
+    };
 
     /** Reads on until `seen` accepts the output: the shell answers in chunks. */
     const until = async (from: Output, seen: (output: Output) => boolean): Promise<Output> => {
@@ -117,6 +150,45 @@ void describe("terminal", () => {
         await assert.rejects(call("resize", { cols: 80, rows: 1.5 }), /cols and rows/);
         await assert.rejects(call("write", { data: 42 }), /data must be a string/);
         await assert.rejects(call("read", { after: -1 }), /after must be a whole number/);
+        await assert.rejects(call("read", { tab: 0, after: 0 }), /tab must be a whole number/);
+        await assert.rejects(call("read", { tab: 9999, after: 0 }), /no shell is running/);
+    });
+
+    void it("shows the folder's tabs to every session in it, and not to another folder", async () => {
+        const other = await mkdtemp(join(tmpdir(), "terminal-other-"));
+
+        try {
+            const shell = await start();
+            const neighbour = { id: 8, cwd: dir };
+
+            assert.ok(list.parse(await as(neighbour, "list", undefined)).some((t) => t.id === tab));
+            assert.deepEqual(list.parse(await as({ id: 9, cwd: other }, "list", undefined)), []);
+
+            // What the neighbour types, this session reads: one shell, not two.
+            await as(neighbour, "write", { tab, data: "printf 'SHARED' | rev\n" });
+            const output = await until(shell, (seen) => seen.data.includes("DERAHS"));
+
+            assert.match(output.data, /DERAHS/);
+        } finally {
+            await rm(other, { recursive: true, force: true });
+        }
+    });
+
+    void it("keeps a stopped tab for a new shell, and drops a removed one", async () => {
+        await start();
+        await call("close", undefined);
+
+        const stopped = read.parse(await call("read", { after: 0 }));
+
+        assert.equal(stopped?.exited, true);
+
+        const again = open.parse(await call("open", { cols: 80, rows: 24 }));
+
+        assert.equal(again.exited, false, "opening a stopped tab starts a shell in it");
+
+        await call("remove", undefined);
+        assert.ok(!list.parse(await call("list", undefined)).some((t) => t.id === tab));
+        await assert.rejects(call("read", { after: 0 }), /no shell is running/);
     });
 
     void it("reports the shell exiting, and opens a new one afterwards", async () => {
@@ -133,9 +205,9 @@ void describe("terminal", () => {
         assert.equal(again.exited, false, "opening after an exit starts a shell of its own");
     });
 
-    void it("kills the shell when the panel closes it, and when the version is disposed", async () => {
+    void it("kills the shell when its tab closes, and when the version is disposed", async () => {
         await start();
-        await call("close", undefined);
+        await call("remove", undefined);
         await assert.rejects(call("read", { after: 0 }), /no shell is running/);
 
         await start();
@@ -156,24 +228,10 @@ void describe("terminal", () => {
         await call("close", undefined);
 
         // SIGHUP is ignored, so this only goes once the bound has passed and the group was killed.
-        for (let tries = 0; tries < 60; tries += 1) {
-            try {
-                process.kill(pid, 0);
-            } catch {
-                return;
-            }
-
-            await new Promise((done) => {
-                setTimeout(done, 100);
-            });
-        }
-
-        // Nothing may outlive the close, or the runner waits on the pty: end what the test found alive.
-        process.kill(-pid, "SIGKILL");
-        assert.fail(`the shell ${String(pid)} outlived the close`);
+        await gone(pid, "the close");
     });
 
-    void it("ends the shell of a session that was deleted", async () => {
+    void it("ends the folder's shells when the last session that used them is deleted", async () => {
         const shell = await start();
 
         await call("write", { data: "printf 'PID=%s\\n' $$\n" });
@@ -183,22 +241,19 @@ void describe("terminal", () => {
 
         assert.ok(pid > 0, `the shell named its pid: ${printed.data}`);
 
+        // A neighbour in the same folder keeps the shell alive past this session's deletion.
+        const neighbour = { id: 8, cwd: dir };
+
+        await as(neighbour, "list", undefined);
         started.gone(7);
 
-        for (let tries = 0; tries < 60; tries += 1) {
-            try {
-                process.kill(pid, 0);
-            } catch {
-                return;
-            }
+        // Asked as the neighbour: a call from session 7 would make it a user of the folder again.
+        const left = list.parse(await as(neighbour, "list", undefined));
 
-            await new Promise((done) => {
-                setTimeout(done, 100);
-            });
-        }
+        assert.equal(left.find((t) => t.id === tab)?.exited, false);
 
-        process.kill(-pid, "SIGKILL");
-        assert.fail(`the shell ${String(pid)} outlived its session`);
+        started.gone(8);
+        await gone(pid, "its sessions");
     });
 
     void it("cuts the scrollback on a whole character, not inside a surrogate pair", () => {

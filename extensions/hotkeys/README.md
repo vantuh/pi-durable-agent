@@ -23,6 +23,7 @@ Commands and their default bindings (`ctrl+a` is the prefix):
 | `session.next`               | `shift+right`, `prefix+n` | Next session                                 |
 | `sidebar.toggle`             | `prefix+b`                | Collapses or expands the sidebar to its rail |
 | `extension.git-history.open` | `prefix+g`                | [Git history](../git-history/README.md) list |
+| `extension.terminal.open`    | `prefix+t`                | [Terminal](../terminal/README.md) page       |
 
 `sidebar.toggle` is the same toggle as the button in the sidebar header and saves the same state. The
 rail exists from `lg` up; below that the sidebar is a full-screen sheet, where the key flips the

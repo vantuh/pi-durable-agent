@@ -1,14 +1,22 @@
 /**
- * What the terminal panel and its server half agree on. Browser-safe: no imports beyond the shared ones.
+ * What the terminal page and its server half agree on. Browser-safe: no imports beyond the shared ones.
  *
  * `seq` counts every character the shell has sent since it started, so a reader that says where it got
- * to gets the rest — the scrollback on attaching, one chunk per answer afterwards.
+ * to gets the rest — the scrollback on attaching, one chunk per answer afterwards. Every call but `list`
+ * and `create` names its `tab`: the shells belong to the session's folder, one per tab.
  */
 
 import { actionRef } from "../../shared/extension-api.ts";
 import { isRecord } from "../../shared/guards.ts";
 
+export const TERMINAL_PAGE = "terminal";
+
 export type Size = { cols: number; rows: number };
+
+type At = { tab: number };
+
+/** One tab of the folder: `title` is what runs in it now, the shell or its foreground program. */
+export type Tab = { id: number; title: string; exited: boolean };
 
 export type Output = { seq: number; data: string; exited: boolean };
 
@@ -30,14 +38,41 @@ function parseOutput(value: unknown): Output {
     throw new Error("not terminal output");
 }
 
-/** Starts a shell in the session's folder, or attaches to the one running: its recent scrollback and `seq`. */
-export const open = actionRef<Size, Output>("terminal", "open", parseOutput);
+function isTab(value: unknown): value is Tab {
+    return (
+        isRecord(value) &&
+        typeof Reflect.get(value, "id") === "number" &&
+        typeof Reflect.get(value, "title") === "string" &&
+        typeof Reflect.get(value, "exited") === "boolean"
+    );
+}
+
+/** The folder's tabs, oldest first. */
+export const list = actionRef<undefined, Tab[]>("terminal", "list", (value) => {
+    if (Array.isArray(value) && value.every(isTab)) {
+        return value;
+    }
+
+    throw new Error("not a list of terminal tabs");
+});
+
+/** Starts a shell in a new tab of the session's folder, and answers the tab. */
+export const create = actionRef<undefined, number>("terminal", "create", (value) => {
+    if (typeof value === "number") {
+        return value;
+    }
+
+    throw new Error("not a terminal tab");
+});
+
+/** Attaches to the tab's shell, or starts a new one there if it ended: its recent scrollback and `seq`. */
+export const open = actionRef<At & Size, Output>("terminal", "open", parseOutput);
 
 /** Keys, pastes and control characters, exactly as the terminal sends them. */
-export const write = actionRef<{ data: string }, true>("terminal", "write", () => true);
+export const write = actionRef<At & { data: string }, true>("terminal", "write", () => true);
 
 /** The shell and the program it runs now: a stop asks first when the two differ. */
-export const state = actionRef<undefined, Running>("terminal", "state", (value) => {
+export const state = actionRef<At, Running>("terminal", "state", (value) => {
     if (
         isRecord(value) &&
         typeof Reflect.get(value, "shell") === "string" &&
@@ -51,12 +86,15 @@ export const state = actionRef<undefined, Running>("terminal", "state", (value) 
 });
 
 /** The output after `after`, waiting up to 25 seconds for it. Null: nothing came. */
-export const read = actionRef<{ after: number }, Output | null>("terminal", "read", (value) =>
+export const read = actionRef<At & { after: number }, Output | null>("terminal", "read", (value) =>
     value === null ? null : parseOutput(value),
 );
 
-/** The size the panel fitted: the shell and the programs in it wrap to it. */
-export const resize = actionRef<Size, true>("terminal", "resize", () => true);
+/** The size the page fitted: the shell and the programs in it wrap to it. */
+export const resize = actionRef<At & Size, true>("terminal", "resize", () => true);
 
-/** Ends the shell. The next `open` starts a new one. */
-export const close = actionRef<undefined, true>("terminal", "close", () => true);
+/** Ends the tab's shell and keeps the tab. The next `open` starts a new one there. */
+export const close = actionRef<At, true>("terminal", "close", () => true);
+
+/** Ends the tab's shell and closes the tab. */
+export const remove = actionRef<At, true>("terminal", "remove", () => true);

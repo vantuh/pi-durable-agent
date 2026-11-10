@@ -17,6 +17,7 @@ export const COMMANDS = [
     "sidebar.toggle",
     // An extension's own command, named `extension.<folder>.<command>`. The core names none of them.
     "extension.git-history.open",
+    "extension.terminal.open",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -37,6 +38,8 @@ export const DEFAULT_KEYMAP: Keymap = {
         "sidebar.toggle": ["prefix+b"],
         // Git history's commit list, for the conversation on screen.
         "extension.git-history.open": ["prefix+g"],
+        // The Terminal page, with the tabs of the folder on screen.
+        "extension.terminal.open": ["prefix+t"],
     },
 };
 

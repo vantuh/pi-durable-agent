@@ -9,14 +9,15 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-/** Asks before a Stop or a Restart ends a program that is still running in the shell. */
-export function StopDialog({
+const VERB = { stop: "stop", restart: "restart", remove: "close" } as const;
+
+/** Asks before a Stop, a Restart or a tab's Close ends a program that is still running in the shell. */ export function StopDialog({
     ask,
     onCancel,
     onConfirm,
     onCloseFocus,
 }: {
-    ask: { what: "stop" | "restart"; process: string };
+    ask: { what: keyof typeof VERB; process: string };
     onCancel: () => void;
     onConfirm: () => void;
     /** The dialog took the keyboard from the terminal; this gives it back. */
@@ -40,9 +41,9 @@ export function StopDialog({
                 <AlertDialogHeader>
                     <AlertDialogTitle>{ask.process} is still running.</AlertDialogTitle>
                     <AlertDialogDescription>
-                        {ask.what === "stop"
-                            ? "Stop the shell anyway?"
-                            : "Restart the shell anyway?"}
+                        {ask.what === "remove"
+                            ? "Close the tab and end it anyway?"
+                            : `${ask.what === "stop" ? "Stop" : "Restart"} the shell anyway?`}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -53,7 +54,7 @@ export function StopDialog({
                             onConfirm();
                         }}
                     >
-                        Yes, {ask.what === "stop" ? "stop" : "restart"}
+                        Yes, {VERB[ask.what]}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

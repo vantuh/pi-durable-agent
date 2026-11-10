@@ -100,7 +100,7 @@ Each has a `README.md` in its folder.
 **Panels and pages**
 
 - [`files`](extensions/files/README.md): read-only file viewer for the session's folder.
-- [`terminal`](extensions/terminal/README.md): a shell in the session's folder.
+- [`terminal`](extensions/terminal/README.md): shells in tabs, shared by the sessions of one folder.
 - [`notes`](extensions/notes/README.md): a scratchpad and to-do list per repository.
 - [`git-branch`](extensions/git-branch/README.md): shows and switches the branch.
 - [`git-history`](extensions/git-history/README.md): commit list and embedded review.

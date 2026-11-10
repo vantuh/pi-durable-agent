@@ -2,8 +2,8 @@ import { ClipboardAddon } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
-import { RotateCcw, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { RotateCcw, Square, X } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,17 @@ import { Toolbar } from "@/ui/pane.tsx";
 import "@xterm/xterm/css/xterm.css";
 
 import { messageOf } from "../../../shared/guards.ts";
-import { type Output, type Running, close, open, read, resize, state, write } from "../refs.ts";
+import {
+    type Output,
+    type Running,
+    close,
+    open,
+    read,
+    remove,
+    resize,
+    state,
+    write,
+} from "../refs.ts";
 import { controlByteOf } from "./control-byte.ts";
 import { StopDialog } from "./stop-dialog.tsx";
 import { FONT_SIZE, FONT_WEIGHT, FONT_WEIGHT_BOLD, familyOf, themeOf } from "./terminal-theme.ts";
@@ -26,18 +36,25 @@ const sleep = (ms: number): Promise<void> =>
     new Promise((done) => {
         setTimeout(done, ms);
     });
-/** What the server answers a session whose shell it no longer holds: a restart, not a hiccup. */
+/** What the server answers a tab whose shell it no longer holds: a restart, not a hiccup. */
 const GONE = "no shell is running";
 
-/** The shell of one session, and the terminal that shows it. Keyed by the restart count: a new one starts fresh. */
+type Ending = "stop" | "restart" | "remove";
+
+/** The shell of one tab, and the terminal that shows it. Keyed by tab and restart count: a new one starts fresh. */
 export function Shell({
     id,
-    expanded,
+    tab,
+    tabs,
     onRestart,
+    onRemoved,
 }: {
     id: number;
-    expanded: boolean;
+    tab: number;
+    /** The tab strip, drawn at the start of this shell's toolbar. */
+    tabs: ReactNode;
     onRestart: () => void;
+    onRemoved: () => void;
 }) {
     const field = useRef<HTMLDivElement>(null);
     /** Keys typed so far, one request at a time; a stop waits for it before ending the shell. */
@@ -48,7 +65,7 @@ export function Shell({
     /** How the shell ended, once it has: by itself or by Stop. Null while it runs. */
     const [over, setOver] = useState<"exited" | "stopped" | null>(null);
     /** The program a Stop or a Restart would end, while the dialog asks about it. */
-    const [ask, setAsk] = useState<{ what: "stop" | "restart"; process: string } | null>(null);
+    const [ask, setAsk] = useState<{ what: Ending; process: string } | null>(null);
     const [problem, setProblem] = useState<string | null>(null);
     /** A copy just happened, and is being said so for a moment: a silent one is a guess about the selection. */
     const [said, setSaid] = useState(false);
@@ -125,7 +142,7 @@ export function Shell({
             const send = (data: string): void => {
                 pending.current = pending.current
                     // A key queued before a restart must not reach the shell that replaced it.
-                    .then(() => (alive() ? callAction(write, { data }, id) : true))
+                    .then(() => (alive() ? callAction(write, { tab, data }, id) : true))
                     .catch((failure: unknown) => {
                         setProblem(messageOf(failure));
                     });
@@ -171,7 +188,7 @@ export function Shell({
                 fit.fit();
 
                 if (opened && alive()) {
-                    void callAction(resize, size(), id).catch(() => true);
+                    void callAction(resize, { tab, ...size() }, id).catch(() => true);
                 }
             });
 
@@ -198,7 +215,7 @@ export function Shell({
 
             try {
                 const asked = size();
-                const started = await callAction(open, asked, id);
+                const started = await callAction(open, { tab, ...asked }, id);
 
                 if (!alive()) {
                     return;
@@ -213,14 +230,14 @@ export function Shell({
                 const now = size();
 
                 if (now.cols !== asked.cols || now.rows !== asked.rows) {
-                    void callAction(resize, now, id).catch(() => true);
+                    void callAction(resize, { tab, ...now }, id).catch(() => true);
                 }
 
                 while (alive()) {
                     let next: Output | null;
 
                     try {
-                        next = await callAction(read, { after }, id);
+                        next = await callAction(read, { tab, after }, id);
                         setProblem(null);
                     } catch (failure) {
                         const message = messageOf(failure);
@@ -266,18 +283,18 @@ export function Shell({
             stop.abort();
             teardown?.();
         };
-    }, [id]);
+    }, [id, tab]);
 
     /**
-     * Ends the shell and says whether it is gone. A close that fails leaves the shell live: the panel
+     * Ends the shell (and the tab, for `remove`) and says whether it is gone. A close that fails leaves the shell live: the panel
      * keeps reading it and says what went wrong, instead of claiming a shell it never ended.
      */
-    const end = async (): Promise<boolean> => {
+    const end = async (what: Ending): Promise<boolean> => {
         // Typed keys go first: one of them must not land in the shell this is about to end.
         await pending.current.catch(() => true);
 
         try {
-            await callAction(close, undefined, id);
+            await callAction(what === "remove" ? remove : close, { tab }, id);
         } catch (failure) {
             const message = messageOf(failure);
 
@@ -295,8 +312,8 @@ export function Shell({
         return true;
     };
 
-    /** The confirmed action: Stop ends the shell, Restart ends it and starts another in its place. */
-    const apply = async (what: "stop" | "restart"): Promise<void> => {
+    /** The confirmed action: Stop ends the shell, Restart starts another in its place, Close ends the tab. */
+    const apply = async (what: Ending): Promise<void> => {
         if (busy.current) {
             return;
         }
@@ -304,12 +321,16 @@ export function Shell({
         inFlight(true);
 
         try {
-            if (over === null && !(await end())) {
+            if ((over === null || what === "remove") && !(await end(what))) {
                 return;
             }
 
             if (what === "restart") {
                 onRestart();
+            }
+
+            if (what === "remove") {
+                onRemoved();
             }
         } finally {
             inFlight(false);
@@ -320,7 +341,7 @@ export function Shell({
      * A click on Stop or Restart: asks the server what runs now, asks the person when it is a program
      * and not the shell, then acts. Never the remembered value: a shell's foreground changes by itself.
      */
-    const pressed = (what: "stop" | "restart"): void => {
+    const pressed = (what: Ending): void => {
         if (busy.current) {
             return;
         }
@@ -337,7 +358,7 @@ export function Shell({
             let running: Running | null;
 
             try {
-                running = await callAction(state, undefined, id);
+                running = await callAction(state, { tab }, id);
             } catch (failure) {
                 const message = messageOf(failure);
 
@@ -364,17 +385,12 @@ export function Shell({
         })();
     };
 
-    // Full screen takes the keyboard from the button that asked for it: the next thing typed is a command.
-    useEffect(() => {
-        if (expanded) {
-            terminal.current?.focus();
-        }
-    }, [expanded]);
-
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <Toolbar className="justify-end">
-                {said ? <output className="text-meta text-faint mr-auto">Copied</output> : null}
+            <Toolbar>
+                {tabs}
+                <span className="ml-auto" />
+                {said ? <output className="text-meta text-faint">Copied</output> : null}
                 <Hint label="Stop the shell">
                     <Button
                         variant="ghost"
@@ -399,6 +415,19 @@ export function Shell({
                         }}
                     >
                         <RotateCcw className="size-4" />
+                    </Button>
+                </Hint>
+                <Hint label="Close the tab">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Close the tab"
+                        disabled={working}
+                        onClick={() => {
+                            pressed("remove");
+                        }}
+                    >
+                        <X className="size-4" />
                     </Button>
                 </Hint>
             </Toolbar>
