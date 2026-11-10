@@ -10,7 +10,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import { listExtensions } from "./lib/api.ts";
+import { type ExtensionInfo, listExtensions } from "./lib/api.ts";
 import type {
     AboveComposerItem,
     ComposerItem,
@@ -262,6 +262,9 @@ const folders = Object.entries(import.meta.glob("../../extensions/*/web.tsx"))
 
 /** Folders the server says are off. A folder it does not list (web only) is on. */
 let disabled: ReadonlySet<string> = new Set();
+/** What the server listed last, for the switches in Settings; replaced whole so a hook sees a new identity. */
+let infos: readonly ExtensionInfo[] = [];
+let toggles: readonly ExtensionInfo[] = [];
 /** False until one answer came: before that nothing is imported, as the browser cannot know what is off. */
 let known = false;
 const listeners = new Set<() => void>();
@@ -343,6 +346,7 @@ let snapshot = gather([]);
 let loading: Promise<void> | undefined;
 
 function publish(): void {
+    toggles = infos.filter((info) => info.toggle === true);
     snapshot = gather(
         [...modules].filter(([folder]) => !disabled.has(folder)).map(([, loaded]) => loaded),
     );
@@ -366,9 +370,10 @@ let retry: ReturnType<typeof setTimeout> | undefined;
 /** Reads which folders are on, then tells every hook. Call it after a folder was turned on or off. */
 export async function refreshExtensions(): Promise<void> {
     try {
-        disabled = new Set(
-            (await listExtensions()).filter((info) => !info.enabled).map((info) => info.name),
-        );
+        const listed = await listExtensions();
+
+        infos = listed;
+        disabled = new Set(listed.filter((info) => !info.enabled).map((info) => info.name));
         known = true;
     } catch (error) {
         console.error("extensions: could not read which are on:", error);
@@ -424,6 +429,11 @@ async function loadAll(): Promise<void> {
  */
 export function useExtensionsLoaded(): boolean {
     return useSyncExternalStore(subscribe, () => known && loading === undefined);
+}
+
+/** The folders that asked for a switch in Settings (`meta.toggle`), on or off; empty until the server answered. */
+export function useToggleExtensions(): readonly ExtensionInfo[] {
+    return useSyncExternalStore(subscribe, () => toggles);
 }
 
 /** The status items of every folder that is on and loaded; empty until the modules are in. */

@@ -242,14 +242,15 @@ export type HttpHandler = (call: {
 
 export type LoadFailure = { folder: string; reason: string };
 
-/** A folder's optional named export `meta`: what the owner sees in the list of extensions. */
-export type ExtensionMeta = { title: string; description: string };
+/**
+ * A folder's optional named export `meta`: what the owner sees in the list of extensions. `toggle`
+ * also puts a switch for the folder in the Settings panel, on or off.
+ */
+export type ExtensionMeta = { title: string; description: string; toggle?: true };
 
 /** One folder as the owner sees it. `error` is why the last load failed, if it did. */
-export type ExtensionInfo = {
+export type ExtensionInfo = ExtensionMeta & {
     name: string;
-    title: string;
-    description: string;
     enabled: boolean;
     installed: boolean;
     error?: string;

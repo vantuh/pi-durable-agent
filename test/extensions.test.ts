@@ -969,12 +969,28 @@ export const status = () => ({ text: "v${value}" });`;
         );
     });
 
+    void it("lists a folder with meta.toggle, also while it is off", async () => {
+        await write("alpha", withMeta('{ title: "A", description: "D", toggle: true }'));
+        await write("beta", withMeta('{ title: "B", description: "D", toggle: false }'));
+        await writeFile(join(root, "extensions.json"), JSON.stringify({ disabled: ["alpha"] }));
+        await extensions.load();
+
+        assert.deepEqual(
+            extensions.list.map((entry) => [entry.name, entry.enabled, entry.toggle]),
+            [
+                ["alpha", false, true],
+                ["beta", true, undefined],
+            ],
+        );
+    });
+
     void it("fails a folder whose meta is bad", async () => {
         for (const bad of [
             "{ title: 'T' }",
             "{ title: '', description: 'D' }",
             "'text'",
             "{ title: 1, description: 'D' }",
+            "{ title: 'T', description: 'D', toggle: 'yes' }",
         ]) {
             await write("alpha", withMeta(bad));
             await extensions.load();

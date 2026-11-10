@@ -12,6 +12,7 @@ import type { SettingsProps } from "@/sdk/types.ts";
 import { ItemBoundary } from "@/ui/item-boundary.tsx";
 
 import { AppearanceButton } from "./appearance/appearance-button.tsx";
+import { ExtensionToggles } from "./extension-toggles.tsx";
 import { ExtensionsButton } from "./extensions-dialog.tsx";
 
 export type Props = {
@@ -34,6 +35,8 @@ export function SettingsContent({ model, cwd, session }: Omit<Props, "open" | "o
                         <Row label="model" value={model} />
                         <Row label="folder" value={cwd} />
                     </section>
+
+                    <ExtensionToggles />
 
                     {/* The sheet is unmounted when closed, so each open reads the sections afresh. */}
                     {sections.map(({ folder, id, title, component: Section }) => (

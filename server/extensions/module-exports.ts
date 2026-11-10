@@ -39,17 +39,21 @@ export function metaOf(folder: string, value: unknown): ExtensionMeta {
 
     const title: unknown = isRecord(value) ? Reflect.get(value, "title") : undefined;
     const description: unknown = isRecord(value) ? Reflect.get(value, "description") : undefined;
+    const toggle: unknown = isRecord(value) ? Reflect.get(value, "toggle") : undefined;
 
     if (
         typeof title !== "string" ||
         title === "" ||
         typeof description !== "string" ||
-        description === ""
+        description === "" ||
+        (toggle !== undefined && typeof toggle !== "boolean")
     ) {
-        throw new Error("the `meta` export must be { title, description }, both non-empty strings");
+        throw new Error(
+            "the `meta` export must be { title, description, toggle? }: non-empty strings and a boolean",
+        );
     }
 
-    return { title, description };
+    return { title, description, ...(toggle === true ? { toggle } : {}) };
 }
 
 export function isExtension(value: unknown): value is Extension {

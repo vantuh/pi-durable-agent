@@ -21,6 +21,7 @@ export const meta = {
     title: "MCP servers",
     description:
         "Connects to the servers in Pi's mcp.json; switch each one on or off in the Extensions dialog.",
+    toggle: true,
 };
 
 const GUIDE =

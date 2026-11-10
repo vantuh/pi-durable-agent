@@ -17,6 +17,7 @@ export const meta = {
     title: "Subagents",
     description:
         "agent_spawn, agent_send, agent_stop and agent_status: hand work to agents from ~/.pi/agent/agents.",
+    toggle: true,
 };
 
 export { actions } from "./server/actions.ts";
