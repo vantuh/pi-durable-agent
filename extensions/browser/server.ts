@@ -13,7 +13,14 @@ import { awaitWithContext } from "@earendil-works/chord/context";
 import { AgentDoc, defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import { bool, lit, num, obj, opt, str, union } from "@earendil-works/pi-schema";
 
-import { ActionError, type Action, type Host, writeJsonFile } from "../../server/sdk.ts";
+import {
+    ActionError,
+    type Action,
+    answer,
+    type Host,
+    type HttpHandler,
+    writeJsonFile,
+} from "../../server/sdk.ts";
 import { messageOf, recordOf } from "../../shared/guards.ts";
 import { Browsers } from "./server/browsers.ts";
 import { BrowserError } from "./server/cdp.ts";
@@ -582,6 +589,57 @@ async function readable<T>(work: Promise<T>): Promise<T> {
     }
 }
 
+/**
+ * `GET /frame?session=<id>&after=<seq>`: the next screencast frame after `after` as a JPEG body, waiting up to
+ * 25 seconds; 204 when none came. Binary, so the panel decodes it off the main thread as a blob.
+ */
+export const http = (host: Host): HttpHandler => {
+    const browsers = browsersOf(host);
+
+    return async ({ request, response, path }) => {
+        const url = new URL(path, "http://localhost");
+        const id = Number(url.searchParams.get("session"));
+
+        if (request.method !== "GET" || url.pathname !== "/frame") {
+            answer(response, 404, { error: "not found" });
+
+            return;
+        }
+
+        if (!Number.isInteger(id) || id <= 0) {
+            answer(response, 400, { error: "session must be a positive integer" });
+
+            return;
+        }
+
+        // A tab that went away stops waiting, so its long poll does not keep the screencast running.
+        const gone = new AbortController();
+
+        response.once("close", () => {
+            gone.abort();
+        });
+        const after = Number(url.searchParams.get("after")) || 0;
+        const frame = await browsers.page(id)?.frame(after, gone.signal);
+
+        if (frame === undefined) {
+            response.writeHead(204, { "cache-control": "no-store" }).end();
+
+            return;
+        }
+
+        response
+            .writeHead(200, {
+                "content-type": "image/jpeg",
+                "content-length": frame.data.length,
+                "cache-control": "no-store",
+                "x-seq": String(frame.seq),
+                "x-width": String(frame.width),
+                "x-height": String(frame.height),
+            })
+            .end(frame.data);
+    };
+};
+
 export const actions = (host: Host): Record<string, Action> => {
     const browsers = browsersOf(host);
     const idOf = ({ session }: Parameters<Action>[0]): number => {
@@ -605,23 +663,6 @@ export const actions = (host: Host): Record<string, Action> => {
         state: (call) => browsers.state(idOf(call)),
 
         logs: (call) => browsers.page(idOf(call))?.logs() ?? [],
-
-        async frame(call) {
-            const page = browsers.page(idOf(call));
-            const after = Number(recordOf(call.args)?.["after"]) || 0;
-            const frame = await page?.frame(after);
-
-            if (frame === undefined) {
-                return null;
-            }
-
-            return {
-                seq: frame.seq,
-                width: frame.width,
-                height: frame.height,
-                image: frame.data.toString("base64"),
-            };
-        },
 
         async input(call) {
             const events = recordOf(call.args)?.["events"];

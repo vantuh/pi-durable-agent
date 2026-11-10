@@ -25,6 +25,7 @@ One tool with sixteen actions: `navigate`, `snapshot`, `screenshot`, `click`, `t
 ## Behavior
 
 - The browser runs headless with its own profile, driven over the DevTools protocol through a pipe.
+- The panel fetches frames only while its tab is in front; the screencast stops 15 seconds after.
 - Dialogs (`alert`, `confirm`) are accepted at once and noted in the page's console log (`console`
   action), because nobody can answer one in a headless page.
 - Each session's page address and viewport are saved in `browser/saved.json` in the data directory

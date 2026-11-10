@@ -18,7 +18,8 @@ export type BrowserState = {
     problem?: string;
 };
 
-export type Frame = { seq: number; width: number; height: number; image: string };
+/** A screencast frame's number and CSS size; the JPEG comes from `GET /api/extensions/browser/http/frame`. */
+export type Frame = { seq: number; width: number; height: number };
 
 export type LogEntry = { seq: number; at: number; level: string; text: string; source?: string };
 
@@ -43,20 +44,6 @@ export const state = actionRef<undefined, BrowserState>("browser", "state", pars
 
 /** What a person does to the page: open, go somewhere, back, forward, reload, stop, resize. */
 export const control = actionRef<Control, BrowserState>("browser", "control", parseState);
-
-/** The next screencast frame after `after`, as base64 JPEG; waits up to 25 seconds. Null: none came. */
-export const frame = actionRef<{ after: number }, Frame | null>("browser", "frame", (value) => {
-    if (value === null) {
-        return null;
-    }
-
-    if (isRecord(value) && typeof Reflect.get(value, "image") === "string") {
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same-repo wire type
-        return value as Frame;
-    }
-
-    throw new Error("not a frame");
-});
 
 /** Taps, drags, wheel, keys and text at CSS pixels of the viewport, in order. */
 export const input = actionRef<{ events: readonly unknown[] }, true>(

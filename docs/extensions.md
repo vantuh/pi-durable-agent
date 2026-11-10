@@ -273,8 +273,7 @@ own control may ask to fill the conversation instead of the drawer, and the shel
 under it. The body stays mounted across the toggle, so a live view inside it keeps its state; Escape,
 closing the panel and changing session all return it to the drawer. The core draws no expand button of
 its own: a panel that does not ask never expands. `extensions/browser` is the example: its
-frames travel as base64 through an action that waits for the next one, as extensions have no
-routes of their own. A panel may add `badge`, a component that gets `StatusProps` and returns a
+frames are JPEG bodies from its raw HTTP route, long-polled while the tab is in front. A panel may add `badge`, a component that gets `StatusProps` and returns a
 number (or text) for a small count on its tab, or `null` for none; the core draws
 the pill and hides it when the component returns nothing. `extensions/notes` is the example.
 
