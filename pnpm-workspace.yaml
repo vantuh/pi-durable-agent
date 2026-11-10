@@ -3,6 +3,7 @@ packages:
 
 allowBuilds:
     "@google/genai": false
+    agent-browser: false
     koffi: false
     node-pty: true
     protobufjs: false

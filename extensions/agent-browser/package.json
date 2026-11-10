@@ -1,0 +1,15 @@
+{
+    "name": "@pi-durable-agent/agent-browser",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "@earendil-works/pi-schema": "1.5.0",
+        "agent-browser": "0.41.2"
+    },
+    "peerDependencies": {
+        "@earendil-works/chord": "1.5.0",
+        "@earendil-works/pi-durable": "1.5.0",
+        "lucide-react": "^1.70.0",
+        "react": "^19.3.1"
+    }
+}

@@ -67,6 +67,8 @@ Each has a `README.md` in its folder.
 - [`web-search`](extensions/web-search/README.md): the `web_search` tool.
 - [`web-fetch`](extensions/web-fetch/README.md): the `fetch_content` tool, a page as Markdown.
 - [`browser`](extensions/browser/README.md): a real Chromium the model drives, shown in a panel.
+- [`agent-browser`](extensions/agent-browser/README.md): the same `browser` tool on agent-browser,
+  to compare with `browser`; turn one of the two off.
 - [`codemode`](extensions/codemode/README.md): the model scripts its tools in a QuickJS sandbox.
 - [`subagents`](extensions/subagents/README.md): hand a task to another durable agent.
 - [`mcp`](extensions/mcp/README.md): servers from Pi's `mcp.json`.

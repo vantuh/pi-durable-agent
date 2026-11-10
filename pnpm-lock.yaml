@@ -121,6 +121,27 @@ importers:
         specifier: ^8.3.6
         version: 8.3.6(@types/node@26.6.5)(jiti@2.7.0)(yaml@2.9.0)
 
+  extensions/agent-browser:
+    dependencies:
+      '@earendil-works/chord':
+        specifier: 1.5.0
+        version: 1.5.0
+      '@earendil-works/pi-durable':
+        specifier: 1.5.0
+        version: 1.5.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(undici@8.12.3)(zod@4.6.7)
+      '@earendil-works/pi-schema':
+        specifier: 1.5.0
+        version: 1.5.0
+      agent-browser:
+        specifier: 0.41.2
+        version: 0.41.2
+      lucide-react:
+        specifier: ^1.70.0
+        version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+
   extensions/anthropic-subscription:
     dependencies:
       '@earendil-works/pi-durable':
@@ -2590,6 +2611,11 @@ packages:
   agent-base@9.0.0:
     resolution: {integrity: sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA==}
     engines: {node: '>= 20'}
+
+  agent-browser@0.41.2:
+    resolution: {integrity: sha512-/agCKB5rw1EEK8SKWo4zid7a5kOwlclqALC0P3c69buJvKdhrl/dJkKdfLqGGaiNIbWzRdqqT0PxZVkwVEf2fg==}
+    engines: {node: '>=24.0.0', pnpm: '>=11.0.0'}
+    hasBin: true
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
@@ -5728,6 +5754,8 @@ snapshots:
   agent-base@7.1.4: {}
 
   agent-base@9.0.0: {}
+
+  agent-browser@0.41.2: {}
 
   ajv@8.20.0:
     dependencies:

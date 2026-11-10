@@ -545,6 +545,7 @@ to the watcher. What happens in `pnpm dev`:
 Each extension's usage, configuration, behavior and limits live in its own `README.md`.
 This document holds the shared contract; feature guides link here instead of repeating it.
 
+- [Agent Browser](../extensions/agent-browser/README.md)
 - [Anthropic subscription](../extensions/anthropic-subscription/README.md)
 - [Session names](../extensions/auto-session-name/README.md)
 - [Bash timeout](../extensions/bash-timeout/README.md)
