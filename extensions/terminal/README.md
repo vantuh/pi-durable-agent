@@ -12,10 +12,11 @@ never sees them: no tools, prompt sections or hooks.
   its first tab when the page opens.
 - **Tabs.** `+` starts a new shell in a new tab; a tab's title is what runs in it now (`zsh`, `node`,
   `nvim`), re-read every 2 seconds. Close (the `×` in the toolbar) ends the tab's shell and the tab;
-  closing the last tab returns to the conversation. The page comes back to the tab the folder showed
+  closing the last tab returns to the conversation. Each tab also has its own `×` beside its title,
+  which closes that tab the same way, active or not. The page comes back to the tab the folder showed
   last.
 
-- **Stop, Restart and Close** ask before ending a program. The panel reads `state` when the button is
+- **Stop, Restart and Close** (the toolbar's and a tab's `×`) ask before ending a program. The panel reads `state` when the button is
   pressed, never a remembered value, and when the foreground process is not the shell itself (`nvim`,
   `sleep`) the dialog names it and asks first; cancelling puts the caret back in the terminal.
 - A stopped shell keeps its tab, says so and waits for "Start a new shell"; nothing restarts it by

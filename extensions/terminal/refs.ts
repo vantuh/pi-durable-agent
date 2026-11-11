@@ -11,6 +11,9 @@ import { isRecord } from "../../shared/guards.ts";
 
 export const TERMINAL_PAGE = "terminal";
 
+/** What the server answers a tab whose shell it no longer holds: a restart, not a hiccup. */
+export const GONE = "no shell is running";
+
 export type Size = { cols: number; rows: number };
 
 type At = { tab: number };

@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
@@ -9,8 +9,9 @@ import { callAction } from "@/sdk/actions.ts";
 import type { PageProps } from "@/sdk/types.ts";
 
 import { messageOf } from "../../../shared/guards.ts";
-import { type Tab, create, list, remove } from "../refs.ts";
+import { GONE, type Tab, create, list, remove, state } from "../refs.ts";
 import { Shell } from "./shell.tsx";
+import { StopDialog } from "./stop-dialog.tsx";
 
 /** How often the tabs are re-read: a title follows what runs in it, and another session may add a tab. */
 const LIST_MS = 2000;
@@ -34,6 +35,10 @@ export function TerminalPage({ session, close }: PageProps) {
     const [generation, setGeneration] = useState(0);
     const [problem, setProblem] = useState<string | null>(null);
     const [poke, setPoke] = useState(0);
+    /** The tab whose × was pressed while a program runs in it, and the × to give focus back to. */
+    const [ask, setAsk] = useState<{ tab: number; process: string; from: HTMLElement } | null>(
+        null,
+    );
 
     const choose = (tab: number): void => {
         lastTab.set(folder, tab);
@@ -108,6 +113,34 @@ export function TerminalPage({ session, close }: PageProps) {
         setPoke((value) => value + 1);
     };
 
+    /** A tab's ×: asks first when a program runs in it, as the toolbar's Close does, then ends the tab. */
+    const closing = async (tab: number, from: HTMLElement, sure = false): Promise<void> => {
+        try {
+            if (!sure) {
+                const running = await callAction(state, { tab }, id);
+
+                if (running.foreground !== running.shell) {
+                    setAsk({ tab, process: running.foreground, from });
+
+                    return;
+                }
+            }
+
+            await callAction(remove, { tab }, id);
+        } catch (failure) {
+            const message = messageOf(failure);
+
+            // A tab whose shell is already gone is the outcome this asks for.
+            if (!message.includes(GONE)) {
+                setProblem(message);
+
+                return;
+            }
+        }
+
+        removed(tab);
+    };
+
     // The last shell stopping closes the terminal; a stopped tab beside others stays, to be restarted.
     const ended = async (tab: number): Promise<void> => {
         try {
@@ -134,9 +167,21 @@ export function TerminalPage({ session, close }: PageProps) {
                 >
                     <TabsList className="overflow-x-auto">
                         {tabs.map((tab) => (
-                            <TabsTrigger key={tab.id} value={String(tab.id)} className="flex-none">
-                                {tab.title}
-                            </TabsTrigger>
+                            <div key={tab.id} className="flex flex-none items-center">
+                                <TabsTrigger value={String(tab.id)} className="flex-none">
+                                    {tab.title}
+                                </TabsTrigger>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Close ${tab.title}`}
+                                    onClick={(event) => {
+                                        void closing(tab.id, event.currentTarget);
+                                    }}
+                                >
+                                    <X className="size-3" />
+                                </Button>
+                            </div>
                         ))}
                     </TabsList>
                 </Tabs>
@@ -158,6 +203,23 @@ export function TerminalPage({ session, close }: PageProps) {
     return (
         <div className="flex h-full min-h-0 flex-col">
             {problem === null ? null : <Alert className="text-interface">{problem}</Alert>}
+            {ask === null ? null : (
+                <StopDialog
+                    ask={{ what: "remove", process: ask.process }}
+                    onCancel={() => {
+                        setAsk(null);
+                    }}
+                    onConfirm={() => {
+                        setAsk(null);
+                        void closing(ask.tab, ask.from, true);
+                    }}
+                    onCloseFocus={() => {
+                        if (ask.from.isConnected) {
+                            ask.from.focus();
+                        }
+                    }}
+                />
+            )}
             {active === undefined ? null : (
                 <Shell
                     key={`${String(active.id)}:${String(generation)}`}

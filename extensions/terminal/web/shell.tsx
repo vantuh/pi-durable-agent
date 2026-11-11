@@ -15,6 +15,7 @@ import "@xterm/xterm/css/xterm.css";
 
 import { messageOf } from "../../../shared/guards.ts";
 import {
+    GONE,
     type Output,
     type Running,
     close,
@@ -36,8 +37,6 @@ const sleep = (ms: number): Promise<void> =>
     new Promise((done) => {
         setTimeout(done, ms);
     });
-/** What the server answers a tab whose shell it no longer holds: a restart, not a hiccup. */
-const GONE = "no shell is running";
 
 type Ending = "stop" | "restart" | "remove";
 
