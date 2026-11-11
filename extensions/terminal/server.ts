@@ -30,6 +30,8 @@ const POLL_MS = 25_000;
 const BATCH_MS = 8;
 /** How long a shell that ignores the hangup gets before its process group is killed outright. */
 const KILL_MS = 2000;
+/** How long the one-row-off size lasts on attach, so the program handles it before the real size returns. */
+const NUDGE_MS = 100;
 const MAX_SIDE = 32_767;
 /** The size a new tab starts at: its page resizes it as soon as it has measured the screen. */
 const START: Size = { cols: 80, rows: 24 };
@@ -100,6 +102,7 @@ class Shell {
     #gone = false;
     #killer: NodeJS.Timeout | undefined;
     #batched = false;
+    #size: Size;
 
     /** `onExit` hears the shell ending by itself, not by `dispose`. */
     constructor(cwd: string, size: Size, onExit: () => void) {
@@ -110,6 +113,7 @@ class Shell {
             cwd,
             env: environment(),
         });
+        this.#size = size;
 
         this.#pty.onData((data) => {
             this.#push(data);
@@ -174,8 +178,30 @@ class Shell {
 
     resize(size: Size): void {
         if (!this.#exited) {
+            this.#size = size;
             this.#pty.resize(size.cols, size.rows);
         }
+    }
+
+    /**
+     * Makes a full-screen program (nvim, lazygit) repaint for a page that attaches: the replayed buffer
+     * may start mid-screen. A program redraws only on a size that changed, so the size goes one row off and back.
+     */
+    redraw(): void {
+        const { shell, foreground } = this.running();
+
+        if (foreground === shell) {
+            return;
+        }
+
+        const { cols, rows } = this.#size;
+
+        this.#pty.resize(cols, rows > 1 ? rows - 1 : rows + 1);
+        setTimeout(() => {
+            if (!this.#exited) {
+                this.#pty.resize(this.#size.cols, this.#size.rows);
+            }
+        }, NUDGE_MS).unref();
     }
 
     dispose(): void {
@@ -350,6 +376,7 @@ export const actions = (host: Host): Record<string, Action> => {
 
             if (!shell.exited) {
                 shell.resize(size);
+                shell.redraw();
 
                 return shell.output(0);
             }

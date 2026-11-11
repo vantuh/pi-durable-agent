@@ -145,6 +145,21 @@ void describe("terminal", () => {
         assert.doesNotMatch(second.data, /ENO/, "an answer carries the new output only");
     });
 
+    void it("makes a running program redraw when a page attaches again", async () => {
+        const shell = await start();
+
+        // 28 is SIGWINCH on Linux and macOS: its name in the typed line would echo the marker back.
+        await call("write", {
+            data: "sh -c 'trap \"printf HCNIW | rev\" 28; printf YDAER | rev; while :; do sleep 0.1; done'\n",
+        });
+        const ready = await until(shell, (seen) => seen.data.includes("READY"));
+
+        open.parse(await call("open", { cols: 80, rows: 24 }));
+        const output = await until(ready, (seen) => seen.data.includes("WINCH"));
+
+        assert.match(output.data, /WINCH/, "the same size still reaches the program as a change");
+    });
+
     void it("refuses a size that is not a whole number, and args that are not what they claim", async () => {
         await assert.rejects(call("open", { cols: 0, rows: 24 }), /cols and rows/);
         await assert.rejects(call("resize", { cols: 80, rows: 1.5 }), /cols and rows/);

@@ -168,7 +168,15 @@ export function Shell({
                 return true;
             });
 
-            term.onData(send);
+            // The scrollback replays queries a program once sent (OSC 11, DECRQM); xterm answers them, and the
+            // answers would land in the shell as typed text. Keys pressed before the replay ends are dropped too.
+            let replaying = true;
+
+            term.onData((data) => {
+                if (!replaying) {
+                    send(data);
+                }
+            });
 
             // A selection is a copy, as in the person's own terminal: no key to press. Ctrl+C keeps its
             // meaning, so a server is still stopped by it and not swallowed as "copy".
@@ -225,7 +233,9 @@ export function Shell({
                     return;
                 }
 
-                term.write(started.data);
+                term.write(started.data, () => {
+                    replaying = false;
+                });
                 after = started.seq;
                 opened = true;
 

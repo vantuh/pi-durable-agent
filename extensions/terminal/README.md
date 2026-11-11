@@ -56,6 +56,11 @@ node-pty builds from source the bit is already set and the step does nothing.
   from the new `seq`. Each reader keeps its own `after`, so two pages on one tab both see everything.
   Only the active tab is mounted, so a page holds one read, not one per tab (a browser allows six
   connections to one host); a failed read is retried every 2 seconds from the same `after`.
+- **Attaching again repaints.** The replayed scrollback holds queries a program once sent (OSC 11,
+  DECRQM); the page drops xterm's answers to them until the replay is written, so they never reach
+  the shell as typed text (keys pressed in that moment are dropped too). When the foreground is not
+  the shell, `open` sets the size one row off and back 100 ms later, so `nvim` or `lazygit` redraws
+  the whole screen instead of leaving what the 256 KB buffer cut in half.
 - **Actions:** `list` (the folder's tabs: `id`, `title`, `exited`), `create` (a new tab, answering
   its `id`), and, each with `tab`: `open` (attach, or start a new shell in a tab whose shell ended,
   `{ cols, rows }`), `write` (`{ data }`), `read` (`{ after }`, `null` when nothing came), `resize`
