@@ -165,10 +165,10 @@ export function TerminalPage({ session, close }: PageProps) {
                     }}
                     className="min-w-0"
                 >
-                    <TabsList className="overflow-x-auto">
+                    <TabsList className="overflow-x-auto p-0">
                         {tabs.map((tab) => (
                             <div key={tab.id} className="flex flex-none items-center">
-                                <TabsTrigger value={String(tab.id)} className="flex-none">
+                                <TabsTrigger value={String(tab.id)} className="flex-none py-0.5">
                                     {tab.title}
                                 </TabsTrigger>
                                 <Button
@@ -188,7 +188,7 @@ export function TerminalPage({ session, close }: PageProps) {
                 <Hint label="New tab">
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon-sm"
                         aria-label="New tab"
                         onClick={() => {
                             void added();

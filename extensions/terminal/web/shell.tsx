@@ -406,14 +406,14 @@ export function Shell({
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <Toolbar>
+            <Toolbar className="py-0.5">
                 {tabs}
                 <span className="ml-auto" />
                 {said ? <output className="text-meta text-faint">Copied</output> : null}
                 <Hint label="Stop the shell">
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon-sm"
                         aria-label="Stop the shell"
                         disabled={over !== null || working}
                         onClick={() => {
@@ -426,7 +426,7 @@ export function Shell({
                 <Hint label="Restart the shell">
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon-sm"
                         aria-label="Restart the shell"
                         disabled={working}
                         onClick={() => {
@@ -439,7 +439,7 @@ export function Shell({
                 <Hint label="Close the tab">
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon-sm"
                         aria-label="Close the tab"
                         disabled={working}
                         onClick={() => {
