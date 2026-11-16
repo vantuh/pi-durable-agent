@@ -11,16 +11,23 @@ void test("a project skill is found and /skill:name expands to its body plus the
 
     try {
         const folder = join(cwd, ".agents", "skills", "zz-demo");
+        const kiro = join(cwd, ".kiro", "skills", "zz-kiro");
 
         mkdirSync(folder, { recursive: true });
         writeFileSync(
             join(folder, "SKILL.md"),
             "---\nname: zz-demo\ndescription: Demo skill\n---\nDo the demo.\n",
         );
+        mkdirSync(kiro, { recursive: true });
+        writeFileSync(
+            join(kiro, "SKILL.md"),
+            "---\nname: zz-kiro\ndescription: Kiro skill\n---\nDo kiro.\n",
+        );
 
         const skills = skillsFor(cwd);
 
         assert.ok(skills.some((skill) => skill.name === "zz-demo"));
+        assert.ok(skills.some((skill) => skill.name === "zz-kiro"));
 
         const expanded = expandSkillCommand("/skill:zz-demo now please", skills);
 

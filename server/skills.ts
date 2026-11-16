@@ -1,7 +1,8 @@
 /**
  * Pi's skills for a session's folder. The prompt lists them for the agent; the browser lists them behind `/`; a message
  * that starts with `/skill:name` carries the skill's instructions. The first skill of a name wins, in this order:
- * `~/.pi/agent/skills`, `<cwd>/.pi/skills`, `<cwd>/.agents/skills`, `~/.agents/skills`.
+ * `~/.pi/agent/skills`, `<cwd>/.pi/skills`, `<cwd>/.agents/skills`, `<cwd>/.kiro/skills`, `~/.agents/skills`. Kiro's
+ * project folder holds the same `SKILL.md`, so a project that keeps its skills there needs no copy.
  */
 
 import { readFileSync } from "node:fs";
@@ -15,7 +16,11 @@ export function skillsFor(cwd: string): Skill[] {
     return loadSkills({
         cwd,
         agentDir: getAgentDir(),
-        skillPaths: [join(cwd, ".agents", "skills"), join(homedir(), ".agents", "skills")],
+        skillPaths: [
+            join(cwd, ".agents", "skills"),
+            join(cwd, ".kiro", "skills"),
+            join(homedir(), ".agents", "skills"),
+        ],
         includeDefaults: true,
     }).skills;
 }
