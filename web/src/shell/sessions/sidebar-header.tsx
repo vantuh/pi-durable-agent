@@ -144,8 +144,8 @@ export function SidebarHeader({
                     ref={searchBox}
                     type="search"
                     value={query}
-                    aria-label="Search sessions"
-                    placeholder="Search sessions"
+                    aria-label="Search sessions and folders"
+                    placeholder="Search sessions and folders"
                     tabIndex={searching ? undefined : -1}
                     onChange={(event) => {
                         setQuery(event.target.value);

@@ -43,7 +43,7 @@ const DIALOG_SHOWN = `document.querySelector('[role="dialog"]')?.innerText.inclu
 const DIALOG_FOCUSED = `document.querySelector('[role="dialog"]')?.contains(document.activeElement) === true`;
 const NO_DIALOG = `document.querySelector('[role="dialog"]') === null`;
 /** The box the rename key was pressed in: where the focus has to come back to. */
-const SEARCH_FOCUSED = `document.activeElement === document.querySelector('input[aria-label="Search sessions"]')`;
+const SEARCH_FOCUSED = `document.activeElement === document.querySelector('input[aria-label="Search sessions and folders"]')`;
 /** One form, one `#rename-session`: the row must not open its own popover under the dialog. */
 const RENAME_FORMS = `document.querySelectorAll("#rename-session").length`;
 const RENAME_SURFACES = `document.querySelectorAll('[role="dialog"]').length`;
@@ -73,7 +73,7 @@ const OPEN_SIDEBAR = `(${SIDEBAR})?.getBoundingClientRect().width > 200`;
 
 /** The search box, opened and given a query that matches neither session; it keeps the focus. */
 const SEARCH = `(() => {
-    const box = document.querySelector('input[aria-label="Search sessions"]');
+    const box = document.querySelector('input[aria-label="Search sessions and folders"]');
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
 
     box.focus();
