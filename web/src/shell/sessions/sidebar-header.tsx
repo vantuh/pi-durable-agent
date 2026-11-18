@@ -93,12 +93,12 @@ export function SidebarHeader({
             </Heading>
             <div className="ml-auto flex items-center gap-1 lg:group-data-[collapsed]/side:hidden">
                 {controls}
-                <Hint label="Search sessions" keys={<CommandKeys command="session.search" />}>
+                <Hint label="Search" keys={<CommandKeys command="session.search" />}>
                     <Button
                         ref={searchTrigger}
                         variant="ghost"
                         size="icon-sm"
-                        aria-label="Search sessions"
+                        aria-label="Search"
                         aria-expanded={searching}
                         onClick={() => {
                             startSearch();

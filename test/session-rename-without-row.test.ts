@@ -327,7 +327,7 @@ async function withSessionApp(
 /** The sidebar with a query that hides every row, and the focus left in the search box. */
 async function hideRows({ read, until }: App): Promise<void> {
     await read(
-        `[...document.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === "Search sessions")?.click()`,
+        `[...document.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === "Search")?.click()`,
     );
     await read(SEARCH);
 

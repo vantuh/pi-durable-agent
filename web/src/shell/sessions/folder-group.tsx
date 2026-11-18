@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FOLDER_PAGE, LOOSE } from "@/lib/session-folders.ts";
 import { cn } from "@/lib/utils";
+import { MatchText } from "@/ui/match-text.tsx";
 
 import { MAX_FOLDER_NAME, type FolderColor, type FolderLook } from "../../../../shared/folders.ts";
 import type { SessionSummary } from "../../../../shared/protocol.ts";
@@ -36,6 +37,7 @@ function Reveal({ open, children }: { open: boolean; children: ReactNode }) {
 export function FolderGroup({
     cwd,
     name,
+    ranges,
     color,
     sessions,
     open,
@@ -53,6 +55,8 @@ export function FolderGroup({
     cwd: string;
     /** What the header says: the name set by hand, else the folder's own. */
     name: string;
+    /** The characters of `name` the search matched. */
+    ranges: [number, number][];
     color: FolderColor | undefined;
     sessions: SessionSummary[];
     /** How many sessions are open (`openCount`). */
@@ -164,7 +168,7 @@ export function FolderGroup({
                             )}
                         />
                         <span className="text-meta text-ink min-w-0 truncate font-mono">
-                            {name}
+                            <MatchText text={name} ranges={ranges} />
                         </span>
                         <span className="text-meta text-faint shrink-0">{sessions.length}</span>
                         {folded && marked !== undefined ? <StateMark session={marked} /> : null}

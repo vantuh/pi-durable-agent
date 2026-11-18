@@ -192,8 +192,9 @@ export const Sessions = memo(function Sessions({
         .flatMap((session) => {
             const title = session.title ?? "New session";
             const folder = session.cwd === null ? "" : (headerOf.get(session.cwd) ?? "");
-            // Title first, so its offsets stay as they are; hits in the folder part are not drawn.
+            // Title first, so its offsets stay as they are; the folder's hits are shifted onto its header.
             const match = fuzzyMatch(`${title} ${folder}`, query);
+            const offset = title.length + 1;
 
             return match === null
                 ? []
@@ -202,6 +203,12 @@ export const Sessions = memo(function Sessions({
                           session,
                           score: match.score,
                           ranges: match.ranges.filter(([start]) => start < title.length),
+                          folder: match.ranges
+                              .filter(([start]) => start >= offset)
+                              .map(([start, end]): [number, number] => [
+                                  start - offset,
+                                  end - offset,
+                              ]),
                       },
                   ];
         })
@@ -211,8 +218,15 @@ export const Sessions = memo(function Sessions({
         );
     const shown = matches.map((match) => match.session);
     const hits = new Map(matches.map((match) => [match.session.id, match.ranges]));
+    const folderHits = new Map(matches.map((match) => [match.session.id, match.folder]));
     const rangesOf = (id: number): [number, number][] => {
         const ranges = hits.get(id);
+
+        return ranges === undefined || ranges.length === 0 ? NO_RANGES : ranges;
+    };
+    // A header shows the hits of its best match, the first session it draws.
+    const folderRangesOf = (id: number | undefined): [number, number][] => {
+        const ranges = id === undefined ? undefined : folderHits.get(id);
 
         return ranges === undefined || ranges.length === 0 ? NO_RANGES : ranges;
     };
@@ -348,6 +362,7 @@ export const Sessions = memo(function Sessions({
                                         name={
                                             layout.folders[group.cwd]?.name ?? folderName(group.cwd)
                                         }
+                                        ranges={folderRangesOf(group.sessions[0]?.id)}
                                         color={layout.folders[group.cwd]?.color}
                                         sessions={group.sessions}
                                         open={group.open}
