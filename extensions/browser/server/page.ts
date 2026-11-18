@@ -4,6 +4,7 @@
  */
 import type { BrowserState, LogEntry } from "../refs.ts";
 import { BrowserError, type Connection, type Json } from "./cdp.ts";
+import { clientHints } from "./identity.ts";
 import { parseKeys } from "./keys.ts";
 import { LoadTracker } from "./load-tracker.ts";
 import { captureScreenshot } from "./page-capture.ts";
@@ -51,6 +52,7 @@ export class BrowserPage {
     readonly #target: string;
     readonly #context: string;
     readonly #baseAgent: string;
+    readonly #brand: { name: string; version: string } | undefined;
     readonly #saved: (saved: Saved) => void;
     readonly #sender: Send = (method, params, timeoutMs) => this.#send(method, params, timeoutMs);
     readonly #loads = new LoadTracker();
@@ -78,6 +80,8 @@ export class BrowserPage {
         target: string;
         context: string;
         userAgent: string;
+        /** The browser's name and full version: its client hints name them, as its user agent does. */
+        brand?: { name: string; version: string };
         viewport: Viewport;
         saved: (saved: Saved) => void;
     }) {
@@ -86,6 +90,7 @@ export class BrowserPage {
         this.#target = options.target;
         this.#context = options.context;
         this.#baseAgent = options.userAgent;
+        this.#brand = options.brand;
         this.#viewport = options.viewport;
         this.#saved = options.saved;
         this.#cast = new Screencast({
@@ -570,7 +575,13 @@ export class BrowserPage {
             }),
             agent === ""
                 ? Promise.resolve()
-                : this.#send("Emulation.setUserAgentOverride", { userAgent: agent }),
+                : this.#send("Emulation.setUserAgentOverride", {
+                      userAgent: agent,
+                      userAgentMetadata:
+                          this.#brand === undefined || this.#brand.version === ""
+                              ? undefined
+                              : clientHints(this.#brand.name, this.#brand.version, viewport.mobile),
+                  }),
         ]);
     }
 

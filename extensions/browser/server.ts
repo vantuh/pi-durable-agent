@@ -69,11 +69,9 @@ const CHANGING = new Set<ToolAction>([
 ]);
 const MAX_TEXT = 20_000;
 
-const GUIDE = `You have a browser tool: a real Chromium on this machine. The person sees the same page live in the app's Browser panel and can click and type in it too, so it is how you show and test web work: local dev servers (http://localhost:5173), HTML files on this machine (give their path), or any site.
+const GUIDE = `The browser tool is a real Chromium on this machine. The person sees its page live in the Browser panel and can use it too: show and test web work there (local dev servers, HTML files on this machine, any site).
 - Start a dev server in the background with bash first, then navigate to it.
-- snapshot lists the page's text and its controls with refs like [e12]; click, type, select, and hover take a ref (or a CSS selector, or the visible label). Refs last until the next snapshot.
-- screenshot shows you how the page looks: use it to check layout and styling. viewport switches between mobile, tablet, and desktop sizes.
-- After a change, check console for errors. evaluate runs JavaScript in the page.`;
+- snapshot gives refs like [e12] for click, type, select, and hover, valid until the next snapshot. screenshot shows the layout; viewport changes the size. After a change, check console for errors.`;
 
 const clip = (text: string, max = MAX_TEXT): string =>
     text.length > max ? `${text.slice(0, max)}\n… (${text.length - max} more characters)` : text;

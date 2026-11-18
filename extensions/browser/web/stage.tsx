@@ -1,4 +1,4 @@
-import { type ClipboardEvent, type KeyboardEvent, type PointerEvent, useRef } from "react";
+import { type KeyboardEvent, type PointerEvent, useEffect, useEffectEvent, useRef } from "react";
 
 import type { Frame } from "../refs.ts";
 import { useInput } from "./use-input.ts";
@@ -15,9 +15,35 @@ export function Stage({
     onError: (message: string) => void;
 }) {
     const send = useInput(id, onError);
+    const sendText = useEffectEvent((text: string) => send({ type: "text", text }));
+    const surface = useRef<HTMLDivElement>(null);
     const image = useRef<HTMLImageElement>(null);
     const drag = useRef<{ x: number; y: number } | null>(null);
     const moved = useRef(false);
+
+    // Firefox gives a paste to the element last edited, not the focused page: take it on the document, in the
+    // capture phase, before that element's own paste handler (the composer's) acts on it.
+    useEffect(() => {
+        const paste = (event: globalThis.ClipboardEvent): void => {
+            const text = event.clipboardData?.getData("text") ?? "";
+
+            if (
+                surface.current === null ||
+                document.activeElement !== surface.current ||
+                text === ""
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            sendText(text);
+        };
+
+        document.addEventListener("paste", paste, true);
+
+        return () => document.removeEventListener("paste", paste, true);
+    }, []);
 
     if (shot === undefined) {
         return null;
@@ -82,20 +108,15 @@ export function Stage({
         });
     };
 
-    const paste = (event: ClipboardEvent): void => {
-        event.preventDefault();
-        send({ type: "text", text: event.clipboardData.getData("text") });
-    };
-
     return (
         <div
+            ref={surface}
             tabIndex={0}
             // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a surface that forwards keys to the remote page: it holds no text of its own
             role="textbox"
             aria-multiline
             aria-label="Browser page"
             onKeyDown={key}
-            onPaste={paste}
             onPointerDown={down}
             onPointerMove={move}
             onClick={(event) => {

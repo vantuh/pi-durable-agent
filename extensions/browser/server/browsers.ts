@@ -280,6 +280,7 @@ export class Browsers {
                 target: targetId,
                 context: browserContextId,
                 userAgent: chromium.userAgent,
+                brand: { name: chromium.brand, version: chromium.version },
                 viewport: viewportFrom(saved?.viewport) ??
                     options.viewport ?? { ...VIEWPORTS.desktop },
                 saved: (value) => this.#options.save?.(conversationId, value),
