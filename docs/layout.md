@@ -110,7 +110,8 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
 - **Under the list**: extensions may add an area with its own height (`sidebarBottom`, see
   [extensions.md](extensions.md#under-the-session-list)), with a drag handle between it and the list.
 - **Search** (the magnifier in the header, or `session.search`) is a fuzzy search over the titles of every
-  folder's sessions, hits grouped by folder; Escape closes it and gives the focus back where it was.
+  folder's sessions and the names their folder headers show, so "api fix" finds "Fix login" in `api`;
+  hits grouped by folder, folded folders opened; Escape closes it and gives the focus back where it was.
 - Hidden below `lg`, where the conversation takes the screen. There, the panel icon in the
   conversation header opens the list as a full-screen sheet; choosing a session closes it.
 

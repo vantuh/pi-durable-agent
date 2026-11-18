@@ -28,6 +28,7 @@ import { useSessionFilters, useSessionMenu } from "@/extensions.ts";
 import { fuzzyMatch } from "@/lib/fuzzy.ts";
 import { isSheet, watchSheet } from "@/lib/narrow.ts";
 import {
+    cwdsOf,
     FOLDER_PAGE,
     groupByFolder,
     LOOSE,
@@ -178,14 +179,31 @@ export const Sessions = memo(function Sessions({
         return match === undefined ? [] : [match];
     });
 
+    // The name its folder's header shows, so a search finds the sessions of a folded folder by the folder.
+    const headerOf = new Map(
+        orderedFolders(topLevel, layout.order).flatMap((row) =>
+            cwdsOf(row).map((cwd) => [cwd, layout.folders[row.cwd]?.name ?? folderName(row.cwd)]),
+        ),
+    );
     const matches = topLevel
         .toSorted(newestFirst)
         .filter((session) => session.archived === archived)
         .filter((session) => keptBy.every((match) => match(session)))
         .flatMap((session) => {
-            const match = fuzzyMatch(session.title ?? "New session", query);
+            const title = session.title ?? "New session";
+            const folder = session.cwd === null ? "" : (headerOf.get(session.cwd) ?? "");
+            // Title first, so its offsets stay as they are; hits in the folder part are not drawn.
+            const match = fuzzyMatch(`${title} ${folder}`, query);
 
-            return match === null ? [] : [{ session, score: match.score, ranges: match.ranges }];
+            return match === null
+                ? []
+                : [
+                      {
+                          session,
+                          score: match.score,
+                          ranges: match.ranges.filter(([start]) => start < title.length),
+                      },
+                  ];
         })
         // Without a query every score is equal, so the newest stays first either way.
         .toSorted(
