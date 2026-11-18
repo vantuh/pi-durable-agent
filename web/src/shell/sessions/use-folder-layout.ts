@@ -5,10 +5,10 @@ import { toast } from "@/lib/toast.ts";
 
 import type { FolderLayout, FolderLook } from "../../../../shared/folders.ts";
 
-const EMPTY: FolderLayout = { order: [], collapsed: [], folders: {} };
+const EMPTY: FolderLayout = { order: [], collapsed: [], folders: {}, sections: {} };
 
 /**
- * The sidebar's folder order, folds, names and colours, kept on the server. It is read again whenever the tab
+ * The sidebar's folder order, sections, folds, names and colours, kept on the server. It is read again whenever the tab
  * comes back to the front, so a change made on the phone shows on the computer.
  */
 export function useFolderLayout() {
@@ -88,5 +88,35 @@ export function useFolderLayout() {
         [change],
     );
 
-    return { layout, setOrder, toggleFold, setLook };
+    /** Creates the section when it is new; `order` is the whole order with it in place. */
+    const setSection = useCallback(
+        (id: string, name: string, order?: string[]): void => {
+            change((current) => ({
+                ...current,
+                order: order ?? current.order,
+                sections: { ...current.sections, [id]: { name } },
+            }));
+        },
+        [change],
+    );
+    /** Only the heading goes: its folders join the section above it. */
+    const removeSection = useCallback(
+        (id: string): void => {
+            change((current) => {
+                const sections = { ...current.sections };
+
+                delete sections[id];
+
+                return {
+                    ...current,
+                    order: current.order.filter((entry) => entry !== id),
+                    collapsed: current.collapsed.filter((entry) => entry !== id),
+                    sections,
+                };
+            });
+        },
+        [change],
+    );
+
+    return { layout, setOrder, toggleFold, setLook, setSection, removeSection };
 }

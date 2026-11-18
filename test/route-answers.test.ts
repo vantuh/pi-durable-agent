@@ -276,16 +276,22 @@ void describe("file routes", () => {
                         order: ["/a", 5],
                         collapsed: "/b",
                         folders: { "/a": { name: "Main", color: "plaid" } },
+                        sections: { "section:x": { name: "" } },
                     },
                 },
                 status: 200,
-                body: { order: ["/a"], collapsed: [], folders: { "/a": { name: "Main" } } },
+                body: {
+                    order: ["/a"],
+                    collapsed: [],
+                    folders: { "/a": { name: "Main" } },
+                    sections: { "section:x": { name: "Section" } },
+                },
             },
             {
                 name: "no body",
                 call: { method: "PUT", path: "/api/folder-layout" },
                 status: 200,
-                body: { order: [], collapsed: [], folders: {} },
+                body: { order: [], collapsed: [], folders: {}, sections: {} },
             },
         ]);
     });

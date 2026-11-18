@@ -52,6 +52,15 @@ const STORED = {
     order: [BETA],
     collapsed: [],
     folders: { [BETA]: { name: "Beta app", color: "blue" } },
+    sections: {},
+};
+/** Beta is under a folded section, alpha above every section. */
+const LATER = "section:later";
+const SECTIONED = {
+    order: [LATER, BETA],
+    collapsed: [LATER],
+    folders: {},
+    sections: { [LATER]: { name: "Later" } },
 };
 
 const SHELL_SHOWN = `document.querySelector("textarea") !== null`;
@@ -60,7 +69,7 @@ const HEADERS = `[...document.querySelectorAll('section button[title^="/"]')].ma
 /** Sessions a person can reach: the rows a closed page or a folded folder keeps `inert` are not among them. */
 const OPEN_ROWS = `[...document.querySelectorAll('nav a[href*="?session="]')].filter((link) => !link.closest("[inert]")).length`;
 const PRESS = (text: string): string => `(() => {
-    const button = [...document.querySelectorAll("section button")].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)});
+    const button = [...document.querySelectorAll("nav button")].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)});
 
     button?.click();
 
@@ -69,6 +78,7 @@ const PRESS = (text: string): string => `(() => {
 
 async function withApp(
     found: Found,
+    stored: unknown,
     when: (page: Page, saved: unknown[], created: unknown[]) => Promise<void>,
 ): Promise<void> {
     const saved: unknown[] = [];
@@ -135,7 +145,7 @@ async function withApp(
                 return;
             }
 
-            answer(response, 200, STORED);
+            answer(response, 200, stored);
 
             return;
         }
@@ -164,7 +174,7 @@ void describe("the sidebar's folders", () => {
             return;
         }
 
-        await withApp(found, async ({ read, until }, saved, created) => {
+        await withApp(found, STORED, async ({ read, until }, saved, created) => {
             assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
             assert.equal(
                 await until(`${OPEN_ROWS} === 6`, SHOWN_MS),
@@ -220,6 +230,30 @@ void describe("the sidebar's folders", () => {
             }
 
             assert.deepEqual(created, [{ cwd: ALPHA }]);
+        });
+    });
+
+    void it("folds a section with its folders and keeps the fold on the server", async (t) => {
+        const found = await findChromium(t);
+
+        if (found === undefined) {
+            return;
+        }
+
+        await withApp(found, SECTIONED, async ({ read, until }, saved) => {
+            assert.equal(await until(SHELL_SHOWN, LOAD_MS), true, "the app is on screen");
+            assert.equal(
+                await until(`${OPEN_ROWS} === 5`, SHOWN_MS),
+                true,
+                "alpha's five are open, beta is folded away under Later",
+            );
+            assert.equal(await read(PRESS("Later1")), true, "Later says it holds one folder");
+            assert.equal(await until(`${OPEN_ROWS} === 6`, SHOWN_MS), true, "beta's opens");
+            for (const end = Date.now() + SHOWN_MS; saved.length === 0 && Date.now() < end;) {
+                await delay(50);
+            }
+
+            assert.deepEqual(saved.at(-1), { ...SECTIONED, collapsed: [] });
         });
     });
 });

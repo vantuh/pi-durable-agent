@@ -109,6 +109,86 @@ export function orderedFolders(
     ];
 }
 
+/** A section's id in `FolderLayout.order` starts with this; a folder's path is absolute, so the two never meet. */
+export const SECTION = "section:";
+
+export function isSection(id: string): boolean {
+    return id.startsWith(SECTION);
+}
+
+/**
+ * Every folder and section in the order the sidebar keeps: `orderedFolders`, with the sections `sections` holds
+ * where `order` puts them. A folder `order` does not name is above every section.
+ */
+export function layoutOrder(
+    all: readonly SessionSummary[],
+    order: readonly string[],
+    sections: Readonly<Record<string, unknown>>,
+): string[] {
+    const folders = new Set(orderedFolders(all, order).map((row) => row.cwd));
+    const named = new Set(order);
+
+    return [
+        ...[...folders].filter((cwd) => !named.has(cwd)),
+        ...[...named].filter(
+            (id) => folders.has(id) || (isSection(id) && Object.hasOwn(sections, id)),
+        ),
+    ];
+}
+
+/** The section each folder of `order` sits under: the nearest one above it, none above the first. */
+export function sectionOf(order: readonly string[]): Map<string, string | undefined> {
+    const of = new Map<string, string | undefined>();
+    let section: string | undefined;
+
+    for (const id of order) {
+        if (isSection(id)) {
+            section = id;
+        } else {
+            of.set(id, section);
+        }
+    }
+
+    return of;
+}
+
+/** `cwd` moved to the top of `section`, or above every section when `section` is not given. */
+export function moveToSection(
+    order: readonly string[],
+    cwd: string,
+    section: string | undefined,
+): string[] {
+    const rest = order.filter((id) => id !== cwd);
+
+    return rest.toSpliced(section === undefined ? 0 : rest.indexOf(section) + 1, 0, cwd);
+}
+
+/** `section` and its folders swapped with the next section up or down; the folders above every section stay. */
+export function moveSection(order: readonly string[], section: string, by: -1 | 1): string[] {
+    let block: string[] = [];
+    const blocks = [block];
+
+    for (const id of order) {
+        if (isSection(id)) {
+            block = [id];
+            blocks.push(block);
+        } else {
+            block.push(id);
+        }
+    }
+
+    const at = blocks.findIndex((entry) => entry[0] === section);
+    const here = blocks[at];
+    const there = blocks[at + by];
+
+    return at < 1 || at + by < 1 || here === undefined || there === undefined
+        ? [...order]
+        : blocks
+              .with(at, there)
+              .with(at + by, here)
+              .flat();
+}
+
 /**
  * `shown` (filtered, in the order to draw) split by `orderedFolders`. A folder with none of `shown` has no group.
  * Sessions with no folder go last, in the group named `LOOSE`.

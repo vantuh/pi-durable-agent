@@ -45,11 +45,15 @@ export function FolderGroup({
     searching,
     canMoveUp,
     canMoveDown,
+    sections,
+    section,
     onToggle,
     onNew,
     onOpenCount,
     onLook,
     onMove,
+    onSection,
+    onNewSection,
     renderRow,
 }: {
     cwd: string;
@@ -65,12 +69,18 @@ export function FolderGroup({
     searching: boolean;
     canMoveUp: boolean;
     canMoveDown: boolean;
+    /** Every section, top down, and the one this folder is in. */
+    sections: { id: string; name: string }[];
+    section: string | undefined;
     onToggle: (cwd: string) => void;
     /** A new session in this folder, opened at once. */
     onNew: (cwd: string) => void;
     onOpenCount: (cwd: string, count: number) => void;
     onLook: (cwd: string, look: FolderLook) => void;
     onMove: (cwd: string, by: -1 | 1) => void;
+    /** Undefined takes the folder out of every section. */
+    onSection: (cwd: string, section: string | undefined) => void;
+    onNewSection: (cwd: string) => void;
     renderRow: (session: SessionSummary) => ReactNode;
 }) {
     const [renaming, setRenaming] = useState(false);
@@ -180,6 +190,8 @@ export function FolderGroup({
                         color={color}
                         canMoveUp={canMoveUp}
                         canMoveDown={canMoveDown}
+                        sections={sections}
+                        section={section}
                         onNew={() => {
                             onNew(cwd);
                         }}
@@ -191,6 +203,12 @@ export function FolderGroup({
                         }}
                         onMove={(by) => {
                             onMove(cwd, by);
+                        }}
+                        onSection={(next) => {
+                            onSection(cwd, next);
+                        }}
+                        onNewSection={() => {
+                            onNewSection(cwd);
                         }}
                     />
                 )}

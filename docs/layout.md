@@ -80,11 +80,21 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
   shown instead of its own; the folder on disk is untouched, an empty name goes back), colours its icon
   with one of the eight `tag-*` hues, and moves it up or down for those who cannot drag. The order, the
   folds, the names and the colours are kept on the server: `GET`/`PUT /api/folder-layout` read and replace
-  `data/folders.json` (`{ order, collapsed, folders: { [path]: { name?, color? } } }`), and the sidebar reads
+  `data/folders.json` (`{ order, collapsed, folders: { [path]: { name?, color? } }, sections: { [id]: { name } } }`), and the sidebar reads
   it again when the tab comes back to the front, so a phone and a computer show the same list. A folder
   `order` does not name goes first, worked in last first. How many pages each folder has open is the
   browser's own (`localStorage`, `sidebarFolderShown`). `shift+left` / `shift+right` step through the rows
   as they are drawn, across folders, skipping what is folded or still behind `more`.
+- **Sections**: a section is a heading in `order` (`section:<id>`); the folders after it, up to the next one,
+  are its own. The folders above every section, with `no folder` last of them, are the ones being worked on:
+  a new folder lands there. Pressing a section's heading folds all its folders; the heading keeps the count of
+  its folders and, folded, the mark of a working or unseen session under it. A folded section still shows the
+  folder of the open session, and while searching nothing is folded. A folder joins a section by being dragged
+  under its heading, or by `⋯` → Section (None, a section, or New section, which opens the new heading's name
+  field). The heading is a drop target but is not dragged, so it never leaves its folders behind; its own `⋯`
+  renames it, moves it with its folders past the next section, and removes it: only the heading goes, its
+  folders join the section above. A filter or the archive hides a section it found nothing in; without one an
+  empty section stays, as a place to drop.
 - **Started from another session**: a session with `parent` (the one it was started from) is not a
   row while that parent is in the full session list, whatever the folder, archive or search
   filter. The folder counts, the group counts and the search follow the rows shown. When such a

@@ -6,8 +6,12 @@ import {
     cwdsOf,
     folderRows,
     groupByFolder,
+    layoutOrder,
     LOOSE,
+    moveSection,
+    moveToSection,
     openCount,
+    sectionOf,
 } from "../web/src/lib/session-folders.ts";
 
 function session(id: number, cwd: string, extra: Partial<SessionSummary> = {}): SessionSummary {
@@ -178,5 +182,54 @@ void describe("sessions with no folder", () => {
             groupByFolder(rows, rows, []).map((group) => group.cwd),
             [REPO, LOOSE],
         );
+    });
+});
+
+void describe("sections", () => {
+    const WORK = "section:work";
+    const LATER = "section:later";
+
+    void it("puts unnamed folders first and drops sections and folders that no longer exist", () => {
+        const all = [
+            session(1, "/a", { activeAt: 10 }),
+            session(2, "/b", { activeAt: 20 }),
+            session(3, "/new", { activeAt: 5 }),
+        ];
+
+        assert.deepEqual(
+            layoutOrder(all, [WORK, "/b", "/gone", "section:gone", LATER, "/a"], {
+                [WORK]: { name: "Work" },
+                [LATER]: { name: "Later" },
+            }),
+            ["/new", WORK, "/b", LATER, "/a"],
+        );
+    });
+
+    void it("gives each folder the nearest section above it", () => {
+        assert.deepEqual(
+            [...sectionOf(["/top", WORK, "/b", "/c", LATER, "/d"])],
+            [
+                ["/top", undefined],
+                ["/b", WORK],
+                ["/c", WORK],
+                ["/d", LATER],
+            ],
+        );
+    });
+
+    void it("moves a folder to the top of a section, or above every section", () => {
+        const order = ["/top", WORK, "/b", LATER, "/d"];
+
+        assert.deepEqual(moveToSection(order, "/top", LATER), [WORK, "/b", LATER, "/top", "/d"]);
+        assert.deepEqual(moveToSection(order, "/d", undefined), ["/d", "/top", WORK, "/b", LATER]);
+    });
+
+    void it("moves a section with its folders past the next one, never above the unsectioned", () => {
+        const order = ["/top", WORK, "/b", "/c", LATER, "/d"];
+
+        assert.deepEqual(moveSection(order, LATER, -1), ["/top", LATER, "/d", WORK, "/b", "/c"]);
+        assert.deepEqual(moveSection(order, WORK, 1), ["/top", LATER, "/d", WORK, "/b", "/c"]);
+        assert.deepEqual(moveSection(order, WORK, -1), order);
+        assert.deepEqual(moveSection(order, LATER, 1), order);
     });
 });

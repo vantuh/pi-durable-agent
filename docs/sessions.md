@@ -15,7 +15,7 @@ POST /api/sessions/title     { session, title }  a name by hand, cut to 80 chara
 POST /api/sessions/archive   { session, archived }
 POST /api/sessions/delete    { session }
 POST /api/sessions/seen      { session }  the latest run is seen
-GET  /api/folder-layout      the sidebar's folder order, folds, names and colours, from data/folders.json
+GET  /api/folder-layout      the sidebar's folder order, sections, folds, names and colours, from data/folders.json
 PUT  /api/folder-layout      replaces it; a part that is not valid is dropped, the rest is kept
 ```
 

@@ -16,28 +16,46 @@ import {
 import { FOLDER_COLORS, type FolderColor } from "../../../../shared/folders.ts";
 import { FOLDER_DOT } from "./folder-tones.ts";
 
-/** The `⋯` menu of a folder row. Moving is also here, so the order can be changed without dragging. */
+/** The `⋯` of a `group/folder` row. A mouse shows it on hover; a finger has no hover, so it is always there. */
+export const MENU_TRIGGER =
+    "shrink-0 lg:group-data-[collapsed]/side:hidden pointer-fine:opacity-0 pointer-fine:group-focus-within/folder:opacity-100 pointer-fine:group-hover/folder:opacity-100 pointer-fine:aria-expanded:opacity-100";
+
+/**
+ * The `⋯` menu of a folder row. Moving, also into a section, is here too, so the order can be changed without
+ * dragging.
+ */
 export function FolderActions({
     name,
     color,
     canMoveUp,
     canMoveDown,
+    sections,
+    section,
     onNew,
     onRename,
     onColor,
     onMove,
+    onSection,
+    onNewSection,
 }: {
     name: string;
     color: FolderColor | undefined;
     canMoveUp: boolean;
     canMoveDown: boolean;
+    /** Every section, top down. */
+    sections: { id: string; name: string }[];
+    /** The one this folder is in. */
+    section: string | undefined;
     onNew: () => void;
     onRename: () => void;
     onColor: (color: FolderColor | undefined) => void;
     onMove: (by: -1 | 1) => void;
+    /** Undefined takes the folder out of every section. */
+    onSection: (section: string | undefined) => void;
+    onNewSection: () => void;
 }) {
     // The field takes the caret only once the menu is gone: a menu still fading takes the keyboard back.
-    const renameWhenClosed = useRef(false);
+    const whenClosed = useRef<(() => void) | null>(null);
 
     return (
         <DropdownMenu modal={false}>
@@ -46,8 +64,7 @@ export function FolderActions({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Actions for ${name}`}
-                    // A mouse shows it on hover; a finger has no hover, so it is always there.
-                    className="shrink-0 lg:group-data-[collapsed]/side:hidden pointer-fine:opacity-0 pointer-fine:group-focus-within/folder:opacity-100 pointer-fine:group-hover/folder:opacity-100 pointer-fine:aria-expanded:opacity-100"
+                    className={MENU_TRIGGER}
                 >
                     <MoreHorizontal className="size-4" />
                 </Button>
@@ -55,10 +72,12 @@ export function FolderActions({
             <DropdownMenuContent
                 align="end"
                 onCloseAutoFocus={(event) => {
-                    if (renameWhenClosed.current) {
+                    const then = whenClosed.current;
+
+                    if (then !== null) {
                         event.preventDefault();
-                        renameWhenClosed.current = false;
-                        onRename();
+                        whenClosed.current = null;
+                        then();
                     }
                 }}
             >
@@ -69,7 +88,7 @@ export function FolderActions({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     onSelect={() => {
-                        renameWhenClosed.current = true;
+                        whenClosed.current = onRename;
                     }}
                 >
                     <Pencil className="size-4" />
@@ -97,6 +116,39 @@ export function FolderActions({
                             }}
                         >
                             Default
+                        </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Section</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                        <DropdownMenuItem
+                            onSelect={() => {
+                                onSection(undefined);
+                            }}
+                        >
+                            <span className="flex-1">None</span>
+                            {section === undefined ? <Check className="size-4" /> : null}
+                        </DropdownMenuItem>
+                        {sections.map((entry) => (
+                            <DropdownMenuItem
+                                key={entry.id}
+                                onSelect={() => {
+                                    onSection(entry.id);
+                                }}
+                            >
+                                <span className="flex-1 truncate">{entry.name}</span>
+                                {entry.id === section ? <Check className="size-4" /> : null}
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onSelect={() => {
+                                whenClosed.current = onNewSection;
+                            }}
+                        >
+                            <Plus className="size-4" />
+                            New section
                         </DropdownMenuItem>
                     </DropdownMenuSubContent>
                 </DropdownMenuSub>

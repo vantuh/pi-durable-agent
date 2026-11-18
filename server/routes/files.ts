@@ -30,6 +30,13 @@ const FolderLayoutBody = z.object({
         )
         .default({})
         .catch({}),
+    sections: z
+        .record(
+            z.string(),
+            z.object({ name: z.string().min(1).max(MAX_FOLDER_NAME).catch("Section") }),
+        )
+        .default({})
+        .catch({}),
 });
 /** `hidden=1` shows the folders that start with a dot. */
 const FsQuery = z.object({

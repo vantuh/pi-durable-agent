@@ -31,9 +31,15 @@ import {
     cwdsOf,
     FOLDER_PAGE,
     groupByFolder,
+    isSection,
+    layoutOrder,
     LOOSE,
+    moveSection,
+    moveToSection,
     openCount,
     orderedFolders,
+    SECTION,
+    sectionOf,
 } from "@/lib/session-folders.ts";
 import { holdingRow, sidebarSessions, workingChildren } from "@/lib/session-nesting.ts";
 import { newestFirst } from "@/lib/session-order.ts";
@@ -48,6 +54,7 @@ import type { SessionSummary } from "../../../../shared/protocol.ts";
 import { folderName } from "../session-parts.tsx";
 import { FolderGroup } from "./folder-group.tsx";
 import { RenameDialog } from "./rename-dialog.tsx";
+import { SectionHeader } from "./section-header.tsx";
 import { SessionRow } from "./session-row.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 import { SidebarHeader } from "./sidebar-header.tsx";
@@ -165,7 +172,9 @@ export const Sessions = memo(function Sessions({
     // Checked against the full list, before the folder, archive and search filters below.
     const topLevel = sidebarSessions(sessions);
     const holding = holdingRow(current, sessions);
-    const { layout, setOrder, toggleFold, setLook } = useFolderLayout();
+    const { layout, setOrder, toggleFold, setLook, setSection, removeSection } = useFolderLayout();
+    // The section whose name is being typed: a new one starts with its field open.
+    const [naming, setNaming] = useState<string | null>(null);
     const { countOf, setCount } = useFolderShown(FOLDER_PAGE);
     const sensors = useSensors(
         // A click stays a click; a finger must rest on the header before it drags, so a scroll stays a scroll.
@@ -232,13 +241,65 @@ export const Sessions = memo(function Sessions({
     };
     const filtering = query.trim() !== "";
     const focus = holding ?? current;
-    const groups = groupByFolder(topLevel, shown, layout.order).map((group) => ({
+    // The whole order, not the groups shown: a filter that hides a folder must not drop it from the saved order.
+    const fullOrder = layoutOrder(topLevel, layout.order, layout.sections);
+    const under = sectionOf(fullOrder);
+    const sections = fullOrder
+        .filter(isSection)
+        .map((id) => ({ id, name: layout.sections[id]?.name ?? "Section" }));
+    const folds = (id: string): boolean => !filtering && layout.collapsed.includes(id);
+    const all = groupByFolder(topLevel, shown, layout.order).map((group) => ({
         ...group,
-        folded: !filtering && layout.collapsed.includes(group.cwd),
+        section: under.get(group.cwd),
+        folded: folds(group.cwd),
         open: openCount(group.sessions, countOf(group.cwd), focus, filtering),
     }));
-    // The whole order, not the groups shown: a filter that hides a folder must not drop it from the saved order.
-    const fullOrder = orderedFolders(topLevel, layout.order).map((row) => row.cwd);
+    // Drawn top down: the folders above every section, `no folder` last of them, then each section's own.
+    const drawn = [
+        ...all.filter((group) => group.section === undefined),
+        ...sections.flatMap(({ id }) => all.filter((group) => group.section === id)),
+    ];
+    // A folded section still shows the folder of the open session, so the open row never goes out of reach.
+    const groups = drawn.filter(
+        (group) =>
+            group.section === undefined ||
+            !folds(group.section) ||
+            group.sessions.some((session) => session.id === focus),
+    );
+    // A filter keeps only the sections it found something in; without one, an empty section is where to drop.
+    const narrowed = filtering || archived || keptBy.length > 0;
+    const blocks = [
+        { section: undefined, groups: groups.filter((group) => group.section === undefined) },
+        ...sections.flatMap((section, index) => {
+            const own = drawn.filter((group) => group.section === section.id);
+
+            return narrowed && own.length === 0
+                ? []
+                : [
+                      {
+                          section: {
+                              ...section,
+                              index,
+                              folders: own.length,
+                              marked:
+                                  own
+                                      .flatMap((group) => group.sessions)
+                                      .find((session) => session.busy) ??
+                                  own
+                                      .flatMap((group) => group.sessions)
+                                      .find((session) => session.unseen),
+                          },
+                          groups: groups.filter((group) => group.section === section.id),
+                      },
+                  ];
+        }),
+    ];
+    const newSection = (cwd: string): void => {
+        const id = `${SECTION}${Date.now().toString(36)}`;
+
+        setSection(id, "New section", moveToSection([...fullOrder, id], cwd, id));
+        setNaming(id);
+    };
     const moveTo = (cwd: string, other: string | undefined): void => {
         const from = fullOrder.indexOf(cwd);
         const to = other === undefined ? -1 : fullOrder.indexOf(other);
@@ -352,66 +413,116 @@ export const Sessions = memo(function Sessions({
                             onDragEnd={dropped}
                         >
                             <SortableContext
-                                items={groups.map((group) => group.cwd)}
+                                items={blocks.flatMap((block) => [
+                                    ...(block.section === undefined ? [] : [block.section.id]),
+                                    ...block.groups.map((group) => group.cwd),
+                                ])}
                                 strategy={verticalListSortingStrategy}
                             >
-                                {groups.map((group, index) => (
-                                    <FolderGroup
-                                        key={group.cwd}
-                                        cwd={group.cwd}
-                                        name={
-                                            layout.folders[group.cwd]?.name ?? folderName(group.cwd)
-                                        }
-                                        ranges={folderRangesOf(group.sessions[0]?.id)}
-                                        color={layout.folders[group.cwd]?.color}
-                                        sessions={group.sessions}
-                                        open={group.open}
-                                        folded={group.folded}
-                                        searching={filtering}
-                                        canMoveUp={index > 0}
-                                        canMoveDown={
-                                            index < groups.length - 1 &&
-                                            groups[index + 1]?.cwd !== LOOSE
-                                        }
-                                        onToggle={toggleFold}
-                                        onNew={onNewIn}
-                                        onOpenCount={setCount}
-                                        onLook={setLook}
-                                        onMove={(cwd, by) => {
-                                            moveTo(cwd, groups[index + by]?.cwd);
-                                        }}
-                                        renderRow={(session) => (
-                                            <SessionRow
-                                                key={session.id}
-                                                session={session}
-                                                working={workingChildren(session.id, sessions)}
-                                                time={
-                                                    session.activeAt === null
-                                                        ? null
-                                                        : ago(session.activeAt, now)
+                                {blocks.map((block) => [
+                                    block.section === undefined ? null : (
+                                        <SectionHeader
+                                            key={block.section.id}
+                                            id={block.section.id}
+                                            name={block.section.name}
+                                            folders={block.section.folders}
+                                            folded={folds(block.section.id)}
+                                            marked={block.section.marked}
+                                            renaming={naming === block.section.id}
+                                            canMoveUp={block.section.index > 0}
+                                            canMoveDown={block.section.index < sections.length - 1}
+                                            onToggle={toggleFold}
+                                            onRenameStart={setNaming}
+                                            onRename={(id, name) => {
+                                                setNaming(null);
+                                                if (name !== null && name.trim() !== "") {
+                                                    setSection(id, name.trim());
                                                 }
-                                                ranges={rangesOf(session.id)}
-                                                current={session.id === current}
-                                                holding={session.id === holding}
-                                                menu={menu}
-                                                running={running}
-                                                pending={pending}
-                                                renaming={renaming === session.id && !unanchored}
-                                                registerRow={registerRow}
-                                                onOpen={openRow}
-                                                onRunItem={runMenuItem}
-                                                onRename={startRename}
-                                                onRenameSave={saveName}
-                                                onRenameCancel={stopRenaming}
-                                                onArchive={changeArchive}
-                                                onDelete={setDeleting}
-                                                deleting={deleting?.id === session.id}
-                                                onConfirmDelete={confirmDelete}
-                                                onCancelDelete={cancelDelete}
+                                            }}
+                                            onMove={(id, by) => {
+                                                setOrder(moveSection(fullOrder, id, by));
+                                            }}
+                                            onRemove={removeSection}
+                                        />
+                                    ),
+                                    ...block.groups.map((group) => {
+                                        const index = groups.indexOf(group);
+
+                                        return (
+                                            <FolderGroup
+                                                key={group.cwd}
+                                                cwd={group.cwd}
+                                                name={
+                                                    layout.folders[group.cwd]?.name ??
+                                                    folderName(group.cwd)
+                                                }
+                                                ranges={folderRangesOf(group.sessions[0]?.id)}
+                                                color={layout.folders[group.cwd]?.color}
+                                                sessions={group.sessions}
+                                                open={group.open}
+                                                folded={group.folded}
+                                                searching={filtering}
+                                                canMoveUp={
+                                                    index > 0 && groups[index - 1]?.cwd !== LOOSE
+                                                }
+                                                canMoveDown={
+                                                    index < groups.length - 1 &&
+                                                    groups[index + 1]?.cwd !== LOOSE
+                                                }
+                                                sections={sections}
+                                                section={group.section}
+                                                onToggle={toggleFold}
+                                                onNew={onNewIn}
+                                                onOpenCount={setCount}
+                                                onLook={setLook}
+                                                onMove={(cwd, by) => {
+                                                    moveTo(cwd, groups[index + by]?.cwd);
+                                                }}
+                                                onSection={(cwd, section) => {
+                                                    setOrder(
+                                                        moveToSection(fullOrder, cwd, section),
+                                                    );
+                                                }}
+                                                onNewSection={newSection}
+                                                renderRow={(session) => (
+                                                    <SessionRow
+                                                        key={session.id}
+                                                        session={session}
+                                                        working={workingChildren(
+                                                            session.id,
+                                                            sessions,
+                                                        )}
+                                                        time={
+                                                            session.activeAt === null
+                                                                ? null
+                                                                : ago(session.activeAt, now)
+                                                        }
+                                                        ranges={rangesOf(session.id)}
+                                                        current={session.id === current}
+                                                        holding={session.id === holding}
+                                                        menu={menu}
+                                                        running={running}
+                                                        pending={pending}
+                                                        renaming={
+                                                            renaming === session.id && !unanchored
+                                                        }
+                                                        registerRow={registerRow}
+                                                        onOpen={openRow}
+                                                        onRunItem={runMenuItem}
+                                                        onRename={startRename}
+                                                        onRenameSave={saveName}
+                                                        onRenameCancel={stopRenaming}
+                                                        onArchive={changeArchive}
+                                                        onDelete={setDeleting}
+                                                        deleting={deleting?.id === session.id}
+                                                        onConfirmDelete={confirmDelete}
+                                                        onCancelDelete={cancelDelete}
+                                                    />
+                                                )}
                                             />
-                                        )}
-                                    />
-                                ))}
+                                        );
+                                    }),
+                                ])}
                             </SortableContext>
                         </DndContext>
                     </nav>
