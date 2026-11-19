@@ -91,7 +91,8 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
   its folders and, folded, the mark of a working or unseen session under it. A folded section still shows the
   folder of the open session, and while searching nothing is folded. A folder joins a section by being dragged
   under its heading, or by `⋯` → Section (None, a section, or New section, which opens the new heading's name
-  field). The heading is a drop target but is not dragged, so it never leaves its folders behind; its own `⋯`
+  field). Dragging the heading moves the whole section, its folders with it, among the other sections; it lands
+  only between sections, never inside one. Its own `⋯`
   renames it, moves it with its folders past the next section, and removes it: only the heading goes, its
   folders join the section above. A filter or the archive hides a section it found nothing in; without one an
   empty section stays, as a place to drop.

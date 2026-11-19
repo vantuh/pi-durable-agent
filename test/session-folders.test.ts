@@ -232,4 +232,26 @@ void describe("sections", () => {
         assert.deepEqual(moveSection(order, WORK, -1), order);
         assert.deepEqual(moveSection(order, LATER, 1), order);
     });
+
+    void it("moves a section with its folders past several, as a drop does", () => {
+        const order = [WORK, "/b", LATER, "/d", "section:third", "/e"];
+
+        assert.deepEqual(moveSection(order, WORK, 2), [
+            LATER,
+            "/d",
+            "section:third",
+            "/e",
+            WORK,
+            "/b",
+        ]);
+        assert.deepEqual(moveSection(order, "section:third", -2), [
+            "section:third",
+            "/e",
+            WORK,
+            "/b",
+            LATER,
+            "/d",
+        ]);
+        assert.deepEqual(moveSection(order, WORK, 3), order);
+    });
 });

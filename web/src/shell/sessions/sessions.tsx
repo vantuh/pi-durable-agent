@@ -1,5 +1,6 @@
 import {
     closestCenter,
+    type CollisionDetection,
     DndContext,
     type DragEndEvent,
     MouseSensor,
@@ -55,7 +56,7 @@ import type { SessionSummary } from "../../../../shared/protocol.ts";
 import { folderName } from "../session-parts.tsx";
 import { FolderGroup } from "./folder-group.tsx";
 import { RenameDialog } from "./rename-dialog.tsx";
-import { SectionHeader } from "./section-header.tsx";
+import { SECTION_BLOCK, SectionHeader } from "./section-header.tsx";
 import { SessionRow } from "./session-row.tsx";
 import { SidebarBottom } from "./sidebar-bottom.tsx";
 import { SidebarHeader } from "./sidebar-header.tsx";
@@ -93,6 +94,16 @@ type Props = {
 
 /** One list for every row without a search, so a row whose title did not change gets an equal prop. */
 const NO_RANGES: [number, number][] = [];
+
+const isBlock = (id: string | number): boolean => String(id).startsWith(SECTION_BLOCK);
+/** A section lands among sections only; a folder lands on folders and headings, never on a whole section. */
+const collide: CollisionDetection = (args) =>
+    closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+            (container) => isBlock(container.id) === isBlock(args.active.id),
+        ),
+    });
 
 export const Sessions = memo(function Sessions({
     sessions,
@@ -322,9 +333,25 @@ export const Sessions = memo(function Sessions({
             setOrder(arrayMove(fullOrder, from, to));
         }
     };
+    // Every folder and heading drawn: one sortable list across the sections, so a folder drags from one to another.
+    const folderIds = blocks.flatMap((block) => [
+        ...(block.section === undefined ? [] : [block.section.id]),
+        ...block.groups.map((group) => group.cwd),
+    ]);
+    const blockIds = sections.map((section) => `${SECTION_BLOCK}${section.id}`);
     const dropped = ({ active, over }: DragEndEvent): void => {
-        if (over !== null) {
-            moveTo(String(active.id), String(over.id));
+        const id = String(active.id);
+
+        if (over === null) {
+            return;
+        }
+
+        if (isBlock(id)) {
+            const by = blockIds.indexOf(String(over.id)) - blockIds.indexOf(id);
+
+            setOrder(moveSection(fullOrder, id.slice(SECTION_BLOCK.length), by));
+        } else {
+            moveTo(id, String(over.id));
         }
     };
     // The rows in the order they are drawn, so stepping follows the filters, the folds and the pages opened.
@@ -423,43 +450,19 @@ export const Sessions = memo(function Sessions({
                         ) : null}
                         <DndContext
                             sensors={sensors}
-                            collisionDetection={closestCenter}
+                            collisionDetection={collide}
                             onDragEnd={dropped}
                         >
                             <SortableContext
-                                items={blocks.flatMap((block) => [
-                                    ...(block.section === undefined ? [] : [block.section.id]),
-                                    ...block.groups.map((group) => group.cwd),
-                                ])}
+                                items={blocks.flatMap((block) =>
+                                    block.section === undefined
+                                        ? []
+                                        : [`${SECTION_BLOCK}${block.section.id}`],
+                                )}
                                 strategy={verticalListSortingStrategy}
                             >
-                                {blocks.map((block) => [
-                                    block.section === undefined ? null : (
-                                        <SectionHeader
-                                            key={block.section.id}
-                                            id={block.section.id}
-                                            name={block.section.name}
-                                            folders={block.section.folders}
-                                            folded={folds(block.section.id)}
-                                            marked={block.section.marked}
-                                            renaming={naming === block.section.id}
-                                            canMoveUp={block.section.index > 0}
-                                            canMoveDown={block.section.index < sections.length - 1}
-                                            onToggle={toggleFold}
-                                            onRenameStart={setNaming}
-                                            onRename={(id, name) => {
-                                                setNaming(null);
-                                                if (name !== null && name.trim() !== "") {
-                                                    setSection(id, name.trim());
-                                                }
-                                            }}
-                                            onMove={(id, by) => {
-                                                setOrder(moveSection(fullOrder, id, by));
-                                            }}
-                                            onRemove={removeSection}
-                                        />
-                                    ),
-                                    ...block.groups.map((group) => {
+                                {blocks.map((block) => {
+                                    const folders = block.groups.map((group) => {
                                         const index = groups.indexOf(group);
 
                                         return (
@@ -540,8 +543,45 @@ export const Sessions = memo(function Sessions({
                                                 )}
                                             />
                                         );
-                                    }),
-                                ])}
+                                    });
+
+                                    return block.section === undefined ? (
+                                        <SortableContext
+                                            key="unsectioned"
+                                            items={folderIds}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            {folders}
+                                        </SortableContext>
+                                    ) : (
+                                        <SectionHeader
+                                            key={block.section.id}
+                                            id={block.section.id}
+                                            name={block.section.name}
+                                            folderIds={folderIds}
+                                            folders={block.section.folders}
+                                            folded={folds(block.section.id)}
+                                            marked={block.section.marked}
+                                            renaming={naming === block.section.id}
+                                            canMoveUp={block.section.index > 0}
+                                            canMoveDown={block.section.index < sections.length - 1}
+                                            onToggle={toggleFold}
+                                            onRenameStart={setNaming}
+                                            onRename={(id, name) => {
+                                                setNaming(null);
+                                                if (name !== null && name.trim() !== "") {
+                                                    setSection(id, name.trim());
+                                                }
+                                            }}
+                                            onMove={(id, by) => {
+                                                setOrder(moveSection(fullOrder, id, by));
+                                            }}
+                                            onRemove={removeSection}
+                                        >
+                                            {folders}
+                                        </SectionHeader>
+                                    );
+                                })}
                             </SortableContext>
                         </DndContext>
                     </nav>

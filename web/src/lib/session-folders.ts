@@ -180,8 +180,8 @@ export function moveToSection(
     return rest.toSpliced(section === undefined ? 0 : rest.indexOf(section) + 1, 0, cwd);
 }
 
-/** `section` and its folders swapped with the next section up or down; the folders above every section stay. */
-export function moveSection(order: readonly string[], section: string, by: -1 | 1): string[] {
+/** `section` and its folders moved `by` sections up or down; the folders above every section stay. */
+export function moveSection(order: readonly string[], section: string, by: number): string[] {
     let block: string[] = [];
     const blocks = [block];
 
@@ -201,8 +201,8 @@ export function moveSection(order: readonly string[], section: string, by: -1 | 
     return at < 1 || at + by < 1 || here === undefined || there === undefined
         ? [...order]
         : blocks
-              .with(at, there)
-              .with(at + by, here)
+              .toSpliced(at, 1)
+              .toSpliced(at + by, 0, here)
               .flat();
 }
 
