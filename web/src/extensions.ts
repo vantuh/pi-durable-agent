@@ -2,7 +2,7 @@
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
  * composer controls, blocks above the composer and under the session list, status popover markers,
  * settings sections, side panels, pages, tool icons and argument views, session menu items, folder
- * header items, home page groups and new-session options.
+ * header items and menu items, home page groups and new-session options.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -14,6 +14,7 @@ import { type ExtensionInfo, listExtensions } from "./lib/api.ts";
 import type {
     AboveComposerItem,
     ComposerItem,
+    FolderMenuItem,
     HeaderItem,
     HomeItem,
     NewSessionItem,
@@ -48,6 +49,7 @@ export type FolderSessionRowItem = SessionRowItem & { folder: string };
 export type FolderSessionFilter = SessionFilterItem & { folder: string };
 export type FolderSidebarFolderItem = SidebarFolderItem & { folder: string };
 export type FolderHomeItem = HomeItem & { folder: string };
+export type FolderFolderMenuItem = FolderMenuItem & { folder: string };
 export type FolderNewSessionItem = NewSessionItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end", "composer", "title"]);
@@ -195,6 +197,16 @@ function isHomeItem(value: unknown): value is HomeItem {
     return isHeaderItem(value);
 }
 
+function isFolderMenuItem(value: unknown): value is FolderMenuItem {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof Reflect.get(value, "id") === "string" &&
+        typeof Reflect.get(value, "label") === "string" &&
+        typeof Reflect.get(value, "run") === "function"
+    );
+}
+
 /** One list of a module's default export; absent is empty, a bad list throws. */
 function listOf<T>(module: unknown, key: string, check: (value: unknown) => value is T): T[] {
     const extension: unknown =
@@ -264,6 +276,7 @@ type Loaded = {
     sessionFilter: FolderSessionFilter[];
     sidebarFolder: FolderSidebarFolderItem[];
     home: FolderHomeItem[];
+    folderMenu: FolderFolderMenuItem[];
     newSession: FolderNewSessionItem[];
 };
 
@@ -303,6 +316,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         sessionFilter: [],
         sidebarFolder: [],
         home: [],
+        folderMenu: [],
         newSession: [],
     };
 
@@ -325,6 +339,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "sessionFilter", module, isSessionFilterItem, loaded.sessionFilter);
         collect(folder, "sidebarFolder", module, isSidebarFolderItem, loaded.sidebarFolder);
         collect(folder, "home", module, isHomeItem, loaded.home);
+        collect(folder, "folderMenu", module, isFolderMenuItem, loaded.folderMenu);
         collect(folder, "newSession", module, isNewSessionItem, loaded.newSession);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
@@ -357,6 +372,7 @@ function gather(loaded: readonly Loaded[]): Snapshot {
         sessionFilter: loaded.flatMap((each) => each.sessionFilter),
         sidebarFolder: loaded.flatMap((each) => each.sidebarFolder),
         home: loaded.flatMap((each) => each.home),
+        folderMenu: loaded.flatMap((each) => each.folderMenu),
         newSession: loaded.flatMap((each) => each.newSession),
     });
 }
@@ -539,4 +555,9 @@ export function useSidebarFolderItems(): readonly FolderSidebarFolderItem[] {
 /** The groups extensions add to the home page; empty until the modules are in. */
 export function useHomeItems(): readonly FolderHomeItem[] {
     return useSyncExternalStore(subscribe, () => snapshot.home);
+}
+
+/** The items extensions add to every folder header's menu; empty until the modules are in. */
+export function useFolderMenu(): readonly FolderFolderMenuItem[] {
+    return useSyncExternalStore(subscribe, () => snapshot.folderMenu);
 }

@@ -10,6 +10,9 @@ never sees them: no tools, prompt sections or hooks.
   (`extension.terminal.open`, rebindable in `data/hotkeys.json`). The page takes the conversation's
   place, as Git history does; the button sits before Git history's badge and shows how many tabs the folder has in an accent badge on its top right corner. A folder with none gets
   its first tab when the page opens.
+- **New terminal** in a folder's `⋯` menu or a session's starts a shell in that folder and opens the
+  Terminal page on it, in that session (for a folder: the open one when it works there, else the
+  newest).
 - **From the sidebar.** A folder with tabs shows a terminal icon on its header with their count.
   Hovering it with a mouse opens the list of its tabs (a tap or Enter opens it too); picking one opens
   the Terminal page on that tab, in the open session when it works in the folder, else the folder's

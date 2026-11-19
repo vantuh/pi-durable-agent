@@ -14,24 +14,29 @@ let seen = "[]";
 let polling = false;
 const listeners = new Set<() => void>();
 
+/** Reads the list now, outside the poll: a tab made here shows at once. */
+export async function refreshFolderTabs(): Promise<void> {
+    try {
+        const next = await callAction(folders, undefined, null);
+        const text = JSON.stringify(next);
+
+        // An unchanged answer keeps its identity, so no folder header re-renders for nothing.
+        if (text !== seen) {
+            seen = text;
+            current = next;
+
+            for (const listener of listeners) {
+                listener();
+            }
+        }
+    } catch {
+        // The count is a hint: the next poll tries again.
+    }
+}
+
 async function poll(): Promise<void> {
     if (!document.hidden) {
-        try {
-            const next = await callAction(folders, undefined, null);
-            const text = JSON.stringify(next);
-
-            // An unchanged answer keeps its identity, so no folder header re-renders for nothing.
-            if (text !== seen) {
-                seen = text;
-                current = next;
-
-                for (const listener of listeners) {
-                    listener();
-                }
-            }
-        } catch {
-            // The count is a hint: the next poll tries again.
-        }
+        await refreshFolderTabs();
     }
 
     if (listeners.size === 0) {

@@ -268,15 +268,31 @@ export type SessionMenuItem = {
     icon?: ReactNode | ((session: SessionSummary) => ReactNode);
     /**
      * Runs for one session; its label stands in a toast while it runs, and the failure's message after.
-     * Left out by an item that only opens `submenu`.
+     * `openPage` opens one of this extension's own pages (`id` is the page's `id`) in that session, at
+     * `sub` when given. Left out by an item that only opens `submenu`.
      */
-    run?: (session: number) => Promise<void>;
+    run?: (session: number, openPage: (id: string, sub?: string) => void) => Promise<void>;
     /**
      * A submenu this item opens instead of running: the core renders a Radix submenu around the
      * component, so it supplies rows (`DropdownMenuItem`) and nothing else. A row that calls
      * `preventDefault()` in its `onSelect` keeps the submenu open. Mounted only while it is open.
      */
     submenu?: ComponentType<SessionItemProps>;
+};
+
+/**
+ * One item an extension adds to a folder header's `⋯` menu, under New session. It is left out of a
+ * folder no session works in itself.
+ */
+export type FolderMenuItem = {
+    id: string;
+    label: string;
+    icon?: ReactNode;
+    /**
+     * Runs for the folder, as a session menu item's `run` does, with the session its pages open in: the
+     * open one when it works in the folder, else the folder's newest that is not archived.
+     */
+    run: (session: number, openPage: (id: string, sub?: string) => void) => Promise<void>;
 };
 
 /**
@@ -361,6 +377,7 @@ export type WebExtension = {
     sessionFilter?: SessionFilterItem[];
     sidebarFolder?: SidebarFolderItem[];
     home?: HomeItem[];
+    folderMenu?: FolderMenuItem[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

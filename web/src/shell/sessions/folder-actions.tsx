@@ -12,6 +12,7 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { type FolderFolderMenuItem, useFolderMenu } from "@/extensions.ts";
 
 import { FOLDER_COLORS, type FolderColor } from "../../../../shared/folders.ts";
 import { FOLDER_DOT } from "./folder-tones.ts";
@@ -32,6 +33,7 @@ export function FolderActions({
     sections,
     section,
     onNew,
+    onRunItem,
     onRename,
     onColor,
     onMove,
@@ -47,6 +49,8 @@ export function FolderActions({
     /** The one this folder is in. */
     section: string | undefined;
     onNew: () => void;
+    /** Runs an extension's item; undefined leaves them out, for a folder no session works in. */
+    onRunItem: ((item: FolderFolderMenuItem) => void) | undefined;
     onRename: () => void;
     onColor: (color: FolderColor | undefined) => void;
     onMove: (by: -1 | 1) => void;
@@ -56,6 +60,7 @@ export function FolderActions({
 }) {
     // The field takes the caret only once the menu is gone: a menu still fading takes the keyboard back.
     const whenClosed = useRef<(() => void) | null>(null);
+    const items = useFolderMenu();
 
     return (
         <DropdownMenu modal={false}>
@@ -85,6 +90,19 @@ export function FolderActions({
                     <Plus className="size-4" />
                     New session
                 </DropdownMenuItem>
+                {onRunItem === undefined
+                    ? null
+                    : items.map((item) => (
+                          <DropdownMenuItem
+                              key={`${item.folder}:${item.id}`}
+                              onSelect={() => {
+                                  onRunItem(item);
+                              }}
+                          >
+                              {item.icon}
+                              {item.label}
+                          </DropdownMenuItem>
+                      ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     onSelect={() => {

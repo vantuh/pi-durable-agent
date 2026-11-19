@@ -152,7 +152,7 @@ export const Sessions = memo(function Sessions({
 
         return made;
     }, [filters]);
-    const { running, runMenuItem } = useMenuRunner();
+    const { running, runMenuItem, runFolderItem } = useMenuRunner(onOpenPage);
     const {
         pending,
         deleting,
@@ -488,6 +488,10 @@ export const Sessions = memo(function Sessions({
                                                 onToggle={toggleFold}
                                                 onNew={onNewIn}
                                                 onOpenPage={openInFolder}
+                                                folderSession={
+                                                    folderSession(sessions, current, group.cwd)?.id
+                                                }
+                                                onRunItem={runFolderItem}
                                                 onOpenCount={setCount}
                                                 onLook={setLook}
                                                 onMove={(cwd, by) => {

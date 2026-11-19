@@ -329,10 +329,11 @@ below is unchanged. `extensions/codemode` shows its `code` argument as highlight
 ### Session menu items
 
 `web.tsx` may export `sessionMenu: [{ id, label, icon, run, submenu? }]`. Each item sits at the top
-of a session row's menu, above Rename, Archive and Delete, with a separator. `run(sessionId)` is the
-whole behaviour: the item's label is the toast while it runs, a rejection becomes a toast with its
-message, and the list is re-read afterwards, so an item that names the session shows the new name
-by itself. `extensions/auto-session-name` is the example.
+of a session row's menu, above Rename, Archive and Delete, with a separator. `run(sessionId, openPage)`
+is the whole behaviour: the item's label is the toast while it runs, a rejection becomes a toast with
+its message, and the list is re-read afterwards, so an item that names the session shows the new name
+by itself. `extensions/auto-session-name` is the example. `openPage(id, sub?)` opens one of the
+extension's own pages in that session.
 
 `submenu` takes the place of `run`: the core wraps the component in a Radix `DropdownMenuSub`, so
 the extension supplies rows (`DropdownMenuItem` from `@/components/ui/dropdown-menu`) and nothing
@@ -362,6 +363,14 @@ The fuzzy search and the archive switch still apply on top; a filter runs before
 by folder, so a folder with none left disappears, and the count in a folder header is what is left.
 `extensions/tags` draws a filter icon there that opens a checklist of tags, counts the chosen ones
 on the icon, and keeps every session that carries at least one chosen tag.
+
+### Items in a folder's menu
+
+`web.tsx` may export `folderMenu: [{ id, label, icon, run }]`. Each item sits in a folder header's
+`⋯` menu under New session. `run(sessionId, openPage)` behaves as a session menu item's does, for the
+session the folder's pages open in: the open one when it works in the folder, else the folder's newest
+that is not archived. A folder no session works in itself leaves the items out.
+`extensions/terminal` adds New terminal there and to the session menu.
 
 ### Items on folder headers
 

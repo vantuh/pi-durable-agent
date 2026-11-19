@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useSidebarFolderItems } from "@/extensions.ts";
+import { type FolderFolderMenuItem, useSidebarFolderItems } from "@/extensions.ts";
 import { FOLDER_PAGE, LOOSE } from "@/lib/session-folders.ts";
 import { cn } from "@/lib/utils";
 import { ItemBoundary } from "@/ui/item-boundary.tsx";
@@ -52,6 +52,8 @@ export function FolderGroup({
     onToggle,
     onNew,
     onOpenPage,
+    folderSession,
+    onRunItem,
     onOpenCount,
     onLook,
     onMove,
@@ -80,6 +82,9 @@ export function FolderGroup({
     onNew: (cwd: string) => void;
     /** An extension's page (its key, `folder:id`) in a session of this folder. */
     onOpenPage: (cwd: string, key: string, sub?: string) => void;
+    /** The session extensions' folder menu items run in; undefined leaves them out. */
+    folderSession: number | undefined;
+    onRunItem: (item: FolderFolderMenuItem, session: number) => void;
     onOpenCount: (cwd: string, count: number) => void;
     onLook: (cwd: string, look: FolderLook) => void;
     onMove: (cwd: string, by: -1 | 1) => void;
@@ -213,6 +218,13 @@ export function FolderGroup({
                         onNew={() => {
                             onNew(cwd);
                         }}
+                        onRunItem={
+                            folderSession === undefined
+                                ? undefined
+                                : (item) => {
+                                      onRunItem(item, folderSession);
+                                  }
+                        }
                         onRename={() => {
                             setRenaming(true);
                         }}
