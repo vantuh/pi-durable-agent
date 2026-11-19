@@ -13,8 +13,8 @@ export type RouteNavigation = {
     route: Route;
     /** Opens a session's conversation; any page open on the way is left. */
     go: (session: number | null) => void;
-    /** Opens an extension's page in the open session, at `sub` when given, in one history step. */
-    openPage: (key: string, sub?: string) => void;
+    /** Opens an extension's page in `session` (else the open one), at `sub` when given, in one history step. */
+    openPage: (key: string, sub?: string, session?: number) => void;
     /** Moves the open page to one of its own sub-locations, adding a history step. */
     setPageSub: (sub: string | undefined) => void;
     /** The parent of the page's current sub-location; the page root's parent is the conversation. */
@@ -268,9 +268,9 @@ export function useRoute(): RouteNavigation {
         [show],
     );
     const openPage = useCallback(
-        (key: string, sub?: string) => {
-            if (session !== null) {
-                show({ session, page: { key, sub } });
+        (key: string, sub?: string, target: number | null = session) => {
+            if (target !== null) {
+                show({ session: target, page: { key, sub } });
             }
         },
         [session, show],

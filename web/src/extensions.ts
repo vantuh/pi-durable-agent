@@ -1,8 +1,8 @@
 /**
  * The browser half of extensions: every `extensions/<folder>/web.tsx` contributes status-bar items,
  * composer controls, blocks above the composer and under the session list, status popover markers,
- * settings sections, side panels, pages, tool icons and argument views, session menu items and
- * new-session options.
+ * settings sections, side panels, pages, tool icons and argument views, session menu items, folder
+ * header items and new-session options.
  * The core names no folder; the folder is the one in the path. Modules load lazily, so one that
  * throws or fails to import is skipped and the app still renders. A folder the server turned off
  * is not imported, and its items go away when it is turned off.
@@ -22,6 +22,7 @@ import type {
     SessionMenuItem,
     SessionRowItem,
     SettingsSection,
+    SidebarFolderItem,
     SidebarBottomItem,
     StatusItem,
     StatusRowItem,
@@ -44,6 +45,7 @@ export type FolderToolView = ToolView & { folder: string };
 export type FolderSessionMenuItem = SessionMenuItem & { folder: string };
 export type FolderSessionRowItem = SessionRowItem & { folder: string };
 export type FolderSessionFilter = SessionFilterItem & { folder: string };
+export type FolderSidebarFolderItem = SidebarFolderItem & { folder: string };
 export type FolderNewSessionItem = NewSessionItem & { folder: string };
 
 const SLOTS = new Set(["start", "center", "end", "composer", "title"]);
@@ -183,6 +185,10 @@ function isSessionFilterItem(value: unknown): value is SessionFilterItem {
     return isHeaderItem(value);
 }
 
+function isSidebarFolderItem(value: unknown): value is SidebarFolderItem {
+    return isHeaderItem(value);
+}
+
 /** One list of a module's default export; absent is empty, a bad list throws. */
 function listOf<T>(module: unknown, key: string, check: (value: unknown) => value is T): T[] {
     const extension: unknown =
@@ -250,6 +256,7 @@ type Loaded = {
     sessionMenu: FolderSessionMenuItem[];
     sessionRow: FolderSessionRowItem[];
     sessionFilter: FolderSessionFilter[];
+    sidebarFolder: FolderSidebarFolderItem[];
     newSession: FolderNewSessionItem[];
 };
 
@@ -287,6 +294,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         sessionMenu: [],
         sessionRow: [],
         sessionFilter: [],
+        sidebarFolder: [],
         newSession: [],
     };
 
@@ -307,6 +315,7 @@ async function loadFolder(folder: string, importModule: () => Promise<unknown>):
         collect(folder, "sessionMenu", module, isSessionMenuItem, loaded.sessionMenu);
         collect(folder, "sessionRow", module, isSessionRowItem, loaded.sessionRow);
         collect(folder, "sessionFilter", module, isSessionFilterItem, loaded.sessionFilter);
+        collect(folder, "sidebarFolder", module, isSidebarFolderItem, loaded.sidebarFolder);
         collect(folder, "newSession", module, isNewSessionItem, loaded.newSession);
     } catch (error) {
         console.error(`extension ${folder}: web.tsx skipped:`, error);
@@ -337,6 +346,7 @@ function gather(loaded: readonly Loaded[]): Snapshot {
         sessionMenu: loaded.flatMap((each) => each.sessionMenu),
         sessionRow: loaded.flatMap((each) => each.sessionRow),
         sessionFilter: loaded.flatMap((each) => each.sessionFilter),
+        sidebarFolder: loaded.flatMap((each) => each.sidebarFolder),
         newSession: loaded.flatMap((each) => each.newSession),
     });
 }
@@ -509,4 +519,9 @@ export function useSessionRows(): readonly FolderSessionRowItem[] {
 /** The filters extensions add to the sidebar's list; empty until the modules are in. */
 export function useSessionFilters(): readonly FolderSessionFilter[] {
     return useSyncExternalStore(subscribe, () => snapshot.sessionFilter);
+}
+
+/** The items extensions draw on every folder header of the sidebar; empty until the modules are in. */
+export function useSidebarFolderItems(): readonly FolderSidebarFolderItem[] {
+    return useSyncExternalStore(subscribe, () => snapshot.sidebarFolder);
 }

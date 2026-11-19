@@ -4,8 +4,10 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSidebarFolderItems } from "@/extensions.ts";
 import { FOLDER_PAGE, LOOSE } from "@/lib/session-folders.ts";
 import { cn } from "@/lib/utils";
+import { ItemBoundary } from "@/ui/item-boundary.tsx";
 import { MatchText } from "@/ui/match-text.tsx";
 
 import { MAX_FOLDER_NAME, type FolderColor, type FolderLook } from "../../../../shared/folders.ts";
@@ -49,6 +51,7 @@ export function FolderGroup({
     section,
     onToggle,
     onNew,
+    onOpenPage,
     onOpenCount,
     onLook,
     onMove,
@@ -75,6 +78,8 @@ export function FolderGroup({
     onToggle: (cwd: string) => void;
     /** A new session in this folder, opened at once. */
     onNew: (cwd: string) => void;
+    /** An extension's page (its key, `folder:id`) in a session of this folder. */
+    onOpenPage: (cwd: string, key: string, sub?: string) => void;
     onOpenCount: (cwd: string, count: number) => void;
     onLook: (cwd: string, look: FolderLook) => void;
     onMove: (cwd: string, by: -1 | 1) => void;
@@ -83,6 +88,7 @@ export function FolderGroup({
     onNewSection: (cwd: string) => void;
     renderRow: (session: SessionSummary) => ReactNode;
 }) {
+    const items = useSidebarFolderItems();
     const [renaming, setRenaming] = useState(false);
     const field = useRef<HTMLInputElement>(null);
     // Escape and Enter both leave the field, which then blurs: only the first of them decides.
@@ -184,6 +190,18 @@ export function FolderGroup({
                         {folded && marked !== undefined ? <StateMark session={marked} /> : null}
                     </button>
                 )}
+                {cwd === LOOSE || renaming
+                    ? null
+                    : items.map(({ folder, id, component: Item }) => (
+                          <ItemBoundary key={`${folder}:${id}`} name={`${folder}:${id}`}>
+                              <Item
+                                  cwd={cwd}
+                                  openPage={(page, sub) => {
+                                      onOpenPage(cwd, `${folder}:${page}`, sub);
+                                  }}
+                              />
+                          </ItemBoundary>
+                      ))}
                 {cwd === LOOSE ? null : (
                     <FolderActions
                         name={name}

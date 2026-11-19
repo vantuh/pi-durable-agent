@@ -143,11 +143,11 @@ export function usePanelCoordination({ route, openPage, closePage, dropPage }: R
         [route.page?.key, closePanel, openPage],
     );
     // A header item's page, at its own sub-location: the same step as a tab, but already being on the page
-    // is no reason to stay at its current sub.
+    // is no reason to stay at its current sub. A folder header's item names the session to open it in.
     const openFromHeader = useCallback(
-        (key: string, sub?: string) => {
+        (key: string, sub?: string, session?: number) => {
             closePanel();
-            openPage(key, sub);
+            openPage(key, sub, session);
         },
         [closePanel, openPage],
     );

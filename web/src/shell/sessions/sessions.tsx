@@ -83,6 +83,8 @@ type Props = {
     onNew: () => void;
     /** A new session in a folder, opened at once. */
     onNewIn: (cwd: string) => void;
+    /** Opens an extension's page (its key, `folder:id`) in a session, for a folder header's item. */
+    onOpenPage: (session: number, key: string, sub?: string) => void;
     /** Below `lg` the list is a full-screen sheet; this says whether it is showing. */
     open: boolean;
     onClose: () => void;
@@ -102,6 +104,7 @@ export const Sessions = memo(function Sessions({
     onRename,
     onNew,
     onNewIn,
+    onOpenPage,
     open: sheet,
     onClose,
 }: Props) {
@@ -121,6 +124,21 @@ export const Sessions = memo(function Sessions({
             stopSearch();
         },
         [onSelect, stopSearch],
+    );
+    // The open session when it works in the folder, else the folder's newest: where its terminal or history belongs.
+    const openInFolder = useCallback(
+        (cwd: string, key: string, sub?: string): void => {
+            const target =
+                sessions.find((each) => each.id === current && each.cwd === cwd) ??
+                sessions
+                    .filter((each) => each.cwd === cwd && !each.archived)
+                    .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0))[0];
+
+            if (target !== undefined) {
+                onOpenPage(target.id, key, sub);
+            }
+        },
+        [sessions, current, onOpenPage],
     );
     const menu = useSessionMenu();
     const filters = useSessionFilters();
@@ -473,6 +491,7 @@ export const Sessions = memo(function Sessions({
                                                 section={group.section}
                                                 onToggle={toggleFold}
                                                 onNew={onNewIn}
+                                                onOpenPage={openInFolder}
                                                 onOpenCount={setCount}
                                                 onLook={setLook}
                                                 onMove={(cwd, by) => {

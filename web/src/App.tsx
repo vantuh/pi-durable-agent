@@ -87,6 +87,13 @@ export function App() {
         },
         [go],
     );
+    const openFromFolder = useCallback(
+        (session: number, key: string, sub?: string) => {
+            openFromHeader(key, sub, session);
+            setSheet(false);
+        },
+        [openFromHeader],
+    );
     // The list stream is the one every tab holds, so a notice about any session arrives here, the home page included.
     const { sessions, setSessions, connected } = useSessionList((notice) => {
         const target = noticeTarget(notice, current);
@@ -235,6 +242,7 @@ export function App() {
                     onSelect={select}
                     onNew={askFolder}
                     onNewIn={openSession}
+                    onOpenPage={openFromFolder}
                     open={sheet}
                     onClose={closeSheet}
                 />

@@ -6,7 +6,7 @@ import { after, before, describe, it } from "node:test";
 
 import type { Host, SessionGoneListener } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
-import { type Output, create, list, open, read } from "./refs.ts";
+import { type Output, create, folders, list, open, read } from "./refs.ts";
 import { actions, tail } from "./server.ts";
 
 /** The fields this extension reads; the rest of the host is nothing it touches. */
@@ -187,6 +187,18 @@ void describe("terminal", () => {
         } finally {
             await rm(other, { recursive: true, force: true });
         }
+    });
+
+    void it("lists every folder that has a tab, for no session", async () => {
+        await start();
+
+        const action = run["folders"];
+
+        assert.ok(action);
+
+        const found = folders.parse(await action({ args: undefined, session: null }));
+
+        assert.ok(found.find((entry) => entry.cwd === dir)?.tabs.some((t) => t.id === tab));
     });
 
     void it("keeps a stopped tab for a new shell, and drops a removed one", async () => {

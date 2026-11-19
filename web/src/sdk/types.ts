@@ -289,6 +289,26 @@ export type SessionRowItem = {
     component: ComponentType<SessionItemProps>;
 };
 
+export type SidebarFolderProps = {
+    /** The folder the header names. */
+    cwd: string;
+    /**
+     * Opens one of this extension's own pages (`id` is the page's `id`), at `sub` when given, in a session
+     * of this folder: the open one when it works here, else the newest. Nothing when none works in it.
+     */
+    openPage: (id: string, sub?: string) => void;
+};
+
+/**
+ * A control an extension draws on a folder header of the sidebar, between the session count and the
+ * `⋯`. Small: an icon button (`size="icon-sm"`) fits, and nothing is drawn when there is nothing to show.
+ */
+export type SidebarFolderItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<SidebarFolderProps>;
+};
+
 /** The mark of a tool the extension registers, on that tool's steps in the transcript. */
 export type ToolIcon = {
     /** The tool's name, as the model calls it. */
@@ -321,6 +341,7 @@ export type WebExtension = {
     sessionMenu?: SessionMenuItem[];
     sessionRow?: SessionRowItem[];
     sessionFilter?: SessionFilterItem[];
+    sidebarFolder?: SidebarFolderItem[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

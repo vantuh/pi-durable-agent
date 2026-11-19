@@ -363,6 +363,17 @@ by folder, so a folder with none left disappears, and the count in a folder head
 `extensions/tags` draws a filter icon there that opens a checklist of tags, counts the chosen ones
 on the icon, and keeps every session that carries at least one chosen tag.
 
+### Items on folder headers
+
+`web.tsx` may export `sidebarFolder: [{ id, component }]`. The component is drawn on every folder
+header of the sidebar, between the session count and the `⋯`, inside an error boundary, and not on
+the header of sessions without a folder. It gets `cwd`, the header's folder, and `openPage(id, sub?)`,
+which opens one of the extension's own pages in a session of that folder: the open session when it
+works there, else the folder's newest one that is not archived, and nothing when none works in the
+folder itself (a folder whose sessions all sit in its worktrees). An icon button (`size="icon-sm"`)
+fits; an extension with nothing to say about the folder draws nothing. `extensions/terminal` draws
+the folder's terminal count there, with a list of its tabs.
+
 ### Options in the new-session picker
 
 `web.tsx` may export `newSession: [{ id, component, blocked, omit, place }]`. Each option is drawn in

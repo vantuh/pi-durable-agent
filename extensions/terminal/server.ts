@@ -15,7 +15,7 @@ import { spawn, type IPty } from "node-pty";
 
 import { ActionError, type Action, type ActionCall, type Host } from "../../server/sdk.ts";
 import { recordOf } from "../../shared/guards.ts";
-import type { Output, Running, Size, Tab } from "./refs.ts";
+import type { FolderTabs, Output, Running, Size, Tab } from "./refs.ts";
 
 export const meta = {
     title: "Terminal",
@@ -344,13 +344,22 @@ export const actions = (host: Host): Record<string, Action> => {
         }
     });
 
+    const tabsOf = (folder: Folder): Tab[] =>
+        [...folder.shells].map(([id, shell]) => ({
+            id,
+            title: shell.running().foreground,
+            exited: shell.exited,
+        }));
+
     return {
         list(call): Tab[] {
-            return [...folderOf(call).shells].map(([id, shell]) => ({
-                id,
-                title: shell.running().foreground,
-                exited: shell.exited,
-            }));
+            return tabsOf(folderOf(call));
+        },
+
+        folders(): FolderTabs[] {
+            return [...folders.values()]
+                .filter((folder) => folder.shells.size > 0)
+                .map((folder) => ({ cwd: folder.cwd, tabs: tabsOf(folder) }));
         },
 
         create(call) {

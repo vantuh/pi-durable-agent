@@ -71,7 +71,7 @@ pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
   first thing that was asked, cut at 80 characters; a session with no known time shows none. A folder
   that is a git worktree has its sessions in the group of the folder it belongs to. Sessions with no folder
   are last, under `no folder`.
-- **Folders**: a header with a fold chevron, the folder's icon, its name and the count of its sessions.
+- **Folders**: a header with a fold chevron, the folder's icon, its name and the count of its sessions, then what extensions put there (`sidebarFolder`) before the `⋯`.
   A group shows its five newest sessions, indented under the header; `N more` opens the next five with the same motion as the fold,
   and `Less` goes back to five; they share the width of the rows. The open session is always reachable: its page opens by itself, and
   while searching every hit is open. A folded folder with a working or unseen session shows that session's

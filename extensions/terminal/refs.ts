@@ -2,8 +2,8 @@
  * What the terminal page and its server half agree on. Browser-safe: no imports beyond the shared ones.
  *
  * `seq` counts every character the shell has sent since it started, so a reader that says where it got
- * to gets the rest — the scrollback on attaching, one chunk per answer afterwards. Every call but `list`
- * and `create` names its `tab`: the shells belong to the session's folder, one per tab.
+ * to gets the rest — the scrollback on attaching, one chunk per answer afterwards. Every call but `list`,
+ * `folders` and `create` names its `tab`: the shells belong to the session's folder, one per tab.
  */
 
 import { actionRef } from "../../shared/extension-api.ts";
@@ -57,6 +57,29 @@ export const list = actionRef<undefined, Tab[]>("terminal", "list", (value) => {
     }
 
     throw new Error("not a list of terminal tabs");
+});
+
+/** One folder that has tabs, by its path: what the sidebar counts and offers on the folder's header. */
+export type FolderTabs = { cwd: string; tabs: Tab[] };
+
+function isFolderTabs(value: unknown): value is FolderTabs {
+    const tabs: unknown = isRecord(value) ? Reflect.get(value, "tabs") : undefined;
+
+    return (
+        isRecord(value) &&
+        typeof Reflect.get(value, "cwd") === "string" &&
+        Array.isArray(tabs) &&
+        tabs.every(isTab)
+    );
+}
+
+/** Every folder that has a tab, asked for no session in particular. */
+export const folders = actionRef<undefined, FolderTabs[]>("terminal", "folders", (value) => {
+    if (Array.isArray(value) && value.every(isFolderTabs)) {
+        return value;
+    }
+
+    throw new Error("not a list of folders with terminal tabs");
 });
 
 /** Starts a shell in a new tab of the session's folder, and answers the tab. */

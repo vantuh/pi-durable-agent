@@ -23,14 +23,14 @@ const lastTab = new Map<string, number>();
  * The folder's shells, one per tab. Only the active tab is mounted: each mounted shell holds a long-poll
  * open, and a browser allows six connections to one host.
  */
-export function TerminalPage({ session, close }: PageProps) {
+export function TerminalPage({ session, sub, back, close }: PageProps) {
     const id = session.id;
     const folder = session.cwd ?? "";
     // Keyed by session: another session's tabs are never drawn while this one's are on their way.
     const [data, setData] = useState<{ id: number; tabs: Tab[] } | null>(null);
     const tabs = data?.id === id ? data.tabs : null;
     const [, setPicked] = useState(0);
-    const chosen = lastTab.get(folder);
+    const chosen = sub === undefined ? lastTab.get(folder) : Number(sub);
     // A new shell is a new terminal: the effect starts again instead of reusing what the old one fitted.
     const [generation, setGeneration] = useState(0);
     const [problem, setProblem] = useState<string | null>(null);
@@ -44,6 +44,14 @@ export function TerminalPage({ session, close }: PageProps) {
         lastTab.set(folder, tab);
         setPicked(tab);
     };
+
+    // A sub is a tab picked from the sidebar: it becomes the folder's last tab, and the address drops it.
+    useEffect(() => {
+        if (sub !== undefined) {
+            lastTab.set(folder, Number(sub));
+            back();
+        }
+    }, [sub, folder, back]);
 
     useEffect(() => {
         let alive = true;
