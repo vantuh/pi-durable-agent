@@ -58,9 +58,12 @@ function subscribe(listener: () => void): () => void {
     };
 }
 
+/** Every folder that has a terminal tab; none while the first answer is out. */
+export function useAllFolderTabs(): readonly FolderTabs[] {
+    return useSyncExternalStore(subscribe, () => current);
+}
+
 /** The terminal tabs of one folder, oldest first; none while the first answer is out. */
 export function useFolderTabs(cwd: string): readonly Tab[] {
-    const all = useSyncExternalStore(subscribe, () => current);
-
-    return all.find((entry) => entry.cwd === cwd)?.tabs ?? NONE;
+    return useAllFolderTabs().find((entry) => entry.cwd === cwd)?.tabs ?? NONE;
 }

@@ -262,6 +262,7 @@ export function App() {
                             onSessions={() => {
                                 setSheet(true);
                             }}
+                            onOpenPage={openFromFolder}
                         />
                     ) : (
                         <>

@@ -309,6 +309,24 @@ export type SidebarFolderItem = {
     component: ComponentType<SidebarFolderProps>;
 };
 
+export type HomeProps = {
+    /**
+     * Opens one of this extension's own pages (`id` is the page's `id`), at `sub` when given, in the newest
+     * session of the folder `cwd` that is not archived. Nothing when none works in that folder.
+     */
+    openPage: (cwd: string, id: string, sub?: string) => void;
+};
+
+/**
+ * A group on the home page, in the column beside the sessions (under them on a phone): a `GroupHeading` and rows in the home rows' look. It renders
+ * nothing when it has nothing to show.
+ */
+export type HomeItem = {
+    id: string;
+    /** A plain function component: a `memo` or `forwardRef` object is rejected. */
+    component: ComponentType<HomeProps>;
+};
+
 /** The mark of a tool the extension registers, on that tool's steps in the transcript. */
 export type ToolIcon = {
     /** The tool's name, as the model calls it. */
@@ -342,6 +360,7 @@ export type WebExtension = {
     sessionRow?: SessionRowItem[];
     sessionFilter?: SessionFilterItem[];
     sidebarFolder?: SidebarFolderItem[];
+    home?: HomeItem[];
 };
 
 /** A details.tsx component in the Extensions dialog, also available while disabled. */

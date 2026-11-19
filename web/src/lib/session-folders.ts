@@ -85,6 +85,23 @@ export function cwdsOf(row: FolderRow): string[] {
 /** The group of sessions that have no folder. A path is absolute, so no real folder is named like this. */
 export const LOOSE = "no folder";
 
+/**
+ * The session an extension's page about a folder opens in: the open one when it works in the folder, else
+ * the folder's newest that is not archived. Undefined when none works in the folder itself.
+ */
+export function folderSession(
+    sessions: readonly SessionSummary[],
+    current: number | null,
+    cwd: string,
+): SessionSummary | undefined {
+    return (
+        sessions.find((each) => each.id === current && each.cwd === cwd) ??
+        sessions
+            .filter((each) => each.cwd === cwd && !each.archived)
+            .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0))[0]
+    );
+}
+
 /** Sessions a folder shows before "more", and the step of each "more". */
 export const FOLDER_PAGE = 5;
 

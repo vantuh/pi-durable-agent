@@ -33,7 +33,7 @@ animation stay with the caller. The transcript's header and a page's are the oth
 
 `/` is the home page, in place of the conversation and composer: every session from every folder
 that is not archived, under `Working`, `Not viewed`, and `Recent` (the newest 20). A row shows its
-mark, title, folder and time. `?session=N` is a session; moving between them adds a history step,
+mark, title, folder and time. Extensions' groups (`home`) fill a column to the right of them, under them on a phone; with none to show the sessions stay centred. `?session=N` is a session; moving between them adds a history step,
 so Back returns home. There is no router: two places do not need one, and these are the links
 pushes already send. See [sessions.md](sessions.md#home-status-bar-notices).
 

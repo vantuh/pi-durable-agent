@@ -374,6 +374,14 @@ folder itself (a folder whose sessions all sit in its worktrees). An icon button
 fits; an extension with nothing to say about the folder draws nothing. `extensions/terminal` draws
 the folder's terminal count there, with a list of its tabs.
 
+### Groups on the home page
+
+`web.tsx` may export `home: [{ id, component }]`. Each group is drawn on the home page in a column of
+its own, 320px wide beside the sessions from `lg` up and under them below it, inside an error boundary, and draws itself: a `GroupHeading` and rows in the home rows' look. It gets
+`openPage(cwd, id, sub?)`, which opens one of the extension's own pages in the newest session of that
+folder that is not archived, and does nothing when none works in it. A group with nothing to show
+renders nothing. `extensions/terminal` lists every folder's terminal tabs there.
+
 ### Options in the new-session picker
 
 `web.tsx` may export `newSession: [{ id, component, blocked, omit, place }]`. Each option is drawn in

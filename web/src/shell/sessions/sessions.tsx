@@ -30,6 +30,7 @@ import { isSheet, watchSheet } from "@/lib/narrow.ts";
 import {
     cwdsOf,
     FOLDER_PAGE,
+    folderSession,
     groupByFolder,
     isSection,
     layoutOrder,
@@ -125,14 +126,9 @@ export const Sessions = memo(function Sessions({
         },
         [onSelect, stopSearch],
     );
-    // The open session when it works in the folder, else the folder's newest: where its terminal or history belongs.
     const openInFolder = useCallback(
         (cwd: string, key: string, sub?: string): void => {
-            const target =
-                sessions.find((each) => each.id === current && each.cwd === cwd) ??
-                sessions
-                    .filter((each) => each.cwd === cwd && !each.archived)
-                    .toSorted((left, right) => (right.activeAt ?? 0) - (left.activeAt ?? 0))[0];
+            const target = folderSession(sessions, current, cwd);
 
             if (target !== undefined) {
                 onOpenPage(target.id, key, sub);

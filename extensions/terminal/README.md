@@ -15,6 +15,9 @@ never sees them: no tools, prompt sections or hooks.
   the Terminal page on that tab, in the open session when it works in the folder, else the folder's
   newest. The headers read one list of every folder's tabs (`folders`), polled every 3 seconds while
   the page is shown, so a new tab shows there within that time.
+- **From the home page.** In the column right of the sessions (under them on a phone), a Terminals group lists every folder that has tabs, by the
+  folder's own name, with its tabs under it; a row opens the Terminal page on that tab, in the
+  folder's newest session. It reads the same list the sidebar does.
 - **Tabs.** `+` starts a new shell in a new tab; a tab's title is what runs in it now (`zsh`, `node`,
   `nvim`), re-read every 2 seconds. Close (the `×` in the toolbar) ends the tab's shell and the tab;
   closing the last tab returns to the conversation. Each tab also has its own `×` beside its title,
