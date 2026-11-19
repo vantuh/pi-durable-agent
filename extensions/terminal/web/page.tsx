@@ -11,6 +11,7 @@ import type { PageProps } from "@/sdk/types.ts";
 import { messageOf } from "../../../shared/guards.ts";
 import { GONE, type Tab, create, list, remove, state } from "../refs.ts";
 import { Shell } from "./shell.tsx";
+import { showTab } from "./shown-tab.ts";
 import { StopDialog } from "./stop-dialog.tsx";
 
 /** How often the tabs are re-read: a title follows what runs in it, and another session may add a tab. */
@@ -94,6 +95,20 @@ export function TerminalPage({ session, sub, back, close }: PageProps) {
     }, [id, poke]);
 
     const active = tabs?.find((tab) => tab.id === chosen) ?? tabs?.[0];
+    const shownId = active?.id;
+
+    // The sidebar marks the tab on screen in its folder's list.
+    useEffect(() => {
+        if (shownId === undefined) {
+            return undefined;
+        }
+
+        showTab({ cwd: folder, tab: shownId });
+
+        return () => {
+            showTab(null);
+        };
+    }, [folder, shownId]);
 
     const added = async (): Promise<void> => {
         try {

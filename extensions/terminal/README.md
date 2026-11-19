@@ -13,7 +13,8 @@ never sees them: no tools, prompt sections or hooks.
 - **From the sidebar.** A folder with tabs shows a terminal icon on its header with their count.
   Hovering it with a mouse opens the list of its tabs (a tap or Enter opens it too); picking one opens
   the Terminal page on that tab, in the open session when it works in the folder, else the folder's
-  newest. The headers read one list of every folder's tabs (`folders`), polled every 3 seconds while
+  newest. While the Terminal page is open, the tab on screen is filled in its folder's list, as the
+  open session's row is. The headers read one list of every folder's tabs (`folders`), polled every 3 seconds while
   the page is shown, so a new tab shows there within that time.
 - **From the home page.** In the column right of the sessions (under them on a phone), a Terminals group lists every folder that has tabs, by the
   folder's own name, with its tabs under it; a row opens the Terminal page on that tab, in the

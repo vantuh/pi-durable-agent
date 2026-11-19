@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { SidebarFolderProps } from "@/sdk/types.ts";
 
 import { TERMINAL_PAGE } from "../refs.ts";
+import { useShownTab } from "./shown-tab.ts";
 import { useFolderTabs } from "./use-folder-tabs.ts";
 
 /** How long the menu waits for the pointer to cross from the icon to the menu, or back, before it closes. */
@@ -19,6 +20,7 @@ const LEAVE_MS = 150;
  */
 export function FolderTerminals({ cwd, openPage }: SidebarFolderProps) {
     const tabs = useFolderTabs(cwd);
+    const shown = useShownTab(cwd);
     const [open, setOpen] = useState(false);
     const leaving = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     // Opened by hover, the list leaves the keyboard where it was: the composer keeps its caret.
@@ -100,12 +102,21 @@ export function FolderTerminals({ cwd, openPage }: SidebarFolderProps) {
                     }
                 }}
             >
-                <Command ref={list} label="Terminals" className="outline-none">
+                <Command
+                    ref={list}
+                    label="Terminals"
+                    // The keys start from the tab on screen, so only one row fills when the list opens.
+                    {...(shown === null ? {} : { defaultValue: String(shown) })}
+                    className="outline-none"
+                >
                     <CommandList label="Terminals">
                         {tabs.map((tab) => (
                             <CommandItem
                                 key={tab.id}
                                 value={String(tab.id)}
+                                aria-current={tab.id === shown ? "page" : undefined}
+                                // The tab on screen fills as the open session's row does; the pointer's row only whispers.
+                                className="data-[selected=true]:bg-raised/50 aria-[current=page]:bg-raised aria-[current=page]:data-[selected=true]:bg-raised"
                                 onSelect={() => {
                                     setOpen(false);
                                     openPage(TERMINAL_PAGE, String(tab.id));
