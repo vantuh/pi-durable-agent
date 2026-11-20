@@ -16,7 +16,8 @@ const LEAVE_MS = 150;
 
 /**
  * The folder's terminal tabs on its sidebar header: the icon with their count, and a list of them that a mouse
- * opens on hover and a finger or a key opens with a tap or Enter. A folder without a tab shows nothing.
+ * opens on hover and a finger or a key opens with a tap or Enter. A mouse click skips the list: it opens the
+ * Terminal page on the folder's last tab shown. A folder without a tab shows nothing.
  */
 export function FolderTerminals({ cwd, openPage }: SidebarFolderProps) {
     const tabs = useFolderTabs(cwd);
@@ -69,11 +70,12 @@ export function FolderTerminals({ cwd, openPage }: SidebarFolderProps) {
                         mouse.current = event.pointerType === "mouse";
                     }}
                     onClick={(event) => {
-                        // Hover already opened it: a mouse click must not toggle it shut again.
+                        // The list is the hover's: a mouse click goes to the terminal, and the page picks the last tab shown.
                         if (mouse.current) {
                             mouse.current = false;
                             event.preventDefault();
-                            setOpen(true);
+                            setOpen(false);
+                            openPage(TERMINAL_PAGE);
                         }
                     }}
                 >
