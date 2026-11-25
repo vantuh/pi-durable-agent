@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 import {
     AlertDialog,
     AlertDialogAction,
@@ -23,6 +25,8 @@ const VERB = { stop: "stop", restart: "restart", remove: "close" } as const;
     /** The dialog took the keyboard from the terminal; this gives it back. */
     onCloseFocus: () => void;
 }) {
+    const confirmRef = useRef<HTMLButtonElement>(null);
+
     return (
         <AlertDialog
             open
@@ -33,6 +37,11 @@ const VERB = { stop: "stop", restart: "restart", remove: "close" } as const;
             }}
         >
             <AlertDialogContent
+                onOpenAutoFocus={(event) => {
+                    // Enter confirms: focus the answer, not Cancel.
+                    event.preventDefault();
+                    confirmRef.current?.focus();
+                }}
                 onCloseAutoFocus={(event) => {
                     event.preventDefault();
                     onCloseFocus();
@@ -49,6 +58,8 @@ const VERB = { stop: "stop", restart: "restart", remove: "close" } as const;
                 <AlertDialogFooter>
                     <AlertDialogCancel>No</AlertDialogCancel>
                     <AlertDialogAction
+                        ref={confirmRef}
+                        className="focus:ring-accent focus:ring-2"
                         onClick={(event) => {
                             event.preventDefault();
                             onConfirm();
