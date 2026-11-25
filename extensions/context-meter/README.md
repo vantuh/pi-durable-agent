@@ -10,8 +10,8 @@ context holds: the system prompt sections and the tools, each with its size.
   largest row, not to the window, so a 300-token tool stays visible next to a 40,000-token prompt.
 - Two or more tools from the same extension fold into one row named after the folder; a lone tool
   keeps its own row.
-- Nothing is shown when there is nothing honest to show: a session with a question but no answer
-  yet, one whose model the catalog does not know, or one the server cannot build a prompt for.
+- Nothing is shown while only the question has committed (the system prompt lands in a second
+  commit), for a session the server cannot build a breakdown for, or one whose model it cannot name.
 
 ## Behavior
 
@@ -19,7 +19,9 @@ context holds: the system prompt sections and the tools, each with its size.
   carry (every section the extensions render, and the tool declarations the agent offers) at 3.5
   characters per token. The number is prefixed with `≈` and the popover says so. Nothing is sent or
   written to the transcript, and edits to the prompt, model or folder show up when the popover is
-  opened again.
+  opened again. While the first request is in flight — the question committed but no answer yet — the
+  same estimate shows: the rows are the committed system prompt and tools and `used` is their sum plus
+  the question, so the chip does not blink out between the question and the answer.
 - **After that it is the last answer the provider priced:** `input + output + cacheRead +
   cacheWrite` over the model's context window. A failed request, or one stopped before its stream
   started, carries only zeros; the meter keeps the last priced answer.
@@ -34,7 +36,10 @@ context holds: the system prompt sections and the tools, each with its size.
 - It uses `host.sessionPrompt(session)` for the pre-request prompt (it answers nothing once the
   session has entries), `host.sessionContext(session)` for the entries the next request is built from
   (a commit's `entries` is only the view's window of 50 to 100 and leaves out the system entries and
-  the first answer), plus `host.contextWindow` and `host.toolOwner`.
+  the first answer), plus `host.contextWindow`, `host.toolOwner` and `host.sessionRequest` for the
+  model and window of a request in flight, which no answer has priced yet. The server half watches
+  commits and nudges the browser (`host.notifySessionChanged`) when the system prompt lands mid-run;
+  the browser re-fetches on the revision it moves.
 
 ## Limits
 

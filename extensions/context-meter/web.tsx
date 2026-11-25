@@ -102,7 +102,9 @@ function Group({ title, unit, parts }: { title: string; unit: string; parts: Par
 function Popup({ data }: { data: Breakdown }) {
     const fill = data.window > 0 ? data.used / data.window : 0;
     const note = data.estimate
-        ? "Estimate: nothing has been sent yet. These are the system prompt and tools the first request will carry, at 3.5 characters per token."
+        ? data.pending
+            ? "Estimate: not priced by the model yet. These are the system prompt and tools, at 3.5 characters per token; the question is in the total, not the rows."
+            : "Estimate: nothing has been sent yet. These are the system prompt and tools the first request will carry, at 3.5 characters per token."
         : data.calibrated
           ? "Approximate: sizes are scaled to the model's own count of the first request."
           : "Approximate: 3.5 characters per token, not the model's own count.";
@@ -155,6 +157,7 @@ function Context({ session }: StatusProps) {
     const busy = session?.busy ?? false;
     const model = session?.model ?? null;
     const cwd = session?.cwd ?? null;
+    const revision = session?.revision ?? 0;
 
     useEffect(() => {
         if (id === null) {
@@ -180,8 +183,8 @@ function Context({ session }: StatusProps) {
         return () => {
             alive = false;
         };
-        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) commits a new answer; opening reads a prompt that may have changed with the model, the folder or the extensions
-    }, [id, busy, model, cwd, open]);
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a run ending (busy going false) commits a new answer; the revision is told by the server half when the system prompt lands; opening reads a prompt that may have changed with the model, the folder or the extensions
+    }, [id, busy, model, cwd, open, revision]);
 
     if (data === null || data.window <= 0) {
         return null;

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import type { Api, AssistantMessage, Model, StopReason, Tool, Usage } from "@earendil-works/pi-ai";
 import type { EntryRecord } from "@earendil-works/pi-durable";
 
-import type { CommitListener, Host, SessionPrompt } from "../../server/sdk.ts";
+import type { CommitListener, Host, SessionPrompt, SessionRequest } from "../../server/sdk.ts";
 import { testHost } from "../../test/fixtures/host.ts";
 import { breakdown as breakdownRef } from "./refs.ts";
 import contextMeter, { actions } from "./server.ts";
@@ -122,12 +122,14 @@ async function breakdownOf(
     entries: readonly EntryRecord[],
     prompt?: SessionPrompt,
     window = entries.length,
+    request?: SessionRequest,
 ) {
     const listeners: CommitListener[] = [];
 
     contextMeter({
         ...host,
         sessionPrompt: () => Promise.resolve(prompt),
+        sessionRequest: () => Promise.resolve(request),
         sessionContext: () => Promise.resolve(entries),
         onCommit: (listener) => listeners.push(listener),
     });
@@ -287,6 +289,7 @@ void test("shows what a session with nothing in it will send, marked as an estim
     );
 
     assert.equal(full?.estimate, true);
+    assert.equal(full?.pending, false);
     assert.equal(full?.calibrated, false);
     assert.equal(full?.model, "anthropic/claude-opus-4");
     assert.equal(full?.window, WINDOW);
@@ -318,10 +321,65 @@ void test("has nothing to show when the core cannot name the session's model", a
     assert.equal(await breakdownOf(6, []), null);
 });
 
-void test("has nothing to show for a session that holds a question but no priced answer", async () => {
-    // The first question is already in the context: the first request's prompt would leave it out.
+void test("shows what the in-flight first request carries, estimated", async () => {
+    // The question commits first; the harness renders and commits the system prompt in a second commit.
+    const full = await breakdownOf(
+        7,
+        [asked(1, "read the whole repository"), prompted(2, ["agent_spawn", "agent_send", "bash"])],
+        undefined,
+        undefined,
+        { model: MODEL, messages: [], send: () => Promise.reject(new Error("not sent")) },
+    );
+
+    const rows = [...(full?.sections ?? []), ...(full?.tools ?? [])];
+    const question = Math.ceil("read the whole repository".length / 3.5);
+
+    assert.equal(full?.estimate, true);
+    assert.equal(full?.pending, true);
+    assert.equal(full?.calibrated, false);
+    assert.equal(full?.model, "anthropic/claude-opus-4");
+    assert.equal(full?.window, WINDOW);
+    assert.deepEqual(
+        full?.tools.map((row) => row.name),
+        ["subagents", "bash"],
+    );
+    // The question is counted in the total, but has no row of its own.
+    assert.equal(full?.used, rows.reduce((sum, part) => sum + part.tokens, 0) + question);
+});
+
+void test("has nothing to show for an in-flight request the core cannot name a model for", async () => {
     assert.equal(
-        await breakdownOf(7, [asked(7, "read the whole repository")], promptOf([], ["bash"])),
+        await breakdownOf(7, [asked(1, "read the whole repository"), prompted(2, ["bash"])]),
         null,
+    );
+});
+
+void test("has nothing to show while only the question has committed", async () => {
+    // The system prompt lands in a second commit; until it lands there is nothing but the question.
+    assert.equal(await breakdownOf(7, [asked(1, "read the whole repository")]), null);
+});
+
+void test("counts a subagent's instruction, which carries a user message under its own kind", async () => {
+    const instruction = entry({
+        id: 2,
+        conversationId: 7,
+        kind: "subagents.instruction",
+        model: [{ role: "user", content: "do the whole job", timestamp: 0 }],
+    });
+    const full = await breakdownOf(
+        7,
+        [asked(1, "read the whole repository"), instruction, prompted(3, ["bash"])],
+        undefined,
+        undefined,
+        { model: MODEL, messages: [], send: () => Promise.reject(new Error("not sent")) },
+    );
+
+    const rows = [...(full?.sections ?? []), ...(full?.tools ?? [])];
+    const question = Math.ceil("read the whole repository".length / 3.5);
+    const instructionTokens = Math.ceil("do the whole job".length / 3.5);
+
+    assert.equal(
+        full?.used,
+        rows.reduce((sum, part) => sum + part.tokens, 0) + question + instructionTokens,
     );
 });

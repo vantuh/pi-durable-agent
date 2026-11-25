@@ -2,7 +2,8 @@
  * How full the context is, under the composer: the last answer's tokens (prompt, cache,
  * and output: what the next request starts from) over the model's context window. Hovering it opens
  * what the context holds: system prompt sections and tools, with estimated sizes. Before a session's
- * first request it holds what that request will carry, estimated, and says so.
+ * first request it holds what that request will carry, estimated, and says so; a request in flight
+ * with no priced answer yet shows the estimate too.
  */
 
 import { defineExtension, type EntryRecord } from "@earendil-works/pi-durable";
@@ -23,6 +24,9 @@ let contextOf: Host["sessionContext"] = () => Promise.resolve(undefined);
 let windowOf: Host["contextWindow"] = () => undefined;
 let ownerOf: Host["toolOwner"] = () => undefined;
 let renderPrompt: Host["sessionPrompt"] = () => Promise.resolve(undefined);
+let requestOf: Host["sessionRequest"] = () => Promise.resolve(undefined);
+/** Sessions the first request just landed for, so the browser re-fetches the meter once per run. */
+const notified = new Set<number>();
 
 const estimate = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
 
@@ -190,7 +194,28 @@ export default function contextMeter(host: Host) {
     windowOf = host.contextWindow;
     ownerOf = host.toolOwner;
     renderPrompt = host.sessionPrompt;
+    requestOf = host.sessionRequest;
     contextOf = host.sessionContext;
+
+    // The question commits and the system prompt lands in a second commit: until it lands the chip has
+    // nothing but the question to show, then it has the prompt. The revision nudge refetches the browser.
+    host.onCommit((view) => {
+        if (!view.busy) {
+            notified.delete(view.session.id);
+            return;
+        }
+
+        if (notified.has(view.session.id)) {
+            return;
+        }
+
+        if (!view.entries.some((entry) => entry.kind === "pi.system")) {
+            return;
+        }
+
+        notified.add(view.session.id);
+        host.notifySessionChanged(view.session.id);
+    });
 
     return defineExtension({ name: host.name });
 }
@@ -224,6 +249,62 @@ async function initialOf(session: number): Promise<Breakdown | null> {
         window: prompt.model.contextWindow,
         calibrated: false,
         estimate: true,
+        pending: false,
+        sections,
+        tools: groupTools(tools, ownerOf),
+    };
+}
+
+/**
+ * The context of a request in flight: the system prompt and tools the harness just committed, plus the
+ * question, all estimated from the entries' own text. The model comes from the request the core would send,
+ * since no answer has priced the context yet.
+ */
+async function pendingOf(
+    session: number,
+    entries: readonly EntryRecord[],
+): Promise<Breakdown | null> {
+    // The system prompt lands in a second commit, after the question: a view holding only the question
+    // has nothing but it to show.
+    if (!entries.some((entry) => entry.kind === "pi.system")) {
+        return null;
+    }
+
+    const request = await requestOf(session);
+
+    if (request === undefined) {
+        return null;
+    }
+
+    const { sections, tools } = promptOf(entries);
+    let question = 0;
+
+    for (const entry of entries) {
+        const message = entry.model?.[0];
+
+        // Any entry carrying a user message counts: a subagent instruction is filed under its own kind.
+        if (message?.role !== "user") {
+            continue;
+        }
+
+        const content = message.content;
+
+        if (typeof content === "string") {
+            question += estimate(content);
+        } else {
+            question += estimate(
+                content.map((block) => (block.type === "text" ? block.text : "")).join(""),
+            );
+        }
+    }
+
+    return {
+        model: `${request.model.provider}/${request.model.id}`,
+        used: [...sections, ...tools].reduce((sum, part) => sum + part.tokens, 0) + question,
+        window: request.model.contextWindow,
+        calibrated: false,
+        estimate: true,
+        pending: true,
         sections,
         tools: groupTools(tools, ownerOf),
     };
@@ -233,17 +314,22 @@ export const actions: Record<string, Action> = {
     async breakdown({ session }): Promise<Breakdown | null> {
         // Not a commit's `entries`, which is a window of the newest 50 to 100: the rows replay the system
         // entries from the start and calibrate on the first answer.
-        const entries = session === null ? undefined : await contextOf(session.id);
+        const sessionId = session?.id;
+        const entries = sessionId === undefined ? undefined : await contextOf(sessionId);
 
-        if (session !== null && entries?.length === 0) {
-            return await initialOf(session.id);
+        if (sessionId === undefined || entries === undefined) {
+            return null;
         }
 
-        const last = entries?.findLast((entry) => entry.kind === "pi.assistant" && counted(entry))
+        if (entries.length === 0) {
+            return await initialOf(sessionId);
+        }
+
+        const last = entries.findLast((entry) => entry.kind === "pi.assistant" && counted(entry))
             ?.model?.[0];
 
-        if (entries === undefined || last?.role !== "assistant") {
-            return null;
+        if (last?.role !== "assistant") {
+            return await pendingOf(sessionId, entries);
         }
 
         const { input, output, cacheRead, cacheWrite } = last.usage;
@@ -260,6 +346,7 @@ export const actions: Record<string, Action> = {
             window: windowOf(last.provider, last.model) ?? 0,
             calibrated: scale !== undefined,
             estimate: false,
+            pending: false,
             sections: sections.map(scaled),
             tools: groupTools(tools.map(scaled), ownerOf),
         };

@@ -10,10 +10,12 @@ export type Breakdown = {
     /** Sizes are scaled to the model's own count of the first request; otherwise raw estimates. */
     calibrated: boolean;
     /**
-     * Nothing has been sent yet: the rows are the system prompt and tools the first request will carry,
+     * Not yet priced by the model: the rows are the system prompt and tools the request carries,
      * estimated from their text, and `used` is their sum rather than a count the model gave.
      */
     estimate: boolean;
+    /** A question is sent but no answer has priced the context; only with `estimate`. */
+    pending: boolean;
     sections: Part[];
     tools: Part[];
 };
@@ -47,6 +49,7 @@ function isBreakdown(value: unknown): value is Breakdown {
         typeof Reflect.get(value, "window") === "number" &&
         typeof Reflect.get(value, "calibrated") === "boolean" &&
         typeof Reflect.get(value, "estimate") === "boolean" &&
+        typeof Reflect.get(value, "pending") === "boolean" &&
         Array.isArray(sections) &&
         sections.every(isPart) &&
         Array.isArray(tools) &&
@@ -56,7 +59,7 @@ function isBreakdown(value: unknown): value is Breakdown {
 
 /**
  * What the conversation's context holds: the system prompt sections and tools, and how full it is. Null
- * for a session with no answer yet that has anything in it, or one the server cannot name a model for.
+ * for a session the server does not know, or one whose request in flight the server cannot name a model for.
  */
 export const breakdown = actionRef<undefined, Breakdown | null>(
     "context-meter",
